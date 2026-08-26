@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-Hans" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VLMSnapper · 统一管理中心</title>
+  <link rel="stylesheet" href="../_shared/vlmsnapper-shell.css">
+  <!-- Demo harness: theme control is not product UI. -->
+  <style>
+    .menu-entry { width: 27px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; color: var(--accent-text); background: var(--surface-selected); }
+    .capture-mark { width: 14px; height: 12px; border: 1.7px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--menubar); }
+    .workspace { width: 100%; height: 100%; display: grid; place-items: center; padding: 34px 38px 78px; }
+    .management-window { width: min(1200px, 94vw); height: min(720px, calc(100vh - 130px)); display: grid; grid-template-rows: 46px 1fr; }
+    .window-titlebar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--line); }
+    .window-title { font-weight: 650; }
+    .management-content { min-width: 0; min-height: 0; display: grid; grid-template-rows: 58px 1fr; }
+    .content-toolbar { display: grid; grid-template-columns: auto minmax(300px, 1fr); align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--window); }
+    .toolbar-right { display: flex; justify-content: flex-end; }
+    .settings-title { display: none; font-weight: 650; }
+    body[data-page="settings"] .type-filter,
+    body[data-page="settings"] .search { display: none; }
+    body[data-page="settings"] .settings-title { display: block; }
+
+    .type-filter { display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--surface-strong); }
+    .filter-button { min-width: 78px; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--text-secondary); background: transparent; }
+    .filter-button:hover { background: var(--surface-hover); }
+    .filter-button.is-selected, .filter-button.is-selected:hover { color: var(--text); background: var(--surface); box-shadow: 0 1px 3px var(--shadow-soft), inset 0 0 0 1px var(--line); font-weight: 600; }
+    .search { width: min(290px, 28vw); height: 31px; display: flex; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+    .search input { min-width: 0; width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); }
+    .search input::placeholder { color: var(--text-tertiary); }
+
+    .management-grid { display: grid; grid-template-columns: 218px minmax(720px, 1fr); min-height: 0; }
+    .sidebar { min-width: 0; padding: 12px 9px; border-right: 1px solid var(--line); background: var(--surface-subtle); }
+    .sidebar-title { margin: 14px 9px 6px; color: var(--text-tertiary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .nav-item { width: 100%; min-height: 32px; display: flex; align-items: center; gap: 9px; margin-bottom: 2px; padding: 0 9px; border: 0; border-radius: 7px; color: var(--text-secondary); background: transparent; text-align: left; }
+    .nav-item:hover { background: var(--surface-hover); }
+    .nav-item.is-selected, .nav-item.is-selected:hover { color: var(--text); background: var(--surface-selected); font-weight: 600; }
+    .nav-count { margin-left: auto; color: var(--text-tertiary); font-size: 10px; }
+    .provider-summary { margin: 13px 8px 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+    .provider-summary strong { display: block; margin-bottom: 5px; font-size: 11px; }
+    .provider-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; color: var(--text-secondary); font-size: 10px; }
+
+    .page { display: none; min-width: 0; min-height: 0; }
+    body[data-page="history"] .page-history { display: grid; }
+    body[data-page="settings"] .page-settings { display: block; }
+    .page-history { grid-template-columns: 320px minmax(430px, 1fr); }
+    .history-list { min-width: 0; overflow: auto; border-right: 1px solid var(--line); background: var(--surface); }
+    .history-item { display: grid; grid-template-columns: 66px 1fr; gap: 10px; margin: 5px; padding: 9px; border: 1px solid transparent; border-radius: 9px; }
+    .history-item:hover { background: var(--surface-hover); }
+    .history-item.is-selected, .history-item.is-selected:hover { border-color: var(--line); background: var(--surface-selected); box-shadow: inset 0 0 0 1px var(--line); }
+    .history-copy { min-width: 0; }
+    .history-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .history-copy p { display: -webkit-box; overflow: hidden; margin: 4px 0 6px; color: var(--text-secondary); font-size: 10px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .item-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .history-empty { display: none; padding: 42px 24px; color: var(--text-secondary); text-align: center; }
+    .history-list.is-empty .history-empty { display: block; }
+    .history-list.is-empty .history-item { display: none; }
+
+    .detail { min-width: 0; min-height: 0; overflow: auto; padding: 16px; background: var(--surface-subtle); }
+    .detail-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); box-shadow: 0 3px 10px var(--shadow-soft); }
+    .detail-head { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 13px; border-bottom: 1px solid var(--line); }
+    .detail-body { padding: 15px; }
+    .capture-strip { height: 150px; display: grid; place-items: center; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--paper-ink); }
+    .capture-paper { width: 76%; }
+    .capture-paper strong { display: block; margin-bottom: 8px; font-family: Georgia, serif; font-size: 16px; }
+    .capture-paper span { display: block; width: 92%; height: 5px; margin: 6px 0; border-radius: 3px; background: var(--paper-line); }
+    .capture-paper span:nth-child(3) { width: 78%; }
+    .capture-paper span:nth-child(4) { width: 66%; }
+    .text-section + .text-section { margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .text-section h3 { margin: 0 0 7px; font-size: 12px; }
+    .text-section p { margin: 0; color: var(--text-secondary); font-size: 11px; line-height: 1.55; }
+
+    .page-settings { overflow: auto; padding: 22px; background: var(--surface-subtle); }
+    .settings-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin: 0 auto 18px; max-width: 850px; }
+    .settings-header h2 { margin: 0 0 5px; font-size: 18px; }
+    .settings-header p { margin: 0; color: var(--text-secondary); line-height: 1.5; }
+    .provider-grid { max-width: 850px; margin: auto; display: grid; gap: 12px; }
+    .provider-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+    .provider-card-head { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; }
+    .provider-name { display: flex; align-items: center; gap: 10px; }
+    .provider-logo { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 8px; color: var(--accent-text); background: var(--accent-soft); font-size: 11px; font-weight: 800; }
+    .provider-name strong { display: block; }
+    .provider-name span { color: var(--text-tertiary); font-size: 10px; }
+    .provider-body { display: grid; grid-template-columns: 1fr 1.25fr; gap: 14px; padding: 13px 14px 15px; border-top: 1px solid var(--line); background: var(--surface-subtle); }
+    .field label { display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 10px; font-weight: 650; }
+    .field-value { height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+    .field-value strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    .provider-card.is-collapsed .provider-body { display: none; }
+
+    @media (max-width: 1080px) {
+      .management-grid { grid-template-columns: 195px minmax(700px, 1fr); }
+      .page-history { grid-template-columns: 290px minmax(410px, 1fr); }
+      .filter-button { min-width: 68px; padding-inline: 9px; }
+      .content-toolbar { grid-template-columns: auto minmax(260px, 1fr); }
+    }
+  </style>
+</head>
+<body data-page="history" data-filter="all" data-shared-block="vlmsnapper-shell">
+  <main class="desktop">
+    <header class="mac-menubar" aria-label="macOS menu bar mock">
+      <div class="menubar-group"><strong>VLMSnapper</strong><span class="menubar-muted">文件</span><span class="menubar-muted">编辑</span></div>
+      <div class="menubar-group"><span class="menubar-muted">8月25日 周二</span><span>14:30</span><button class="menu-entry" aria-label="返回菜单栏面板" data-goto="companion-shell/menu-panel" data-goto-href="../companion-shell/prototype-companion-directions.html"><span class="capture-mark"></span></button></div>
+    </header>
+    <div class="workspace">
+      <article class="window management-window">
+        <header class="window-titlebar">
+          <div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="window-title">VLMSnapper</div>
+          <div></div>
+        </header>
+        <div class="management-grid">
+          <aside class="sidebar">
+            <div class="sidebar-title">资料库</div>
+            <button class="nav-item is-selected" data-page-button="history"><svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18v14H3zM8 6V4h8v2"/></svg>历史记录<span class="nav-count">128</span></button>
+            <button class="nav-item"><svg class="icon" viewBox="0 0 24 24"><path d="m12 17.3-5.6 3 1.1-6.3-4.6-4.5 6.4-.9L12 3l2.8 5.6 6.3.9-4.5 4.5 1 6.3z"/></svg>已钉住<span class="nav-count">12</span></button>
+            <div class="sidebar-title">设置中心</div>
+            <button class="nav-item" data-page-button="settings"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>Provider<span class="nav-count">3</span></button>
+            <button class="nav-item"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>通用设置</button>
+            <button class="nav-item"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>更新</button>
+            <div class="provider-summary"><strong>当前 Provider</strong><div class="provider-line"><span>DeepSeek</span><span class="badge">可用</span></div><div class="provider-line"><span>deepseek-v4-flash…</span><span>视觉</span></div></div>
+          </aside>
+
+          <section class="management-content">
+            <header class="content-toolbar">
+              <div class="type-filter" aria-label="记录类型过滤"><button class="filter-button is-selected" data-filter-button="all">全部</button><button class="filter-button" data-filter-button="extract">提取文字</button><button class="filter-button" data-filter-button="translate">翻译</button></div>
+              <div class="settings-title">Provider 设置</div>
+              <div class="toolbar-right"><label class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="history-search" type="search" placeholder="搜索原文或译文" aria-label="搜索历史记录"></label></div>
+            </header>
+            <section class="page page-history">
+            <div class="history-list" id="history-list">
+              <article class="history-item is-selected" data-type="translate" data-search="designing calm software 优秀的工具软件"><div class="thumb">Calm<br>Software</div><div class="history-copy"><strong>Designing Calm Software</strong><p>优秀的工具软件始终贴近任务本身，减少不必要的步骤。</p><div class="item-footer"><span class="badge">翻译</span><span class="meta">2 分钟前</span></div></div></article>
+              <article class="history-item" data-type="extract" data-search="vision api integration guide multimodal input"><div class="thumb">API<br>Guide</div><div class="history-copy"><strong>Vision API integration guide</strong><p>Send the original PNG as multimodal input and stream the response.</p><div class="item-footer"><span class="badge">提取文字</span><span class="meta">18 分钟前</span></div></div></article>
+              <article class="history-item" data-type="translate" data-search="provider request failed 请求被限流"><div class="thumb">429</div><div class="history-copy"><strong>Provider request failed</strong><p>请求被限流，请等待一分钟后手动重试。</p><div class="item-footer"><span class="badge error">翻译失败</span><span class="meta">1 小时前</span></div></div></article>
+              <article class="history-item" data-type="extract" data-search="quarterly model latency 首个文本耗时"><div class="thumb">Table</div><div class="history-copy"><strong>Quarterly model latency</strong><p>首个文本耗时与总耗时对比表。</p><div class="item-footer"><span class="badge warning">提取文字</span><span class="meta">昨天</span></div></div></article>
+              <div class="history-empty"><strong>没有匹配的记录</strong><p>尝试修改类型过滤或搜索关键词。</p></div>
+            </div>
+            <section class="detail"><article class="detail-card"><header class="detail-head"><div><strong>Designing Calm Software</strong><div class="meta">DeepSeek · deepseek-v4-flash-vision-exp</div></div><button class="icon-button" aria-label="复制"><svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button></header><div class="detail-body"><div class="capture-strip"><div class="capture-paper"><strong>Designing Calm Software</strong><span></span><span></span><span></span></div></div><section class="text-section"><h3>原文</h3><p>Good utility software stays close to the task. It reduces ceremony, preserves context, and makes the next action obvious.</p></section><section class="text-section"><h3>译文</h3><p>优秀的工具软件始终贴近任务本身。它减少不必要的步骤，保留上下文，并让下一步操作清晰可见。</p></section></div></article></section>
+            </section>
+
+            <section class="page page-settings">
+            <header class="settings-header"><div><h2>Provider</h2><p>配置在线视觉模型。API Key 保存在 Apple Keychain，模型列表来自对应 Provider。</p></div><button class="secondary-button">刷新全部模型</button></header>
+            <div class="provider-grid">
+              <article class="provider-card"><header class="provider-card-head"><div class="provider-name"><span class="provider-logo">DS</span><div><strong>DeepSeek</strong><span>当前 Provider</span></div></div><span class="badge">可用</span></header><div class="provider-body"><div class="field"><label>API Key</label><div class="field-value"><strong>••••••••••••••••4Kp9</strong><button class="icon-button" aria-label="修改 API Key"><svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/></svg></button></div></div><div class="field"><label>视觉模型</label><div class="field-value"><strong>deepseek-v4-flash-vision-exp</strong><svg class="icon" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></div></div></div></article>
+              <article class="provider-card is-collapsed"><header class="provider-card-head"><div class="provider-name"><span class="provider-logo">OA</span><div><strong>OpenAI</strong><span>已配置</span></div></div><span class="badge">可用</span></header><div class="provider-body"></div></article>
+              <article class="provider-card is-collapsed"><header class="provider-card-head"><div class="provider-name"><span class="provider-logo">G</span><div><strong>Gemini</strong><span>尚未配置</span></div></div><button class="secondary-button">配置</button></header><div class="provider-body"></div></article>
+            </div>
+            </section>
+          </section>
+        </div>
+      </article>
+    </div>
+  </main>
+  <div class="harness" data-demo-harness aria-label="演示控制，非产品界面"><span class="harness-label">演示·外观</span><button id="theme-control">切换深浅色</button></div>
+  <script>
+    const body = document.body;
+    const searchInput = document.querySelector('#history-search');
+    const historyList = document.querySelector('#history-list');
+
+    function setPage(page) {
+      body.dataset.page = page;
+      location.hash = page;
+      document.querySelectorAll('[data-page-button]').forEach((button) => {
+        button.classList.toggle('is-selected', button.dataset.pageButton === page);
+      });
+    }
+
+    function applyHistoryFilter() {
+      const type = body.dataset.filter;
+      const query = searchInput.value.trim().toLocaleLowerCase();
+      let visibleCount = 0;
+      document.querySelectorAll('.history-item').forEach((item) => {
+        const typeMatches = type === 'all' || item.dataset.type === type;
+        const searchMatches = !query || item.dataset.search.toLocaleLowerCase().includes(query);
+        const visible = typeMatches && searchMatches;
+        item.hidden = !visible;
+        if (visible) visibleCount += 1;
+      });
+      historyList.classList.toggle('is-empty', visibleCount === 0);
+    }
+
+    function setFilter(filter) {
+      body.dataset.filter = filter;
+      document.querySelectorAll('[data-filter-button]').forEach((button) => {
+        button.classList.toggle('is-selected', button.dataset.filterButton === filter);
+      });
+      applyHistoryFilter();
+    }
+
+    document.querySelectorAll('[data-page-button]').forEach((button) => { button.addEventListener('click', () => setPage(button.dataset.pageButton)); });
+    document.querySelectorAll('[data-filter-button]').forEach((button) => { button.addEventListener('click', () => setFilter(button.dataset.filterButton)); });
+    searchInput.addEventListener('input', applyHistoryFilter);
+    document.querySelector('#theme-control').addEventListener('click', () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; });
+    document.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-goto]');
+      if (!target) return;
+      if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: target.dataset.goto }, '*');
+      else if (target.dataset.gotoHref) location.href = target.dataset.gotoHref;
+    });
+
+    setFilter('all');
+    setPage(location.hash === '#settings' ? 'settings' : 'history');
+  </script>
+</body>
+</html>

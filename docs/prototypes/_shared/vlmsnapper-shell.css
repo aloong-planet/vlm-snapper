@@ -1,0 +1,186 @@
+:root {
+  color-scheme: light;
+  --desktop-top: #dce7f1;
+  --desktop-bottom: #b9c8d8;
+  --desktop-glow: rgba(255, 255, 255, 0.72);
+  --menubar: rgba(250, 252, 255, 0.8);
+  --window: rgba(249, 250, 252, 0.97);
+  --surface: #ffffff;
+  --surface-subtle: #f1f3f6;
+  --surface-hover: #e8ecf1;
+  --surface-selected: #dce6f5;
+  --surface-strong: #e2e6eb;
+  --text: #202329;
+  --text-secondary: #646b75;
+  --text-tertiary: #8a929d;
+  --line: rgba(56, 63, 73, 0.15);
+  --line-strong: rgba(56, 63, 73, 0.27);
+  --accent: #276bd8;
+  --accent-hover: #1f5fc4;
+  --accent-soft: #e6efff;
+  --accent-text: #1553b2;
+  --success: #20835b;
+  --success-soft: #e3f4ec;
+  --danger: #c34242;
+  --danger-soft: #fdeaea;
+  --warning: #a96609;
+  --warning-soft: #fff1d5;
+  --shadow: rgba(36, 44, 54, 0.22);
+  --shadow-soft: rgba(36, 44, 54, 0.11);
+  --paper: #fbfaf7;
+  --paper-ink: #34322e;
+  --paper-line: rgba(52, 50, 46, 0.18);
+  --traffic-red: #ff5f57;
+  --traffic-yellow: #febc2e;
+  --traffic-green: #28c840;
+  --focus: rgba(39, 107, 216, 0.42);
+  --on-accent: #ffffff;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --desktop-top: #27303a;
+  --desktop-bottom: #13181f;
+  --desktop-glow: rgba(84, 104, 126, 0.38);
+  --menubar: rgba(25, 29, 35, 0.8);
+  --window: rgba(35, 38, 44, 0.97);
+  --surface: #2b2f36;
+  --surface-subtle: #24282e;
+  --surface-hover: #343a43;
+  --surface-selected: #314361;
+  --surface-strong: #3a3f47;
+  --text: #f2f3f5;
+  --text-secondary: #b4bac3;
+  --text-tertiary: #858d98;
+  --line: rgba(229, 233, 240, 0.13);
+  --line-strong: rgba(229, 233, 240, 0.24);
+  --accent: #6ba3f7;
+  --accent-hover: #83b2f8;
+  --accent-soft: #283e60;
+  --accent-text: #9bc0ff;
+  --success: #62c596;
+  --success-soft: #203d33;
+  --danger: #ff8080;
+  --danger-soft: #4a292c;
+  --warning: #efb45f;
+  --warning-soft: #483821;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-soft: rgba(0, 0, 0, 0.28);
+  --paper: #dddcd7;
+  --paper-ink: #34322e;
+  --paper-line: rgba(52, 50, 46, 0.18);
+  --traffic-red: #ff5f57;
+  --traffic-yellow: #febc2e;
+  --traffic-green: #28c840;
+  --focus: rgba(107, 163, 247, 0.5);
+  --on-accent: #ffffff;
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; min-width: 980px; height: 100%; min-height: 680px; margin: 0; }
+body {
+  overflow: hidden;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-size: 13px;
+  background:
+    radial-gradient(circle at 28% 12%, var(--desktop-glow), transparent 34%),
+    linear-gradient(155deg, var(--desktop-top), var(--desktop-bottom));
+}
+button, input { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.desktop { position: relative; width: 100%; height: 100%; padding-top: 28px; }
+.mac-menubar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--menubar);
+  backdrop-filter: blur(20px);
+  font-size: 12px;
+  font-weight: 600;
+}
+.menubar-group { display: flex; align-items: center; gap: 18px; }
+.menubar-muted { color: var(--text-secondary); font-weight: 500; }
+.window {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--window);
+  box-shadow: 0 24px 70px var(--shadow), 0 3px 12px var(--shadow-soft);
+  backdrop-filter: blur(28px);
+}
+.traffic { display: flex; gap: 8px; }
+.traffic > span { width: 12px; height: 12px; border-radius: 50%; }
+.traffic > span:nth-child(1) { background: var(--traffic-red); }
+.traffic > span:nth-child(2) { background: var(--traffic-yellow); }
+.traffic > span:nth-child(3) { background: var(--traffic-green); }
+.icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.icon-button:hover { color: var(--text); background: var(--surface-hover); }
+.icon-button:active { background: var(--surface-selected); }
+.secondary-button, .primary-button {
+  height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-weight: 600;
+}
+.secondary-button { border: 1px solid var(--line-strong); background: var(--surface); }
+.secondary-button:hover { background: var(--surface-hover); }
+.primary-button { border: 1px solid var(--accent); color: var(--on-accent); background: var(--accent); }
+.primary-button:hover { background: var(--accent-hover); }
+.badge { padding: 3px 6px; border-radius: 5px; color: var(--success); background: var(--success-soft); font-size: 10px; }
+.badge.error { color: var(--danger); background: var(--danger-soft); }
+.badge.warning { color: var(--warning); background: var(--warning-soft); }
+.meta { color: var(--text-tertiary); font-size: 10px; }
+.thumb { height: 48px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--paper-ink); font-family: Georgia, serif; font-size: 8px; }
+.harness {
+  position: fixed;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  width: fit-content;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #f6f7f9;
+  background: rgba(22, 25, 30, 0.94);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34);
+  font-size: 12px;
+}
+.harness-label { padding: 0 3px; color: #aeb5bf; font-weight: 600; }
+.harness button { height: 28px; padding: 0 11px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; color: #f6f7f9; background: rgba(255, 255, 255, 0.08); }
+.harness button:hover { background: rgba(255, 255, 255, 0.15); }

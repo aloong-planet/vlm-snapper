@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="zh-Hans" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VLMSnapper · 核心结果界面方向</title>
+  <!-- Demo harness: request state and theme controls are not product UI. -->
+  <style>
+    :root {
+      color-scheme: light;
+      --desktop-top: #dce7f1;
+      --desktop-bottom: #b9c8d8;
+      --desktop-glow: rgba(255, 255, 255, 0.72);
+      --menubar-bg: rgba(250, 252, 255, 0.78);
+      --window: rgba(250, 251, 253, 0.96);
+      --window-solid: #f7f8fa;
+      --surface: #ffffff;
+      --surface-subtle: #f1f3f6;
+      --surface-hover: #e8ecf1;
+      --surface-selected: #dce6f5;
+      --surface-strong: #e4e7eb;
+      --text: #202329;
+      --text-secondary: #656b74;
+      --text-tertiary: #8b929c;
+      --line: rgba(56, 63, 73, 0.16);
+      --line-strong: rgba(56, 63, 73, 0.28);
+      --accent: #276bd8;
+      --accent-hover: #1f5fc4;
+      --accent-soft: #e7f0ff;
+      --accent-text: #1553b2;
+      --on-accent: #ffffff;
+      --success: #20835b;
+      --success-soft: #e3f4ec;
+      --danger: #c34242;
+      --danger-soft: #fdeaea;
+      --warning: #a96609;
+      --warning-soft: #fff1d5;
+      --shadow: rgba(36, 44, 54, 0.2);
+      --shadow-soft: rgba(36, 44, 54, 0.1);
+      --selection-mask: rgba(28, 35, 44, 0.42);
+      --selection-border: rgba(255, 255, 255, 0.9);
+      --mock-paper: #fbfaf7;
+      --mock-ink: #2a2a2a;
+      --mock-muted: #8c8a84;
+      --traffic-red: #ff5f57;
+      --traffic-yellow: #febc2e;
+      --traffic-green: #28c840;
+      --focus: rgba(39, 107, 216, 0.42);
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --desktop-top: #27303a;
+      --desktop-bottom: #13181f;
+      --desktop-glow: rgba(84, 104, 126, 0.38);
+      --menubar-bg: rgba(25, 29, 35, 0.78);
+      --window: rgba(35, 38, 44, 0.97);
+      --window-solid: #23262c;
+      --surface: #2b2f36;
+      --surface-subtle: #24282e;
+      --surface-hover: #343a43;
+      --surface-selected: #314361;
+      --surface-strong: #3a3f47;
+      --text: #f2f3f5;
+      --text-secondary: #b4bac3;
+      --text-tertiary: #858d98;
+      --line: rgba(229, 233, 240, 0.13);
+      --line-strong: rgba(229, 233, 240, 0.24);
+      --accent: #6ba3f7;
+      --accent-hover: #83b2f8;
+      --accent-soft: #283e60;
+      --accent-text: #9bc0ff;
+      --on-accent: #ffffff;
+      --success: #62c596;
+      --success-soft: #203d33;
+      --danger: #ff8080;
+      --danger-soft: #4a292c;
+      --warning: #efb45f;
+      --warning-soft: #483821;
+      --shadow: rgba(0, 0, 0, 0.5);
+      --shadow-soft: rgba(0, 0, 0, 0.28);
+      --selection-mask: rgba(0, 0, 0, 0.56);
+      --selection-border: rgba(255, 255, 255, 0.82);
+      --mock-paper: #dddcd7;
+      --mock-ink: #2a2a2a;
+      --mock-muted: #77756f;
+      --traffic-red: #ff5f57;
+      --traffic-yellow: #febc2e;
+      --traffic-green: #28c840;
+      --focus: rgba(107, 163, 247, 0.5);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { width: 100%; min-width: 960px; height: 100%; min-height: 700px; margin: 0; }
+
+    body {
+      overflow: hidden;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(circle at 28% 12%, var(--desktop-glow), transparent 34%),
+        linear-gradient(155deg, var(--desktop-top), var(--desktop-bottom));
+      font-size: 13px;
+    }
+
+    button, select { font: inherit; color: inherit; }
+    button:focus-visible, select:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+    button:disabled { cursor: not-allowed; opacity: 0.52; }
+
+    .desktop { position: relative; width: 100%; height: 100%; padding-top: 28px; }
+
+    .mac-menubar {
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      color: var(--text);
+      background: var(--menubar-bg);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(20px);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .menubar-group { display: flex; align-items: center; gap: 18px; }
+    .menubar-muted { color: var(--text-secondary); font-weight: 500; }
+
+    .workspace { position: relative; width: 100%; height: 100%; padding: 38px 48px 84px; }
+
+    .result-workspace { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+    .window {
+      background: var(--window);
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      box-shadow: 0 24px 70px var(--shadow), 0 3px 12px var(--shadow-soft);
+      backdrop-filter: blur(28px);
+      overflow: hidden;
+    }
+
+    .titlebar {
+      height: 50px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--window);
+    }
+
+    .traffic { display: flex; gap: 8px; }
+    .traffic > span { width: 12px; height: 12px; border-radius: 50%; }
+    .traffic > span:nth-child(1) { background: var(--traffic-red); }
+    .traffic > span:nth-child(2) { background: var(--traffic-yellow); }
+    .traffic > span:nth-child(3) { background: var(--traffic-green); }
+
+    .segmented {
+      display: flex;
+      gap: 2px;
+      padding: 3px;
+      border-radius: 8px;
+      background: var(--surface-strong);
+    }
+
+    .segment {
+      min-width: 84px;
+      height: 28px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: default;
+    }
+
+    .segment:hover { background: var(--surface-hover); }
+    .segment.is-selected, .segment.is-selected:hover {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 3px var(--shadow-soft), inset 0 0 0 1px var(--line);
+      font-weight: 600;
+    }
+
+    .title-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+
+    .model-pill, .language-pill {
+      min-width: 0;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .model-pill { max-width: 250px; }
+    .model-pill strong { overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text); }
+
+    .icon {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .icon-button {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .icon-button:hover { color: var(--text); background: var(--surface-hover); }
+    .icon-button:active { background: var(--surface-selected); }
+
+    .primary-button, .secondary-button {
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 14px;
+      border-radius: 7px;
+      font-weight: 600;
+    }
+
+    .primary-button { border: 1px solid var(--accent); color: var(--on-accent); background: var(--accent); }
+    .primary-button:hover { background: var(--accent-hover); }
+    .secondary-button { border: 1px solid var(--line-strong); color: var(--text); background: var(--surface); }
+    .secondary-button:hover { background: var(--surface-hover); }
+
+    .capture-preview {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        linear-gradient(45deg, var(--surface-subtle) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--surface-subtle) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--surface-subtle) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--surface-subtle) 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    }
+
+    .mock-screenshot {
+      width: min(88%, 680px);
+      aspect-ratio: 1.42;
+      padding: 36px 42px;
+      color: var(--mock-ink);
+      background: var(--mock-paper);
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      box-shadow: 0 12px 35px var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    .mock-screenshot h2 { margin: 0 0 9px; font-family: Georgia, serif; font-size: 26px; line-height: 1.18; }
+    .mock-screenshot .byline { margin-bottom: 22px; color: var(--mock-muted); font-size: 11px; }
+    .mock-screenshot p { margin: 0 0 13px; font-family: Georgia, serif; font-size: 13px; line-height: 1.55; }
+    .mock-table { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 18px; border: 1px solid var(--mock-muted); }
+    .mock-cell { padding: 7px; border-right: 1px solid var(--mock-muted); border-bottom: 1px solid var(--mock-muted); font-size: 10px; }
+    .mock-cell:nth-child(3n) { border-right: 0; }
+    .mock-cell:nth-last-child(-n + 3) { border-bottom: 0; }
+
+    .result-content { min-width: 0; min-height: 0; overflow: auto; background: var(--surface); }
+    .result-pad { padding: 22px 24px 28px; }
+
+    .result-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 13px;
+    }
+
+    .result-heading h2 { margin: 0; font-size: 15px; font-weight: 650; }
+    .meta { color: var(--text-tertiary); font-size: 11px; white-space: nowrap; }
+
+    .markdown-body { color: var(--text); font-size: 13px; line-height: 1.58; }
+    .markdown-body > h3 { margin: 18px 0 8px; font-size: 14px; }
+    .markdown-body > p { margin: 0 0 12px; }
+    .markdown-body > ul { margin: 0 0 12px; padding-left: 19px; }
+    .markdown-body table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 12px; }
+    .markdown-body th, .markdown-body td { padding: 7px 8px; border: 1px solid var(--line); text-align: left; }
+    .markdown-body th { background: var(--surface-subtle); font-weight: 600; }
+
+    .translation-block { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .language-badge { padding: 4px 7px; border-radius: 5px; color: var(--accent-text); background: var(--accent-soft); font-size: 11px; }
+    body[data-operation="extract"] .translation-block,
+    body[data-operation="extract"] .language-pill { display: none; }
+
+    .status-complete, .status-streaming, .status-error { display: none; }
+    body[data-state="complete"] .status-complete,
+    body[data-state="streaming"] .status-streaming,
+    body[data-state="error"] .status-error { display: block; }
+
+    .streaming-panel { padding: 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-subtle); }
+    .streaming-line { height: 9px; margin: 9px 0; border-radius: 8px; background: var(--surface-strong); }
+    .streaming-line:nth-child(2) { width: 91%; }
+    .streaming-line:nth-child(3) { width: 78%; }
+    .streaming-line:nth-child(4) { width: 56%; background: var(--accent-soft); }
+    .streaming-label { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-secondary); }
+    .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); }
+
+    .error-panel { padding: 17px; border: 1px solid color-mix(in srgb, var(--danger) 34%, transparent); border-radius: 9px; background: var(--danger-soft); }
+    .error-title { margin: 0 0 7px; color: var(--danger); font-size: 14px; font-weight: 700; }
+    .error-copy { margin: 0 0 14px; color: var(--text); line-height: 1.5; }
+    .error-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .technical { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--text-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; line-height: 1.55; }
+
+    .footer-bar {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--line);
+      background: var(--window);
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .footer-status { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .footer-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--success); }
+    body[data-state="streaming"] .footer-dot { background: var(--accent); }
+    body[data-state="error"] .footer-dot { background: var(--danger); }
+
+    /* Candidate hybrid: direction A navigation inside direction C workbench. */
+    .workbench-window { width: min(1220px, 94vw); height: min(720px, calc(100vh - 135px)); display: grid; grid-template-rows: 58px 1fr 50px; }
+    .workbench-top {
+      height: 58px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 18px;
+    }
+    .workbench-main { min-height: 0; padding: 18px; overflow: auto; background: var(--surface-subtle); }
+    .card-grid { display: grid; grid-template-columns: minmax(330px, 0.78fr) minmax(460px, 1.22fr); gap: 16px; min-height: 100%; }
+    .card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 3px 10px var(--shadow-soft); }
+    .card-head { min-height: 45px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 13px; border-bottom: 1px solid var(--line); }
+    .card-title { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+    .image-card { display: grid; grid-template-rows: 45px minmax(280px, 1fr) auto; }
+    .image-card .capture-preview { padding: 20px; }
+    .image-card .mock-screenshot { width: 100%; padding: 24px 28px; }
+    .image-meta { padding: 12px 14px; border-top: 1px solid var(--line); color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
+    .result-stack { min-height: 0; }
+    .output-card { min-height: 0; height: 100%; display: grid; grid-template-rows: 45px 1fr; }
+    .output-card .result-pad { min-height: 0; padding: 18px 20px; overflow: auto; }
+
+    .harness {
+      position: fixed;
+      z-index: 50;
+      left: 0;
+      right: 0;
+      bottom: 18px;
+      width: fit-content;
+      max-width: calc(100vw - 32px);
+      margin-inline: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 9px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      color: #f6f7f9;
+      background: rgba(22, 25, 30, 0.94);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .harness-label { padding: 0 3px; color: #aeb5bf; font-weight: 600; }
+    .harness-divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.16); }
+    .harness button, .harness select {
+      height: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      color: #f6f7f9;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .harness button { padding: 0 11px; }
+    .harness select { padding: 0 28px 0 10px; }
+    .harness button:hover { background: rgba(255, 255, 255, 0.15); }
+    @media (max-width: 1100px) {
+      .workspace { padding-inline: 24px; }
+      .model-pill { max-width: 190px; }
+      .card-grid { grid-template-columns: minmax(300px, 0.72fr) minmax(430px, 1.28fr); }
+    }
+  </style>
+</head>
+<body data-state="complete" data-operation="translate">
+  <main class="desktop">
+    <header class="mac-menubar" aria-label="macOS menu bar mock">
+      <div class="menubar-group"><strong>VLMSnapper</strong><span class="menubar-muted">文件</span><span class="menubar-muted">编辑</span></div>
+      <div class="menubar-group"><span class="menubar-muted">8月25日 周二</span><span>14:30</span></div>
+    </header>
+
+    <div class="workspace">
+      <section class="result-workspace" aria-label="AC 混合卡片工作台">
+        <article class="window workbench-window">
+          <header class="titlebar workbench-top">
+            <div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="segmented" aria-label="操作切换"><button class="segment" data-operation-button="extract">提取文字</button><button class="segment is-selected" data-operation-button="translate">翻译</button></div>
+            <div class="title-actions"><div class="model-pill"><strong>deepseek-v4-flash-vision-exp</strong><svg class="icon" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></div><div class="language-pill">简体中文<svg class="icon" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></div></div>
+          </header>
+          <div class="workbench-main">
+            <div class="card-grid">
+              <section class="card image-card"><header class="card-head"><div class="card-title">原始截图</div><span class="meta">1438 × 1012 PNG</span></header><div class="capture-preview"><div class="mock-screenshot" data-mock-image></div></div><div class="image-meta">保存于 Pictures/VLMSnapper/2026-08<br>2026年8月25日 14:30</div></section>
+              <div class="result-stack">
+                <section class="card output-card"><header class="card-head"><div class="card-title" data-output-title>翻译结果</div><button class="secondary-button"><svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span data-copy-label>复制全部</span></button></header><div class="result-pad" data-result-content></div></section>
+              </div>
+            </div>
+          </div>
+          <footer class="footer-bar"><div class="footer-status"><span class="footer-dot"></span><span data-footer-status></span></div><span>DeepSeek · 首字 1.8 秒 · 总计 4.6 秒</span></footer>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <div class="harness" data-demo-harness aria-label="演示控制，非产品界面">
+    <span class="harness-label">演示·状态</span>
+    <select id="state-control" aria-label="请求状态"><option value="complete">完成</option><option value="streaming">流式返回</option><option value="error">失败</option></select>
+    <span class="harness-divider"></span>
+    <button id="theme-control">切换深浅色</button>
+  </div>
+
+  <template id="mock-image-template">
+    <h2>Designing Calm Software</h2>
+    <div class="byline">A field guide for fast, focused tools · 25 August 2026</div>
+    <p>Good utility software stays close to the task. It reduces ceremony, preserves context, and makes the next action obvious.</p>
+    <p>The interface should feel immediate without becoming disposable. Speed is a product decision, not only a performance metric.</p>
+    <div class="mock-table"><div class="mock-cell">Principle</div><div class="mock-cell">Signal</div><div class="mock-cell">Risk</div><div class="mock-cell">Clarity</div><div class="mock-cell">One next action</div><div class="mock-cell">Low</div><div class="mock-cell">Speed</div><div class="mock-cell">First useful text</div><div class="mock-cell">Medium</div></div>
+  </template>
+
+  <template id="result-template">
+    <div class="status-complete">
+      <div class="result-heading"><h2>原文</h2><button class="icon-button" aria-label="复制原文"><svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button></div>
+      <div class="markdown-body"><h3>Designing Calm Software</h3><p>Good utility software stays close to the task. It reduces ceremony, preserves context, and makes the next action obvious.</p><ul><li>Clarity: one obvious next action</li><li>Speed: measure the first useful text</li></ul></div>
+      <section class="translation-block"><div class="result-heading"><div><h2>译文</h2><span class="language-badge">英语 → 简体中文</span></div><button class="icon-button" aria-label="复制译文"><svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button></div><div class="markdown-body"><h3>设计让人平静的软件</h3><p>优秀的工具软件始终贴近任务本身。它减少不必要的步骤，保留上下文，并让下一步操作清晰可见。</p><table><thead><tr><th>原则</th><th>衡量信号</th></tr></thead><tbody><tr><td>清晰</td><td>只有一个明确的下一步</td></tr><tr><td>速度</td><td>首段可用文字的出现时间</td></tr></tbody></table></div></section>
+    </div>
+    <div class="status-streaming"><div class="result-heading"><h2>正在读取原文</h2><span class="meta">已接收 2.1 秒</span></div><div class="streaming-panel"><div class="streaming-label"><span class="pulse"></span><span>模型正在识别截图中的文字…</span></div><div class="streaming-line"></div><div class="streaming-line"></div><div class="streaming-line"></div><div class="streaming-line"></div></div></div>
+    <div class="status-error"><div class="error-panel"><h2 class="error-title">请求被限流</h2><p class="error-copy">DeepSeek 暂时无法接受更多请求。请在 1 分钟后手动重试，或切换其他 Provider。</p><div class="error-actions"><button class="primary-button" disabled>59 秒后重试</button><button class="secondary-button">切换 Provider</button><button class="secondary-button">复制错误详情</button></div><div class="technical">Provider: DeepSeek<br>Model: deepseek-v4-flash-vision-exp<br>HTTP: 429 · Stage: streaming<br>Request ID: req_••••8f21</div></div></div>
+  </template>
+
+  <script>
+    const body = document.body;
+    const mockImageMarkup = document.querySelector('#mock-image-template').innerHTML;
+    const resultMarkup = document.querySelector('#result-template').innerHTML;
+
+    document.querySelectorAll('[data-mock-image]').forEach((node) => { node.innerHTML = mockImageMarkup; });
+    document.querySelectorAll('[data-result-content]').forEach((node) => { node.innerHTML = resultMarkup; });
+
+    const footerLabels = {
+      complete: '翻译完成',
+      streaming: '正在流式返回',
+      error: '请求失败 · 等待手动重试'
+    };
+
+    function setState(state) {
+      body.dataset.state = state;
+      document.querySelectorAll('[data-footer-status]').forEach((node) => { node.textContent = footerLabels[state]; });
+    }
+
+    function setOperation(operation) {
+      body.dataset.operation = operation;
+      document.querySelectorAll('[data-operation-button]').forEach((button) => {
+        button.classList.toggle('is-selected', button.dataset.operationButton === operation);
+      });
+      document.querySelector('[data-output-title]').textContent = operation === 'extract' ? '提取结果' : '翻译结果';
+      document.querySelector('[data-copy-label]').textContent = operation === 'extract' ? '复制' : '复制全部';
+    }
+
+    document.querySelectorAll('[data-operation-button]').forEach((button) => {
+      button.addEventListener('click', () => setOperation(button.dataset.operationButton));
+    });
+
+    document.querySelector('#state-control').addEventListener('change', (event) => setState(event.target.value));
+    document.querySelector('#theme-control').addEventListener('click', () => {
+      document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    });
+
+    setState('complete');
+    setOperation('translate');
+  </script>
+</body>
+</html>
