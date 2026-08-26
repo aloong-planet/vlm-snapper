@@ -1,6 +1,6 @@
 # 02 — History and managed screenshots
 
-Status: blocked
+Status: completed
 
 Blocked by: 01
 
@@ -16,3 +16,7 @@ Blocked by: 01
 - 数据库损坏或版本过新时阻断写入，重置前保留恢复文件。
 
 ## Comments
+
+- Implemented atomic original-PNG persistence with local timestamp naming, collision suffixes, SHA-256 ownership, directory boundaries, and static symbolic-link rejection across ancestors, root, month, and file paths.
+- Implemented SQLite operation states and payload recovery, startup interruption recovery, read-only validation for newer/corrupt/incomplete databases, and explicit reset that preserves the database plus WAL/SHM recovery files.
+- Verified by 22 Ticket 02 tests, independent code/test reviews, and three targeted mutation checks. A cross-process path-replacement TOCTOU hardening seam is recorded for the cleanup integration ticket.
