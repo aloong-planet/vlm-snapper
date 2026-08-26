@@ -1,6 +1,6 @@
 # 04 — Provider adapters
 
-Status: blocked
+Status: completed
 
 Blocked by: 01, 03
 
@@ -17,3 +17,8 @@ Blocked by: 01, 03
 - DeepSeek 发布状态仍受真实密钥 Pending 门禁约束。
 
 ## Comments
+
+- Canonical protocol research: `/Users/loong_zhou/research/vlmsnapper-provider-adapters/ticket-04-provider-adapter-contracts-2026-08-26.md`.
+- Each user action sends exactly one model request. Provider SDK retry defaults are not adopted.
+- OpenAI uses Responses, Gemini uses `streamGenerateContent`, and DeepSeek uses Chat Completions; each has an independent wire decoder behind one normalized event contract.
+- Recorded fixtures, byte-boundary SSE tests, injectable timeout tests, and no-retry request-count tests pass. Live-account contract checks and signed provider limits remain release gates; no live API request was made in this ticket.

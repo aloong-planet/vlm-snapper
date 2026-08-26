@@ -69,3 +69,38 @@
 ### 收敛结论
 
 三阶段队列已清空；本票没有需回写 spec、ADR、CONTEXT 或原型的实现偏离。请求级模型不可用接线和签名 Data Protection Keychain 均有明确后续票，不把 seam 测试扩张为未发生的端到端验证。
+
+---
+
+## 2026-08-26 — Ticket 04
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 04 acceptance | 三个请求工厂、独立 decoder、统一 executor 与 30 个本票测试 | 共享事件、超时注入、截断拒绝和一次请求均有公开行为证据；状态改为 completed |
+| `v1-core.md` 第 5、6、8 节 | 请求、流式、错误实现 | 截图直送、单请求、10/10/90 秒、无自动重试和 1–5 分钟限流提示一致 |
+| ADR-0011 | DeepSeek 独立 adapter | 使用 Chat Completions、严格终态与 JSON 最终校验；实验模型仍受账户列表和发布门禁约束 |
+| 原型 | 本票实现 | 无新增视觉行为；结果窗口和错误展示仍由 Ticket 06 接入已确认原型 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 04 状态、evidence 与 83 个完整测试汇总 | 状态和证据同步，本票测试覆盖三 Provider 共享契约 |
+| research ↔ 实现 | OpenAI Responses、Gemini v1beta、DeepSeek Chat Completions | 三家 wire 协议隔离，没有以“兼容”名义复用错误 decoder |
+| 规则 ↔ 门禁 | 英文源码/提示词 ↔ CJK 扫描；无重试 ↔ request count/变异 | 扫描无匹配，三项变异均准确红灯 |
+| features ↔ 当前产品 | `docs/features/` 尚未初始化 | 本票只有核心 seam；Ticket 10 全功能收口前不声明用户可用 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 新增 Provider 统一事件/错误 | spec 6、8 节 | 成员和顺序实现既有决策，没有新增用户选择 |
+| 新增 20 MB Gemini 请求体门禁 | 官方小于 20 MB 合同与原始 PNG 规则 | 计算完整序列化体；不改变保存/上传字节一致性 |
+| 新增超时和限流提示数据 | spec 67、93 行 | 数值与分类一致；本票不实现持久化冷却 UI |
+| `Pending:` 注记 | spec 图片限制与真实 Provider 契约 | 尚未到期；继续由 Ticket 10 的真实账户、签名产物门禁承兑 |
+
+### 收敛结论
+
+三阶段队列已清空；代码、research、spec、ADR、ticket 和 checklist 没有反向表述。真实 Provider 请求未执行，发布 Pending 被保留而非误报完成。
