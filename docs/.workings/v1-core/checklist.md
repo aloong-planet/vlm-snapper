@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 01 | 原始 PNG → 准备记录 → 单次 Provider 提取请求的持久化门禁；失败不联网 | 已完成 |
 | 02 | 历史数据库、结果终态、失败恢复、受管理截图所有权与最终落库重试 | 已完成 |
-| 03 | Provider 配置、Keychain、完整模型列表、刷新与视觉兼容状态 | 待开始 |
+| 03 | Provider 配置、Keychain、完整模型列表、刷新与视觉兼容状态 | 已完成 |
 | 04 | OpenAI、Gemini、DeepSeek 图片流式适配器与归一化错误 | 待开始 |
 | 05 | 多显示器冻结、选区裁切、全局快捷键与原始 PNG | 待开始 |
 | 06 | 操作栏、核心结果窗口、单活动任务、取消和重新执行 | 待开始 |
@@ -26,3 +26,9 @@
 - Gate: `swift build -Xswiftc -warnings-as-errors`、完整 `swift test`、`git diff --check`、源码与测试 CJK 扫描；Swift 命令使用匹配的完整 Xcode toolchain。
 - Tests: `FileSystemScreenshotStoreTests` 10 例与 `SQLiteHistoryStoreTests` 12 例，覆盖原始字节、命名、防覆盖、所有静态符号链接形态、路径/SHA 所有权、终态 payload、启动恢复、schema/损坏阻断和保留式重置。
 - Evidence: `FileSystemScreenshotStore.swift`、`SQLiteHistoryStore.swift`、`HistoryDatabaseResetter.swift`；`review-code.md` 与 `review-tests.md` 的分层审查和三项变异证据；`final-regression.md` 的三阶段文档一致性表。
+
+## Ticket 03 evidence
+
+- Gate: `swift build -Xswiftc -warnings-as-errors`、完整 `swift test` 53/53、`git diff --check`、15 个源码与测试文件的 CJK 扫描；Swift 命令使用匹配的完整 Xcode toolchain。
+- Tests: Provider 配置 16 例、官方目录 5 例、元数据 3 例和 Keychain 1 例，覆盖完整分页、失败零写入、崩溃协调、缓存替换/保留、首个与已记忆 Provider、冻结竞态、视觉证据、路径防护和真实 Keychain 生命周期。
+- Evidence: `ProviderConfiguration.swift`、`ProviderModelCatalog.swift`、`AppleKeychainProviderCredentialStore.swift`、`FileProviderMetadataStore.swift`；`review-code.md` 与 `review-tests.md` 的分层审查、行为红灯和变异证据；`final-regression.md` 的三阶段文档一致性表。

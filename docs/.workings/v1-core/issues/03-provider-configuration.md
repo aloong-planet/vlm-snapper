@@ -1,6 +1,6 @@
 # 03 — Provider configuration
 
-Status: blocked
+Status: completed
 
 Blocked by: 01
 
@@ -16,3 +16,6 @@ Blocked by: 01
 - 未知、已验证、不兼容状态只按明确协议证据转换。
 
 ## Comments
+
+- Provider 模型请求级的错误归一化与“一次刷新”接线由 Ticket 04 完成；本票已提供每次尝试只能 claim 一次的状态原语。
+- Data Protection Keychain 的生产默认保持启用；未签名 SwiftPM 宿主只能验证登录 Keychain 生命周期，签名路径由 Ticket 10 验收。

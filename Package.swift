@@ -11,7 +11,12 @@ let package = Package(
         .library(name: "VLMSnapperCore", targets: ["VLMSnapperCore"]),
     ],
     targets: [
-        .target(name: "VLMSnapperCore"),
+        .target(
+            name: "VLMSnapperCore",
+            linkerSettings: [
+                .linkedFramework("Security"),
+            ]
+        ),
         .testTarget(
             name: "VLMSnapperCoreTests",
             dependencies: ["VLMSnapperCore"]
