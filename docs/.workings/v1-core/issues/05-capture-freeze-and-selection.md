@@ -1,6 +1,6 @@
 # 05 — Capture freeze and selection
 
-Status: blocked
+Status: completed
 
 Blocked by: 01
 
@@ -16,3 +16,9 @@ Blocked by: 01
 - 保存与上传使用完全相同的 8-bit SDR sRGB PNG 字节。
 
 ## Comments
+
+- ScreenCaptureKit captures each discovered display independently at shortcut-trigger time; display disconnects, geometry changes and ordinary capture failures remain per-display outcomes, while permission denial is global.
+- Selection state owns the frozen display set, enforces a `2 × 2` physical-pixel minimum, rejects changed geometry and releases every full-screen frame after completion or cancellation.
+- The cropper emits exact-size 8-bit SDR sRGB PNG data. The resulting `Data` is the single byte object handed to later persistence and Provider seams.
+- A narrow C shim owns Carbon registration and callback lifetime. Swift keeps validation, atomic replacement and MainActor delivery; coordinator destruction unregisters its active shortcut.
+- Signed-app delivery, real shortcut conflicts, TCC recovery, multi-display hot-plug and trigger-frame visual timing remain Ticket 10 integration gates; no such live behavior is claimed from the SwiftPM host.

@@ -104,3 +104,38 @@
 ### 收敛结论
 
 三阶段队列已清空；代码、research、spec、ADR、ticket 和 checklist 没有反向表述。真实 Provider 请求未执行，发布 Pending 被保留而非误报完成。
+
+---
+
+## 2026-08-27 — Ticket 05
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 05 acceptance | 冻结、选区、PNG、快捷键实现与 22 个本票测试 | 触发后冻结 seam、部分失败、2 × 2、几何失效、同一 PNG byte object 和原子热键替换均有公开行为证据；状态改为 completed |
+| `v1-core.md` 第 3 节 | capture/selection 实现 | 不在松开时重截、单屏失效、取消释放、sRGB PNG 与规范一致 |
+| ADR-0010 | `CaptureSelectionSession` 与原生 capturer | 使用 display ID + 本地物理像素；新屏不加入本次，变化屏失效，其他屏保留 |
+| 原型 | 本票实现 | 无新增视觉行为；选区 overlay 与操作栏由 Ticket 06 接入已确认原型 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 05 状态、evidence 与 105 个完整测试汇总 | 状态和证据同步，本票新增 22 个行为测试 |
+| research ↔ 实现 | ScreenCaptureKit、CoreGraphics、Carbon C shim | C API 被限制在窄 shim；Swift 不直接持有事件结构或回调注册链表 |
+| 规则 ↔ 门禁 | 英文源码/注释 ↔ CJK 扫描；严格 Swift/C warning gate | 扫描无匹配，编译与测试通过 |
+| features ↔ 当前产品 | `docs/features/` 尚未初始化 | 本票没有 App/UI 可操作入口；Ticket 10 全功能收口前不声明用户可用 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 新增 Carbon C shim | spec 原生 macOS 与可配置全局快捷键 | 仅实现既有能力；MainActor 协调与销毁注销补足生命周期，不产生新产品决策 |
+| 新增 `cropping` 中间态 | ADR-0010 释放与几何失效语义 | 是异步重入的实现机制；取消、完成和失效终态未改变 |
+| 新增 geometryChanged 捕获失败 | ADR-0010 显示器变化规则 | 将既有规则落实到捕获前后核对，不扩展用户行为 |
+| 系统集成 Pending | spec Seam 3 与 Ticket 10 | 多屏、TCC、真实热键投递/冲突和签名产物尚未到期，继续保留发布门禁 |
+
+### 收敛结论
+
+三阶段队列已清空；实现、spec、ADR、ticket 和 checklist 没有反向表述。本票只交付可测试核心与原生 adapter，不把未执行的签名 App 系统验收误报为完成。

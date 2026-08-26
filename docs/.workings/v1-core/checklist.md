@@ -8,7 +8,7 @@
 | 02 | 历史数据库、结果终态、失败恢复、受管理截图所有权与最终落库重试 | 已完成 |
 | 03 | Provider 配置、Keychain、完整模型列表、刷新与视觉兼容状态 | 已完成 |
 | 04 | OpenAI、Gemini、DeepSeek 图片流式适配器与归一化错误 | 已完成 |
-| 05 | 多显示器冻结、选区裁切、全局快捷键与原始 PNG | 待开始 |
+| 05 | 多显示器冻结、选区裁切、全局快捷键与原始 PNG | 已完成 |
 | 06 | 操作栏、核心结果窗口、单活动任务、取消和重新执行 | 待开始 |
 | 07 | 菜单栏、首次引导、权限恢复与 Provider 配置 UI | 待开始 |
 | 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 待开始 |
@@ -38,3 +38,9 @@
 - Gate: `swift build -Xswiftc -warnings-as-errors`、完整 `swift test` 83/83、`git diff --check`、本票源码与测试 CJK 扫描；Swift 命令使用匹配的完整 Xcode toolchain。
 - Tests: 三 Provider 共享录制契约、三个官方请求体、SSE 任意字节边界、结构化 JSON 增量与 Unicode 边界、首字/停滞/总超时、单请求无重试、HTTP 错误和截断/不完整终态。
 - Evidence: `ProviderRequestFactory.swift`、`ProviderAdapterExecutor.swift`、三个独立 stream decoder、`OrderedStructuredOutputParser.swift`、`ProviderStreamTimeout.swift`；`review-code.md` 与 `review-tests.md` 的审查和三项变异证据。真实账户与签名 Provider 限制仍按 Ticket 10 发布门禁保留，不冒充已验证。
+
+## Ticket 05 evidence
+
+- Gate: 严格 `swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror`、完整 `swift test` 105/105、`git diff --check`、本票 Swift/C 源码与测试 CJK 扫描；Swift 命令使用匹配的完整 Xcode toolchain，Keychain 全套测试在允许访问登录 Keychain 的宿主执行。
+- Tests: 冻结协调 4 例、选区状态机 7 例、PNG 裁切 4 例、快捷键协调 6 例及 Carbon registrar 生命周期 1 例，覆盖权限/全部失败/部分失败、2 × 2、几何失效、裁切期间取消与竞态、坐标溢出、sRGB 像素内容、原子替换和销毁注销。
+- Evidence: `CaptureFreezeCoordinator.swift`、`CaptureSelectionSession.swift`、`ScreenCaptureKitFrozenDisplayCapturer.swift`、`SRGBPNGCropper.swift`、`GlobalShortcutCoordinator.swift`、`CarbonGlobalShortcutBackend.swift` 与窄 C shim；`review-code.md`、`review-tests.md` 的分层审查和红灯/变异证据。真实多显示器、TCC、快捷键冲突和签名 App 回调仍按 Ticket 10 集成门禁保留。

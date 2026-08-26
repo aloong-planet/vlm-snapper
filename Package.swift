@@ -13,8 +13,21 @@ let package = Package(
     targets: [
         .target(
             name: "VLMSnapperCore",
+            dependencies: ["VLMSnapperHotKeyShim"],
             linkerSettings: [
+                .linkedFramework("CoreGraphics"),
+                .linkedFramework("ImageIO"),
+                .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("Security"),
+                .linkedFramework("UniformTypeIdentifiers"),
+            ]
+        ),
+        .target(
+            name: "VLMSnapperHotKeyShim",
+            path: "Sources/VLMSnapperHotKeyShim",
+            publicHeadersPath: "include",
+            linkerSettings: [
+                .linkedFramework("Carbon"),
             ]
         ),
         .testTarget(
