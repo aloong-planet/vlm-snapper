@@ -9,7 +9,7 @@
 | 03 | Provider 配置、Keychain、完整模型列表、刷新与视觉兼容状态 | 已完成 |
 | 04 | OpenAI、Gemini、DeepSeek 图片流式适配器与归一化错误 | 已完成 |
 | 05 | 多显示器冻结、选区裁切、全局快捷键与原始 PNG | 已完成 |
-| 06 | 操作栏、核心结果窗口、单活动任务、取消和重新执行 | 待开始 |
+| 06 | 操作栏、核心结果窗口、单活动任务、取消和重新执行 | 已完成 |
 | 07 | 菜单栏、首次引导、权限恢复与 Provider 配置 UI | 待开始 |
 | 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 待开始 |
 | 09 | 单实例、诊断、本地化、登录项与 Sparkle 更新 | 待开始 |
@@ -44,3 +44,9 @@
 - Gate: 严格 `swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror`、完整 `swift test` 105/105、`git diff --check`、本票 Swift/C 源码与测试 CJK 扫描；Swift 命令使用匹配的完整 Xcode toolchain，Keychain 全套测试在允许访问登录 Keychain 的宿主执行。
 - Tests: 冻结协调 4 例、选区状态机 7 例、PNG 裁切 4 例、快捷键协调 6 例及 Carbon registrar 生命周期 1 例，覆盖权限/全部失败/部分失败、2 × 2、几何失效、裁切期间取消与竞态、坐标溢出、sRGB 像素内容、原子替换和销毁注销。
 - Evidence: `CaptureFreezeCoordinator.swift`、`CaptureSelectionSession.swift`、`ScreenCaptureKitFrozenDisplayCapturer.swift`、`SRGBPNGCropper.swift`、`GlobalShortcutCoordinator.swift`、`CarbonGlobalShortcutBackend.swift` 与窄 C shim；`review-code.md`、`review-tests.md` 的分层审查和红灯/变异证据。真实多显示器、TCC、快捷键冲突和签名 App 回调仍按 Ticket 10 集成门禁保留。
+
+## Ticket 06 evidence
+
+- Gate: 严格 `swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror`、完整 `swift test` 127/127、`git diff --check`、源码/测试 CJK 扫描、本地化键一致性与 UI 硬编码文案扫描；Swift 命令使用匹配的完整 Xcode toolchain，Keychain 全套测试在允许访问登录 Keychain 的宿主执行。
+- Tests: 操作会话 9 例、持久化 runner 7 例、操作栏定位 3 例、Provider 错误码 1 例及 SQLite 类型/迁移 2 例，覆盖显式单请求、全局排他、等待期间冻结操作、关闭取消、旧成功保留、截图复用/回滚、Provider 取消归一化、最终保存重试、4 px 间距与窄屏长操作栏。
+- Evidence: `OperationWorkspaceSession.swift`、`PersistedOperationWorkspaceRunner.swift`、`ProviderPreparedOperationStreamer.swift`、schema v2 的 `SQLiteHistoryStore.swift` 以及 `VLMSnapper/UI/` 原生组件；light/dark harness 实际渲染已核对确认原型。签名 App 的窗口交互、辅助功能遍历、TCC 与真实 Provider 仍按 Ticket 10 集成门禁保留。

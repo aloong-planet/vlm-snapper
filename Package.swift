@@ -4,11 +4,17 @@ import PackageDescription
 
 let package = Package(
     name: "VLMSnapper",
+    defaultLocalization: "zh-Hans",
     platforms: [
         .macOS(.v14),
     ],
     products: [
         .library(name: "VLMSnapperCore", targets: ["VLMSnapperCore"]),
+        .library(name: "VLMSnapperUI", targets: ["VLMSnapperUI"]),
+        .executable(
+            name: "VLMSnapperUIHarness",
+            targets: ["VLMSnapperUIHarness"]
+        ),
     ],
     targets: [
         .target(
@@ -30,9 +36,24 @@ let package = Package(
                 .linkedFramework("Carbon"),
             ]
         ),
+        .target(
+            name: "VLMSnapperUI",
+            dependencies: ["VLMSnapperCore"],
+            path: "VLMSnapper",
+            sources: ["UI"],
+            resources: [.process("Resources/Localization")]
+        ),
+        .executableTarget(
+            name: "VLMSnapperUIHarness",
+            dependencies: ["VLMSnapperCore", "VLMSnapperUI"]
+        ),
         .testTarget(
             name: "VLMSnapperCoreTests",
             dependencies: ["VLMSnapperCore"]
+        ),
+        .testTarget(
+            name: "VLMSnapperUITests",
+            dependencies: ["VLMSnapperCore", "VLMSnapperUI"]
         ),
     ],
     swiftLanguageModes: [.v6]

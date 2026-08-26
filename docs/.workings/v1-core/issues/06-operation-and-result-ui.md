@@ -1,6 +1,6 @@
 # 06 — Operation and result UI
 
-Status: blocked
+Status: completed
 
 Blocked by: 02, 04, 05
 
@@ -16,3 +16,8 @@ Blocked by: 02, 04, 05
 - 关闭请求中窗口产生已取消，完成后关闭只隐藏。
 
 ## Comments
+
+- Implemented the confirmed compact capture toolbar and two-card result workspace as native SwiftUI/AppKit components.
+- Added an application-wide activity lease, explicit-only Extract/Translate starts, retained-success reruns, cancellation, unsaved-result confirmation and save-only retry.
+- Migrated history schema v1 to v2 with typed operation and translation target fields.
+- Verified strict Swift/C compilation and 127 Swift tests; signed-app accessibility, TCC and packaged window behavior remain Ticket 10 gates.

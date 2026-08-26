@@ -139,3 +139,38 @@
 ### 收敛结论
 
 三阶段队列已清空；实现、spec、ADR、ticket 和 checklist 没有反向表述。本票只交付可测试核心与原生 adapter，不把未执行的签名 App 系统验收误报为完成。
+
+---
+
+## 2026-08-27 — Ticket 06
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 06 acceptance | actor/runner、schema v2、SwiftUI/AppKit 组件与 22 个本票相关测试 | 原型常量、显式单请求、旧成功替换门禁、关闭取消均有公开行为证据；状态改为 completed |
+| `v1-core.md` 操作、结果、错误与关闭规则 | 本票实现 | 截图直送、提取/翻译切换、无自动重试、单活动任务、未保存结果与关闭语义一致 |
+| 已确认原型 | harness 明暗实际渲染与几何测试 | 操作栏 4/3/25/6 px、顶部分段选择和左右双区结果一致；未加入标注能力 |
+| 历史类型过滤前置数据 | schema v2 迁移与 typed operation | extract/translate 和 target language 已持久化，Ticket 08 可据此筛选而无需推断正文 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 06 状态、evidence 与 127 个完整测试汇总 | 两处同步，本票新增会话/runner/UI/schema 契约覆盖 |
+| design ↔ 实现 | operation freeze、runner 截图所有权、取消、最终保存失败 | 设计已回写首次 suspension 前冻结、adapter cancellation 和窄屏 leading edge |
+| 规则 ↔ 门禁 | 英文代码/注释、本地化双语、严格 warning gate | CJK 源码扫描 0、28 键一致、UI 硬编码扫描 0，严格构建通过 |
+| features ↔ 当前产品 | `docs/features/` 尚未初始化，Ticket 07 尚未接 App 入口 | 组件可渲染但最终用户尚无完整入口，不提前登记产品功能 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| schema 从 1 升到 2 | legacy migration 与新版阻断 | 旧行确定性为 extract；目标语言仅 translation 有值，无反向兼容歧义 |
+| 新增全局 activity lease | spec 单活动任务与重复快捷键 | lease 在所有终态释放；重复快捷键 bring-forward 的 App 接线继续由 Ticket 07 承兑 |
+| 新增 UI 本地化资源 | Ticket 09 双语范围 | Ticket 06 所有新文案已经双语，不改变 Ticket 09 的整 App 扫描与系统语言接线责任 |
+| 系统集成 Pending | Ticket 10 | 签名窗口、辅助功能、TCC 与真实 Provider 继续保留发布门禁，不误报已验证 |
+
+### 收敛结论
+
+三阶段队列已清空；设计、实现、测试、ticket 和 checklist 已同步。Ticket 06 完成可测试核心与真实 UI 渲染，App 入口和签名系统集成分别留给 Ticket 07/10。

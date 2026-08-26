@@ -1,0 +1,381 @@
+import Foundation
+import Testing
+@testable import VLMSnapperCore
+
+@Suite("Persisted operation workspace runner")
+struct PersistedOperationWorkspaceRunnerTests {
+    @Test("two operations reuse one screenshot and each start one typed provider stream")
+    func twoOperationsReuseScreenshot() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let history = RunnerHistoryProbe()
+        let provider = RunnerProviderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: history,
+            provider: provider
+        )
+        let png = Data([0x89, 0x50, 0x4E, 0x47])
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+
+        _ = try await collect(
+            await runner.run(
+                originalPNG: png,
+                operation: .extractText,
+                selection: selection
+            )
+        )
+        _ = try await collect(
+            await runner.run(
+                originalPNG: png,
+                operation: .translate(targetLanguage: "en"),
+                selection: selection
+            )
+        )
+
+        #expect(await screenshotStore.saveCount == 1)
+        #expect(await history.operations == [
+            .extractText,
+            .translate(targetLanguage: "en"),
+        ])
+        #expect(await provider.streamCount == 2)
+    }
+
+    @Test("a stream without completion persists failure instead of remaining in flight")
+    func incompleteStreamPersistsFailure() async throws {
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerProviderProbe(events: [.sourceDelta("Partial")])
+        )
+
+        await #expect(
+            throws: OperationWorkspaceRunFailure(code: "incomplete_response")
+        ) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: ProviderSelection(
+                        providerID: "openai",
+                        modelID: "vision"
+                    )
+                )
+            )
+        }
+
+        #expect(await history.outcomes == [
+            .failed(normalizedErrorCode: "incomplete_response"),
+        ])
+    }
+
+    @Test("a provider cancellation persists canceled instead of failed")
+    func providerCancellationPersistsCanceled() async throws {
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerProviderProbe(error: ProviderAdapterError.cancelled)
+        )
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: ProviderSelection(
+                        providerID: "openai",
+                        modelID: "vision"
+                    )
+                )
+            )
+        }
+
+        #expect(await history.completions == [.canceled])
+        #expect(await history.outcomes.isEmpty)
+    }
+
+    @Test("a first history preparation failure rolls back and forgets the screenshot")
+    func preparationFailureRollsBackScreenshot() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let history = RunnerHistoryProbe(failsPreparation: true)
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: history,
+            provider: RunnerProviderProbe()
+        )
+        let selection = ProviderSelection(providerID: "openai", modelID: "vision")
+
+        await #expect(
+            throws: OperationWorkspaceRunFailure(code: "operation_failed")
+        ) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: selection
+                )
+            )
+        }
+        #expect(await screenshotStore.discardCount == 1)
+
+        await history.setFailsPreparation(false)
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: selection
+            )
+        )
+        #expect(await screenshotStore.saveCount == 2)
+    }
+
+    @Test("a canceled first history preparation rolls back and forgets the screenshot")
+    func canceledPreparationRollsBackScreenshot() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let history = RunnerHistoryProbe(cancelsPreparation: true)
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: history,
+            provider: RunnerProviderProbe()
+        )
+        let selection = ProviderSelection(providerID: "openai", modelID: "vision")
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: selection
+                )
+            )
+        }
+        #expect(await screenshotStore.discardCount == 1)
+
+        await history.setCancelsPreparation(false)
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: selection
+            )
+        )
+        #expect(await screenshotStore.saveCount == 2)
+    }
+
+    @Test("retrying final persistence does not start another provider stream")
+    func retryFinalPersistenceDoesNotCallProvider() async throws {
+        let history = RunnerHistoryProbe(failsSuccessfulFinish: true)
+        let provider = RunnerProviderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: provider
+        )
+
+        let events = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: ProviderSelection(
+                    providerID: "openai",
+                    modelID: "vision"
+                )
+            )
+        )
+        guard case let .resultPersistenceFailed(unsaved) = events.last else {
+            Issue.record("Expected an unsaved completed result")
+            return
+        }
+
+        await history.setFailsSuccessfulFinish(false)
+        let saved = try await runner.retrySavingResult()
+
+        #expect(saved == unsaved)
+        #expect(await provider.streamCount == 1)
+    }
+
+    @Test("mismatched prepared operation never reaches the provider")
+    func mismatchedPreparationNeverReachesProvider() async throws {
+        let provider = RunnerProviderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(returnsMismatch: true),
+            provider: provider
+        )
+
+        await #expect(
+            throws: OperationWorkspaceRunFailure(code: "history_inconsistent")
+        ) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: ProviderSelection(
+                        providerID: "openai",
+                        modelID: "vision"
+                    )
+                )
+            )
+        }
+        #expect(await provider.streamCount == 0)
+    }
+}
+
+private func collect(
+    _ stream: AsyncThrowingStream<OperationWorkspaceRunEvent, Error>
+) async throws -> [OperationWorkspaceRunEvent] {
+    var events: [OperationWorkspaceRunEvent] = []
+    for try await event in stream {
+        events.append(event)
+    }
+    return events
+}
+
+private actor RunnerScreenshotStoreProbe: ScreenshotPersisting {
+    private(set) var saveCount = 0
+    private(set) var discardCount = 0
+
+    func save(originalPNG: Data) async throws -> ManagedScreenshot {
+        saveCount += 1
+        return ManagedScreenshot(path: "/Pictures/shared.png", sha256: "sha")
+    }
+
+    func discardIfOwned(_ screenshot: ManagedScreenshot) async throws {
+        discardCount += 1
+    }
+}
+
+private actor RunnerHistoryProbe: OperationHistoryWriting {
+    private(set) var operations: [ProviderOperation] = []
+    private(set) var outcomes: [PersistedOperationOutcome] = []
+    private(set) var completions: [OperationCompletion] = []
+    private var failsPreparation: Bool
+    private var cancelsPreparation: Bool
+    private var failsSuccessfulFinish: Bool
+    private let returnsMismatch: Bool
+
+    init(
+        failsPreparation: Bool = false,
+        cancelsPreparation: Bool = false,
+        failsSuccessfulFinish: Bool = false,
+        returnsMismatch: Bool = false
+    ) {
+        self.failsPreparation = failsPreparation
+        self.cancelsPreparation = cancelsPreparation
+        self.failsSuccessfulFinish = failsSuccessfulFinish
+        self.returnsMismatch = returnsMismatch
+    }
+
+    func setFailsPreparation(_ value: Bool) {
+        failsPreparation = value
+    }
+
+    func setFailsSuccessfulFinish(_ value: Bool) {
+        failsSuccessfulFinish = value
+    }
+
+    func setCancelsPreparation(_ value: Bool) {
+        cancelsPreparation = value
+    }
+
+    func prepareOperation(
+        screenshot: ManagedScreenshot,
+        selection: ProviderSelection,
+        operation: ProviderOperation
+    ) async throws -> PreparedOperation {
+        if cancelsPreparation {
+            throw CancellationError()
+        }
+        if failsPreparation {
+            throw RunnerProbeError.failed
+        }
+        operations.append(operation)
+        if returnsMismatch {
+            return PreparedOperation(
+                operationID: UUID(),
+                screenshot: ManagedScreenshot(path: "/wrong.png", sha256: "wrong"),
+                selection: selection,
+                operation: operation
+            )
+        }
+        return PreparedOperation(
+            operationID: UUID(),
+            screenshot: screenshot,
+            selection: selection,
+            operation: operation
+        )
+    }
+
+    func markInFlight(
+        operationID: UUID,
+        as progress: OperationProgress
+    ) async throws {}
+
+    func finish(
+        operationID: UUID,
+        with outcome: PersistedOperationOutcome
+    ) async throws {
+        if failsSuccessfulFinish, case .succeeded = outcome {
+            throw RunnerProbeError.failed
+        }
+        outcomes.append(outcome)
+    }
+
+    func finish(
+        operationID: UUID,
+        as completion: OperationCompletion
+    ) async throws {
+        completions.append(completion)
+    }
+}
+
+private enum RunnerProbeError: Error {
+    case failed
+}
+
+private actor RunnerProviderProbe: PreparedOperationStreaming {
+    private(set) var streamCount = 0
+    private let events: [ProviderStreamEvent]?
+    private let error: (any Error)?
+
+    init(
+        events: [ProviderStreamEvent]? = nil,
+        error: (any Error)? = nil
+    ) {
+        self.events = events
+        self.error = error
+    }
+
+    func stream(
+        originalPNG: Data,
+        preparedOperation: PreparedOperation
+    ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        streamCount += 1
+        let operation = preparedOperation.operation
+        return AsyncThrowingStream { continuation in
+            if let error {
+                continuation.finish(throwing: error)
+                return
+            }
+            if let events {
+                for event in events {
+                    continuation.yield(event)
+                }
+                continuation.finish()
+                return
+            }
+            continuation.yield(.sourceDelta("Source"))
+            if case .translate = operation {
+                continuation.yield(.translationDelta("Translation"))
+            }
+            continuation.yield(
+                .metadata(
+                    ProviderResponseMetadata(requestID: nil, usage: nil)
+                )
+            )
+            continuation.yield(.completed)
+            continuation.finish()
+        }
+    }
+}

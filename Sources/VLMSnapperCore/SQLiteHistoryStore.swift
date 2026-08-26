@@ -27,6 +27,18 @@ public enum PersistedOperationOutcome: Equatable, Sendable {
     case failed(normalizedErrorCode: String)
 }
 
+public enum PersistedOperationKind: String, Equatable, Sendable {
+    case extract
+    case translate
+}
+
+public struct PreparedOperation: Equatable, Sendable {
+    public let operationID: UUID
+    public let screenshot: ManagedScreenshot
+    public let selection: ProviderSelection
+    public let operation: ProviderOperation
+}
+
 public struct StoredOperation: Equatable, Sendable {
     public let id: UUID
     public let screenshot: ManagedScreenshot
@@ -35,6 +47,8 @@ public struct StoredOperation: Equatable, Sendable {
     public let sourceMarkdown: String?
     public let translationMarkdown: String?
     public let normalizedErrorCode: String?
+    public let kind: PersistedOperationKind
+    public let targetLanguage: String?
 
     public init(
         id: UUID,
@@ -43,7 +57,9 @@ public struct StoredOperation: Equatable, Sendable {
         status: OperationStatus,
         sourceMarkdown: String? = nil,
         translationMarkdown: String? = nil,
-        normalizedErrorCode: String? = nil
+        normalizedErrorCode: String? = nil,
+        kind: PersistedOperationKind = .extract,
+        targetLanguage: String? = nil
     ) {
         self.id = id
         self.screenshot = screenshot
@@ -52,6 +68,8 @@ public struct StoredOperation: Equatable, Sendable {
         self.sourceMarkdown = sourceMarkdown
         self.translationMarkdown = translationMarkdown
         self.normalizedErrorCode = normalizedErrorCode
+        self.kind = kind
+        self.targetLanguage = targetLanguage
     }
 }
 
@@ -62,7 +80,7 @@ public enum SQLiteHistoryStoreError: Error, Equatable {
 }
 
 public actor SQLiteHistoryStore: HistoryPersisting {
-    private static let supportedSchemaVersion = 1
+    private static let supportedSchemaVersion = 2
     private nonisolated(unsafe) let database: OpaquePointer
 
     public init(databaseURL: URL) throws {
@@ -78,7 +96,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         database = connection
         do {
             if databaseExisted {
-                try Self.validateExistingDatabase(connection)
+                try Self.prepareExistingDatabase(connection)
             }
             try Self.execute("PRAGMA journal_mode = WAL", on: connection)
             try Self.execute("PRAGMA foreign_keys = ON", on: connection)
@@ -93,7 +111,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                     on: connection
                 )
                 try Self.execute(
-                    "INSERT INTO metadata (key, value) VALUES ('schema_version', 1)",
+                    "INSERT INTO metadata (key, value) VALUES ('schema_version', 2)",
                     on: connection
                 )
                 try Self.execute(
@@ -108,6 +126,8 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                         source_markdown TEXT,
                         translation_markdown TEXT,
                         normalized_error_code TEXT
+                        , operation_kind TEXT NOT NULL
+                        , target_language TEXT
                     )
                     """,
                     on: connection
@@ -127,11 +147,39 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         screenshot: ManagedScreenshot,
         selection: ProviderSelection
     ) async throws -> PreparedExtraction {
+        let prepared = try await prepareOperation(
+            screenshot: screenshot,
+            selection: selection,
+            operation: .extractText
+        )
+        return PreparedExtraction(
+            operationID: prepared.operationID,
+            screenshot: prepared.screenshot,
+            selection: prepared.selection
+        )
+    }
+
+    public func prepareOperation(
+        screenshot: ManagedScreenshot,
+        selection: ProviderSelection,
+        operation: ProviderOperation
+    ) async throws -> PreparedOperation {
         let operationID = UUID()
+        let kind: PersistedOperationKind
+        let targetLanguage: String?
+        switch operation {
+        case .extractText:
+            kind = .extract
+            targetLanguage = nil
+        case let .translate(language):
+            kind = .translate
+            targetLanguage = language
+        }
         let sql = """
             INSERT INTO operations (
-                id, screenshot_path, screenshot_sha256, provider_id, model_id, status
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                id, screenshot_path, screenshot_sha256, provider_id, model_id, status,
+                operation_kind, target_language
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -146,20 +194,24 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         try Self.bind(selection.providerID, at: 4, to: statement)
         try Self.bind(selection.modelID, at: 5, to: statement)
         try Self.bind(OperationStatus.preparing.rawValue, at: 6, to: statement)
+        try Self.bind(kind.rawValue, at: 7, to: statement)
+        try Self.bind(targetLanguage, at: 8, to: statement)
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
-        return PreparedExtraction(
+        return PreparedOperation(
             operationID: operationID,
             screenshot: screenshot,
-            selection: selection
+            selection: selection,
+            operation: operation
         )
     }
 
     public func operation(id: UUID) async throws -> StoredOperation? {
         let sql = """
             SELECT screenshot_path, screenshot_sha256, provider_id, model_id, status,
-                   source_markdown, translation_markdown, normalized_error_code
+                   source_markdown, translation_markdown, normalized_error_code,
+                   operation_kind, target_language
             FROM operations WHERE id = ?
             """
         var statement: OpaquePointer?
@@ -182,7 +234,9 @@ public actor SQLiteHistoryStore: HistoryPersisting {
               let providerID = Self.text(at: 2, from: statement),
               let modelID = Self.text(at: 3, from: statement),
               let statusValue = Self.text(at: 4, from: statement),
-              let status = OperationStatus(rawValue: statusValue)
+              let status = OperationStatus(rawValue: statusValue),
+              let kindValue = Self.text(at: 8, from: statement),
+              let kind = PersistedOperationKind(rawValue: kindValue)
         else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
@@ -196,7 +250,9 @@ public actor SQLiteHistoryStore: HistoryPersisting {
             status: status,
             sourceMarkdown: Self.text(at: 5, from: statement),
             translationMarkdown: Self.text(at: 6, from: statement),
-            normalizedErrorCode: Self.text(at: 7, from: statement)
+            normalizedErrorCode: Self.text(at: 7, from: statement),
+            kind: kind,
+            targetLanguage: Self.text(at: 9, from: statement)
         )
     }
 
@@ -324,7 +380,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         return Int(sqlite3_column_int(statement, 0))
     }
 
-    private static func validateExistingDatabase(_ database: OpaquePointer) throws {
+    private static func prepareExistingDatabase(_ database: OpaquePointer) throws {
         let schemaVersion = try schemaVersion(on: database)
         guard schemaVersion <= supportedSchemaVersion else {
             throw SQLiteHistoryStoreError.schemaTooNew(
@@ -332,10 +388,34 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                 supported: supportedSchemaVersion
             )
         }
-        guard schemaVersion == supportedSchemaVersion,
-              try quickCheckPasses(on: database),
-              try hasRequiredOperationColumns(on: database)
-        else {
+        guard try quickCheckPasses(on: database) else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        if schemaVersion == 1 {
+            guard try hasRequiredOperationColumns(on: database, schemaVersion: 1) else {
+                throw SQLiteHistoryStoreError.databaseFailure
+            }
+            try execute("BEGIN IMMEDIATE", on: database)
+            do {
+                try execute(
+                    "ALTER TABLE operations ADD COLUMN operation_kind TEXT NOT NULL DEFAULT 'extract'",
+                    on: database
+                )
+                try execute(
+                    "ALTER TABLE operations ADD COLUMN target_language TEXT",
+                    on: database
+                )
+                try execute(
+                    "UPDATE metadata SET value = 2 WHERE key = 'schema_version'",
+                    on: database
+                )
+                try execute("COMMIT", on: database)
+            } catch {
+                try? execute("ROLLBACK", on: database)
+                throw error
+            }
+        }
+        guard try hasRequiredOperationColumns(on: database, schemaVersion: 2) else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
     }
@@ -356,9 +436,10 @@ public actor SQLiteHistoryStore: HistoryPersisting {
     }
 
     private static func hasRequiredOperationColumns(
-        on database: OpaquePointer
+        on database: OpaquePointer,
+        schemaVersion: Int
     ) throws -> Bool {
-        let requiredColumns: Set<String> = [
+        var requiredColumns: Set<String> = [
             "id",
             "screenshot_path",
             "screenshot_sha256",
@@ -369,6 +450,9 @@ public actor SQLiteHistoryStore: HistoryPersisting {
             "translation_markdown",
             "normalized_error_code",
         ]
+        if schemaVersion >= 2 {
+            requiredColumns.formUnion(["operation_kind", "target_language"])
+        }
         let sql = "PRAGMA table_info(operations)"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,

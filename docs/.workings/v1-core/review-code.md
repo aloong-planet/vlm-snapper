@@ -172,3 +172,38 @@
 ## 结论
 
 审查发现并先红后绿修复 4 个状态/边界 bug 和 1 个快捷键生命周期 bug；严格 Swift/C 构建及完整 105 例测试通过。真实 macOS 集成门禁明确保留，无剩余 Ticket 05 代码阻断项。
+
+---
+
+# VLMSnapper v1 — Ticket 06 code review
+
+审查范围：操作工作区 actor、持久化 runner、历史 schema v2、操作栏与结果窗口原生 UI。
+
+## 【① 底层前提】
+
+- SwiftUI 只负责快照展示与显式 intent；请求次数、截图所有权和终态持久化由 actor/runner seam 约束，不能由按钮禁用状态代替。
+- AppKit panel/window 已通过真实 harness 渲染核对明暗外观与 4 px 操作栏位置；签名 App 的点击、键盘、辅助功能和 TCC 行为仍属于 Ticket 10 集成门禁。
+- 历史 schema v1 只有提取记录，因此迁移时将旧行确定性标记为 extract，不推断不存在的翻译目标。
+
+## 【② 可运行性】
+
+- 修复 actor 重入竞态：请求等待全局 lease 时切换结果标签，旧实现会重新读取标签并偷换请求类型；现在首次点击即冻结 operation kind，等待后不再读取展示选择。
+- 修复截图所有权泄漏：新截图保存后、历史准备接管前收到取消，旧实现保留了无历史所有者的文件与缓存；现在取消与普通准备失败使用同一安全回滚路径。
+- 修复取消状态错记：HTTP/executor 会把 Swift 取消归一化为 `ProviderAdapterError.cancelled`，旧 runner 会持久化 failed；现在两种取消信号都写入 canceled 并向会话抛 `CancellationError`。
+- 修复窄屏布局：当包含长模型名的操作栏宽于可见屏幕时，旧 x 公式会把左端移出屏幕；现在至少固定可操作的 leading edge 在可见区域。
+
+## 【③ 安全正确性】
+
+- Provider 请求只在截图保存、typed operation 准备及准备结果身份核对后开始；不一致记录、准备失败和新截图取消都不会访问 Provider。
+- 最终结果落库失败只保留内存结果并提供 Retry Save；未保存结果阻断任何后续模型请求，关闭需要确认，保存重试不触发 Provider。
+- Provider/model/operation/target 在请求前冻结；失败不自动重试、不换模型、不重放，partial delta 不进入 committed result。
+
+## 【④ 一致性】
+
+- 操作栏 4/3/25/6 px 常量、顶部分段切换、左右双区结果和明暗语义色与已确认原型一致；无标注、画线或画框能力。
+- 28 个 zh-Hans/en 键成对存在；产品源码、注释与提示词保持英文，用户文案只通过本地化目录进入。
+- `docs/features/` 仍未初始化：Ticket 06 已有可渲染组件但尚无 Ticket 07 App 入口，不提前宣称最终用户可独立使用。
+
+## 结论
+
+审查发现并先红后绿修复 4 个实际竞态、所有权、状态与布局问题；严格构建和完整 127 例测试通过。无剩余 Ticket 06 代码阻断项，签名 App 系统交互保留为 Ticket 10 发布门禁。

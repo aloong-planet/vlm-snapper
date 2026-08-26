@@ -5,6 +5,30 @@ import Testing
 
 @Suite("SQLite history store")
 struct SQLiteHistoryStoreTests {
+    @Test("a typed translation operation persists its target language")
+    func typedTranslationPersistsTargetLanguage() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteHistoryStore(
+            databaseURL: directory.appendingPathComponent("history.sqlite")
+        )
+
+        let prepared = try await store.prepareOperation(
+            screenshot: ManagedScreenshot(path: "/Pictures/result.png", sha256: "sha"),
+            selection: ProviderSelection(providerID: "gemini", modelID: "vision"),
+            operation: .translate(targetLanguage: "en")
+        )
+
+        let operation = try await store.operation(id: prepared.operationID)
+        #expect(operation?.kind == .translate)
+        #expect(operation?.targetLanguage == "en")
+    }
+
     @Test("a prepared extraction survives reopening the database")
     func preparedExtractionSurvivesReopeningDatabase() async throws {
         let directory = FileManager.default.temporaryDirectory
@@ -150,7 +174,7 @@ struct SQLiteHistoryStoreTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let databaseURL = directory.appendingPathComponent("history.sqlite")
-        try makeDatabase(at: databaseURL, schemaVersion: 2)
+        try makeDatabase(at: databaseURL, schemaVersion: 3)
         let bytesBeforeOpen = try Data(contentsOf: databaseURL)
 
         do {
@@ -158,10 +182,55 @@ struct SQLiteHistoryStoreTests {
             Issue.record("Expected a newer schema to block the history store")
         } catch {
             #expect(
-                error as? SQLiteHistoryStoreError == .schemaTooNew(found: 2, supported: 1)
+                error as? SQLiteHistoryStoreError == .schemaTooNew(found: 3, supported: 2)
             )
         }
         #expect(try Data(contentsOf: databaseURL) == bytesBeforeOpen)
+    }
+
+    @Test("version-one rows migrate to typed extraction operations")
+    func versionOneRowsMigrateToExtraction() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let databaseURL = directory.appendingPathComponent("history.sqlite")
+        let operationID = UUID()
+        try makeDatabase(
+            at: databaseURL,
+            schemaVersion: 1,
+            operationsSQL: """
+                id TEXT PRIMARY KEY NOT NULL,
+                screenshot_path TEXT NOT NULL,
+                screenshot_sha256 TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                source_markdown TEXT,
+                translation_markdown TEXT,
+                normalized_error_code TEXT
+                """
+        )
+        try executeSQL(
+            """
+            INSERT INTO operations (
+                id, screenshot_path, screenshot_sha256, provider_id, model_id, status
+            ) VALUES (
+                '\(operationID.uuidString)', '/Pictures/legacy.png', 'sha',
+                'openai', 'vision', 'succeeded'
+            )
+            """,
+            at: databaseURL
+        )
+
+        let store = try SQLiteHistoryStore(databaseURL: databaseURL)
+        let operation = try await store.operation(id: operationID)
+
+        #expect(operation?.kind == .extract)
+        #expect(operation?.targetLanguage == nil)
     }
 
     @Test("a corrupted database is blocked without changing its bytes")
@@ -333,6 +402,17 @@ struct SQLiteHistoryStoreTests {
         if let operationsSQL {
             sql += "CREATE TABLE operations (\(operationsSQL));"
         }
+        guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+    }
+
+    private func executeSQL(_ sql: String, at url: URL) throws {
+        var database: OpaquePointer?
+        guard sqlite3_open(url.path, &database) == SQLITE_OK, let database else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        defer { sqlite3_close(database) }
         guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
