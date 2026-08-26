@@ -1,0 +1,21 @@
+// swift-tools-version: 6.2
+
+import PackageDescription
+
+let package = Package(
+    name: "VLMSnapper",
+    platforms: [
+        .macOS(.v14),
+    ],
+    products: [
+        .library(name: "VLMSnapperCore", targets: ["VLMSnapperCore"]),
+    ],
+    targets: [
+        .target(name: "VLMSnapperCore"),
+        .testTarget(
+            name: "VLMSnapperCoreTests",
+            dependencies: ["VLMSnapperCore"]
+        ),
+    ],
+    swiftLanguageModes: [.v6]
+)
