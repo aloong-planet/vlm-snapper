@@ -13,7 +13,7 @@
 | 07 | 菜单栏、首次引导、权限恢复与 Provider 配置 UI | 已完成 |
 | 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 已完成 |
 | 09 | 单实例、诊断、本地化、登录项与 Sparkle 更新 | 已完成 |
-| 10 | 三架构直接分发、签名/公证/appcast 门禁与全功能收口 | 待开始 |
+| 10 | 三架构直接分发、签名/公证/appcast 门禁与全功能收口 | 进行中（正式门禁阻塞） |
 
 ## Ticket 01 evidence
 
@@ -68,3 +68,10 @@
 - Gate: Sparkle 2.9.6 exact dependency、严格 Swift/C warnings-as-errors build、完整宿主 `swift test` 172/172、32 张中英文/明暗/更新状态离屏渲染、系统 gzip 解压验证与 `git diff --check`。
 - Tests: 语言 3 例、登录项 2 例、单实例 3 例、诊断 4 例、更新生命周期 4 例、Sparkle 用户驱动 3 例和 UI 2 例，覆盖完整偏好列表、默认登录启用/审批、真实排他锁恢复、allowlist/截止日/gzip、六小时且不自动下载、reply 单次消费、回调顺序及共享菜单/设置状态。
 - Evidence: `ApplicationLanguage.swift`、`LoginItemCoordinator.swift`、`PrimaryInstanceCoordinator.swift`、`DiagnosticLogStore.swift`、`UpdateLifecycle.swift`、独立 Sparkle target 与原生 UI adapters；`review-code.md`、`review-tests.md` 和 `final-regression.md` 的 Ticket 09 章节。签名进程唤醒、真实 SMAppService/appcast/安装和退出协调仍由 Ticket 10 验收。
+
+## Ticket 10 evidence
+
+- Development gate: strict Swift/C warnings-as-errors build, full Swift Testing 184/184 in 45 suites, 32 Ticket 09 and 4 Ticket 10 bilingual light/dark renders, localization-key parity, shell/YAML syntax checks, and separate Universal/Apple Silicon/Intel ad-hoc DMG verification.
+- Implemented surfaces: production accessory executable, application composition, frozen overlay, searchable target-language picker, persistent custom shortcut, menu/history/settings/onboarding/result routing, hourly cleanup wake with a 24-hour core gate, sanitized diagnostic export, and coordinated termination for Quit, Command-Q, language restart, and Sparkle installation.
+- Release pipeline: exact three-member manifest, separate architecture feeds, fail-closed credentials and HTTPS validation, nested hardened-runtime signing, app and DMG notarization/stapling/Gatekeeper checks, EdDSA verification, and atomic six-file staging.
+- Formal gate remains blocked: no local Developer ID identity or notarization evidence, no public HTTPS feed/download host, and no protected live OpenAI/Gemini/DeepSeek credentials. Development DMGs are not release evidence; Ticket 10 stays in progress.

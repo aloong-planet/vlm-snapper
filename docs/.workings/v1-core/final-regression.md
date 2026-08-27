@@ -286,3 +286,37 @@
 ### 收敛结论
 
 三阶段队列已清空；实现、review、测试、ticket、checklist、spec、ADR、原型和双语字典一致。Ticket 09 完成可组合生命周期模块与确认 UI，不把尚未存在的签名生产 App、真实系统审批或更新安装冒充已验证。
+
+---
+
+## 2026-08-27 — Ticket 10 development closure
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 10 development scope | production executable、App composition、capture host、release scripts | 已组合出可构建的菜单栏应用和三架构开发包；formal acceptance 仍明确阻塞 |
+| `v1-core.md` 全产品行为 | 生产接线与 184 个测试 | Provider-first、冻结截图、单请求、历史/清理、更新、诊断、快捷键和统一退出一致 |
+| 已确认原型 | 32 + 4 张当前 render | 设置快捷键与紧凑操作栏中英文/明暗均无错位、截断或视觉方向漂移 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 10 in progress、formal gates blocked | 状态不再错误依赖已完成的 01–09，也未标完成 |
+| design ↔ 实现 | repeated capture、all-display failure、termination、atomic publishing | 旧的“活动 capture 只前置”与“全部失败走 permission”表述已修正为实际确认行为 |
+| features ↔ 当前产品 | `docs/features/v1-core.md` 与 production target | 目录已初始化，但显著声明仅 development implementation、不可正式公开发布 |
+| 规则 ↔ 门禁 | strict build、184/184、localization parity、CJK scan | 代码/注释/测试英文，UI 双语；0-test 兼容输出未当绿灯 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 新增三架构开发 DMG | executable slices、bundle metadata、checksum、codesign | Universal/arm64/x64 packaging shape 分别验证；ad-hoc 不冒充 Developer ID |
+| 新增统一退出保护 | menu Quit、Command-Q、restart、Sparkle termination | 都进入 `prepareForTermination`; 未保存完成结果需显式确认 |
+| 新增目标语言与快捷键 | catalog、UserDefaults、recorder、toolbar/settings | 无手动语言码、无繁体入口；快捷键冲突保持旧注册 |
+| 新增 formal pipeline | credentials、HTTPS、notary、staple、Gatekeeper、EdDSA、atomic stage | 缺少真实身份/托管/Provider 凭据时 fail closed，Ticket 不完成 |
+
+### 收敛结论
+
+开发实现、设计、功能目录、review 与本地验证已同步。Ticket 10 保持“进行中（正式门禁阻塞）”；只有真实签名、公证、公共 HTTPS 与 live Provider 证据齐备后，才能改为 completed 或发布 v1。

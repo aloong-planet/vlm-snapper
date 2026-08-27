@@ -5,6 +5,7 @@ enum VLMSnapperStrings {
     static var extract: String { localized("operation.extract") }
     static var translate: String { localized("operation.translate") }
     static var operationSelector: String { localized("operation.selector") }
+    static var targetLanguageSearch: String { localized("operation.targetLanguageSearch") }
     static var cancel: String { localized("action.cancel") }
     static var start: String { localized("action.start") }
     static var rerun: String { localized("action.rerun") }
@@ -18,6 +19,12 @@ enum VLMSnapperStrings {
     static var failed: String { localized("result.failed") }
     static var canceled: String { localized("result.canceled") }
     static var persistenceFailed: String { localized("result.persistenceFailed") }
+    static var discardUnsavedTitle: String { localized("result.discardUnsaved.title") }
+    static var discardUnsavedBody: String { localized("result.discardUnsaved.body") }
+    static var discardUnsavedAction: String { localized("result.discardUnsaved.action") }
+    static var captureFailedTitle: String { localized("capture.failed.title") }
+    static var captureFailedBody: String { localized("capture.failed.body") }
+    static var retry: String { localized("action.retry") }
     static var onboardingTitle: String { localized("onboarding.title") }
     static var onboardingSubtitle: String { localized("onboarding.subtitle") }
     static var permissionTitle: String { localized("onboarding.permission.title") }
@@ -99,6 +106,12 @@ enum VLMSnapperStrings {
     static var historyClearIncludingPinned: String { localized("history.clearIncludingPinned") }
     static var historyTokenUsageFormat: String { localized("history.tokenUsageFormat") }
     static var historyRetentionDaysFormat: String { localized("history.retentionDaysFormat") }
+    static var historyRetentionShorteningConfirm: String {
+        localized("history.retentionShorteningConfirm")
+    }
+    static var historyRetentionShorteningAction: String {
+        localized("history.retentionShorteningAction")
+    }
     static var generalSettingsSubtitle: String { localized("settings.general.subtitle") }
     static var languageTitle: String { localized("settings.language.title") }
     static var languageHint: String { localized("settings.language.hint") }
@@ -107,6 +120,11 @@ enum VLMSnapperStrings {
     static var languageSystem: String { localized("settings.language.system") }
     static var languageSimplifiedChinese: String { localized("settings.language.zhHans") }
     static var languageEnglish: String { localized("settings.language.en") }
+    static var shortcutTitle: String { localized("settings.shortcut.title") }
+    static var shortcutHint: String { localized("settings.shortcut.hint") }
+    static var shortcutRecording: String { localized("settings.shortcut.recording") }
+    static var shortcutConflict: String { localized("settings.shortcut.conflict") }
+    static var shortcutInvalid: String { localized("settings.shortcut.invalid") }
     static var loginItemTitle: String { localized("settings.loginItem.title") }
     static var loginItemHint: String { localized("settings.loginItem.hint") }
     static var loginItemApproval: String { localized("settings.loginItem.approval") }

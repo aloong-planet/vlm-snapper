@@ -278,3 +278,34 @@
 ## 结论
 
 覆盖、case 设计与假通过三维均已核对；锁、隐私、截止日、一次性下载、回调顺序、双语和真实渲染都有目标行为证据，签名系统缺口未被库测试掩盖。
+
+---
+
+# VLMSnapper v1 — Ticket 10 test review
+
+审查范围：生产组合新增 Core 行为、当前 UI 渲染、开发打包与正式发布门禁。
+
+## 维度 1：覆盖是否完整
+
+- 新增 manifest 覆盖三架构完整性、重复/缺失成员、身份/版本/公钥/feed 一致性与 slice；坐标 mapper 覆盖多显示器 AppKit/CG 坐标转换。
+- 目标语言覆盖优先顺序、完整标准集合、去重和排除繁体/未知手输；快捷键偏好覆盖跨实例保存和不完整值回退。
+- workspace 新增未保存完成结果显式 discard 转移；capture coordinator 覆盖权限、部分屏失败、全部失败和 discovery 权限错误。
+- UI 生成 Ticket 09 的 32 张设置/菜单图与 Ticket 10 的 4 张 toolbar 图，并逐图检查中英文、明暗、快捷键尺寸和紧凑操作栏。
+- 缺口明确保留：真实 TCC、多物理显示器首帧、系统热键冲突、SMAppService、签名 Keychain、Sparkle 安装和三个 live Provider 契约只能由正式签名环境承兑。
+
+## 维度 2：case 设计是否合理
+
+- Core 测试经公开 manifest/catalog/store/session/coordinator seam，不断言私有 SwiftUI 结构；文件、时钟与系统边界使用可控依赖。
+- UI 测试使用生产 View、真实 NSHostingView、appearance、本地化词典与 PNG 编码；文件数量和最小字节门禁之外另有人工作品检查。
+- release 脚本分别验证输入 fail-closed、bundle 元数据、目标 slice、DMG checksum/只读挂载和 codesign；formal 流程不因本机缺证书而降级。
+
+## 维度 3：假通过检查
+
+- `TargetLanguageCatalog` 与 `UserDefaultsGlobalShortcutStore` 均经历真实红灯：测试先因类型不存在而编译失败，最小实现后转绿。
+- 未保存结果测试在旧实现没有 `discardUnsavedResults` 时编译红，新增状态转移后验证 snapshot 清空。
+- 最终以 Swift Testing 的 184/184、45 suites 汇总为准；XCTest 兼容层的 `Executed 0 tests` 明确不作证据。
+- 形式发布脚本在缺失凭据时退出 78 且不创建输出；三份 ad-hoc DMG 只证明开发 packaging，不被计入签名、公证或发布通过。
+
+## 结论
+
+覆盖、case 设计与假通过三维已核对；新增公开行为、当前 UI 和三架构开发 packaging 均有真实证据。未执行的签名/公证/Provider 系统门禁继续保持红色，不以 skipped 或开发包冒充通过。

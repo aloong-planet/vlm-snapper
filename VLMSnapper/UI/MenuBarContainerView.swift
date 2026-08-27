@@ -53,6 +53,7 @@ public struct MenuBarContainerView: View {
     private let provider: ProviderReadiness
     private let providerSnapshot: ProviderSetupSnapshot
     private let updateState: UpdateLifecycleState
+    private let captureShortcut: String
     @Binding private var apiKey: String
     @Binding private var pendingModelID: String?
     private let callbacks: MenuBarCallbacks
@@ -64,6 +65,7 @@ public struct MenuBarContainerView: View {
         provider: ProviderReadiness,
         providerSnapshot: ProviderSetupSnapshot,
         updateState: UpdateLifecycleState = .idle,
+        captureShortcut: String = "⌥⇧S",
         apiKey: Binding<String>,
         pendingModelID: Binding<String?>,
         callbacks: MenuBarCallbacks
@@ -73,6 +75,7 @@ public struct MenuBarContainerView: View {
         self.provider = provider
         self.providerSnapshot = providerSnapshot
         self.updateState = updateState
+        self.captureShortcut = captureShortcut
         _apiKey = apiKey
         _pendingModelID = pendingModelID
         self.callbacks = callbacks
@@ -82,6 +85,7 @@ public struct MenuBarContainerView: View {
         MenuBarPanelView(
             recentItems: recentItems,
             updateState: updateState,
+            captureShortcut: captureShortcut,
             onCapture: routeCapture,
             onOpenRecent: callbacks.onOpenRecent,
             onNavigate: callbacks.onNavigate,

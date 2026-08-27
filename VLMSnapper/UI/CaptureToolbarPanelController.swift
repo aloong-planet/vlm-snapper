@@ -42,7 +42,9 @@ public final class CaptureToolbarPanelController {
             backing: .buffered,
             defer: false
         )
-        panel.level = .floating
+        panel.level = NSWindow.Level(
+            rawValue: NSWindow.Level.screenSaver.rawValue + 1
+        )
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false

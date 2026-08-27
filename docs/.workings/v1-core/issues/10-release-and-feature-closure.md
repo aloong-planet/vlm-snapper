@@ -1,8 +1,8 @@
 # 10 — Release and feature closure
 
-Status: blocked
+Status: in progress (formal release gates blocked)
 
-Blocked by: 01, 02, 03, 04, 05, 06, 07, 08, 09
+Blocked by: Developer ID identity, Apple notarization credentials, public HTTPS feed/download hosting, and protected live Provider credentials
 
 ## Goal
 
@@ -16,3 +16,8 @@ Blocked by: 01, 02, 03, 04, 05, 06, 07, 08, 09
 - review-code、review-tests 和 final-regression 证据齐全。
 
 ## Comments
+
+- 2026-08-27: Production accessory app composition, menu/onboarding/settings/history/capture/result wiring, custom shortcut, target-language picker, diagnostics export, coordinated termination, and application-lifetime cleanup are implemented.
+- 2026-08-27: Strict build and 184 Swift tests pass; 32 Ticket 09 and 4 Ticket 10 bilingual light/dark renders were generated and inspected.
+- 2026-08-27: Separate ad-hoc development DMGs for Universal, Apple Silicon, and Intel validate packaging shape only. They do not satisfy the formal release acceptance criteria.
+- 2026-08-27: Formal completion remains fail-closed until signed/notarized/stapled/Gatekeeper/EdDSA artifacts and live Provider contracts have real evidence.

@@ -52,14 +52,16 @@ public final class MenuBarPanelController<Content: View>: NSObject {
         setUpdateIndicatorVisible(state.showsAttentionIndicator)
     }
 
+    public func show() {
+        guard !popover.isShown, let button = statusItem.button else { return }
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
+
     @objc private func togglePopover() {
         if popover.isShown {
             popover.performClose(nil)
             return
         }
-        guard let button = statusItem.button else {
-            return
-        }
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        show()
     }
 }

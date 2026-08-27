@@ -2,6 +2,37 @@ import AppKit
 import SwiftUI
 import VLMSnapperCore
 
+public struct ProviderSettingsConfiguration {
+    public let snapshot: ProviderSetupSnapshot
+    public let apiKey: Binding<String>
+    public let pendingModelID: Binding<String?>
+    public let onSelectProvider: (ProviderID) -> Void
+    public let onValidate: () -> Void
+    public let onRefresh: () -> Void
+    public let onSelectModel: (String) -> Void
+    public let onDone: () -> Void
+
+    public init(
+        snapshot: ProviderSetupSnapshot,
+        apiKey: Binding<String>,
+        pendingModelID: Binding<String?>,
+        onSelectProvider: @escaping (ProviderID) -> Void,
+        onValidate: @escaping () -> Void,
+        onRefresh: @escaping () -> Void,
+        onSelectModel: @escaping (String) -> Void,
+        onDone: @escaping () -> Void = {}
+    ) {
+        self.snapshot = snapshot
+        self.apiKey = apiKey
+        self.pendingModelID = pendingModelID
+        self.onSelectProvider = onSelectProvider
+        self.onValidate = onValidate
+        self.onRefresh = onRefresh
+        self.onSelectModel = onSelectModel
+        self.onDone = onDone
+    }
+}
+
 public struct GeneralSettingsSnapshot: Equatable, Sendable {
     public let language: ApplicationLanguagePreference
     public let languageRestartRequired: Bool
@@ -9,6 +40,9 @@ public struct GeneralSettingsSnapshot: Equatable, Sendable {
     public let loginItemState: LoginItemState
     public let automaticallyChecksForUpdates: Bool
     public let updateState: UpdateLifecycleState
+    public let retentionShorteningRecordCount: Int?
+    public let captureShortcut: GlobalShortcut
+    public let shortcutFailure: ShortcutSettingsFailure?
 
     public init(
         language: ApplicationLanguagePreference = .system,
@@ -16,7 +50,10 @@ public struct GeneralSettingsSnapshot: Equatable, Sendable {
         loginItemEnabled: Bool = true,
         loginItemState: LoginItemState = .enabled,
         automaticallyChecksForUpdates: Bool = true,
-        updateState: UpdateLifecycleState = .idle
+        updateState: UpdateLifecycleState = .idle,
+        retentionShorteningRecordCount: Int? = nil,
+        captureShortcut: GlobalShortcut = .defaultCapture,
+        shortcutFailure: ShortcutSettingsFailure? = nil
     ) {
         self.language = language
         self.languageRestartRequired = languageRestartRequired
@@ -24,7 +61,16 @@ public struct GeneralSettingsSnapshot: Equatable, Sendable {
         self.loginItemState = loginItemState
         self.automaticallyChecksForUpdates = automaticallyChecksForUpdates
         self.updateState = updateState
+        self.retentionShorteningRecordCount = retentionShorteningRecordCount
+        self.captureShortcut = captureShortcut
+        self.shortcutFailure = shortcutFailure
     }
+}
+
+public enum ShortcutSettingsFailure: Equatable, Sendable {
+    case invalid
+    case conflict
+    case registrationFailed
 }
 
 public struct ManagementCenterCallbacks {
@@ -34,9 +80,12 @@ public struct ManagementCenterCallbacks {
     public let onClearHistory: (Bool) -> Void
     public let onRetryCleanup: () -> Void
     public let onRetentionChange: (HistoryRetentionPeriod) -> Void
+    public let onConfirmRetentionShortening: () -> Void
+    public let onCancelRetentionShortening: () -> Void
     public let onLanguageChange: (ApplicationLanguagePreference) -> Void
     public let onRestartForLanguageChange: () -> Void
     public let onLoginItemChange: (Bool) -> Void
+    public let onShortcutChange: (GlobalShortcut) -> Void
     public let onOpenLoginItemSettings: () -> Void
     public let onAutomaticUpdateChecksChange: (Bool) -> Void
     public let onCheckUpdates: () -> Void
@@ -52,9 +101,12 @@ public struct ManagementCenterCallbacks {
         onClearHistory: @escaping (Bool) -> Void = { _ in },
         onRetryCleanup: @escaping () -> Void = {},
         onRetentionChange: @escaping (HistoryRetentionPeriod) -> Void = { _ in },
+        onConfirmRetentionShortening: @escaping () -> Void = {},
+        onCancelRetentionShortening: @escaping () -> Void = {},
         onLanguageChange: @escaping (ApplicationLanguagePreference) -> Void = { _ in },
         onRestartForLanguageChange: @escaping () -> Void = {},
         onLoginItemChange: @escaping (Bool) -> Void = { _ in },
+        onShortcutChange: @escaping (GlobalShortcut) -> Void = { _ in },
         onOpenLoginItemSettings: @escaping () -> Void = {},
         onAutomaticUpdateChecksChange: @escaping (Bool) -> Void = { _ in },
         onCheckUpdates: @escaping () -> Void = {},
@@ -69,9 +121,12 @@ public struct ManagementCenterCallbacks {
         self.onClearHistory = onClearHistory
         self.onRetryCleanup = onRetryCleanup
         self.onRetentionChange = onRetentionChange
+        self.onConfirmRetentionShortening = onConfirmRetentionShortening
+        self.onCancelRetentionShortening = onCancelRetentionShortening
         self.onLanguageChange = onLanguageChange
         self.onRestartForLanguageChange = onRestartForLanguageChange
         self.onLoginItemChange = onLoginItemChange
+        self.onShortcutChange = onShortcutChange
         self.onOpenLoginItemSettings = onOpenLoginItemSettings
         self.onAutomaticUpdateChecksChange = onAutomaticUpdateChecksChange
         self.onCheckUpdates = onCheckUpdates
@@ -88,6 +143,7 @@ public struct ManagementCenterView: View {
     private let cleanupFailureCount: Int
     private let callbacks: ManagementCenterCallbacks
     private let settings: GeneralSettingsSnapshot
+    private let providerSettings: ProviderSettingsConfiguration?
     @State private var destination: ManagementCenterDestination
     @State private var kind: HistoryOperationKindFilter = .all
     @State private var searchText: String
@@ -97,6 +153,7 @@ public struct ManagementCenterView: View {
     @State private var showGeneralSettings = false
     @State private var pendingDeletion: HistoryRecord?
     @State private var showingClearConfirmation = false
+    @State private var showingProviderSetup = false
 
     public init(
         destination: ManagementCenterDestination,
@@ -107,6 +164,7 @@ public struct ManagementCenterView: View {
         searchText: String = "",
         retention: HistoryRetentionPeriod = .thirtyDays,
         settings: GeneralSettingsSnapshot = GeneralSettingsSnapshot(),
+        providerSettings: ProviderSettingsConfiguration? = nil,
         callbacks: ManagementCenterCallbacks = ManagementCenterCallbacks()
     ) {
         self.records = records
@@ -114,6 +172,7 @@ public struct ManagementCenterView: View {
         self.cleanupFailureCount = cleanupFailureCount
         self.callbacks = callbacks
         self.settings = settings
+        self.providerSettings = providerSettings
         _destination = State(initialValue: destination)
         _selectedRecordID = State(initialValue: selectedRecordID ?? records.first?.id)
         _searchText = State(initialValue: searchText)
@@ -158,6 +217,37 @@ public struct ManagementCenterView: View {
             }
             Button(VLMSnapperStrings.historyClearIncludingPinned, role: .destructive) {
                 callbacks.onClearHistory(true)
+            }
+        }
+        .confirmationDialog(
+            retentionShorteningTitle,
+            isPresented: Binding(
+                get: { settings.retentionShorteningRecordCount != nil },
+                set: { if !$0 { callbacks.onCancelRetentionShortening() } }
+            )
+        ) {
+            Button(
+                VLMSnapperStrings.historyRetentionShorteningAction,
+                role: .destructive,
+                action: callbacks.onConfirmRetentionShortening
+            )
+        }
+        .sheet(isPresented: $showingProviderSetup) {
+            if let providerSettings {
+                ProviderSetupView(
+                    snapshot: providerSettings.snapshot,
+                    apiKey: providerSettings.apiKey,
+                    pendingModelID: providerSettings.pendingModelID,
+                    onSelectProvider: providerSettings.onSelectProvider,
+                    onValidate: providerSettings.onValidate,
+                    onRefresh: providerSettings.onRefresh,
+                    onSelectModel: providerSettings.onSelectModel,
+                    onCancel: { showingProviderSetup = false },
+                    onDone: {
+                        providerSettings.onDone()
+                        showingProviderSetup = false
+                    }
+                )
             }
         }
     }
@@ -288,6 +378,21 @@ public struct ManagementCenterView: View {
                         }
                     }
                     settingsRow(
+                        title: VLMSnapperStrings.shortcutTitle,
+                        detail: VLMSnapperStrings.shortcutHint
+                    ) {
+                        GlobalShortcutRecorder(
+                            shortcut: settings.captureShortcut,
+                            onChange: callbacks.onShortcutChange
+                        )
+                        .frame(width: 150, height: 28)
+                    }
+                    if let shortcutFailure = settings.shortcutFailure {
+                        Text(shortcutFailureMessage(shortcutFailure))
+                            .font(.caption)
+                            .foregroundStyle(VLMSnapperTheme.destructive)
+                    }
+                    settingsRow(
                         title: VLMSnapperStrings.loginItemTitle,
                         detail: VLMSnapperStrings.loginItemHint
                     ) {
@@ -343,6 +448,10 @@ public struct ManagementCenterView: View {
                     Label(VLMSnapperStrings.providerSetupTitle, systemImage: VLMSnapperIcon.providerList.rawValue)
                     Text(VLMSnapperStrings.providerSetupSubtitle)
                         .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    Button(VLMSnapperStrings.configure) {
+                        showingProviderSetup = true
+                    }
+                    .disabled(providerSettings == nil)
                 }
             }
         }
@@ -369,6 +478,17 @@ public struct ManagementCenterView: View {
             get: { settings.automaticallyChecksForUpdates },
             set: { value in callbacks.onAutomaticUpdateChecksChange(value) }
         )
+    }
+
+    private func shortcutFailureMessage(
+        _ failure: ShortcutSettingsFailure
+    ) -> String {
+        switch failure {
+        case .conflict:
+            return VLMSnapperStrings.shortcutConflict
+        case .invalid, .registrationFailed:
+            return VLMSnapperStrings.shortcutInvalid
+        }
     }
 
     private func settingsRow<Accessory: View>(
@@ -421,16 +541,9 @@ public struct ManagementCenterView: View {
     @ViewBuilder
     private var updateStatusAction: some View {
         switch settings.updateState {
-        case let .available(version):
-            if let informationURL = version.informationURL {
-                Button(VLMSnapperStrings.updateView) {
-                    callbacks.onOpenUpdateInformation(informationURL)
-                }
+        case .available:
+            Button(VLMSnapperStrings.updateDownload, action: callbacks.onDownloadUpdate)
                 .buttonStyle(.borderedProminent)
-            } else {
-                Button(VLMSnapperStrings.updateDownload, action: callbacks.onDownloadUpdate)
-                    .buttonStyle(.borderedProminent)
-            }
         case .readyToInstall:
             Button(VLMSnapperStrings.updateInstallNow, action: callbacks.onInstallUpdate)
                 .buttonStyle(.borderedProminent)
@@ -619,5 +732,12 @@ public struct ManagementCenterView: View {
 
     private func selectFirstVisibleRecord() {
         selectedRecordID = filteredRecords.first?.id
+    }
+
+    private var retentionShorteningTitle: String {
+        String(
+            format: VLMSnapperStrings.historyRetentionShorteningConfirm,
+            settings.retentionShorteningRecordCount ?? 0
+        )
     }
 }

@@ -1,6 +1,7 @@
 "operation.extract" = "Extract Text";
 "operation.translate" = "Translate";
 "operation.selector" = "Operation Type";
+"operation.targetLanguageSearch" = "Search languages";
 "action.cancel" = "Cancel";
 "action.start" = "Start";
 "action.rerun" = "Run Again";
@@ -14,6 +15,12 @@
 "result.failed" = "Request failed";
 "result.canceled" = "Canceled";
 "result.persistenceFailed" = "The result is not saved yet. You can copy it and retry saving.";
+"result.discardUnsaved.title" = "Discard Unsaved Result?";
+"result.discardUnsaved.body" = "This result could not be saved. Copy it first if you want to keep it.";
+"result.discardUnsaved.action" = "Discard";
+"capture.failed.title" = "Could Not Capture the Screen";
+"capture.failed.body" = "No display returned a usable frozen frame. You can try again.";
+"action.retry" = "Retry";
 "failure.invalidCredential" = "The API key is invalid or expired. Check the Provider configuration.";
 "failure.modelUnavailable" = "The current model is unavailable. Refresh the model list and choose again.";
 "failure.rateLimited" = "The Provider is temporarily limiting requests. Retry manually later.";
@@ -107,6 +114,8 @@
 "history.clearIncludingPinned" = "Clear All, Including Pinned";
 "history.tokenUsageFormat" = "Input %d · Output %d · Total %d";
 "history.retentionDaysFormat" = "%d days";
+"history.retentionShorteningConfirm" = "Changing the retention period will permanently delete %d expired unpinned records and their original screenshots. Continue?";
+"history.retentionShorteningAction" = "Change and Delete";
 "settings.general.subtitle" = "Manage language, login launch, and VLMSnapper update behavior.";
 "settings.language.title" = "Display Language";
 "settings.language.hint" = "Choose the interface language without changing date, time, or number formats.";
@@ -115,6 +124,11 @@
 "settings.language.system" = "Follow System";
 "settings.language.zhHans" = "Simplified Chinese";
 "settings.language.en" = "English";
+"settings.shortcut.title" = "Capture Shortcut";
+"settings.shortcut.hint" = "Click the field, then press a shortcut containing Command, Option, or Control.";
+"settings.shortcut.recording" = "Press shortcut";
+"settings.shortcut.conflict" = "That shortcut is already in use. The previous shortcut remains active.";
+"settings.shortcut.invalid" = "Use Command, Option, or Control with a supported key.";
 "settings.loginItem.title" = "Launch at Login";
 "settings.loginItem.hint" = "Start VLMSnapper in the menu bar after you log in to this Mac.";
 "settings.loginItem.approval" = "Allow VLMSnapper in Login Items in System Settings.";
@@ -143,3 +157,5 @@
 "diagnostics.title" = "Diagnostic Logs";
 "diagnostics.hint" = "Contains only sanitized runtime information and is retained for 7 days.";
 "diagnostics.export" = "Export Diagnostic Logs";
+"diagnostics.exportFailed.title" = "Could Not Export Diagnostics";
+"diagnostics.exportFailed.body" = "VLMSnapper could not write the diagnostics archive. Choose another folder and try again.";

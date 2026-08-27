@@ -82,7 +82,7 @@ private struct NativeDisplayCaptureAttempt: Sendable {
 
 private func capture(display: SCDisplay) async -> NativeDisplayCaptureAttempt {
     let displayID = display.displayID
-    guard let initialGeometry = currentGeometry(for: displayID) else {
+    guard let initialGeometry = currentCaptureDisplayGeometry(for: displayID) else {
         return failedAttempt(displayID: displayID, reason: .displayDisconnected)
     }
 
@@ -102,7 +102,7 @@ private func capture(display: SCDisplay) async -> NativeDisplayCaptureAttempt {
             contentFilter: filter,
             configuration: configuration
         )
-        guard let finalGeometry = currentGeometry(for: displayID) else {
+        guard let finalGeometry = currentCaptureDisplayGeometry(for: displayID) else {
             return failedAttempt(displayID: displayID, reason: .displayDisconnected)
         }
         guard finalGeometry == initialGeometry else {
@@ -137,7 +137,7 @@ private func capture(display: SCDisplay) async -> NativeDisplayCaptureAttempt {
     }
 }
 
-private func currentGeometry(
+public func currentCaptureDisplayGeometry(
     for displayID: CGDirectDisplayID
 ) -> CaptureDisplayGeometry? {
     guard CGDisplayIsActive(displayID) != 0 else {

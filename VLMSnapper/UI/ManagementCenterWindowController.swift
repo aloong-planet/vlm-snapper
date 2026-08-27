@@ -9,8 +9,11 @@ public final class ManagementCenterWindowController: NSWindowController {
     private var selectedImage: NSImage?
     private var cleanupFailureCount: Int
     private var retention: HistoryRetentionPeriod
+    private var settings: GeneralSettingsSnapshot
+    private var providerSettings: ProviderSettingsConfiguration?
     private let callbacks: ManagementCenterCallbacks
     private var currentDestination: ManagementCenterDestination = .history
+    private var hostingController: NSHostingController<ManagementCenterView>?
 
     public init(
         records: [HistoryRecord],
@@ -18,6 +21,8 @@ public final class ManagementCenterWindowController: NSWindowController {
         selectedImage: NSImage? = nil,
         cleanupFailureCount: Int = 0,
         retention: HistoryRetentionPeriod = .thirtyDays,
+        settings: GeneralSettingsSnapshot = GeneralSettingsSnapshot(),
+        providerSettings: ProviderSettingsConfiguration? = nil,
         callbacks: ManagementCenterCallbacks = ManagementCenterCallbacks()
     ) {
         self.records = records
@@ -25,6 +30,8 @@ public final class ManagementCenterWindowController: NSWindowController {
         self.selectedImage = selectedImage
         self.cleanupFailureCount = cleanupFailureCount
         self.retention = retention
+        self.settings = settings
+        self.providerSettings = providerSettings
         self.callbacks = callbacks
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1080, height: 700),
@@ -50,17 +57,24 @@ public final class ManagementCenterWindowController: NSWindowController {
     }
 
     private func render(destination: ManagementCenterDestination) {
-        window?.contentViewController = NSHostingController(
-            rootView: ManagementCenterView(
-                destination: destination,
-                records: records,
-                selectedRecordID: selectedRecordID,
-                selectedImage: selectedImage,
-                cleanupFailureCount: cleanupFailureCount,
-                retention: retention,
-                callbacks: callbacks
-            )
+        let view = ManagementCenterView(
+            destination: destination,
+            records: records,
+            selectedRecordID: selectedRecordID,
+            selectedImage: selectedImage,
+            cleanupFailureCount: cleanupFailureCount,
+            retention: retention,
+            settings: settings,
+            providerSettings: providerSettings,
+            callbacks: callbacks
         )
+        if let hostingController {
+            hostingController.rootView = view
+        } else {
+            let controller = NSHostingController(rootView: view)
+            hostingController = controller
+            window?.contentViewController = controller
+        }
     }
 
     public func update(
@@ -68,13 +82,17 @@ public final class ManagementCenterWindowController: NSWindowController {
         selectedRecordID: UUID?,
         selectedImage: NSImage?,
         cleanupFailureCount: Int,
-        retention: HistoryRetentionPeriod
+        retention: HistoryRetentionPeriod,
+        settings: GeneralSettingsSnapshot,
+        providerSettings: ProviderSettingsConfiguration?
     ) {
         self.records = records
         self.selectedRecordID = selectedRecordID
         self.selectedImage = selectedImage
         self.cleanupFailureCount = cleanupFailureCount
         self.retention = retention
+        self.settings = settings
+        self.providerSettings = providerSettings
         if window?.isVisible == true {
             render(destination: currentDestination)
         }

@@ -46,10 +46,11 @@ struct CaptureFreezeCoordinatorTests {
 
         let result = await coordinator.startCapture()
 
-        guard case let .ready(session, failures) = result else {
+        guard case let .ready(session, displays, failures) = result else {
             Issue.record("Expected a usable partial capture")
             return
         }
+        #expect(displays.map(\.geometry.displayID) == [1])
         #expect(failures == [failure])
         #expect(await session.availableDisplayIDs == [1])
     }

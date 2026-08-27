@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "VLMSnapperCore", targets: ["VLMSnapperCore"]),
         .library(name: "VLMSnapperSparkle", targets: ["VLMSnapperSparkle"]),
         .library(name: "VLMSnapperUI", targets: ["VLMSnapperUI"]),
+        .executable(name: "VLMSnapperApp", targets: ["VLMSnapperApp"]),
         .executable(
             name: "VLMSnapperUIHarness",
             targets: ["VLMSnapperUIHarness"]
@@ -61,6 +62,20 @@ let package = Package(
             dependencies: [
                 "VLMSnapperCore",
                 .product(name: "Sparkle", package: "Sparkle"),
+            ]
+        ),
+        .executableTarget(
+            name: "VLMSnapperApp",
+            dependencies: [
+                "VLMSnapperCore",
+                "VLMSnapperSparkle",
+                "VLMSnapperUI",
+            ],
+            linkerSettings: [
+                .unsafeFlags([
+                    "-Xlinker", "-rpath",
+                    "-Xlinker", "@executable_path/../Frameworks",
+                ]),
             ]
         ),
         .executableTarget(

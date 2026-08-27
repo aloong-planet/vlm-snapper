@@ -21,6 +21,7 @@ public struct MenuRecentItem: Identifiable, Equatable, Sendable {
 public struct MenuBarPanelView: View {
     private let recentItems: [MenuRecentItem]
     private let updateState: UpdateLifecycleState
+    private let captureShortcut: String
     private let onCapture: () -> Void
     private let onOpenRecent: (String) -> Void
     private let onNavigate: (ManagementCenterDestination) -> Void
@@ -32,6 +33,7 @@ public struct MenuBarPanelView: View {
     public init(
         recentItems: [MenuRecentItem],
         updateState: UpdateLifecycleState = .idle,
+        captureShortcut: String = "⌥⇧S",
         onCapture: @escaping () -> Void,
         onOpenRecent: @escaping (String) -> Void,
         onNavigate: @escaping (ManagementCenterDestination) -> Void,
@@ -42,6 +44,7 @@ public struct MenuBarPanelView: View {
     ) {
         self.recentItems = recentItems
         self.updateState = updateState
+        self.captureShortcut = captureShortcut
         self.onCapture = onCapture
         self.onOpenRecent = onOpenRecent
         self.onNavigate = onNavigate
@@ -54,11 +57,16 @@ public struct MenuBarPanelView: View {
     public var body: some View {
         VStack(spacing: 0) {
             Button(action: onCapture) {
-                Label(VLMSnapperStrings.menuCapture, systemImage: VLMSnapperIcon.capture.rawValue)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .frame(height: 44)
+                HStack {
+                    Label(VLMSnapperStrings.menuCapture, systemImage: VLMSnapperIcon.capture.rawValue)
+                    Spacer()
+                    Text(captureShortcut)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                }
+                .font(.headline)
+                .padding(.horizontal, 14)
+                .frame(height: 44)
             }
             .buttonStyle(.plain)
             .background(VLMSnapperTheme.accent.opacity(0.12))
@@ -126,16 +134,9 @@ public struct MenuBarPanelView: View {
             }
             Spacer(minLength: 4)
             switch updateState {
-            case let .available(version):
-                if let informationURL = version.informationURL {
-                    Button(VLMSnapperStrings.updateView) {
-                        onOpenUpdateInformation(informationURL)
-                    }
+            case .available:
+                Button(VLMSnapperStrings.updateDownload, action: onDownloadUpdate)
                     .buttonStyle(.bordered)
-                } else {
-                    Button(VLMSnapperStrings.updateDownload, action: onDownloadUpdate)
-                        .buttonStyle(.bordered)
-                }
             case .readyToInstall:
                 Button(VLMSnapperStrings.updateView) { onNavigate(.settings) }
                     .buttonStyle(.bordered)

@@ -98,8 +98,8 @@ public struct ProviderSetupView: View {
                     onSelectProvider(provider)
                 } label: {
                     HStack(spacing: 12) {
-                        Text(providerMark(provider))
-                            .font(.caption.bold())
+                        VLMSnapperIcon.provider.image
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(VLMSnapperTheme.accent)
                             .frame(
                                 width: VLMSnapperUIConstants.providerMarkSize,
@@ -235,14 +235,6 @@ public struct ProviderSetupView: View {
         case .selectingModel: VLMSnapperStrings.modelPending
         case .ready: VLMSnapperStrings.configured
         case .failed: VLMSnapperStrings.failed
-        }
-    }
-
-    private func providerMark(_ provider: ProviderID) -> String {
-        switch provider {
-        case .deepSeek: "DS"
-        case .openAI: "OA"
-        case .gemini: "G"
         }
     }
 

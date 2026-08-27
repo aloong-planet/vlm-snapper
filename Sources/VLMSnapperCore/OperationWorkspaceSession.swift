@@ -253,6 +253,11 @@ public actor OperationWorkspaceSession {
         return hasAnyResult ? .hide : .discard
     }
 
+    public func discardUnsavedResults() {
+        extract = slotByDiscardingUnsavedResult(extract)
+        translate = slotByDiscardingUnsavedResult(translate)
+    }
+
     public func retrySavingSelectedResult() async throws {
         let kind = selectedOperation
         guard slot(for: kind).unsavedResult != nil else {
@@ -265,6 +270,17 @@ public actor OperationWorkspaceSession {
                 committedResult: saved
             ),
             for: kind
+        )
+    }
+
+    private func slotByDiscardingUnsavedResult(
+        _ slot: WorkspaceOperationSlot
+    ) -> WorkspaceOperationSlot {
+        WorkspaceOperationSlot(
+            attempt: slot.attempt,
+            committedResult: slot.committedResult,
+            sourceDelta: slot.sourceDelta,
+            translationDelta: slot.translationDelta
         )
     }
 

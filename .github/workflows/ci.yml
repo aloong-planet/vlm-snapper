@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  test-and-package:
+    runs-on: macos-latest
+    env:
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Report toolchain
+        run: /usr/bin/xcrun swift --version
+      - name: Strict build
+        run: >-
+          /usr/bin/xcrun swift build
+          -Xswiftc -warnings-as-errors
+          -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+      - name: Full test suite
+        run: /usr/bin/xcrun swift test
+      - name: Release script syntax
+        run: bash -n Scripts/*.sh
+      - name: Three-architecture development packages
+        env:
+          VERSION: 0.0.0-ci
+          BUILD_VERSION: ${{ github.run_number }}
+          APPCAST_BASE_URL: https://ci.invalid/vlmsnapper
+          SPARKLE_PUBLIC_ED_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          OUTPUT_ROOT: ${{ runner.temp }}/vlmsnapper-development-dmgs
+        run: Scripts/build-development-dmgs.sh

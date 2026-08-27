@@ -318,3 +318,41 @@
 ## 结论
 
 审查发现并修复回调乱序、诊断截止日、语言缓存和 AGENTS 覆盖四类真实问题。库与 UI 层无剩余 Ticket 09 阻断项；签名系统交互明确留在 Ticket 10。
+
+---
+
+# VLMSnapper v1 — Ticket 10 code review
+
+审查范围：生产 App 组合、截图 host、目标语言与快捷键、退出/清理/诊断接线、三架构构建及正式发布流水线。
+
+## 【① 底层前提】
+
+- ad-hoc 签名只能验证 bundle 与装载形态，不能替代 Developer ID、Apple notarization、stapling 或 Gatekeeper；三份开发 DMG 明确不作为正式发布证据。
+- Sparkle 的最终 EdDSA 必须覆盖公证并 stapling 后的 DMG；三个架构使用同一产品身份和公钥，但各自读取独立 appcast。
+- ScreenCaptureKit 冻结结果可能乱序返回；触发代次而非 Task 完成顺序决定哪一次截图有权展示。
+
+## 【② 可运行性】
+
+- 修复快速重复快捷键竞态：旧冻结任务返回时只释放自己的 session，不能覆盖新一代 overlay；选区/操作栏重触发重新冻结，活动模型 workspace 只前置结果窗。
+- 修复最近记录入口只打开历史页但不选中记录；现在解析 UUID、载入记录与受管理截图并定位详情。
+- 修复生产进程只在启动执行一次清理；现在应用生命周期每小时唤醒，Core scheduler 仍严格限制 24 小时最多一次。
+- 修复启动快捷键冲突导致整 App 退出；冲突只在设置中呈现，应用其余入口保持可用，成功替换先注册新键再释放旧键。
+- 修复全部显示器失败后无解释退出；现在关闭 capture surfaces 并显示本地化 Retry/Cancel，权限失败继续走 TCC recovery。
+
+## 【③ 安全正确性】
+
+- 修复未保存结果保护只覆盖菜单 Quit/立即安装的问题；`applicationShouldTerminate` 统一拦截 Command-Q、Sparkle 自主终止等路径，语言重启也先走同一 coordinator。
+- 修复“确认丢弃”没有实际状态转移；明确清除未保存完成结果后才关闭 workspace，取消确认时保持窗口与数据。
+- 诊断仍是 typed allowlist 和七天本地保留；导出失败不再静默，显示不包含内部路径或原始错误的本地化说明。
+- 发布脚本只在所有架构、签名、公证、staple、Gatekeeper、feed 与 EdDSA 验证完成后，把六个文件同文件系统原子移动到输出目录；CI 临时私钥、p12 与 keychain 在 always step 清除。
+
+## 【④ 一致性】
+
+- 操作栏 4 px 距离、25 px 控件、6 px 圆角和单行结构保持确认原型；中英文/明暗共 4 张当前 toolbar render 已逐图核对。
+- 通用设置加入固定尺寸原生快捷键 recorder；Ticket 09 的 32 张当前 render 复核无错位或长英文截断。
+- `docs/features/v1-core.md` 只描述开发应用中的已实现行为，并在顶部和发布章节声明尚不具备正式公开发布资格。
+- 代码、注释、测试、提示词、commit/PR 文案保持英文；用户界面仅通过成对 zh-Hans/en 字典输出。
+
+## 结论
+
+实现层自审修复截图乱序、最近记录定位、清理周期、快捷键启动、全屏失败反馈、未保存丢弃和统一退出七类问题。开发应用与发布流水线形态无已知代码阻断项；正式完成仍被 Developer ID、公证、公共 HTTPS 和真实 Provider 门禁阻塞。

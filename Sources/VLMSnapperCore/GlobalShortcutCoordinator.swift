@@ -31,6 +31,48 @@ public struct GlobalShortcut: Equatable, Sendable {
     )
 }
 
+@MainActor
+public struct UserDefaultsGlobalShortcutStore {
+    private let defaults: UserDefaults
+    private let keyPrefix: String
+
+    public init(
+        defaults: UserDefaults = .standard,
+        keyPrefix: String = "captureShortcut"
+    ) {
+        self.defaults = defaults
+        self.keyPrefix = keyPrefix
+    }
+
+    public func load() -> GlobalShortcut {
+        let keyCodeKey = "\(keyPrefix).keyCode"
+        let modifiersKey = "\(keyPrefix).modifiers"
+        guard defaults.object(forKey: keyCodeKey) != nil,
+              defaults.object(forKey: modifiersKey) != nil else {
+            return .defaultCapture
+        }
+        let keyCode = defaults.integer(forKey: keyCodeKey)
+        let modifiers = defaults.integer(forKey: modifiersKey)
+        guard keyCode >= 0, modifiers >= 0,
+              let keyCode = UInt32(exactly: keyCode),
+              let modifiers = UInt8(exactly: modifiers) else {
+            return .defaultCapture
+        }
+        return GlobalShortcut(
+            keyCode: keyCode,
+            modifiers: GlobalShortcutModifiers(rawValue: modifiers)
+        )
+    }
+
+    public func save(_ shortcut: GlobalShortcut) {
+        defaults.set(Int(shortcut.keyCode), forKey: "\(keyPrefix).keyCode")
+        defaults.set(
+            Int(shortcut.modifiers.rawValue),
+            forKey: "\(keyPrefix).modifiers"
+        )
+    }
+}
+
 public enum GlobalShortcutError: Error, Equatable {
     case primaryModifierRequired
     case unsupportedKey

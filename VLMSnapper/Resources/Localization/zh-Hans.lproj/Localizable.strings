@@ -1,6 +1,7 @@
 "operation.extract" = "提取文字";
 "operation.translate" = "翻译";
 "operation.selector" = "操作类型";
+"operation.targetLanguageSearch" = "搜索语言";
 "action.cancel" = "取消";
 "action.start" = "开始";
 "action.rerun" = "重新执行";
@@ -14,6 +15,12 @@
 "result.failed" = "请求失败";
 "result.canceled" = "已取消";
 "result.persistenceFailed" = "结果尚未保存，可以先复制并重试保存。";
+"result.discardUnsaved.title" = "丢弃未保存的结果？";
+"result.discardUnsaved.body" = "该结果尚未保存。如需保留，请先复制内容。";
+"result.discardUnsaved.action" = "丢弃";
+"capture.failed.title" = "无法截取屏幕";
+"capture.failed.body" = "所有显示器都未返回可用的冻结画面，你可以重试。";
+"action.retry" = "重试";
 "failure.invalidCredential" = "API Key 无效或已失效，请检查 Provider 配置。";
 "failure.modelUnavailable" = "当前模型不可用，请刷新模型列表后重新选择。";
 "failure.rateLimited" = "Provider 暂时限制了请求，请稍后手动重试。";
@@ -107,6 +114,8 @@
 "history.clearIncludingPinned" = "清空全部（包括已钉住）";
 "history.tokenUsageFormat" = "输入 %d · 输出 %d · 总计 %d";
 "history.retentionDaysFormat" = "%d 天";
+"history.retentionShorteningConfirm" = "缩短保留期将永久删除 %d 条已到期的未钉住记录及其原始截图。是否继续？";
+"history.retentionShorteningAction" = "更改并删除";
 "settings.general.subtitle" = "管理语言、登录启动和 VLMSnapper 更新行为。";
 "settings.language.title" = "显示语言";
 "settings.language.hint" = "选择界面使用的语言，不影响日期、时间和数字格式。";
@@ -115,6 +124,11 @@
 "settings.language.system" = "跟随系统";
 "settings.language.zhHans" = "简体中文";
 "settings.language.en" = "English";
+"settings.shortcut.title" = "截图快捷键";
+"settings.shortcut.hint" = "点击按键框，然后按下包含 Command、Option 或 Control 的快捷键。";
+"settings.shortcut.recording" = "请按快捷键";
+"settings.shortcut.conflict" = "该快捷键已被占用，原快捷键仍然有效。";
+"settings.shortcut.invalid" = "请使用 Command、Option 或 Control 搭配支持的按键。";
 "settings.loginItem.title" = "登录时启动";
 "settings.loginItem.hint" = "登录这台 Mac 后在菜单栏中启动 VLMSnapper。";
 "settings.loginItem.approval" = "需要在系统设置的“登录项”中允许 VLMSnapper。";
@@ -143,3 +157,5 @@
 "diagnostics.title" = "诊断日志";
 "diagnostics.hint" = "仅包含脱敏的运行信息，日志保留 7 天。";
 "diagnostics.export" = "导出诊断日志";
+"diagnostics.exportFailed.title" = "无法导出诊断信息";
+"diagnostics.exportFailed.body" = "VLMSnapper 无法写入诊断归档，请选择其他文件夹后重试。";

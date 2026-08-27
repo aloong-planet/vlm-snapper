@@ -21,6 +21,7 @@ private struct HarnessRoot: View {
     @State private var operation: WorkspaceOperationKind = .translate
     @State private var apiKey = ""
     @State private var modelID: String? = "deepseek-v4-flash-vision-exp"
+    @State private var targetLanguageCode = "zh-Hans"
 
     @ViewBuilder
     var body: some View {
@@ -37,7 +38,15 @@ private struct HarnessRoot: View {
                         }
                     CaptureOperationToolbar(
                         operation: $operation,
-                        targetLanguage: "Chinese (Simplified)",
+                        targetLanguageCode: $targetLanguageCode,
+                        targetLanguages: [
+                            TargetLanguageOption(
+                                code: "zh-Hans",
+                                name: "Chinese (Simplified)"
+                            ),
+                            TargetLanguageOption(code: "en", name: "English"),
+                            TargetLanguageOption(code: "ja", name: "Japanese"),
+                        ],
                         providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
                         onStart: { _ in },
                         onCancel: {}

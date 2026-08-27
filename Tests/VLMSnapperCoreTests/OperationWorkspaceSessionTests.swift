@@ -186,6 +186,31 @@ struct OperationWorkspaceSessionTests {
         #expect(disposition == .confirmDiscardUnsavedResult)
     }
 
+    @Test("confirming discard clears an unsaved completed result")
+    func confirmingDiscardClearsUnsavedResult() async throws {
+        let result = WorkspaceCommittedResult(
+            sourceMarkdown: "Copyable result",
+            translationMarkdown: nil
+        )
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: WorkspaceRunnerProbe(events: [
+                .resultPersistenceFailed(result),
+            ]),
+            activeGate: ActiveOperationGate()
+        )
+        try await session.startSelectedOperation(
+            selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+            targetLanguage: "en"
+        )
+
+        await session.discardUnsavedResults()
+
+        let snapshot = await session.snapshot()
+        #expect(snapshot.extract.unsavedResult == nil)
+        #expect(await session.close() != .confirmDiscardUnsavedResult)
+    }
+
     @Test("an unsaved completed result blocks another model operation")
     func unsavedResultBlocksAnotherOperation() async throws {
         let runner = WorkspaceRunnerProbe(events: [

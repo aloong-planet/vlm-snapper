@@ -48,6 +48,7 @@ public protocol FrozenDisplayCapturing: Sendable {
 public enum CaptureFreezeResult: Sendable {
     case ready(
         session: CaptureSelectionSession,
+        frozenDisplays: [FrozenCaptureDisplay],
         failedDisplays: [DisplayCaptureFailure]
     )
     case permissionRequired
@@ -92,6 +93,7 @@ public struct CaptureFreezeCoordinator: Sendable {
                 displays: batch.displays,
                 cropper: cropper
             ),
+            frozenDisplays: batch.displays,
             failedDisplays: batch.failures
         )
     }
