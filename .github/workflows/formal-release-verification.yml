@@ -16,13 +16,16 @@ on:
         description: Public HTTPS DMG directory
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: macos-latest
     env:
       DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Require release secrets
         env:
           CERTIFICATE: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
