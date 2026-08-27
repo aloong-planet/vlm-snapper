@@ -28,6 +28,13 @@ window.PROTOTYPES = [
     path: "management-center/prototype-management-center.html#settings"
   },
   {
+    module: "management-center",
+    type: "ui",
+    id: "general-settings",
+    name: "Management center · General settings",
+    path: "management-center/prototype-management-center.html#general"
+  },
+  {
     module: "capture-overlay",
     type: "ui",
     id: "attached-toolbar",
@@ -47,5 +54,12 @@ window.PROTOTYPES = [
     id: "sheet-directions",
     name: "Provider setup sheet directions",
     path: "provider-setup/prototype-sheet-directions.html"
+  },
+  {
+    module: "permission-recovery",
+    type: "ui",
+    id: "screen-capture",
+    name: "Screen capture permission recovery",
+    path: "permission-recovery/prototype-permission-recovery.html"
   }
 ];

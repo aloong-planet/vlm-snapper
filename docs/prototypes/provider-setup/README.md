@@ -2,6 +2,8 @@
 
 This prototype compares three attached-sheet structures for configuring an online Provider from the selected single-page onboarding checklist.
 
+Direction B is the selected structure. It keeps the Provider list visible in a sidebar and reuses one detail pane for validation and model selection.
+
 All variants share the confirmed product flow: choose a built-in Provider, validate its API Key, fetch the complete model list, optionally leave in the pending-model state, select one current model, close the attached sheet, and return to onboarding with explicit Provider and model details. Cancel and close also return to onboarding without inventing a completed state. The prototype never sends or persists the mock API Key.
 
 In the single-column and split-pane directions, successful API Key validation keeps the credential section visible and reveals the model selector directly below it. At narrow widths, the model selector and refresh action share one control row, while Provider mark boxes keep a fixed 24 px geometry.

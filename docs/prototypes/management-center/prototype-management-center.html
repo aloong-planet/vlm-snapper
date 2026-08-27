@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VLMSnapper · 统一管理中心</title>
   <link rel="stylesheet" href="../_shared/vlmsnapper-shell.css">
-  <!-- Demo harness: theme control is not product UI. -->
+  <!-- Demo harness: theme and updater-state controls are not product UI. -->
   <style>
     .menu-entry { width: 27px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; color: var(--accent-text); background: var(--surface-selected); }
     .capture-mark { width: 14px; height: 12px; border: 1.7px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--menubar); }
@@ -18,8 +18,11 @@
     .toolbar-right { display: flex; justify-content: flex-end; }
     .settings-title { display: none; font-weight: 650; }
     body[data-page="settings"] .type-filter,
-    body[data-page="settings"] .search { display: none; }
-    body[data-page="settings"] .settings-title { display: block; }
+    body[data-page="settings"] .search,
+    body[data-page="general"] .type-filter,
+    body[data-page="general"] .search { display: none; }
+    body[data-page="settings"] .settings-title,
+    body[data-page="general"] .settings-title { display: block; }
 
     .type-filter { display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--surface-strong); }
     .filter-button { min-width: 78px; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--text-secondary); background: transparent; }
@@ -43,6 +46,7 @@
     .page { display: none; min-width: 0; min-height: 0; }
     body[data-page="history"] .page-history { display: grid; }
     body[data-page="settings"] .page-settings { display: block; }
+    body[data-page="general"] .page-general { display: block; }
     .page-history { grid-template-columns: 320px minmax(430px, 1fr); }
     .history-list { min-width: 0; overflow: auto; border-right: 1px solid var(--line); background: var(--surface); }
     .history-item { display: grid; grid-template-columns: 66px 1fr; gap: 10px; margin: 5px; padding: 9px; border: 1px solid transparent; border-radius: 9px; }
@@ -87,6 +91,43 @@
     .field-value strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
     .provider-card.is-collapsed .provider-body { display: none; }
 
+    .page-general { overflow: auto; padding: 22px; background: var(--surface-subtle); }
+    .general-wrap { max-width: 850px; margin: auto; }
+    .settings-section { overflow: hidden; margin-top: 15px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+    .settings-section-title { margin: 0 0 7px; color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+    .setting-row { min-height: 58px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 10px 14px; }
+    .setting-row + .setting-row { border-top: 1px solid var(--line); }
+    .setting-copy strong { display: block; margin-bottom: 3px; font-size: 12px; }
+    .setting-copy span { display: block; color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
+    .select-control { min-width: 160px; height: 31px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); font-weight: 550; }
+    .shortcut-control { width: 150px; height: 28px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .switch { position: relative; width: 38px; height: 22px; flex: 0 0 auto; padding: 0; border: 0; border-radius: 999px; background: var(--surface-strong); }
+    .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px var(--shadow-soft); transition: left .15s ease; }
+    .switch[aria-checked="true"] { background: var(--accent); }
+    .switch[aria-checked="true"]::after { left: 19px; }
+    .update-status { min-height: 88px; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 13px 14px; border-top: 1px solid var(--line); background: var(--surface-subtle); }
+    .status-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: var(--success); background: var(--success-soft); }
+    .status-icon .icon { width: 16px; height: 16px; }
+    .update-status[data-state="checking"] .status-icon { color: var(--accent-text); background: var(--accent-soft); }
+    .update-status[data-state="available"] .status-icon { color: var(--accent-text); background: var(--accent-soft); }
+    .update-status[data-state="downloading"] .status-icon { color: var(--accent-text); background: var(--accent-soft); }
+    .update-status[data-state="ready"] .status-icon { color: var(--accent-text); background: var(--accent-soft); }
+    .update-status[data-state="failed"] .status-icon { color: var(--danger); background: var(--danger-soft); }
+    .status-copy strong { display: block; margin-bottom: 4px; font-size: 12px; }
+    .status-copy span { display: block; color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
+    .status-actions { display: flex; align-items: center; gap: 8px; }
+    .status-view { display: none; }
+    .update-status[data-state="current"] .status-current,
+    .update-status[data-state="checking"] .status-checking,
+    .update-status[data-state="available"] .status-available,
+    .update-status[data-state="downloading"] .status-downloading,
+    .update-status[data-state="ready"] .status-ready,
+    .update-status[data-state="failed"] .status-failed { display: contents; }
+    .spinner { width: 15px; height: 15px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    .version-line { display: flex; align-items: center; gap: 7px; }
+    .version-line .badge { color: var(--accent-text); background: var(--accent-soft); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     @media (max-width: 1080px) {
       .management-grid { grid-template-columns: 195px minmax(700px, 1fr); }
       .page-history { grid-template-columns: 290px minmax(410px, 1fr); }
@@ -115,15 +156,14 @@
             <button class="nav-item"><svg class="icon" viewBox="0 0 24 24"><path d="m12 17.3-5.6 3 1.1-6.3-4.6-4.5 6.4-.9L12 3l2.8 5.6 6.3.9-4.5 4.5 1 6.3z"/></svg>已钉住<span class="nav-count">12</span></button>
             <div class="sidebar-title">设置中心</div>
             <button class="nav-item" data-page-button="settings"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>Provider<span class="nav-count">3</span></button>
-            <button class="nav-item"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>通用设置</button>
-            <button class="nav-item"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>更新</button>
+            <button class="nav-item" data-page-button="general"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>通用设置</button>
             <div class="provider-summary"><strong>当前 Provider</strong><div class="provider-line"><span>DeepSeek</span><span class="badge">可用</span></div><div class="provider-line"><span>deepseek-v4-flash…</span><span>视觉</span></div></div>
           </aside>
 
           <section class="management-content">
             <header class="content-toolbar">
               <div class="type-filter" aria-label="记录类型过滤"><button class="filter-button is-selected" data-filter-button="all">全部</button><button class="filter-button" data-filter-button="extract">提取文字</button><button class="filter-button" data-filter-button="translate">翻译</button></div>
-              <div class="settings-title">Provider 设置</div>
+              <div class="settings-title" id="settings-title">Provider 设置</div>
               <div class="toolbar-right"><label class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="history-search" type="search" placeholder="搜索原文或译文" aria-label="搜索历史记录"></label></div>
             </header>
             <section class="page page-history">
@@ -145,16 +185,71 @@
               <article class="provider-card is-collapsed"><header class="provider-card-head"><div class="provider-name"><span class="provider-logo">G</span><div><strong>Gemini</strong><span>尚未配置</span></div></div><button class="secondary-button">配置</button></header><div class="provider-body"></div></article>
             </div>
             </section>
+
+            <section class="page page-general">
+              <div class="general-wrap">
+                <header class="settings-header"><div><h2>通用设置</h2><p>管理语言、登录启动和 VLMSnapper 更新行为。</p></div></header>
+
+                <h3 class="settings-section-title">应用</h3>
+                <section class="settings-section">
+                  <div class="setting-row"><div class="setting-copy"><strong>显示语言</strong><span>更改后需要重新启动 VLMSnapper。</span></div><button class="select-control">跟随系统<svg class="icon" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button></div>
+                  <div class="setting-row"><div class="setting-copy"><strong>截图快捷键</strong><span>点击按键框，然后按下包含 Command、Option 或 Control 的快捷键。</span></div><button class="shortcut-control" aria-label="截图快捷键">⌥⇧S</button></div>
+                  <div class="setting-row"><div class="setting-copy"><strong>登录时启动</strong><span>登录这台 Mac 后在菜单栏中启动 VLMSnapper。</span></div><button class="switch" role="switch" aria-checked="true" aria-label="登录时启动"></button></div>
+                </section>
+
+                <h3 class="settings-section-title">软件更新</h3>
+                <section class="settings-section">
+                  <div class="setting-row"><div class="setting-copy"><strong>自动检查更新</strong><span>固定每 6 小时检查一次稳定版本；发现新版本后提醒，由你决定是否下载。</span></div><button class="switch" role="switch" aria-checked="true" aria-label="自动检查更新"></button></div>
+                  <div class="update-status" id="update-status" data-state="current">
+                    <div class="status-view status-current">
+                      <div class="status-icon"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></div>
+                      <div class="status-copy"><div class="version-line"><strong>VLMSnapper 1.0.0</strong></div><span>已是最新版本 · 今天 14:30 检查</span></div>
+                      <div class="status-actions"><button class="secondary-button" data-check-updates>检查更新</button></div>
+                    </div>
+                    <div class="status-view status-checking">
+                      <div class="status-icon"><span class="spinner" aria-hidden="true"></span></div>
+                      <div class="status-copy"><strong>正在检查更新…</strong><span>你可以继续使用 VLMSnapper。</span></div>
+                      <div class="status-actions"></div>
+                    </div>
+                    <div class="status-view status-available">
+                      <div class="status-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></div>
+                      <div class="status-copy"><div class="version-line"><strong>发现 VLMSnapper 1.1.0</strong><span class="badge">新版本</span></div><span>查看新版本后，由你决定何时下载。</span></div>
+                      <div class="status-actions"><button class="primary-button" data-download-update>下载</button></div>
+                    </div>
+                    <div class="status-view status-downloading">
+                      <div class="status-icon"><span class="spinner" aria-hidden="true"></span></div>
+                      <div class="status-copy"><strong>正在下载 VLMSnapper 1.1.0…</strong><span>下载完成后，这里的状态会自动更新。</span></div>
+                      <div class="status-actions"></div>
+                    </div>
+                    <div class="status-view status-ready">
+                      <div class="status-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></div>
+                      <div class="status-copy"><div class="version-line"><strong>VLMSnapper 1.1.0 已下载</strong><span class="badge">将在退出时安装</span></div><span>不会中断当前截图或模型任务。</span></div>
+                      <div class="status-actions"><button class="primary-button">立即重启并更新</button></div>
+                    </div>
+                    <div class="status-view status-failed">
+                      <div class="status-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/></svg></div>
+                      <div class="status-copy"><strong>无法检查更新</strong><span>无法连接更新服务，请检查网络后重试。</span></div>
+                      <div class="status-actions"><button class="secondary-button" data-check-updates>重新检查</button></div>
+                    </div>
+                  </div>
+                </section>
+
+                <h3 class="settings-section-title">诊断</h3>
+                <section class="settings-section"><div class="setting-row"><div class="setting-copy"><strong>诊断日志</strong><span>仅包含脱敏的运行信息，日志保留 7 天。</span></div><button class="secondary-button">导出诊断日志</button></div></section>
+              </div>
+            </section>
           </section>
         </div>
       </article>
     </div>
   </main>
-  <div class="harness" data-demo-harness aria-label="演示控制，非产品界面"><span class="harness-label">演示·外观</span><button id="theme-control">切换深浅色</button></div>
+  <div class="harness" data-demo-harness aria-label="演示控制，非产品界面"><span class="harness-label">演示·更新状态</span><button data-demo-state="current">最新版本</button><button data-demo-state="checking">正在检查</button><button data-demo-state="available">发现新版本</button><button data-demo-state="downloading">正在下载</button><button data-demo-state="ready">已下载</button><button data-demo-state="failed">检查失败</button><span class="harness-label">演示·外观</span><button id="theme-control">切换深浅色</button></div>
   <script>
     const body = document.body;
     const searchInput = document.querySelector('#history-search');
     const historyList = document.querySelector('#history-list');
+    const settingsTitle = document.querySelector('#settings-title');
+    const updateStatus = document.querySelector('#update-status');
 
     function setPage(page) {
       body.dataset.page = page;
@@ -162,6 +257,7 @@
       document.querySelectorAll('[data-page-button]').forEach((button) => {
         button.classList.toggle('is-selected', button.dataset.pageButton === page);
       });
+      settingsTitle.textContent = page === 'general' ? '通用设置' : 'Provider 设置';
     }
 
     function applyHistoryFilter() {
@@ -188,6 +284,10 @@
 
     document.querySelectorAll('[data-page-button]').forEach((button) => { button.addEventListener('click', () => setPage(button.dataset.pageButton)); });
     document.querySelectorAll('[data-filter-button]').forEach((button) => { button.addEventListener('click', () => setFilter(button.dataset.filterButton)); });
+    document.querySelectorAll('.switch').forEach((control) => { control.addEventListener('click', () => control.setAttribute('aria-checked', control.getAttribute('aria-checked') === 'true' ? 'false' : 'true')); });
+    document.querySelectorAll('[data-demo-state]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = control.dataset.demoState; setPage('general'); }); });
+    document.querySelectorAll('[data-check-updates]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = 'checking'; window.setTimeout(() => { updateStatus.dataset.state = 'current'; }, 1200); }); });
+    document.querySelectorAll('[data-download-update]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = 'downloading'; window.setTimeout(() => { updateStatus.dataset.state = 'ready'; }, 1600); }); });
     searchInput.addEventListener('input', applyHistoryFilter);
     document.querySelector('#theme-control').addEventListener('click', () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; });
     document.addEventListener('click', (event) => {
@@ -198,7 +298,8 @@
     });
 
     setFilter('all');
-    setPage(location.hash === '#settings' ? 'settings' : 'history');
+    const initialPage = location.hash === '#settings' ? 'settings' : location.hash === '#general' ? 'general' : 'history';
+    setPage(initialPage);
   </script>
 </body>
 </html>

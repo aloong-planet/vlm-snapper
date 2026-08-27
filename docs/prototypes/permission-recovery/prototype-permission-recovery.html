@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="zh-Hans" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VLMSnapper · 屏幕录制权限恢复</title>
+  <!--
+    Prototype question: Should permission recovery use one reusable panel or expand at the current entry?
+    Demo harness: bottom controls switch structure, entry scenario, permission state, and theme. They are not product UI.
+  -->
+  <link rel="stylesheet" href="../_shared/vlmsnapper-shell.css">
+  <style>
+    .permission-recovery-stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 44px 52px 76px;
+    }
+
+    .permission-recovery-menu-scene {
+      position: absolute;
+      inset: 28px 0 0;
+    }
+
+    .permission-recovery-menu-panel {
+      position: absolute;
+      top: 14px;
+      right: 92px;
+      width: 350px;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      background: var(--window);
+      box-shadow: 0 18px 54px var(--shadow), 0 3px 12px var(--shadow-soft);
+      backdrop-filter: blur(28px);
+    }
+
+    .permission-recovery-menu-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .permission-recovery-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 700;
+    }
+
+    .permission-recovery-app-mark {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      color: var(--accent-text);
+      background: var(--accent-soft);
+    }
+
+    .permission-recovery-app-mark .icon { width: 17px; height: 17px; }
+    .permission-recovery-state-label { color: var(--text-tertiary); font-size: 10px; font-weight: 600; }
+
+    .permission-recovery-menu-body {
+      display: grid;
+      gap: 9px;
+      padding: 12px;
+    }
+
+    .permission-recovery-capture-button {
+      width: 100%;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 13px;
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      color: var(--on-accent);
+      background: var(--accent);
+      font-weight: 700;
+    }
+
+    .permission-recovery-capture-button:hover { background: var(--accent-hover); }
+    .permission-recovery-shortcut { opacity: .76; font-size: 11px; }
+
+    .permission-recovery-menu-list { display: grid; }
+    .permission-recovery-menu-row {
+      min-height: 35px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      text-align: left;
+    }
+
+    .permission-recovery-menu-row:hover { background: var(--surface-hover); }
+    .permission-recovery-menu-row .icon { color: var(--text-secondary); }
+
+    .permission-recovery-onboarding-scene {
+      width: 760px;
+      min-height: 540px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .permission-recovery-onboarding-header {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-height: 76px;
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .permission-recovery-onboarding-header h1 { margin: 0 0 3px; font-size: 19px; }
+    .permission-recovery-onboarding-header p { margin: 0; color: var(--text-secondary); font-size: 11px; }
+    .permission-recovery-onboarding-body { display: grid; gap: 11px; align-content: start; padding: 18px 20px; }
+
+    .permission-recovery-readiness-item {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 78px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--surface);
+    }
+
+    .permission-recovery-readiness-item h2 { margin: 0 0 3px; font-size: 13px; }
+    .permission-recovery-readiness-item p { margin: 0 0 5px; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+
+    .permission-recovery-item-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      color: var(--accent-text);
+      background: var(--accent-soft);
+    }
+
+    .permission-recovery-onboarding-footer {
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 11px 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .permission-recovery-footer-note { color: var(--text-tertiary); font-size: 10px; }
+    .permission-recovery-footer-actions { display: flex; gap: 8px; }
+
+    .permission-recovery-scrim {
+      position: absolute;
+      z-index: 10;
+      inset: 28px 0 0;
+      display: grid;
+      place-items: center;
+      padding: 34px 40px 82px;
+      background: color-mix(in srgb, var(--shadow) 48%, transparent);
+      backdrop-filter: blur(3px);
+    }
+
+    .permission-recovery-dialog {
+      width: min(520px, calc(100% - 48px));
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--window);
+      box-shadow: 0 24px 70px var(--shadow), 0 3px 12px var(--shadow-soft);
+    }
+
+    .permission-recovery-dialog-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 30px;
+      gap: 16px;
+      align-items: start;
+      padding: 19px 20px 15px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .permission-recovery-dialog-header h2 { margin: 0 0 4px; font-size: 19px; letter-spacing: -.02em; }
+    .permission-recovery-dialog-header p { margin: 0; color: var(--text-secondary); font-size: 11px; line-height: 1.45; }
+
+    .permission-recovery-dialog-close {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      background: transparent;
+    }
+
+    .permission-recovery-dialog-close:hover { color: var(--text); background: var(--surface-hover); }
+    .permission-recovery-dialog-close:active { background: var(--surface-selected); }
+
+    .permission-recovery-dialog-body { display: grid; gap: 14px; padding: 17px 20px 19px; }
+    .permission-recovery-explanation { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; align-items: start; }
+    .permission-recovery-explanation h3 { margin: 1px 0 5px; font-size: 13px; }
+    .permission-recovery-explanation p { margin: 0; color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
+
+    .permission-recovery-steps {
+      display: grid;
+      gap: 7px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-subtle);
+    }
+
+    .permission-recovery-step { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+    .permission-recovery-step-index { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; color: var(--accent-text); background: var(--accent-soft); font-size: 10px; font-weight: 700; }
+
+    .permission-recovery-dialog-footer {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 20px;
+      border-top: 1px solid var(--line);
+      background: var(--surface-subtle);
+    }
+
+    .permission-recovery-dialog-note { max-width: 270px; color: var(--text-tertiary); font-size: 10px; line-height: 1.4; }
+    .permission-recovery-dialog-actions { display: flex; gap: 8px; }
+
+    .permission-recovery-inline {
+      display: grid;
+      gap: 12px;
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .permission-recovery-inline p { margin: 0; color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
+    .permission-recovery-inline-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    .permission-recovery-menu-inline {
+      display: grid;
+      gap: 11px;
+      padding: 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--surface-subtle);
+    }
+
+    .permission-recovery-menu-inline-heading { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; align-items: start; }
+    .permission-recovery-menu-inline-heading h2 { margin: 0 0 3px; font-size: 13px; }
+    .permission-recovery-menu-inline-heading p { margin: 0; color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
+    .permission-recovery-menu-inline .permission-recovery-inline-actions { justify-content: stretch; }
+    .permission-recovery-menu-inline .permission-recovery-inline-actions button { flex: 1; }
+
+    body[data-context="menu"] .permission-recovery-onboarding-scene,
+    body[data-context="onboarding"] .permission-recovery-menu-scene { display: none; }
+    body[data-variant="b"] .permission-recovery-scrim,
+    body[data-variant="a"] .permission-recovery-inline,
+    body[data-variant="a"] .permission-recovery-menu-inline { display: none; }
+    body[data-variant="b"] .permission-recovery-readiness-item.permission-recovery-permission-item { grid-template-columns: 38px minmax(0, 1fr); align-items: start; }
+    body[data-variant="b"] .permission-recovery-permission-item > .secondary-button { display: none; }
+    body[data-variant="b"] .permission-recovery-permission-copy { grid-column: 2; }
+
+    .permission-recovery-state-restart { display: none; }
+    body[data-state="restart"] .permission-recovery-state-blocked { display: none; }
+    body[data-state="restart"] span.permission-recovery-state-restart { display: inline; }
+    body[data-state="restart"] p.permission-recovery-state-restart { display: block; }
+    body[data-state="restart"] .badge.permission-recovery-state-restart { display: inline-flex; }
+    body[data-state="denied"] .permission-recovery-revoked-copy,
+    body[data-state="revoked"] .permission-recovery-denied-copy { display: none; }
+
+    @media (max-width: 1040px) {
+      .permission-recovery-menu-panel { right: 42px; }
+    }
+  </style>
+</head>
+<body data-variant="a" data-context="menu" data-state="revoked">
+  <div class="desktop">
+    <header class="mac-menubar">
+      <div class="menubar-group"><span>●</span><span>VLMSnapper</span><span class="menubar-muted">文件</span><span class="menubar-muted">窗口</span></div>
+      <div class="menubar-group"><span class="menubar-muted">8月27日 周四 10:28</span><span>V</span></div>
+    </header>
+
+    <main class="permission-recovery-stage">
+      <section class="permission-recovery-menu-scene" aria-label="菜单栏截图入口">
+        <div class="permission-recovery-menu-panel">
+          <header class="permission-recovery-menu-header">
+            <div class="permission-recovery-brand"><span class="permission-recovery-app-mark"><svg class="icon" viewBox="0 0 24 24"><path d="M5 7h14v10H5zM8 4v3m8-3v3M8 17v3m8-3v3"/></svg></span><span>VLMSnapper</span></div>
+            <span class="permission-recovery-state-label"><span class="permission-recovery-state-blocked">屏幕录制权限不可用</span><span class="permission-recovery-state-restart">等待重启</span></span>
+          </header>
+          <div class="permission-recovery-menu-body">
+            <button class="permission-recovery-capture-button"><span>截取屏幕</span><span class="permission-recovery-shortcut">⌥⇧S</span></button>
+            <section class="permission-recovery-menu-inline" aria-label="权限恢复说明">
+              <div class="permission-recovery-menu-inline-heading">
+                <span class="permission-recovery-item-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2m8-2v2M8 10h8"/></svg></span>
+                <div><h2><span class="permission-recovery-state-blocked">无法开始截图</span><span class="permission-recovery-state-restart">重启后即可截图</span></h2><p class="permission-recovery-state-blocked"><span class="permission-recovery-denied-copy">macOS 没有授予屏幕录制权限。</span><span class="permission-recovery-revoked-copy">屏幕录制权限已在系统设置中关闭。</span></p><p class="permission-recovery-state-restart">权限已开启，重启 VLMSnapper 后生效。</p></div>
+              </div>
+              <div class="permission-recovery-inline-actions"><button class="secondary-button">稍后处理</button><button class="primary-button"><span class="permission-recovery-state-blocked">打开系统设置</span><span class="permission-recovery-state-restart">重启 VLMSnapper</span></button></div>
+            </section>
+            <div class="permission-recovery-menu-list">
+              <button class="permission-recovery-menu-row"><svg class="icon" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8m-8 4h8"/></svg><span>最近记录</span></button>
+              <button class="permission-recovery-menu-row"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>历史记录</span></button>
+              <button class="permission-recovery-menu-row"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/></svg><span>设置中心</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="window permission-recovery-onboarding-scene" aria-label="首次引导">
+        <header class="permission-recovery-onboarding-header">
+          <span class="permission-recovery-app-mark"><svg class="icon" viewBox="0 0 24 24"><path d="M5 7h14v10H5zM8 4v3m8-3v3M8 17v3m8-3v3"/></svg></span>
+          <div><h1>欢迎使用 VLMSnapper</h1><p>完成前两项后，即可截图、提取文字和翻译。</p></div>
+        </header>
+        <div class="permission-recovery-onboarding-body">
+          <section class="permission-recovery-readiness-item permission-recovery-permission-item">
+            <span class="permission-recovery-item-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2m8-2v2M8 10h8"/></svg></span>
+            <div class="permission-recovery-permission-copy"><h2>屏幕录制权限</h2><p class="permission-recovery-state-blocked"><span class="permission-recovery-denied-copy">系统授权未完成，VLMSnapper 不能截取屏幕。</span><span class="permission-recovery-revoked-copy">权限已在系统设置中关闭，VLMSnapper 不能截取屏幕。</span></p><p class="permission-recovery-state-restart">权限已经开启，重启 VLMSnapper 后即可截图。</p><span class="badge error permission-recovery-state-blocked">不可用</span><span class="badge warning permission-recovery-state-restart">等待重启</span>
+              <div class="permission-recovery-inline"><p class="permission-recovery-state-blocked">请前往“系统设置 → 隐私与安全性 → 屏幕录制”开启 VLMSnapper。这里不会再次弹出系统授权请求。</p><p class="permission-recovery-state-restart">重启只会重新打开应用，不会自动开始截图或发送模型请求。</p><div class="permission-recovery-inline-actions"><button class="secondary-button">稍后处理</button><button class="primary-button"><span class="permission-recovery-state-blocked">打开系统设置</span><span class="permission-recovery-state-restart">重启 VLMSnapper</span></button></div></div>
+            </div>
+            <button class="secondary-button"><span class="permission-recovery-state-blocked">打开系统设置</span><span class="permission-recovery-state-restart">重启</span></button>
+          </section>
+          <section class="permission-recovery-readiness-item"><span class="permission-recovery-item-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg></span><div><h2>在线 Provider</h2><p>DeepSeek · deepseek-v4-flash-vision-exp</p><span class="badge">已配置</span></div><button class="secondary-button">修改配置</button></section>
+          <section class="permission-recovery-readiness-item"><span class="permission-recovery-item-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M5 8h14v12H5zM8 8V5h8v3M9 13h6"/></svg></span><div><h2>存储与隐私</h2><p>截图和文字记录保存在这台 Mac 上。</p><span class="badge">重要说明</span></div><button class="secondary-button">查看详情</button></section>
+        </div>
+        <footer class="permission-recovery-onboarding-footer"><span class="permission-recovery-footer-note">未完成权限恢复时仍可稍后退出引导。</span><div class="permission-recovery-footer-actions"><button class="secondary-button">稍后完成</button><button class="primary-button" disabled>开始使用</button></div></footer>
+      </section>
+
+      <div class="permission-recovery-scrim">
+        <section class="permission-recovery-dialog" role="dialog" aria-modal="true" aria-labelledby="permission-recovery-title">
+          <header class="permission-recovery-dialog-header"><div><h2 id="permission-recovery-title"><span class="permission-recovery-state-blocked">无法截取屏幕</span><span class="permission-recovery-state-restart">重启后即可继续</span></h2><p><span class="permission-recovery-state-blocked">VLMSnapper 需要 macOS 屏幕录制权限。</span><span class="permission-recovery-state-restart">macOS 已允许屏幕录制，重新启动应用后生效。</span></p></div><button class="permission-recovery-dialog-close" aria-label="关闭"><svg class="icon" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+          <div class="permission-recovery-dialog-body">
+            <div class="permission-recovery-explanation"><span class="permission-recovery-item-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2m8-2v2M8 10h8"/></svg></span><div><h3><span class="permission-recovery-state-blocked"><span class="permission-recovery-denied-copy">系统没有授予权限</span><span class="permission-recovery-revoked-copy">权限已被关闭</span></span><span class="permission-recovery-state-restart">权限已开启</span></h3><p class="permission-recovery-state-blocked"><span class="permission-recovery-denied-copy">本次授权没有完成。VLMSnapper 不会重复弹出系统授权请求。</span><span class="permission-recovery-revoked-copy">屏幕录制权限已在系统设置中关闭，因此当前不能开始截图。</span></p><p class="permission-recovery-state-restart">重启只会重新打开 VLMSnapper，不会自动截图或发送模型请求。</p></div></div>
+            <div class="permission-recovery-steps permission-recovery-state-blocked"><div class="permission-recovery-step"><span class="permission-recovery-step-index">1</span><span>打开“系统设置 → 隐私与安全性 → 屏幕录制”。</span></div><div class="permission-recovery-step"><span class="permission-recovery-step-index">2</span><span>为 VLMSnapper 开启权限，然后返回应用。</span></div></div>
+          </div>
+          <footer class="permission-recovery-dialog-footer"><span class="permission-recovery-dialog-note"><span class="permission-recovery-state-blocked">你可以关闭此窗口，稍后再次处理。</span><span class="permission-recovery-state-restart">稍后重启时，截图入口仍会提醒你。</span></span><div class="permission-recovery-dialog-actions"><button class="secondary-button">稍后处理</button><button class="primary-button"><span class="permission-recovery-state-blocked">打开系统设置</span><span class="permission-recovery-state-restart">重启 VLMSnapper</span></button></div></footer>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="harness" data-demo-harness aria-label="演示控制，非产品界面">
+    <span class="harness-label">演示·结构</span><button class="is-active" data-variant="a">1 统一面板</button><button data-variant="b">2 原位展开</button>
+    <span class="harness-label">场景</span><button class="is-active" data-context="menu">截图入口</button><button data-context="onboarding">首次引导</button>
+    <span class="harness-label">状态</span><button data-state="denied">已拒绝</button><button class="is-active" data-state="revoked">已撤销</button><button data-state="restart">待重启</button>
+    <button id="permission-recovery-theme">切换深浅色</button>
+  </div>
+
+  <script>
+    const body = document.body;
+    function bindGroup(attribute) {
+      document.querySelectorAll(`[data-${attribute}]`).forEach((button) => {
+        if (button.closest('[data-demo-harness]') === null) return;
+        button.addEventListener('click', () => {
+          body.dataset[attribute] = button.dataset[attribute];
+          document.querySelectorAll(`[data-${attribute}]`).forEach((peer) => {
+            if (peer.closest('[data-demo-harness]')) peer.classList.toggle('is-active', peer === button);
+          });
+        });
+      });
+    }
+    bindGroup('variant');
+    bindGroup('context');
+    bindGroup('state');
+    document.querySelector('#permission-recovery-theme').addEventListener('click', () => {
+      const root = document.documentElement;
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    });
+  </script>
+</body>
+</html>
