@@ -5,6 +5,96 @@ import Testing
 
 @Suite("SQLite history store")
 struct SQLiteHistoryStoreTests {
+    @Test("history query combines operation type and local result search")
+    func historyQueryCombinesTypeAndSearch() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let createdAt = Date(timeIntervalSince1970: 1_787_725_812)
+        let store = try SQLiteHistoryStore(
+            databaseURL: directory.appendingPathComponent("history.sqlite"),
+            now: { createdAt }
+        )
+        let extraction = try await store.prepareOperation(
+            screenshot: ManagedScreenshot(path: "/Pictures/extract.png", sha256: "extract"),
+            selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+            operation: .extractText
+        )
+        try await store.finish(
+            operationID: extraction.operationID,
+            with: .succeeded(sourceMarkdown: "Bonjour source", translationMarkdown: nil)
+        )
+        let translation = try await store.prepareOperation(
+            screenshot: ManagedScreenshot(path: "/Pictures/translate.png", sha256: "translate"),
+            selection: ProviderSelection(providerID: "gemini", modelID: "vision"),
+            operation: .translate(targetLanguage: "zh-Hans")
+        )
+        try await store.finish(
+            operationID: translation.operationID,
+            with: .succeeded(sourceMarkdown: "Hello", translationMarkdown: "Bonjour monde")
+        )
+
+        let records = try await store.history(
+            matching: HistoryQuery(kind: .translate, searchText: "BONJOUR")
+        )
+
+        #expect(records.map(\.operation.id) == [translation.operationID])
+        #expect(records.first?.createdAt == createdAt)
+        #expect(records.first?.isPinned == false)
+    }
+
+    @Test("pinning and terminal metrics survive the complete history filter")
+    func pinningAndMetricsSurviveCompleteFilter() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let createdAt = Date(timeIntervalSince1970: 1_000)
+        let store = try SQLiteHistoryStore(
+            databaseURL: directory.appendingPathComponent("history.sqlite"),
+            now: { createdAt }
+        )
+        let prepared = try await store.prepareOperation(
+            screenshot: ManagedScreenshot(path: "/Pictures/pinned.png", sha256: "sha"),
+            selection: ProviderSelection(providerID: "deepseek", modelID: "vision"),
+            operation: .translate(targetLanguage: "zh-Hans")
+        )
+        try await store.setPinned(true, operationID: prepared.operationID)
+        try await store.finish(
+            operationID: prepared.operationID,
+            with: .succeeded(sourceMarkdown: "Hello", translationMarkdown: "Bonjour"),
+            metrics: PersistedOperationMetrics(
+                firstTextLatencyMilliseconds: 320,
+                totalLatencyMilliseconds: 870,
+                usage: ProviderTokenUsage(inputTokens: 12, outputTokens: 8, totalTokens: 20)
+            )
+        )
+
+        let records = try await store.history(
+            matching: HistoryQuery(
+                kind: .translate,
+                status: .succeeded,
+                providerID: "deepseek",
+                modelID: "vision",
+                targetLanguage: "zh-Hans",
+                createdAtOrAfter: Date(timeIntervalSince1970: 999),
+                createdBefore: Date(timeIntervalSince1970: 1_001),
+                isPinned: true
+            )
+        )
+
+        #expect(records.count == 1)
+        #expect(records.first?.metrics == PersistedOperationMetrics(
+            firstTextLatencyMilliseconds: 320,
+            totalLatencyMilliseconds: 870,
+            usage: ProviderTokenUsage(inputTokens: 12, outputTokens: 8, totalTokens: 20)
+        ))
+    }
+
     @Test("a typed translation operation persists its target language")
     func typedTranslationPersistsTargetLanguage() async throws {
         let directory = FileManager.default.temporaryDirectory
@@ -174,7 +264,7 @@ struct SQLiteHistoryStoreTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let databaseURL = directory.appendingPathComponent("history.sqlite")
-        try makeDatabase(at: databaseURL, schemaVersion: 3)
+        try makeDatabase(at: databaseURL, schemaVersion: 4)
         let bytesBeforeOpen = try Data(contentsOf: databaseURL)
 
         do {
@@ -182,7 +272,7 @@ struct SQLiteHistoryStoreTests {
             Issue.record("Expected a newer schema to block the history store")
         } catch {
             #expect(
-                error as? SQLiteHistoryStoreError == .schemaTooNew(found: 3, supported: 2)
+                error as? SQLiteHistoryStoreError == .schemaTooNew(found: 4, supported: 3)
             )
         }
         #expect(try Data(contentsOf: databaseURL) == bytesBeforeOpen)

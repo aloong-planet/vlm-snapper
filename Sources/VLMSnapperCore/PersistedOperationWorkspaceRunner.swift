@@ -19,11 +19,29 @@ public protocol OperationHistoryWriting: Sendable {
 
     func finish(
         operationID: UUID,
+        with outcome: PersistedOperationOutcome,
+        metrics: PersistedOperationMetrics
+    ) async throws
+
+    func finish(
+        operationID: UUID,
         as completion: OperationCompletion
     ) async throws
 }
 
+public extension OperationHistoryWriting {
+    func finish(
+        operationID: UUID,
+        with outcome: PersistedOperationOutcome,
+        metrics: PersistedOperationMetrics
+    ) async throws {
+        try await finish(operationID: operationID, with: outcome)
+    }
+}
+
 extension SQLiteHistoryStore: OperationHistoryWriting {}
+
+extension SQLiteHistoryStore: HistoryRecordManaging {}
 
 public protocol PreparedOperationStreaming: Sendable {
     func stream(
@@ -36,23 +54,27 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private struct PendingPersistence: Sendable {
         let operationID: UUID
         let outcome: PersistedOperationOutcome
+        let metrics: PersistedOperationMetrics
         let result: WorkspaceCommittedResult
     }
 
     private let screenshotStore: any ScreenshotPersisting
     private let historyStore: any OperationHistoryWriting
     private let provider: any PreparedOperationStreaming
+    private let now: @Sendable () -> Date
     private var managedScreenshot: ManagedScreenshot?
     private var pendingPersistence: PendingPersistence?
 
     public init(
         screenshotStore: any ScreenshotPersisting,
         historyStore: any OperationHistoryWriting,
-        provider: any PreparedOperationStreaming
+        provider: any PreparedOperationStreaming,
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.screenshotStore = screenshotStore
         self.historyStore = historyStore
         self.provider = provider
+        self.now = now
     }
 
     public func run(
@@ -81,7 +103,8 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         }
         try await historyStore.finish(
             operationID: pendingPersistence.operationID,
-            with: pendingPersistence.outcome
+            with: pendingPersistence.outcome,
+            metrics: pendingPersistence.metrics
         )
         self.pendingPersistence = nil
         return pendingPersistence.result
@@ -94,6 +117,8 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         continuation: AsyncThrowingStream<OperationWorkspaceRunEvent, Error>
             .Continuation
     ) async {
+        let startedAt = now()
+        var firstTextAt: Date?
         var prepared: PreparedOperation?
         var unownedScreenshot: ManagedScreenshot?
         do {
@@ -134,8 +159,10 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                 try Task.checkCancellation()
                 switch event {
                 case let .sourceDelta(delta):
+                    if firstTextAt == nil, !delta.isEmpty { firstTextAt = now() }
                     continuation.yield(.sourceDelta(delta))
                 case let .translationDelta(delta):
+                    if firstTextAt == nil, !delta.isEmpty { firstTextAt = now() }
                     continuation.yield(.translationDelta(delta))
                 case .metadata, .completed:
                     break
@@ -149,16 +176,25 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                         sourceMarkdown: output.source,
                         translationMarkdown: output.translation
                     )
+                    let metrics = PersistedOperationMetrics(
+                        firstTextLatencyMilliseconds: firstTextAt.map {
+                            Self.milliseconds(from: startedAt, to: $0)
+                        },
+                        totalLatencyMilliseconds: Self.milliseconds(from: startedAt, to: now()),
+                        usage: output.metadata.usage
+                    )
                     do {
                         try await historyStore.finish(
                             operationID: newPrepared.operationID,
-                            with: outcome
+                            with: outcome,
+                            metrics: metrics
                         )
                         continuation.yield(.succeeded(result))
                     } catch {
                         pendingPersistence = PendingPersistence(
                             operationID: newPrepared.operationID,
                             outcome: outcome,
+                            metrics: metrics,
                             result: result
                         )
                         try? await historyStore.finish(
@@ -204,7 +240,13 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             if let prepared {
                 try? await historyStore.finish(
                     operationID: prepared.operationID,
-                    with: .failed(normalizedErrorCode: failureCode)
+                    with: .failed(normalizedErrorCode: failureCode),
+                    metrics: PersistedOperationMetrics(
+                        firstTextLatencyMilliseconds: firstTextAt.map {
+                            Self.milliseconds(from: startedAt, to: $0)
+                        },
+                        totalLatencyMilliseconds: Self.milliseconds(from: startedAt, to: now())
+                    )
                 )
             }
             continuation.finish(
@@ -222,5 +264,9 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         let screenshot = try await screenshotStore.save(originalPNG: originalPNG)
         managedScreenshot = screenshot
         return (screenshot, true)
+    }
+
+    private static func milliseconds(from start: Date, to end: Date) -> Int {
+        max(0, Int((end.timeIntervalSince(start) * 1_000).rounded()))
     }
 }

@@ -4,6 +4,43 @@ import Testing
 
 @Suite("Persisted operation workspace runner")
 struct PersistedOperationWorkspaceRunnerTests {
+    @Test("terminal history includes first text total latency and provider usage")
+    func terminalHistoryIncludesMetrics() async throws {
+        let history = RunnerHistoryProbe()
+        let clock = RunnerClock(values: [
+            Date(timeIntervalSince1970: 10),
+            Date(timeIntervalSince1970: 10.25),
+            Date(timeIntervalSince1970: 10.9),
+        ])
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerProviderProbe(events: [
+                .sourceDelta("Text"),
+                .metadata(ProviderResponseMetadata(
+                    requestID: "request",
+                    usage: ProviderTokenUsage(inputTokens: 10, outputTokens: 4, totalTokens: 14)
+                )),
+                .completed,
+            ]),
+            now: { clock.next() }
+        )
+
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data("png".utf8),
+                operation: .extractText,
+                selection: ProviderSelection(providerID: "openai", modelID: "vision")
+            )
+        )
+
+        #expect(await history.metrics == [PersistedOperationMetrics(
+            firstTextLatencyMilliseconds: 250,
+            totalLatencyMilliseconds: 900,
+            usage: ProviderTokenUsage(inputTokens: 10, outputTokens: 4, totalTokens: 14)
+        )])
+    }
+
     @Test("two operations reuse one screenshot and each start one typed provider stream")
     func twoOperationsReuseScreenshot() async throws {
         let screenshotStore = RunnerScreenshotStoreProbe()
@@ -250,6 +287,7 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
     private(set) var operations: [ProviderOperation] = []
     private(set) var outcomes: [PersistedOperationOutcome] = []
     private(set) var completions: [OperationCompletion] = []
+    private(set) var metrics: [PersistedOperationMetrics] = []
     private var failsPreparation: Bool
     private var cancelsPreparation: Bool
     private var failsSuccessfulFinish: Bool
@@ -324,9 +362,31 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
 
     func finish(
         operationID: UUID,
+        with outcome: PersistedOperationOutcome,
+        metrics: PersistedOperationMetrics
+    ) async throws {
+        try await finish(operationID: operationID, with: outcome)
+        self.metrics.append(metrics)
+    }
+
+    func finish(
+        operationID: UUID,
         as completion: OperationCompletion
     ) async throws {
         completions.append(completion)
+    }
+}
+
+private final class RunnerClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [Date]
+
+    init(values: [Date]) { self.values = values }
+
+    func next() -> Date {
+        lock.lock()
+        defer { lock.unlock() }
+        return values.removeFirst()
     }
 }
 

@@ -212,3 +212,40 @@
 ### 收敛结论
 
 三阶段队列已清空；原型选择、design、实现、双语字典、ticket、checklist 和测试证据已同步。Ticket 07 完成可组合菜单/引导 UI 与权限/Provider 状态 seam，不把尚未存在的生产 App 组合和签名系统交互误报为发布完成。
+
+---
+
+## 2026-08-27 — Ticket 08
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 08 acceptance | schema/query、删除/保留协调器、管理中心与新增测试 | 左筛选右搜索、五档保留、钉住保护、永久删除、摘要门禁和部分失败汇总均有实现与证据；状态改为 completed |
+| `v1-core.md` 历史与清理 | 本票实现 | 原文/译文本地搜索、全部结构化筛选、真实 metrics、30 天默认、24 小时门禁和无自动撤销一致 |
+| requirements 删除顺序 | 文件 store + deletion coordinator | 匹配 PNG 先删、失败保留记录；缺失/替换只删内部记录；空月份仅空时移除，根目录保留 |
+| 已确认原型 | 8 张当次离屏 render | 类型筛选左对齐、搜索右对齐、列表详情位于其下；History/Settings 同壳，明暗状态一致 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 08 completed、151 测试与 evidence | 状态、测试数、render 数和生产集成缺口同步 |
+| design ↔ 实现 | schema v3、唯一删除路径、retention/session/scheduler | 迁移保守时间、删除错误语义、24 小时进程门禁和 UI destination 均一致 |
+| ADR-0002/0006/0008 ↔ 实现 | 本地明文边界、Pictures 所有权、数据库阻断 | 不扫描 Pictures、不认领孤儿、不删替代文件、不写 API Key/原始错误正文 |
+| 规则 ↔ 门禁 | 英文代码、双语字典、严格 warning gate | CJK 代码扫描 0、双语键 diff 0、严格构建与 151/151 测试通过 |
+| features ↔ 当前产品 | `docs/features/` 尚不存在；Package 无生产 App executable | 两问结论：本票没有让既有 features 变成谎，也没有可登记为最终用户现已可用的生产功能；Ticket 10 初始化目录 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| schema 2 升到 3 | legacy 数据与 newer-schema gate | 旧记录采用迁移时刻避免立即过期；字段缺失时 metrics 显示不可用 |
+| 新增保留期五成员枚举 | spec、隐私字典、设置 Picker | 7/30/60/90/180 三处一致，无自定义或永久保留入口 |
+| 新增管理中心可见表面 | 原型、菜单 destination、window controller | 只实现既有 History/Settings 结构；生产 App 跳转接线仍归 Ticket 09/10 |
+| 新增永久清理动作 | 确认文案、文件所有权与批量 summary | 无 Trash/撤销，钉住需显式包括，活动项不取消且跳过 |
+| `Pending:` 注记 | spec 发布 Pending 与 Ticket 10 | 真实菜单栏、签名 App、Provider 和发布门禁尚未到期，不误报已验证 |
+
+### 收敛结论
+
+三阶段队列已清空；design、实现、测试、双语字典、ticket、checklist、spec 和 ADR 没有反向表述。Ticket 08 完成可测试的管理中心与清理能力，但不把尚未组合出的生产 App 冒充最终用户可运行产物。

@@ -80,10 +80,15 @@ public enum SQLiteHistoryStoreError: Error, Equatable {
 }
 
 public actor SQLiteHistoryStore: HistoryPersisting {
-    private static let supportedSchemaVersion = 2
+    private static let supportedSchemaVersion = 3
     private nonisolated(unsafe) let database: OpaquePointer
+    private let now: @Sendable () -> Date
 
-    public init(databaseURL: URL) throws {
+    public init(
+        databaseURL: URL,
+        now: @escaping @Sendable () -> Date = Date.init
+    ) throws {
+        self.now = now
         let databaseExisted = FileManager.default.fileExists(atPath: databaseURL.path)
         var connection: OpaquePointer?
         let flags = SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
@@ -96,7 +101,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         database = connection
         do {
             if databaseExisted {
-                try Self.prepareExistingDatabase(connection)
+                try Self.prepareExistingDatabase(connection, migrationDate: now())
             }
             try Self.execute("PRAGMA journal_mode = WAL", on: connection)
             try Self.execute("PRAGMA foreign_keys = ON", on: connection)
@@ -111,7 +116,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                     on: connection
                 )
                 try Self.execute(
-                    "INSERT INTO metadata (key, value) VALUES ('schema_version', 2)",
+                    "INSERT INTO metadata (key, value) VALUES ('schema_version', 3)",
                     on: connection
                 )
                 try Self.execute(
@@ -128,6 +133,13 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                         normalized_error_code TEXT
                         , operation_kind TEXT NOT NULL
                         , target_language TEXT
+                        , created_at REAL NOT NULL
+                        , is_pinned INTEGER NOT NULL DEFAULT 0
+                        , first_text_latency_ms INTEGER
+                        , total_latency_ms INTEGER
+                        , input_tokens INTEGER
+                        , output_tokens INTEGER
+                        , total_tokens INTEGER
                     )
                     """,
                     on: connection
@@ -178,8 +190,8 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         let sql = """
             INSERT INTO operations (
                 id, screenshot_path, screenshot_sha256, provider_id, model_id, status,
-                operation_kind, target_language
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                operation_kind, target_language, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -196,6 +208,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         try Self.bind(OperationStatus.preparing.rawValue, at: 6, to: statement)
         try Self.bind(kind.rawValue, at: 7, to: statement)
         try Self.bind(targetLanguage, at: 8, to: statement)
+        try Self.bind(now().timeIntervalSince1970, at: 9, to: statement)
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
@@ -256,6 +269,177 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         )
     }
 
+    public func history(matching query: HistoryQuery) async throws -> [HistoryRecord] {
+        try history(matching: query, operationID: nil)
+    }
+
+    private func history(
+        matching query: HistoryQuery,
+        operationID: UUID?
+    ) throws -> [HistoryRecord] {
+        enum Parameter {
+            case text(String)
+            case number(Double)
+            case integer(Int)
+        }
+        var predicates = [String]()
+        var parameters = [Parameter]()
+        if let operationID {
+            predicates.append("id = ?")
+            parameters.append(.text(operationID.uuidString))
+        }
+        switch query.kind {
+        case .all:
+            break
+        case .extract:
+            predicates.append("operation_kind = ?")
+            parameters.append(.text(PersistedOperationKind.extract.rawValue))
+        case .translate:
+            predicates.append("operation_kind = ?")
+            parameters.append(.text(PersistedOperationKind.translate.rawValue))
+        }
+        if let status = query.status {
+            predicates.append("status = ?")
+            parameters.append(.text(status.rawValue))
+        }
+        if let providerID = query.providerID {
+            predicates.append("provider_id = ?")
+            parameters.append(.text(providerID))
+        }
+        if let modelID = query.modelID {
+            predicates.append("model_id = ?")
+            parameters.append(.text(modelID))
+        }
+        if let targetLanguage = query.targetLanguage {
+            predicates.append("target_language = ?")
+            parameters.append(.text(targetLanguage))
+        }
+        if let createdAtOrAfter = query.createdAtOrAfter {
+            predicates.append("created_at >= ?")
+            parameters.append(.number(createdAtOrAfter.timeIntervalSince1970))
+        }
+        if let createdBefore = query.createdBefore {
+            predicates.append("created_at < ?")
+            parameters.append(.number(createdBefore.timeIntervalSince1970))
+        }
+        if let isPinned = query.isPinned {
+            predicates.append("is_pinned = ?")
+            parameters.append(.integer(isPinned ? 1 : 0))
+        }
+        let searchText = query.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !searchText.isEmpty {
+            predicates.append(
+                "(instr(lower(coalesce(source_markdown, '')), lower(?)) > 0 "
+                    + "OR instr(lower(coalesce(translation_markdown, '')), lower(?)) > 0)"
+            )
+            parameters.append(.text(searchText))
+            parameters.append(.text(searchText))
+        }
+        let whereClause = predicates.isEmpty ? "" : " WHERE " + predicates.joined(separator: " AND ")
+        let sql = """
+            SELECT id, screenshot_path, screenshot_sha256, provider_id, model_id, status,
+                   source_markdown, translation_markdown, normalized_error_code,
+                   operation_kind, target_language, created_at, is_pinned,
+                   first_text_latency_ms, total_latency_ms,
+                   input_tokens, output_tokens, total_tokens
+            FROM operations\(whereClause)
+            ORDER BY created_at DESC, id DESC
+            """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        defer { sqlite3_finalize(statement) }
+        for (offset, parameter) in parameters.enumerated() {
+            let index = Int32(offset + 1)
+            switch parameter {
+            case let .text(value):
+                try Self.bind(value, at: index, to: statement)
+            case let .number(value):
+                try Self.bind(value, at: index, to: statement)
+            case let .integer(value):
+                try Self.bind(value, at: index, to: statement)
+            }
+        }
+        var records = [HistoryRecord]()
+        while true {
+            let result = sqlite3_step(statement)
+            if result == SQLITE_DONE {
+                return records
+            }
+            guard result == SQLITE_ROW,
+                  let idValue = Self.text(at: 0, from: statement),
+                  let id = UUID(uuidString: idValue),
+                  let path = Self.text(at: 1, from: statement),
+                  let sha256 = Self.text(at: 2, from: statement),
+                  let providerID = Self.text(at: 3, from: statement),
+                  let modelID = Self.text(at: 4, from: statement),
+                  let statusValue = Self.text(at: 5, from: statement),
+                  let status = OperationStatus(rawValue: statusValue),
+                  let kindValue = Self.text(at: 9, from: statement),
+                  let kind = PersistedOperationKind(rawValue: kindValue)
+            else {
+                throw SQLiteHistoryStoreError.databaseFailure
+            }
+            let usage: ProviderTokenUsage?
+            if let input = Self.integer(at: 15, from: statement),
+               let output = Self.integer(at: 16, from: statement),
+               let total = Self.integer(at: 17, from: statement) {
+                usage = ProviderTokenUsage(inputTokens: input, outputTokens: output, totalTokens: total)
+            } else {
+                usage = nil
+            }
+            records.append(
+                HistoryRecord(
+                    operation: StoredOperation(
+                        id: id,
+                        screenshot: ManagedScreenshot(path: path, sha256: sha256),
+                        selection: ProviderSelection(providerID: providerID, modelID: modelID),
+                        status: status,
+                        sourceMarkdown: Self.text(at: 6, from: statement),
+                        translationMarkdown: Self.text(at: 7, from: statement),
+                        normalizedErrorCode: Self.text(at: 8, from: statement),
+                        kind: kind,
+                        targetLanguage: Self.text(at: 10, from: statement)
+                    ),
+                    createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 11)),
+                    isPinned: sqlite3_column_int(statement, 12) != 0,
+                    metrics: PersistedOperationMetrics(
+                        firstTextLatencyMilliseconds: Self.integer(at: 13, from: statement),
+                        totalLatencyMilliseconds: Self.integer(at: 14, from: statement),
+                        usage: usage
+                    )
+                )
+            )
+        }
+    }
+
+    public func historyRecord(id: UUID) async throws -> HistoryRecord? {
+        try history(matching: HistoryQuery(), operationID: id).first
+    }
+
+    public func deleteHistoryRecord(id: UUID) async throws -> HistoryRecordDeletionResult {
+        guard let operation = try await operation(id: id) else {
+            return .missing
+        }
+        guard !operation.status.isActive else {
+            return .active
+        }
+        let sql = "DELETE FROM operations WHERE id = ? AND status NOT IN ('preparing', 'uploading', 'streaming')"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        defer { sqlite3_finalize(statement) }
+        try Self.bind(id.uuidString, at: 1, to: statement)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        return sqlite3_changes(database) == 1 ? .deleted : .active
+    }
+
     public func finish(
         operationID: UUID,
         as completion: OperationCompletion
@@ -282,6 +466,18 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         operationID: UUID,
         with outcome: PersistedOperationOutcome
     ) async throws {
+        try await finish(
+            operationID: operationID,
+            with: outcome,
+            metrics: PersistedOperationMetrics()
+        )
+    }
+
+    public func finish(
+        operationID: UUID,
+        with outcome: PersistedOperationOutcome,
+        metrics: PersistedOperationMetrics
+    ) async throws {
         let status: OperationStatus
         let sourceMarkdown: String?
         let translationMarkdown: String?
@@ -302,7 +498,8 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         let sql = """
             UPDATE operations
             SET status = ?, source_markdown = ?, translation_markdown = ?,
-                normalized_error_code = ?
+                normalized_error_code = ?, first_text_latency_ms = ?,
+                total_latency_ms = ?, input_tokens = ?, output_tokens = ?, total_tokens = ?
             WHERE id = ?
             """
         var statement: OpaquePointer?
@@ -316,7 +513,12 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         try Self.bind(sourceMarkdown, at: 2, to: statement)
         try Self.bind(translationMarkdown, at: 3, to: statement)
         try Self.bind(normalizedErrorCode, at: 4, to: statement)
-        try Self.bind(operationID.uuidString, at: 5, to: statement)
+        try Self.bind(metrics.firstTextLatencyMilliseconds, at: 5, to: statement)
+        try Self.bind(metrics.totalLatencyMilliseconds, at: 6, to: statement)
+        try Self.bind(metrics.usage?.inputTokens, at: 7, to: statement)
+        try Self.bind(metrics.usage?.outputTokens, at: 8, to: statement)
+        try Self.bind(metrics.usage?.totalTokens, at: 9, to: statement)
+        try Self.bind(operationID.uuidString, at: 10, to: statement)
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
@@ -338,6 +540,24 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         }
         defer { sqlite3_finalize(statement) }
         try Self.bind(progress.rawValue, at: 1, to: statement)
+        try Self.bind(operationID.uuidString, at: 2, to: statement)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        guard sqlite3_changes(database) == 1 else {
+            throw SQLiteHistoryStoreError.operationNotFound
+        }
+    }
+
+    public func setPinned(_ isPinned: Bool, operationID: UUID) async throws {
+        let sql = "UPDATE operations SET is_pinned = ? WHERE id = ?"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        defer { sqlite3_finalize(statement) }
+        try Self.bind(isPinned ? 1 : 0, at: 1, to: statement)
         try Self.bind(operationID.uuidString, at: 2, to: statement)
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw SQLiteHistoryStoreError.databaseFailure
@@ -380,8 +600,11 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         return Int(sqlite3_column_int(statement, 0))
     }
 
-    private static func prepareExistingDatabase(_ database: OpaquePointer) throws {
-        let schemaVersion = try schemaVersion(on: database)
+    private static func prepareExistingDatabase(
+        _ database: OpaquePointer,
+        migrationDate: Date
+    ) throws {
+        var schemaVersion = try schemaVersion(on: database)
         guard schemaVersion <= supportedSchemaVersion else {
             throw SQLiteHistoryStoreError.schemaTooNew(
                 found: schemaVersion,
@@ -410,12 +633,38 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                     on: database
                 )
                 try execute("COMMIT", on: database)
+                schemaVersion = 2
             } catch {
                 try? execute("ROLLBACK", on: database)
                 throw error
             }
         }
-        guard try hasRequiredOperationColumns(on: database, schemaVersion: 2) else {
+        guard try hasRequiredOperationColumns(on: database, schemaVersion: schemaVersion) else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        if schemaVersion == 2 {
+            try execute("BEGIN IMMEDIATE", on: database)
+            do {
+                try execute(
+                    "ALTER TABLE operations ADD COLUMN created_at REAL NOT NULL DEFAULT \(migrationDate.timeIntervalSince1970)",
+                    on: database
+                )
+                try execute("ALTER TABLE operations ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0", on: database)
+                try execute("ALTER TABLE operations ADD COLUMN first_text_latency_ms INTEGER", on: database)
+                try execute("ALTER TABLE operations ADD COLUMN total_latency_ms INTEGER", on: database)
+                try execute("ALTER TABLE operations ADD COLUMN input_tokens INTEGER", on: database)
+                try execute("ALTER TABLE operations ADD COLUMN output_tokens INTEGER", on: database)
+                try execute("ALTER TABLE operations ADD COLUMN total_tokens INTEGER", on: database)
+                try execute("UPDATE metadata SET value = 3 WHERE key = 'schema_version'", on: database)
+                try execute("COMMIT", on: database)
+                schemaVersion = 3
+            } catch {
+                try? execute("ROLLBACK", on: database)
+                throw error
+            }
+        }
+        guard schemaVersion == supportedSchemaVersion,
+              try hasRequiredOperationColumns(on: database, schemaVersion: 3) else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
     }
@@ -452,6 +701,12 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         ]
         if schemaVersion >= 2 {
             requiredColumns.formUnion(["operation_kind", "target_language"])
+        }
+        if schemaVersion >= 3 {
+            requiredColumns.formUnion([
+                "created_at", "is_pinned", "first_text_latency_ms", "total_latency_ms",
+                "input_tokens", "output_tokens", "total_tokens",
+            ])
         }
         let sql = "PRAGMA table_info(operations)"
         var statement: OpaquePointer?
@@ -501,6 +756,40 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         try bind(text, at: index, to: statement)
     }
 
+    private static func bind(
+        _ value: Double,
+        at index: Int32,
+        to statement: OpaquePointer
+    ) throws {
+        guard sqlite3_bind_double(statement, index, value) == SQLITE_OK else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+    }
+
+    private static func bind(
+        _ value: Int,
+        at index: Int32,
+        to statement: OpaquePointer
+    ) throws {
+        guard sqlite3_bind_int64(statement, index, sqlite3_int64(value)) == SQLITE_OK else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+    }
+
+    private static func bind(
+        _ value: Int?,
+        at index: Int32,
+        to statement: OpaquePointer
+    ) throws {
+        guard let value else {
+            guard sqlite3_bind_null(statement, index) == SQLITE_OK else {
+                throw SQLiteHistoryStoreError.databaseFailure
+            }
+            return
+        }
+        try bind(value, at: index, to: statement)
+    }
+
     private static func text(
         at index: Int32,
         from statement: OpaquePointer
@@ -509,5 +798,15 @@ public actor SQLiteHistoryStore: HistoryPersisting {
             return nil
         }
         return String(cString: value)
+    }
+
+    private static func integer(
+        at index: Int32,
+        from statement: OpaquePointer
+    ) -> Int? {
+        guard sqlite3_column_type(statement, index) != SQLITE_NULL else {
+            return nil
+        }
+        return Int(sqlite3_column_int64(statement, index))
     }
 }

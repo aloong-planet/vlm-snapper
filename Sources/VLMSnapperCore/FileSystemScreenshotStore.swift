@@ -139,6 +139,12 @@ public actor FileSystemScreenshotStore: ScreenshotPersisting, ManagedScreenshotL
             throw ScreenshotStoreError.ownershipMismatch
         }
         try FileManager.default.removeItem(at: file)
+        if let contents = try? FileManager.default.contentsOfDirectory(
+            at: monthDirectory,
+            includingPropertiesForKeys: nil
+        ), contents.isEmpty {
+            try? FileManager.default.removeItem(at: monthDirectory)
+        }
     }
 
     public func loadIfOwned(_ screenshot: ManagedScreenshot) async throws -> Data {

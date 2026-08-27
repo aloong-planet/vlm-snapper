@@ -11,7 +11,7 @@
 | 05 | 多显示器冻结、选区裁切、全局快捷键与原始 PNG | 已完成 |
 | 06 | 操作栏、核心结果窗口、单活动任务、取消和重新执行 | 已完成 |
 | 07 | 菜单栏、首次引导、权限恢复与 Provider 配置 UI | 已完成 |
-| 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 待开始 |
+| 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 已完成 |
 | 09 | 单实例、诊断、本地化、登录项与 Sparkle 更新 | 待开始 |
 | 10 | 三架构直接分发、签名/公证/appcast 门禁与全功能收口 | 待开始 |
 
@@ -56,3 +56,9 @@
 - Gate: 严格 `swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror`、完整宿主 `swift test` 143/143、10 张 AppKit/SwiftUI 明暗离屏渲染、`git diff --check`、源码/测试 CJK 扫描、83 个本地化键一致性与 UI 硬编码文案扫描。
 - Tests: 引导/菜单路由 4 例、权限恢复 6 例、Provider presentation 5 例和真实 UI 渲染 1 例，覆盖必要条件门禁、Later 恒可用、Provider 优先路由、显式一次 TCC、拒绝/撤销恢复、成功后重启、重叠点击、模型原地展开、无自动选择、异步切换隔离、活动请求只读与五个入口表面明暗渲染。
 - Evidence: `OnboardingSession.swift`、`ScreenCapturePermissionCoordinator.swift`、`ProviderSetupSession.swift`、`UserDefaultsPermissionRequestHistoryStore.swift` 与 `VLMSnapper/UI/` 的 onboarding/menu/provider/privacy/permission 组件和状态栏 controller；`review-code.md`、`review-tests.md` 的分层审查与三项行为/变异红灯；`final-regression.md` 的三阶段一致性表。签名 TCC、真实状态栏点击、System Settings 与一键重启仍按 Ticket 10 集成门禁保留。
+
+## Ticket 08 evidence
+
+- Gate: 严格 `swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror`、完整宿主 `swift test` 151/151、8 张管理中心明暗离屏渲染、`git diff --check`、源码/测试 CJK 扫描和双语本地化键一致性。
+- Tests: 历史查询/钉住/metrics 2 例、删除协调 2 例、保留期/24 小时调度 2 例、runner metrics 1 例、空月份目录 1 例和管理中心渲染 1 例，覆盖类型与本地搜索组合、完整筛选、Provider usage、活动/钉住跳过、缺失/替代文件、部分失败继续、缩短确认、延长不清理、启动一次与 24 小时边界、空态和后台清理失败提示。
+- Evidence: `HistoryManagement.swift`、`HistoryRetention.swift`、schema v3 的 `SQLiteHistoryStore.swift`、`FileSystemScreenshotStore.swift`、`PersistedOperationWorkspaceRunner.swift` 以及 `ManagementCenterView`/window controller；`review-code.md`、`review-tests.md` 的分层审查和两项目标行为变异证据；`final-regression.md` 的三阶段一致性表。生产 App 组合与真实菜单栏到窗口接线仍按 Ticket 09/10 门禁保留。

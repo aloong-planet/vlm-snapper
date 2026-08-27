@@ -212,6 +212,8 @@ struct FileSystemScreenshotStoreTests {
         try await store.discardIfOwned(managed)
 
         #expect(!FileManager.default.fileExists(atPath: managed.path))
+        #expect(!FileManager.default.fileExists(atPath: URL(fileURLWithPath: managed.path).deletingLastPathComponent().path))
+        #expect(FileManager.default.fileExists(atPath: root.path))
     }
 
     @Test("loading a matching managed screenshot returns its original PNG")

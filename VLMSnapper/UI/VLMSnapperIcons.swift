@@ -22,6 +22,13 @@ enum VLMSnapperIcon: String {
     case update = "arrow.down.circle"
     case quit = "power"
     case folder = "folder"
+    case search = "magnifyingglass"
+    case pin = "pin"
+    case pinned = "pin.fill"
+    case delete = "trash"
+    case providerList = "server.rack"
+    case general = "slider.horizontal.3"
+    case warningBadge = "exclamationmark.circle.fill"
 
     var image: Image {
         Image(systemName: rawValue)

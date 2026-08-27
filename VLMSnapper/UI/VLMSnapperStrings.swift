@@ -73,6 +73,32 @@ enum VLMSnapperStrings {
     static var privacyBackupTitle: String { localized("privacy.backup.title") }
     static var privacyBackupBody: String { localized("privacy.backup.body") }
     static var noRecentItems: String { localized("menu.noRecentItems") }
+    static var historyAll: String { localized("history.filter.all") }
+    static var historySearch: String { localized("history.search") }
+    static var historyEmptyTitle: String { localized("history.empty.title") }
+    static var historyEmptyBody: String { localized("history.empty.body") }
+    static var historyPinned: String { localized("history.pinned") }
+    static var historyProviderSettings: String { localized("history.providerSettings") }
+    static var historyGeneralSettings: String { localized("history.generalSettings") }
+    static var historyOriginal: String { localized("history.original") }
+    static var historyTranslation: String { localized("history.translation") }
+    static var historyScreenshotUnavailable: String { localized("history.screenshotUnavailable") }
+    static var historyFirstTextLatency: String { localized("history.firstTextLatency") }
+    static var historyTotalLatency: String { localized("history.totalLatency") }
+    static var historyTokenUsage: String { localized("history.tokenUsage") }
+    static var historyUnavailable: String { localized("history.unavailable") }
+    static var historyDelete: String { localized("history.delete") }
+    static var historyClear: String { localized("history.clear") }
+    static var historyRetryCleanup: String { localized("history.retryCleanup") }
+    static var historyCleanupFailures: String { localized("history.cleanupFailures") }
+    static var historyRetention: String { localized("history.retention") }
+    static var historyRetentionHint: String { localized("history.retentionHint") }
+    static var historyDeleteConfirm: String { localized("history.deleteConfirm") }
+    static var historyClearConfirm: String { localized("history.clearConfirm") }
+    static var historyClearUnpinned: String { localized("history.clearUnpinned") }
+    static var historyClearIncludingPinned: String { localized("history.clearIncludingPinned") }
+    static var historyTokenUsageFormat: String { localized("history.tokenUsageFormat") }
+    static var historyRetentionDaysFormat: String { localized("history.retentionDaysFormat") }
 
     static func providerName(_ provider: ProviderID) -> String {
         switch provider {

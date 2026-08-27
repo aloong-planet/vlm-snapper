@@ -1,8 +1,8 @@
 # 08 — History management and cleanup
 
-Status: blocked
+Status: completed
 
-Blocked by: 02, 06
+Blocked by: none (02 and 06 completed)
 
 ## Goal
 
