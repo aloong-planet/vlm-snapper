@@ -65,6 +65,24 @@ jobs:
             --team-id "$NOTARY_TEAM_ID" \
             --password "$NOTARY_PASSWORD" \
             --keychain "$RUNNER_TEMP/build.keychain-db"
+      - name: Verify live Provider contracts
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          VLMSNAPPER_OPENAI_MODEL: ${{ vars.VLMSNAPPER_OPENAI_MODEL }}
+          VLMSNAPPER_GEMINI_MODEL: ${{ vars.VLMSNAPPER_GEMINI_MODEL }}
+          VLMSNAPPER_DEEPSEEK_MODEL: ${{ vars.VLMSNAPPER_DEEPSEEK_MODEL }}
+        run: |
+          swift run VLMSnapperLiveProviderGate \
+            --output "$RUNNER_TEMP/live-provider-contracts.json"
+      - name: Upload live Provider contract report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VLMSnapper-${{ inputs.version }}-live-provider-contracts
+          path: ${{ runner.temp }}/live-provider-contracts.json
+          if-no-files-found: warn
       - name: Build and verify formal release
         env:
           MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}

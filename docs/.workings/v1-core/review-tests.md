@@ -309,3 +309,33 @@
 ## 结论
 
 覆盖、case 设计与假通过三维已核对；新增公开行为、当前 UI 和三架构开发 packaging 均有真实证据。未执行的签名/公证/Provider 系统门禁继续保持红色，不以 skipped 或开发包冒充通过。
+
+---
+
+# VLMSnapper v1 — Ticket 10 live Provider gate test review
+
+审查范围：6 个 Core gate tests、CLI blocked smoke test、GitHub workflow 失败传播与 Gemini live probe。
+
+## 维度 1：覆盖是否完整
+
+- 覆盖完全缺配置、空白 key/model、环境变量成对装配、完整翻译成功、Provider 归一化失败、无 completed 的不完整流。
+- 成功用例同时断言只发一个请求、固定原始 PNG、目标语言、模型、凭据传递、usage 和 request ID 摘要；失败报告编码明确排除 key、PNG/结果 marker 和 Retry-After 原值。
+- CLI 无凭据路径验证真实 JSON 文件与非零退出；实际 Gemini 请求验证生产 request factory、URLSession SSE、decoder、10 秒门限与 allowlist 报告的完整链路。
+- OpenAI、DeepSeek live 凭据以及三个 Provider 同次全绿仍是明确外部缺口；没有用 skipped 计作通过。
+
+## 维度 2：case 设计是否合理
+
+- Core 测试只经公开 runner/streaming seam；fixture streamer 替代唯一系统网络边界，不读取私有状态。请求次数和传入 operation 是“一次显式执行只请求一次”的外部行为。
+- 期望报告使用独立字面量；SHA-256 期望由已知输入的独立摘要给出，不调用生产 redactor 重算。环境 fixture 同时放入完整对、缺 model 对与两家不同 Provider。
+- live probe 使用内存生成的固定无敏感图，不保存响应正文；真实运行结果只按 allowlist 报告核对。
+
+## 维度 3：假通过检查
+
+- 缺类型、成功流未实现与空白配置三个 TDD 纵切都先在目标断言处红，再以最小实现转绿；最初 SDK/cache 权限失败不是行为红灯，已明确作废。
+- 定向变异让 request ID 原样返回；成功用例准确在 `sha256:455590bece67` 断言处红，随后只还原该变异并重新验证。
+- 实际 Gemini 多次出现 passed、malformed output 和 first-text timeout，证明 live gate 不会把“能联网”或某一次成功当作稳定契约通过。
+- 完整门禁以 Swift Testing 的 190/190、46 suites 汇总为准；XCTest 兼容层的 `Executed 0 tests` 继续不作为证据。
+
+## 结论
+
+覆盖、case 设计与假通过三维均已核对；缺配置零网络、单请求、完成契约、错误脱敏和进程退出均有有效信号。OpenAI/DeepSeek 与三家同批 live 通过仍保持红色外部门禁。
