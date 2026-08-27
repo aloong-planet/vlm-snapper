@@ -84,7 +84,7 @@ Pull requests run strict compilation, all Swift tests, UI rendering tests, relea
 
 A manual formal-release verification job and a clean release tag require all release credentials. Missing credentials fail before packaging; the workflow never silently falls back to ad-hoc or unsigned output. A formal release also requires a public HTTPS feed/download location. The current private repository is acceptable for development but cannot itself serve unauthenticated Sparkle feeds.
 
-Provider live-contract tests use protected CI credentials and a fixed harmless PNG fixture. They record only provider, model, stage, normalized outcome, timing, status, redacted request identifier, and usage. They never persist keys, authorization headers, response bodies, recognized text, or uploaded image bytes.
+Provider live-contract tests use protected CI credentials and an in-memory fixed harmless PNG fixture containing only `VLMSnapper`. The formal job reads `OPENAI_API_KEY`, `GEMINI_API_KEY`, and `DEEPSEEK_API_KEY` from encrypted secrets and the three selected release models from `VLMSNAPPER_OPENAI_MODEL`, `VLMSNAPPER_GEMINI_MODEL`, and `VLMSNAPPER_DEEPSEEK_MODEL` repository variables. Each configured Provider receives exactly one screenshot-translation request. Missing configuration is reported as blocked; request or validation failure is reported as failed; either state fails the formal job without retrying. The JSON artifact records only provider, model, stage, normalized outcome, timing, status, a hashed request identifier, and usage. It never persists keys, authorization headers, response bodies, recognized text, translated text, or uploaded image bytes.
 
 ## Provider release gates
 

@@ -14,6 +14,10 @@ let package = Package(
         .library(name: "VLMSnapperUI", targets: ["VLMSnapperUI"]),
         .executable(name: "VLMSnapperApp", targets: ["VLMSnapperApp"]),
         .executable(
+            name: "VLMSnapperLiveProviderGate",
+            targets: ["VLMSnapperLiveProviderGate"]
+        ),
+        .executable(
             name: "VLMSnapperUIHarness",
             targets: ["VLMSnapperUIHarness"]
         ),
@@ -81,6 +85,16 @@ let package = Package(
         .executableTarget(
             name: "VLMSnapperUIHarness",
             dependencies: ["VLMSnapperCore", "VLMSnapperUI"]
+        ),
+        .executableTarget(
+            name: "VLMSnapperLiveProviderGate",
+            dependencies: ["VLMSnapperCore"],
+            linkerSettings: [
+                .linkedFramework("CoreGraphics"),
+                .linkedFramework("CoreText"),
+                .linkedFramework("ImageIO"),
+                .linkedFramework("UniformTypeIdentifiers"),
+            ]
         ),
         .testTarget(
             name: "VLMSnapperCoreTests",

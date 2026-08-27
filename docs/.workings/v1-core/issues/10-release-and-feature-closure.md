@@ -18,6 +18,8 @@ Blocked by: Developer ID identity, Apple notarization credentials, public HTTPS 
 ## Comments
 
 - 2026-08-27: Production accessory app composition, menu/onboarding/settings/history/capture/result wiring, custom shortcut, target-language picker, diagnostics export, coordinated termination, and application-lifetime cleanup are implemented.
-- 2026-08-27: Strict build and 184 Swift tests pass; 32 Ticket 09 and 4 Ticket 10 bilingual light/dark renders were generated and inspected.
+- 2026-08-27: Strict build and 190 Swift tests across 46 suites pass; 32 Ticket 09 and 4 Ticket 10 bilingual light/dark renders were generated and inspected.
 - 2026-08-27: Separate ad-hoc development DMGs for Universal, Apple Silicon, and Intel validate packaging shape only. They do not satisfy the formal release acceptance criteria.
 - 2026-08-27: Formal completion remains fail-closed until signed/notarized/stapled/Gatekeeper/EdDSA artifacts and live Provider contracts have real evidence.
+- 2026-08-27: The formal workflow now runs one fixed-image translation contract per Provider and uploads an allowlisted JSON report even when the gate fails. Missing key/model configuration is blocked and no request is retried.
+- 2026-08-27: GitHub has no release or Provider secrets/variables, the local keychain has no valid signing identity, and no public feed/download URL is configured. Repeated Gemini probes produced passed, malformed-output, and first-text-timeout outcomes, so live Provider evidence is not currently green.

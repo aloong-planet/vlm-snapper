@@ -320,3 +320,37 @@
 ### 收敛结论
 
 开发实现、设计、功能目录、review 与本地验证已同步。Ticket 10 保持“进行中（正式门禁阻塞）”；只有真实签名、公证、公共 HTTPS 与 live Provider 证据齐备后，才能改为 completed 或发布 v1。
+
+---
+
+## 2026-08-27 — Ticket 10 live Provider gate follow-up
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 10 design 的 protected live-contract gate | Core runner、CLI 与 formal workflow | 三家各一次截图翻译；blocked/failed 均非零退出，报告 allowlist 与设计一致 |
+| Ticket 10 issue 的 Provider 阻塞 | GitHub Secret/Variable 与真实 Gemini probe | GitHub 配置仍为空；Gemini 既有通过也有 malformed/timeout，状态继续 in progress 正确 |
+| review-code/test 历史结论 | 190 tests / 46 suites、blocked smoke、live probe | 新增 follow-up 章节，不改写此前 184-test 时点记录 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| workflow ↔ Core environment names | 三个 API Key Secret + 三个模型 Variable | 名称一一匹配；key 不进入报告，model 可进入 allowlist |
+| design 隐私边界 ↔ report schema/CLI | Codable 字段与编码 smoke | 无正文、图片、key、header、raw response；request ID 只输出摘要 |
+| 用户请求失败规则 ↔ live runner | 单请求、10 秒首字、无自动重试 | 直接复用生产 executor；没有门禁专用 retry 或 timeout 放宽 |
+| features ↔ 本轮事件 | `docs/features/v1-core.md` | 仅新增内部发布验证，不改变产品内用户行为；正式发布未就绪声明仍真，无需加入 CI 实现细节 |
+
+### 阶段三：事件核销
+
+| 事件 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| 新增一个 executable/product target | Package 枚举与 CI build | 全量 build 会编译 gate；用户 App 的产品身份、菜单与启动行为未改变 |
+| 测试从 184/45 增至 190/46 | Ticket 10 issue 与本轮 review | 当前计数已更新；历史施工记录保留当时时点，不反写 |
+| 新增六个外部配置名 | workflow、design、GitHub 当前状态 | 正本已落 design；GitHub 尚未配置，继续列为发布阻塞 |
+| `Pending:` /正式门禁 | Ticket 10 completion conditions | live runner 代码已到位，但三家真实合同、签名、公证、公共 HTTPS、签名宿主与升级验证仍未完成 |
+
+### 收敛结论
+
+本轮三阶段队列已清空。live Provider release gate 的代码、测试、workflow、design 和施工证据一致；功能目录没有被内部 CI 细节污染。Ticket 10 与正式发布继续保持阻塞，不以单次 Gemini 成功或离线测试替代三家真实通过。

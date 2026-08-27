@@ -356,3 +356,37 @@
 ## 结论
 
 实现层自审修复截图乱序、最近记录定位、清理周期、快捷键启动、全屏失败反馈、未保存丢弃和统一退出七类问题。开发应用与发布流水线形态无已知代码阻断项；正式完成仍被 Developer ID、公证、公共 HTTPS 和真实 Provider 门禁阻塞。
+
+---
+
+# VLMSnapper v1 — Ticket 10 live Provider gate code review
+
+审查范围：live-contract Core runner、脱敏报告 CLI、固定无敏感 PNG 与正式 GitHub workflow 接线。
+
+## 【① 底层前提】
+
+- GitHub 仓库当前没有任何 Actions Secret 或 Variable；本机没有有效 Developer ID 签名身份，只有本地 Gemini 凭据。因此工作流存在不等于正式门禁已通过。
+- 真实 Gemini 响应并不稳定：相同固定输入实测同时出现通过、结构化输出错误和 10 秒首字超时。录制 fixture 只能证明 decoder 对已知形态的兼容性，不能替代 live gate。
+- timing 原先使用 wall clock，系统时间调整会污染报告；审查中改为 monotonic uptime，避免倒退或跳时。
+
+## 【② 可运行性】
+
+- runner 以 `ProviderID.allCases` 的确定顺序逐个执行；缺 key/model 时零网络并记录 blocked，配置完整时每家只调用一次截图翻译流。
+- 只有 source、translation、metadata、completed 全部通过统一 accumulator 才记 passed；Provider 错误、不完整 EOF 或事件顺序错误分别记 request/validation failure。
+- CLI 无凭据 smoke test 实际写出三条 blocked 报告并返回 1；完整 Swift build 与 190 tests / 46 suites 通过。正式工作流失败后仍上传报告，后续发布构建因前置失败不会运行。
+
+## 【③ 安全正确性】
+
+- 报告结构没有 API key、认证头、PNG、原文、译文或原始响应槽位；Provider request ID 先做 SHA-256 截断摘要，usage 只接受终态 metadata。
+- CLI 异常只输出固定错误句，不插值底层 error；报告原子写入指定路径，正文同时输出到 CI 日志时仍只有 allowlist 字段。
+- 固定测试图仅在内存生成，内容只有产品名，不写入 artifact；产品 10 秒/90 秒 timeout 和“失败不自动重试”规则原样生效，没有为门禁变绿而放宽。
+
+## 【④ 一致性】
+
+- 三家 Provider 共用同一 live seam 和同一翻译操作，adapter 差异仍由现有 request factory/decoder 隔离，没有复制第二套网络协议。
+- GitHub 凭据使用 Secrets，非敏感模型 ID 使用 Variables；名称已同步进 Ticket 10 design，代码与注释保持英文。
+- 本轮不改变最终用户可见产品行为；`docs/features/v1-core.md` 无需新增内部 CI/凭据实现说明，正式发布未就绪声明仍真实。
+
+## 结论
+
+审查修复 timing 的 wall-clock 假设；未发现会泄漏用户内容/凭据、自动重试或绕过失败传播的实现问题。代码门禁已补齐，但真实发布仍因外部凭据、签名、公证、公共 HTTPS 与 live Provider 不稳定而阻塞。
