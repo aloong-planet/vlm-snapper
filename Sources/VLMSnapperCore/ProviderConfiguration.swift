@@ -133,7 +133,7 @@ public enum ProviderConfigurationError: Error, Equatable {
     case inconsistentCredentialState
 }
 
-public actor ProviderConfigurationCoordinator {
+public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
     private static let modelCacheLifetime: TimeInterval = 24 * 60 * 60
 
     private let modelLister: any ProviderModelListing
@@ -207,6 +207,10 @@ public actor ProviderConfigurationCoordinator {
         state.pendingReplacements[provider] = nil
         try await metadataStore.save(state)
         return configuration
+    }
+
+    public func configurationState() async throws -> ProviderMetadataState {
+        try await metadataStore.load()
     }
 
     public func reconcilePendingReplacements() async throws -> ProviderMetadataState {

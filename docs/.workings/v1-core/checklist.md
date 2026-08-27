@@ -10,7 +10,7 @@
 | 04 | OpenAI、Gemini、DeepSeek 图片流式适配器与归一化错误 | 已完成 |
 | 05 | 多显示器冻结、选区裁切、全局快捷键与原始 PNG | 已完成 |
 | 06 | 操作栏、核心结果窗口、单活动任务、取消和重新执行 | 已完成 |
-| 07 | 菜单栏、首次引导、权限恢复与 Provider 配置 UI | 待开始 |
+| 07 | 菜单栏、首次引导、权限恢复与 Provider 配置 UI | 已完成 |
 | 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 待开始 |
 | 09 | 单实例、诊断、本地化、登录项与 Sparkle 更新 | 待开始 |
 | 10 | 三架构直接分发、签名/公证/appcast 门禁与全功能收口 | 待开始 |
@@ -50,3 +50,9 @@
 - Gate: 严格 `swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror`、完整 `swift test` 127/127、`git diff --check`、源码/测试 CJK 扫描、本地化键一致性与 UI 硬编码文案扫描；Swift 命令使用匹配的完整 Xcode toolchain，Keychain 全套测试在允许访问登录 Keychain 的宿主执行。
 - Tests: 操作会话 9 例、持久化 runner 7 例、操作栏定位 3 例、Provider 错误码 1 例及 SQLite 类型/迁移 2 例，覆盖显式单请求、全局排他、等待期间冻结操作、关闭取消、旧成功保留、截图复用/回滚、Provider 取消归一化、最终保存重试、4 px 间距与窄屏长操作栏。
 - Evidence: `OperationWorkspaceSession.swift`、`PersistedOperationWorkspaceRunner.swift`、`ProviderPreparedOperationStreamer.swift`、schema v2 的 `SQLiteHistoryStore.swift` 以及 `VLMSnapper/UI/` 原生组件；light/dark harness 实际渲染已核对确认原型。签名 App 的窗口交互、辅助功能遍历、TCC 与真实 Provider 仍按 Ticket 10 集成门禁保留。
+
+## Ticket 07 evidence
+
+- Gate: 严格 `swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror`、完整宿主 `swift test` 143/143、10 张 AppKit/SwiftUI 明暗离屏渲染、`git diff --check`、源码/测试 CJK 扫描、83 个本地化键一致性与 UI 硬编码文案扫描。
+- Tests: 引导/菜单路由 4 例、权限恢复 6 例、Provider presentation 5 例和真实 UI 渲染 1 例，覆盖必要条件门禁、Later 恒可用、Provider 优先路由、显式一次 TCC、拒绝/撤销恢复、成功后重启、重叠点击、模型原地展开、无自动选择、异步切换隔离、活动请求只读与五个入口表面明暗渲染。
+- Evidence: `OnboardingSession.swift`、`ScreenCapturePermissionCoordinator.swift`、`ProviderSetupSession.swift`、`UserDefaultsPermissionRequestHistoryStore.swift` 与 `VLMSnapper/UI/` 的 onboarding/menu/provider/privacy/permission 组件和状态栏 controller；`review-code.md`、`review-tests.md` 的分层审查与三项行为/变异红灯；`final-regression.md` 的三阶段一致性表。签名 TCC、真实状态栏点击、System Settings 与一键重启仍按 Ticket 10 集成门禁保留。

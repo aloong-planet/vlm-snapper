@@ -4,7 +4,7 @@ import Foundation
 @preconcurrency import ScreenCaptureKit
 
 public struct CoreGraphicsScreenCapturePermissionChecker:
-    ScreenCapturePermissionChecking
+    ScreenCapturePermissionChecking, ScreenCapturePermissionAuthorizing
 {
     public init() {}
 
@@ -15,6 +15,14 @@ public struct CoreGraphicsScreenCapturePermissionChecker:
     @discardableResult
     public func requestScreenCaptureAccess() -> Bool {
         CGRequestScreenCaptureAccess()
+    }
+
+    public func preflightScreenCaptureAccess() async -> Bool {
+        hasScreenCaptureAccess()
+    }
+
+    public func requestScreenCaptureAuthorization() async -> Bool {
+        requestScreenCaptureAccess()
     }
 }
 

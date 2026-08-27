@@ -1,4 +1,5 @@
 import Foundation
+import VLMSnapperCore
 
 enum VLMSnapperStrings {
     static var extract: String { localized("operation.extract") }
@@ -17,6 +18,69 @@ enum VLMSnapperStrings {
     static var failed: String { localized("result.failed") }
     static var canceled: String { localized("result.canceled") }
     static var persistenceFailed: String { localized("result.persistenceFailed") }
+    static var onboardingTitle: String { localized("onboarding.title") }
+    static var onboardingSubtitle: String { localized("onboarding.subtitle") }
+    static var permissionTitle: String { localized("onboarding.permission.title") }
+    static var providerTitle: String { localized("onboarding.provider.title") }
+    static var privacyTitle: String { localized("onboarding.privacy.title") }
+    static var privacySummary: String { localized("onboarding.privacy.summary") }
+    static var configure: String { localized("action.configure") }
+    static var modify: String { localized("action.modify") }
+    static var continueSetup: String { localized("action.continueSetup") }
+    static var finishLater: String { localized("action.finishLater") }
+    static var startUsing: String { localized("action.startUsing") }
+    static var viewDetails: String { localized("action.viewDetails") }
+    static var done: String { localized("action.done") }
+    static var validate: String { localized("action.validate") }
+    static var refresh: String { localized("action.refresh") }
+    static var close: String { localized("action.close") }
+    static var openSettings: String { localized("action.openSettings") }
+    static var restart: String { localized("action.restart") }
+    static var providerSetupTitle: String { localized("providerSetup.title") }
+    static var providerSetupSubtitle: String { localized("providerSetup.subtitle") }
+    static var apiKey: String { localized("providerSetup.apiKey") }
+    static var currentModel: String { localized("providerSetup.currentModel") }
+    static var chooseModel: String { localized("providerSetup.chooseModel") }
+    static var modelListHint: String { localized("providerSetup.modelListHint") }
+    static var visionValidationHint: String { localized("providerSetup.visionValidationHint") }
+    static var modelPending: String { localized("providerSetup.pendingModel") }
+    static var providerSection: String { localized("providerSetup.providerSection") }
+    static var officialEndpoint: String { localized("providerSetup.officialEndpoint") }
+    static var notConfigured: String { localized("providerSetup.notConfigured") }
+    static var validating: String { localized("providerSetup.validating") }
+    static var configured: String { localized("providerSetup.configured") }
+    static var providerReadOnly: String { localized("providerSetup.readOnly") }
+    static var permissionRecoveryTitle: String { localized("permissionRecovery.title") }
+    static var permissionRecoveryDenied: String { localized("permissionRecovery.unavailable") }
+    static var permissionRecoveryInitial: String { localized("permissionRecovery.initial") }
+    static var permissionRecoveryRestart: String { localized("permissionRecovery.restart") }
+    static var permissionReady: String { localized("permissionRecovery.ready") }
+    static var permissionBlocker: String { localized("onboarding.blocker.permission") }
+    static var providerBlocker: String { localized("onboarding.blocker.provider") }
+    static var menuCapture: String { localized("menu.capture") }
+    static var menuRecent: String { localized("menu.recent") }
+    static var menuHistory: String { localized("menu.history") }
+    static var menuSettings: String { localized("menu.settings") }
+    static var menuCheckUpdates: String { localized("menu.checkUpdates") }
+    static var menuQuit: String { localized("menu.quit") }
+    static var privacyDetailsTitle: String { localized("privacy.title") }
+    static var privacyUploadTitle: String { localized("privacy.upload.title") }
+    static var privacyUploadBody: String { localized("privacy.upload.body") }
+    static var privacyStorageTitle: String { localized("privacy.storage.title") }
+    static var privacyStorageBody: String { localized("privacy.storage.body") }
+    static var privacyRetentionTitle: String { localized("privacy.retention.title") }
+    static var privacyRetentionBody: String { localized("privacy.retention.body") }
+    static var privacyBackupTitle: String { localized("privacy.backup.title") }
+    static var privacyBackupBody: String { localized("privacy.backup.body") }
+    static var noRecentItems: String { localized("menu.noRecentItems") }
+
+    static func providerName(_ provider: ProviderID) -> String {
+        switch provider {
+        case .deepSeek: "DeepSeek"
+        case .openAI: "OpenAI"
+        case .gemini: "Gemini"
+        }
+    }
 
     static func failureMessage(code: String) -> String {
         let key = switch code {
@@ -37,7 +101,7 @@ enum VLMSnapperStrings {
         return localized(key)
     }
 
-    private static func localized(_ key: String) -> String {
+    static func localized(_ key: String) -> String {
         String(localized: String.LocalizationValue(key), bundle: .module)
     }
 }

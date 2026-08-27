@@ -207,3 +207,39 @@
 ## 结论
 
 审查发现并先红后绿修复 4 个实际竞态、所有权、状态与布局问题；严格构建和完整 127 例测试通过。无剩余 Ticket 06 代码阻断项，签名 App 系统交互保留为 Ticket 10 发布门禁。
+
+---
+
+# VLMSnapper v1 — Ticket 07 code review
+
+审查范围：首次引导与附着面板、权限恢复 actor、Provider 配置 presentation actor、菜单栏入口与离屏渲染 harness。
+
+## 【① 底层前提】
+
+- Core Graphics 的公开预检只返回可访问/不可访问，无法可靠区分从未请求、用户拒绝和后来撤销。实现只用本安装的“曾请求”布尔记录区分首次请求与统一恢复状态，不向用户伪报不可观察的细分类别。
+- 权限请求、Provider 网络和 Keychain 不由 SwiftUI body 触发；视图只发显式 intent。系统请求只有 `performPrimaryAction` 的首次分支可调用。
+- 直接桌面截图被当前锁屏拦截，未当作视觉证据；随后通过真实 `NSHostingView`/AppKit 离屏窗口渲染 5 个入口表面、明暗各一份并人工逐图检查。
+
+## 【② 可运行性】
+
+- 修复上层入口顺序错误风险：菜单截图固定先检查可用 Provider/当前模型，再检查权限；否则全新安装会在模型尚未配置时提前触发 TCC 流程。定向反转顺序后测试准确红。
+- 修复同层权限竞态：系统授权框尚未返回时重复点击，旧实现会并发进入恢复分支并打开系统设置；现在 actor 合并重叠 intent，第二次返回 no-op。该用例在旧行为上准确红。
+- 修复同层 Provider 重入：模型选择挂起时切换侧栏，旧完成结果可能写回新 Provider 的 presentation；generation guard 保留新选择，定向挂起测试在旧实现上红。
+- 修复上层 Provider 不变量破坏：presentation 层曾在每次选模型后强制设置全局当前 Provider，会让后来配置抢占已记忆选择；现只调用既有 `selectModel`，由核心协调器在“当前为空”时自动采用首个可用 Provider。
+- 修复上层只读缺口：活动模型请求期间，Provider presentation 曾仍可发出验证、刷新、模型和 Provider 切换；现统一 `isReadOnly` 同时阻断 actor mutation 与控件交互。移除验证 guard 的定向变异在系统边界记录处红。
+
+## 【③ 安全正确性】
+
+- API Key 仅存在于 SecureField binding，验证成功、取消或完成时清空；持久写入仍完全委托现有 Keychain 协调器。菜单、历史预览、错误与本地化文案不包含密钥或响应正文。
+- 权限请求历史只写一个非秘密布尔值；首次 intent 在调用系统 API 前持久标记，拒绝/撤销后不会重复弹系统框。
+- 统一恢复面板提供取消、系统设置或重启 intent；实际打开设置/终止重启由应用组合回调注入，未在视图层增加任意 URL 或进程控制路径。
+
+## 【④ 一致性】
+
+- 引导 Direction A、Provider Direction B、菜单 Direction C 和权限 Direction A 均由真实 SwiftUI 组件实现；Provider 顺序、8 px 面板圆角、24 pt 固定标识和模型验证提示在渲染检查后与原型同步。
+- 83 个 zh-Hans/en 键成对存在；源码、注释、测试和提示词保持英文，产品 UI 无直接硬编码文案。
+- 重构清单：引导与菜单容器各有一段 Provider sheet 回调接线，属于自伤型重复代码；Ticket 09 组合生产 App 时可抽成共享 presenter。当前两处都复用同一个 `ProviderSetupView` 和同一 core session，行为没有分叉，故本票不扩大范围重构。
+
+## 结论
+
+审查发现并修复 5 个入口顺序、异步竞态、Provider 不变量和只读状态问题；事实层修正后重扫安全与一致性层，无剩余 Ticket 07 阻断项。签名 TCC、真实 System Settings/重启和状态栏点击仍按 Ticket 10 集成门禁保留。

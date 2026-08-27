@@ -1,6 +1,6 @@
 # 07 — Menu, onboarding, and Provider UI
 
-Status: blocked
+Status: completed
 
 Blocked by: 03, 05, 06
 
@@ -16,3 +16,7 @@ Blocked by: 03, 05, 06
 - UI 文案全部来自简体中文/英语本地化资源。
 
 ## Comments
+
+- 2026-08-27: Dependencies 03, 05, and 06 are complete.
+- 2026-08-27: Permission recovery Direction A selected: one reusable recovery panel for onboarding and the menu-bar capture entry.
+- 2026-08-27: Implemented menu-bar routing, onboarding readiness, attached Provider/privacy/permission panels, explicit-only TCC recovery, and zh-Hans/en UI. Strict build and 143/143 tests pass; 10 light/dark render artifacts were inspected.

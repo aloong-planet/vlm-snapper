@@ -8,4 +8,7 @@ enum VLMSnapperTheme {
     static let primaryText = Color(nsColor: .labelColor)
     static let secondaryText = Color(nsColor: .secondaryLabelColor)
     static let accent = Color.accentColor
+    static let success = Color(nsColor: .systemGreen)
+    static let warning = Color(nsColor: .systemOrange)
+    static let destructive = Color(nsColor: .systemRed)
 }

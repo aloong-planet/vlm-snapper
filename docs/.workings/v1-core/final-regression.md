@@ -174,3 +174,41 @@
 ### 收敛结论
 
 三阶段队列已清空；设计、实现、测试、ticket 和 checklist 已同步。Ticket 06 完成可测试核心与真实 UI 渲染，App 入口和签名系统集成分别留给 Ticket 07/10。
+
+---
+
+## 2026-08-27 — Ticket 07
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 07 acceptance | readiness/permission/provider actor、菜单与附着式 SwiftUI、16 个本票测试 | 双门禁、Later、模型原地展开、已选权限原型与双语均有公开行为和渲染证据；状态改为 completed |
+| `v1-core.md` 首次引导与 Provider UI | `OnboardingContainerView`、`ProviderSetupView`、presentation snapshot | Direction A/B、8 px、成功后保留 Key 区并展开模型、无手输、取消/完成回引导、活动只读一致 |
+| requirements 权限与菜单入口 | permission coordinator、menu router/container | 展示零请求、首次显式请求、拒绝/撤销不重复、成功要求重启，以及 Provider → 权限 → capture 顺序一致 |
+| 隐私详情原型 | `StoragePrivacyDetailView` 与 83 键字典 | 四个扁平分区、固定 Pictures 路径、Keychain/FileVault、保留期/钉住、外部备份边界和仅关闭操作一致 |
+| 已确认原型 | 10 张真实离屏 render | 引导 A、Provider B、菜单 C、权限 A 的明暗层级、Provider 顺序、固定标识和圆角已逐图核对 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 07 status、143 测试与 evidence | 两处均已完成，测试数、render 数和发布缺口一致 |
+| design ↔ 实现 | 状态入口/退出、API Key、Provider 不抢占、只读与 recovery disposition | 实现期发现的重叠权限、stale selection、当前 Provider 和只读保护已回写 review；设计无旧行为残留 |
+| 原型 ↔ README/manifest | permission Direction A 选择、四套 prototype 索引 | README 明确 A 已选；原型保留 B 仅作比较历史，manifest 指向均有效 |
+| 规则 ↔ 门禁 | 英文源码、双语字典、UI 文案与 render | CJK 扫描 0、83/83 键一致、硬编码扫描 0；严格构建及 143/143 测试通过 |
+| features ↔ 当前产品 | `docs/features/` 不存在；Package 尚无生产 App executable | Ticket 07 交付可组合入口与 controller，但当前仓库仍无最终用户可运行产品；按目录“出现即可用”不提前初始化，Ticket 10 收口责任不变 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 新增状态栏/引导/权限/Provider 可见表面 | spec 的已确认入口枚举 | 成员未新增，只实现已有四类入口；管理中心仍由 Ticket 08，生命周期仍由 Ticket 09 |
+| 新增统一 `unavailable` 权限状态 | 公共 Core Graphics 可观察能力与用户文案 | 这是 denied/revoked 的诚实合并，不删产品恢复分支、不虚构系统区分 |
+| 本地化键从 28 增至 83 | zh-Hans/en 字典与全量键门禁 | 两语成员同步，Provider 品牌名保持不翻译；Ticket 09 仍负责系统语言偏好和整 App 扫描 |
+| 新增 10 张 render 产物 | 临时目录与测试枚举 | 仅是测试证据，不进入仓库或功能目录；锁屏桌面截图未被误报为有效证据 |
+| `Pending:` 注记 | `rg "Pending:" docs/.workings/v1-core docs/specs docs/adr` | 签名 TCC、状态栏交互、System Settings/重启、真实 Provider 等发布项尚未到期，继续由 Ticket 10 验收 |
+
+### 收敛结论
+
+三阶段队列已清空；原型选择、design、实现、双语字典、ticket、checklist 和测试证据已同步。Ticket 07 完成可组合菜单/引导 UI 与权限/Provider 状态 seam，不把尚未存在的生产 App 组合和签名系统交互误报为发布完成。

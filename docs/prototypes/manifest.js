@@ -47,5 +47,12 @@ window.PROTOTYPES = [
     id: "sheet-directions",
     name: "Provider setup sheet directions",
     path: "provider-setup/prototype-sheet-directions.html"
+  },
+  {
+    module: "permission-recovery",
+    type: "ui",
+    id: "screen-capture",
+    name: "Screen capture permission recovery",
+    path: "permission-recovery/prototype-permission-recovery.html"
   }
 ];
