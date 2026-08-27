@@ -12,6 +12,8 @@ public struct MenuBarCallbacks {
     public let onOpenRecent: (String) -> Void
     public let onNavigate: (ManagementCenterDestination) -> Void
     public let onCheckUpdates: () -> Void
+    public let onDownloadUpdate: () -> Void
+    public let onOpenUpdateInformation: (URL) -> Void
     public let onQuit: () -> Void
 
     public init(
@@ -25,6 +27,8 @@ public struct MenuBarCallbacks {
         onOpenRecent: @escaping (String) -> Void,
         onNavigate: @escaping (ManagementCenterDestination) -> Void,
         onCheckUpdates: @escaping () -> Void,
+        onDownloadUpdate: @escaping () -> Void = {},
+        onOpenUpdateInformation: @escaping (URL) -> Void = { _ in },
         onQuit: @escaping () -> Void
     ) {
         self.onCapture = onCapture
@@ -37,6 +41,8 @@ public struct MenuBarCallbacks {
         self.onOpenRecent = onOpenRecent
         self.onNavigate = onNavigate
         self.onCheckUpdates = onCheckUpdates
+        self.onDownloadUpdate = onDownloadUpdate
+        self.onOpenUpdateInformation = onOpenUpdateInformation
         self.onQuit = onQuit
     }
 }
@@ -46,6 +52,7 @@ public struct MenuBarContainerView: View {
     private let permission: ScreenCapturePermissionReadiness
     private let provider: ProviderReadiness
     private let providerSnapshot: ProviderSetupSnapshot
+    private let updateState: UpdateLifecycleState
     @Binding private var apiKey: String
     @Binding private var pendingModelID: String?
     private let callbacks: MenuBarCallbacks
@@ -56,6 +63,7 @@ public struct MenuBarContainerView: View {
         permission: ScreenCapturePermissionReadiness,
         provider: ProviderReadiness,
         providerSnapshot: ProviderSetupSnapshot,
+        updateState: UpdateLifecycleState = .idle,
         apiKey: Binding<String>,
         pendingModelID: Binding<String?>,
         callbacks: MenuBarCallbacks
@@ -64,6 +72,7 @@ public struct MenuBarContainerView: View {
         self.permission = permission
         self.provider = provider
         self.providerSnapshot = providerSnapshot
+        self.updateState = updateState
         _apiKey = apiKey
         _pendingModelID = pendingModelID
         self.callbacks = callbacks
@@ -72,10 +81,13 @@ public struct MenuBarContainerView: View {
     public var body: some View {
         MenuBarPanelView(
             recentItems: recentItems,
+            updateState: updateState,
             onCapture: routeCapture,
             onOpenRecent: callbacks.onOpenRecent,
             onNavigate: callbacks.onNavigate,
             onCheckUpdates: callbacks.onCheckUpdates,
+            onDownloadUpdate: callbacks.onDownloadUpdate,
+            onOpenUpdateInformation: callbacks.onOpenUpdateInformation,
             onQuit: callbacks.onQuit
         )
         .sheet(item: $activeSheet) { sheet in

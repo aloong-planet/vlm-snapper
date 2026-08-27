@@ -247,3 +247,34 @@
 ## 结论
 
 覆盖、case 设计和假通过三维均已核对；文件所有权、部分失败、精确 24 小时边界和当次渲染都有目标行为证据。未用离屏图冒充真实生产 App 生命周期测试。
+
+---
+
+# VLMSnapper v1 — Ticket 09 test review
+
+审查范围：应用语言、登录项、单实例、诊断、更新生命周期、Sparkle 用户驱动与 Ticket 09 渲染。
+
+## 维度 1：覆盖是否完整
+
+- 语言覆盖完整系统偏好列表、手动策略与区域独立、`system` 原值持久化，并直接验证中英文词典切换。
+- 单实例覆盖 secondary 零初始化、primary 一次初始化/激活和真实 POSIX lease 排他/释放；登录项覆盖默认启用后的审批重读和禁用偏好跨启动保持。
+- 诊断覆盖 allowlist 拒绝、所有权范围清理、完整截止日、导出 compressor 和系统 gzip 解压；更新覆盖固定 21600 秒、禁止自动下载、按钮不改状态、失败后手动重试和信息型更新零下载。
+- Sparkle adapter 覆盖 reply 单次消费、信息型更新拒绝下载和回调严格顺序。UI 实际生成 2 语言 × 2 appearance × 4 更新态 × 2 表面共 32 张 PNG，并人工检查中英文明暗长文案。
+- 缺口：跨真实进程激活、SMAppService 审批 UI、签名 appcast 下载/安装与退出协调必须在 Ticket 10 的签名 App 上验证。
+
+## 维度 2：case 设计是否合理
+
+- Core 测试经公开 coordinator/state seam，系统边界仅替换锁、消息、登录 service、Updater driver 和 compressor；真实 POSIX/zlib 路径另有宿主测试，不只测 probe。
+- 时间由固定 Date 注入；无 sleep。截止日、21600 秒、字节累计和一次性 reply 使用独立字面量断言。
+- 渲染使用真实 NSWindow/NSHostingView、目标 appearance、真实本地化词典和 PNG 编码；直接字符串测试防止“图存在但仍是错语言”的假绿。
+
+## 维度 3：假通过检查
+
+- 第一次沙箱内测试因 `.build`/clang cache 只读产生 `Executed 0 tests`；该结果明确作废，随后在可写宿主取得真实 Swift Testing 汇总。
+- 语言测试最初抓到 `String(localized:)` 缓存导致切回中文仍返回英文；改为显式词典后才绿。
+- 回调顺序测试直接记录 Core 事件序列；若恢复并行 Task，顺序不再由实现保证。gzip 测试不仅断言 magic bytes，还由系统工具解压并比对 `hello\n`。
+- 完整门禁以 Swift Testing 172/172 汇总为准；XCTest 兼容层的 0 tests 行不作为证据。
+
+## 结论
+
+覆盖、case 设计与假通过三维均已核对；锁、隐私、截止日、一次性下载、回调顺序、双语和真实渲染都有目标行为证据，签名系统缺口未被库测试掩盖。

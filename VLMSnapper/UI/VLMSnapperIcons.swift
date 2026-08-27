@@ -29,6 +29,8 @@ enum VLMSnapperIcon: String {
     case providerList = "server.rack"
     case general = "slider.horizontal.3"
     case warningBadge = "exclamationmark.circle.fill"
+    case downloaded = "checkmark.circle"
+    case diagnostics = "doc.text.magnifyingglass"
 
     var image: Image {
         Image(systemName: rawValue)

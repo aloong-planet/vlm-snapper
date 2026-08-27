@@ -1,4 +1,5 @@
 import SwiftUI
+import VLMSnapperCore
 
 public enum ManagementCenterDestination: Equatable, Sendable {
     case history
@@ -19,25 +20,34 @@ public struct MenuRecentItem: Identifiable, Equatable, Sendable {
 
 public struct MenuBarPanelView: View {
     private let recentItems: [MenuRecentItem]
+    private let updateState: UpdateLifecycleState
     private let onCapture: () -> Void
     private let onOpenRecent: (String) -> Void
     private let onNavigate: (ManagementCenterDestination) -> Void
     private let onCheckUpdates: () -> Void
+    private let onDownloadUpdate: () -> Void
+    private let onOpenUpdateInformation: (URL) -> Void
     private let onQuit: () -> Void
 
     public init(
         recentItems: [MenuRecentItem],
+        updateState: UpdateLifecycleState = .idle,
         onCapture: @escaping () -> Void,
         onOpenRecent: @escaping (String) -> Void,
         onNavigate: @escaping (ManagementCenterDestination) -> Void,
         onCheckUpdates: @escaping () -> Void,
+        onDownloadUpdate: @escaping () -> Void = {},
+        onOpenUpdateInformation: @escaping (URL) -> Void = { _ in },
         onQuit: @escaping () -> Void
     ) {
         self.recentItems = recentItems
+        self.updateState = updateState
         self.onCapture = onCapture
         self.onOpenRecent = onOpenRecent
         self.onNavigate = onNavigate
         self.onCheckUpdates = onCheckUpdates
+        self.onDownloadUpdate = onDownloadUpdate
+        self.onOpenUpdateInformation = onOpenUpdateInformation
         self.onQuit = onQuit
     }
 
@@ -52,6 +62,9 @@ public struct MenuBarPanelView: View {
             }
             .buttonStyle(.plain)
             .background(VLMSnapperTheme.accent.opacity(0.12))
+            if updateState.showsMenuNotice {
+                updateNotice
+            }
             Divider()
             VStack(alignment: .leading, spacing: 4) {
                 Text(VLMSnapperStrings.menuRecent)
@@ -99,6 +112,57 @@ public struct MenuBarPanelView: View {
         .frame(width: 330)
     }
 
+    private var updateNotice: some View {
+        HStack(spacing: 9) {
+            updateNoticeIcon
+                .frame(width: 28, height: 28)
+                .background(VLMSnapperTheme.surface, in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(updateState.menuTitle).font(.caption.bold()).lineLimit(1)
+                Text(updateState.menuDetail)
+                    .font(.caption2)
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 4)
+            switch updateState {
+            case let .available(version):
+                if let informationURL = version.informationURL {
+                    Button(VLMSnapperStrings.updateView) {
+                        onOpenUpdateInformation(informationURL)
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    Button(VLMSnapperStrings.updateDownload, action: onDownloadUpdate)
+                        .buttonStyle(.bordered)
+                }
+            case .readyToInstall:
+                Button(VLMSnapperStrings.updateView) { onNavigate(.settings) }
+                    .buttonStyle(.bordered)
+            default:
+                EmptyView()
+            }
+        }
+        .padding(9)
+        .background(VLMSnapperTheme.accent.opacity(0.08))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(VLMSnapperTheme.border))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+    }
+
+    @ViewBuilder
+    private var updateNoticeIcon: some View {
+        switch updateState {
+        case .downloading:
+            ProgressView().controlSize(.small)
+        case .readyToInstall:
+            VLMSnapperIcon.downloaded.image.foregroundStyle(VLMSnapperTheme.accent)
+        default:
+            VLMSnapperIcon.update.image.foregroundStyle(VLMSnapperTheme.accent)
+        }
+    }
+
     private func menuButton(
         _ title: String,
         icon: VLMSnapperIcon,
@@ -111,5 +175,32 @@ public struct MenuBarPanelView: View {
                 .frame(height: 34)
         }
         .buttonStyle(.plain)
+    }
+}
+
+private extension UpdateLifecycleState {
+    var showsMenuNotice: Bool {
+        showsAttentionIndicator
+    }
+
+    var menuTitle: String {
+        switch self {
+        case let .available(version):
+            String(format: VLMSnapperStrings.updateAvailableTitleFormat, version.displayVersion)
+        case let .downloading(version, _, _):
+            String(format: VLMSnapperStrings.updateDownloadingTitleFormat, version.displayVersion)
+        case let .readyToInstall(version):
+            String(format: VLMSnapperStrings.updateReadyTitleFormat, version.displayVersion)
+        default: ""
+        }
+    }
+
+    var menuDetail: String {
+        switch self {
+        case .available: VLMSnapperStrings.updateAvailableMenuDetail
+        case .downloading: VLMSnapperStrings.updateDownloadingMenuDetail
+        case .readyToInstall: VLMSnapperStrings.updateReadyMenuDetail
+        default: ""
+        }
     }
 }

@@ -28,6 +28,13 @@ window.PROTOTYPES = [
     path: "management-center/prototype-management-center.html#settings"
   },
   {
+    module: "management-center",
+    type: "ui",
+    id: "general-settings",
+    name: "Management center · General settings",
+    path: "management-center/prototype-management-center.html#general"
+  },
+  {
     module: "capture-overlay",
     type: "ui",
     id: "attached-toolbar",

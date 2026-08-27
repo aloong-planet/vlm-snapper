@@ -249,3 +249,40 @@
 ### 收敛结论
 
 三阶段队列已清空；design、实现、测试、双语字典、ticket、checklist、spec 和 ADR 没有反向表述。Ticket 08 完成可测试的管理中心与清理能力，但不把尚未组合出的生产 App 冒充最终用户可运行产物。
+
+---
+
+## 2026-08-27 — Ticket 09
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 09 acceptance | 5 个 Core seam、Sparkle target、native adapters、19 个本票测试 | 第二实例 gating、7 天 allowlist、双语重启策略、登录审批、六小时检查、显式下载和 callback-only ready 均有实现；状态改为 completed |
+| `v1-core.md` 更新/诊断/本地化 | 最终代码与 UI 字典 | 无自动下载开关；菜单/设置共享状态；信息型更新只查看；脱敏导出和两语言三策略一致 |
+| Ticket 09 design | review 后实现 | 回调串行链、UTC 完整截止日、真实 gzip 与 restart-required 已回写 review；签名 App 门禁仍归 Ticket 10 |
+| 已确认原型 | 32 张中英文/明暗/四态离屏 render | 菜单更新提醒、General Settings 分区、按钮语义和长英文换行一致；未加入自动下载 UI |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 09 completed、172 测试与 evidence | 状态、测试数、render 数、Sparkle 版本和系统集成缺口同步 |
+| spec/ADR ↔ 实现 | ADR-0003/0004/0009 与语言、feed 边界、单实例 lease | 没有反向表述；三架构 appcast 和签名只在 Ticket 10 配置 |
+| 原型 ↔ README/manifest | companion/management README、manifest 和 HTML | 确认日期、无自动下载与演示状态一致；demo timer 没有进入生产实现 |
+| 规则 ↔ 门禁 | AGENTS、双语字典、严格构建、真实 test total | 原有 tracker/layout 入口已恢复；新增键成对、warnings-as-errors 通过 |
+| features ↔ 当前产品 | `docs/features/` 不存在；Package 仍无生产 App executable | 按“出现即可用”不提前初始化；Ticket 10 负责签名可运行产品和功能目录收口 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 新增 UI 语言运行策略 | zh-Hans/en 两成员与 system/zh-Hans/en 三偏好 | AGENTS、spec、requirements、字典与 Picker 枚举一致；无繁体或 RTL 承诺 |
+| 新增 Sparkle 2.9.6 依赖 | Package.resolved、design 与 adapter | 精确版本一致；无自动下载，原始错误不展示，真实 feed/EdDSA 留 Ticket 10 |
+| 新增状态 available/downloading/ready | Core、菜单、设置、状态栏 indicator | “已下载”只来自 ready callback；点击 Download 不乐观切状态 |
+| `Pending:` 注记 | spec 图片限制与真实 Provider 契约 | 本票未使其到期；继续由 Ticket 10 的真实账户与签名发布门禁承兑 |
+| 新通则 | AGENTS 项目能力 | 英文工作语言、双语字典、首帧语言与区域独立已落仓库必经入口 |
+
+### 收敛结论
+
+三阶段队列已清空；实现、review、测试、ticket、checklist、spec、ADR、原型和双语字典一致。Ticket 09 完成可组合生命周期模块与确认 UI，不把尚未存在的签名生产 App、真实系统审批或更新安装冒充已验证。

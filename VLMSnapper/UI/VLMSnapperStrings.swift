@@ -99,6 +99,42 @@ enum VLMSnapperStrings {
     static var historyClearIncludingPinned: String { localized("history.clearIncludingPinned") }
     static var historyTokenUsageFormat: String { localized("history.tokenUsageFormat") }
     static var historyRetentionDaysFormat: String { localized("history.retentionDaysFormat") }
+    static var generalSettingsSubtitle: String { localized("settings.general.subtitle") }
+    static var languageTitle: String { localized("settings.language.title") }
+    static var languageHint: String { localized("settings.language.hint") }
+    static var languageRestartRequired: String { localized("settings.language.restartRequired") }
+    static var languageRestartHint: String { localized("settings.language.restartHint") }
+    static var languageSystem: String { localized("settings.language.system") }
+    static var languageSimplifiedChinese: String { localized("settings.language.zhHans") }
+    static var languageEnglish: String { localized("settings.language.en") }
+    static var loginItemTitle: String { localized("settings.loginItem.title") }
+    static var loginItemHint: String { localized("settings.loginItem.hint") }
+    static var loginItemApproval: String { localized("settings.loginItem.approval") }
+    static var updateSection: String { localized("update.section") }
+    static var updateAutomaticChecks: String { localized("update.automaticChecks") }
+    static var updateAutomaticChecksHint: String { localized("update.automaticChecksHint") }
+    static var updateCurrent: String { localized("update.current") }
+    static var updateChecking: String { localized("update.checking") }
+    static var updateCheck: String { localized("update.check") }
+    static var updateRetry: String { localized("update.retry") }
+    static var updateDownload: String { localized("update.download") }
+    static var updateView: String { localized("update.view") }
+    static var updateInstallNow: String { localized("update.installNow") }
+    static var updateAvailableTitleFormat: String { localized("update.availableTitleFormat") }
+    static var updateDownloadingTitleFormat: String { localized("update.downloadingTitleFormat") }
+    static var updateReadyTitleFormat: String { localized("update.readyTitleFormat") }
+    static var updateAvailableMenuDetail: String { localized("update.availableMenuDetail") }
+    static var updateDownloadingMenuDetail: String { localized("update.downloadingMenuDetail") }
+    static var updateReadyMenuDetail: String { localized("update.readyMenuDetail") }
+    static var updateAvailableDetail: String { localized("update.availableDetail") }
+    static var updateDownloadingDetail: String { localized("update.downloadingDetail") }
+    static var updateReadyDetail: String { localized("update.readyDetail") }
+    static var updateFailedTitle: String { localized("update.failedTitle") }
+    static var updateFailedDetail: String { localized("update.failedDetail") }
+    static var diagnosticsSection: String { localized("diagnostics.section") }
+    static var diagnosticsTitle: String { localized("diagnostics.title") }
+    static var diagnosticsHint: String { localized("diagnostics.hint") }
+    static var diagnosticsExport: String { localized("diagnostics.export") }
 
     static func providerName(_ provider: ProviderID) -> String {
         switch provider {
@@ -128,6 +164,6 @@ enum VLMSnapperStrings {
     }
 
     static func localized(_ key: String) -> String {
-        String(localized: String.LocalizationValue(key), bundle: .module)
+        LocalizationBundleStore.shared.localized(key)
     }
 }

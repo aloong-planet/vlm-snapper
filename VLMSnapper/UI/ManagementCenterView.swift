@@ -2,6 +2,31 @@ import AppKit
 import SwiftUI
 import VLMSnapperCore
 
+public struct GeneralSettingsSnapshot: Equatable, Sendable {
+    public let language: ApplicationLanguagePreference
+    public let languageRestartRequired: Bool
+    public let loginItemEnabled: Bool
+    public let loginItemState: LoginItemState
+    public let automaticallyChecksForUpdates: Bool
+    public let updateState: UpdateLifecycleState
+
+    public init(
+        language: ApplicationLanguagePreference = .system,
+        languageRestartRequired: Bool = false,
+        loginItemEnabled: Bool = true,
+        loginItemState: LoginItemState = .enabled,
+        automaticallyChecksForUpdates: Bool = true,
+        updateState: UpdateLifecycleState = .idle
+    ) {
+        self.language = language
+        self.languageRestartRequired = languageRestartRequired
+        self.loginItemEnabled = loginItemEnabled
+        self.loginItemState = loginItemState
+        self.automaticallyChecksForUpdates = automaticallyChecksForUpdates
+        self.updateState = updateState
+    }
+}
+
 public struct ManagementCenterCallbacks {
     public let onSelectRecord: (UUID) -> Void
     public let onSetPinned: (UUID, Bool) -> Void
@@ -9,6 +34,16 @@ public struct ManagementCenterCallbacks {
     public let onClearHistory: (Bool) -> Void
     public let onRetryCleanup: () -> Void
     public let onRetentionChange: (HistoryRetentionPeriod) -> Void
+    public let onLanguageChange: (ApplicationLanguagePreference) -> Void
+    public let onRestartForLanguageChange: () -> Void
+    public let onLoginItemChange: (Bool) -> Void
+    public let onOpenLoginItemSettings: () -> Void
+    public let onAutomaticUpdateChecksChange: (Bool) -> Void
+    public let onCheckUpdates: () -> Void
+    public let onDownloadUpdate: () -> Void
+    public let onOpenUpdateInformation: (URL) -> Void
+    public let onInstallUpdate: () -> Void
+    public let onExportDiagnostics: () -> Void
 
     public init(
         onSelectRecord: @escaping (UUID) -> Void = { _ in },
@@ -16,7 +51,17 @@ public struct ManagementCenterCallbacks {
         onDelete: @escaping (UUID) -> Void = { _ in },
         onClearHistory: @escaping (Bool) -> Void = { _ in },
         onRetryCleanup: @escaping () -> Void = {},
-        onRetentionChange: @escaping (HistoryRetentionPeriod) -> Void = { _ in }
+        onRetentionChange: @escaping (HistoryRetentionPeriod) -> Void = { _ in },
+        onLanguageChange: @escaping (ApplicationLanguagePreference) -> Void = { _ in },
+        onRestartForLanguageChange: @escaping () -> Void = {},
+        onLoginItemChange: @escaping (Bool) -> Void = { _ in },
+        onOpenLoginItemSettings: @escaping () -> Void = {},
+        onAutomaticUpdateChecksChange: @escaping (Bool) -> Void = { _ in },
+        onCheckUpdates: @escaping () -> Void = {},
+        onDownloadUpdate: @escaping () -> Void = {},
+        onOpenUpdateInformation: @escaping (URL) -> Void = { _ in },
+        onInstallUpdate: @escaping () -> Void = {},
+        onExportDiagnostics: @escaping () -> Void = {}
     ) {
         self.onSelectRecord = onSelectRecord
         self.onSetPinned = onSetPinned
@@ -24,6 +69,16 @@ public struct ManagementCenterCallbacks {
         self.onClearHistory = onClearHistory
         self.onRetryCleanup = onRetryCleanup
         self.onRetentionChange = onRetentionChange
+        self.onLanguageChange = onLanguageChange
+        self.onRestartForLanguageChange = onRestartForLanguageChange
+        self.onLoginItemChange = onLoginItemChange
+        self.onOpenLoginItemSettings = onOpenLoginItemSettings
+        self.onAutomaticUpdateChecksChange = onAutomaticUpdateChecksChange
+        self.onCheckUpdates = onCheckUpdates
+        self.onDownloadUpdate = onDownloadUpdate
+        self.onOpenUpdateInformation = onOpenUpdateInformation
+        self.onInstallUpdate = onInstallUpdate
+        self.onExportDiagnostics = onExportDiagnostics
     }
 }
 
@@ -32,6 +87,7 @@ public struct ManagementCenterView: View {
     private let selectedImage: NSImage?
     private let cleanupFailureCount: Int
     private let callbacks: ManagementCenterCallbacks
+    private let settings: GeneralSettingsSnapshot
     @State private var destination: ManagementCenterDestination
     @State private var kind: HistoryOperationKindFilter = .all
     @State private var searchText: String
@@ -50,16 +106,19 @@ public struct ManagementCenterView: View {
         cleanupFailureCount: Int = 0,
         searchText: String = "",
         retention: HistoryRetentionPeriod = .thirtyDays,
+        settings: GeneralSettingsSnapshot = GeneralSettingsSnapshot(),
         callbacks: ManagementCenterCallbacks = ManagementCenterCallbacks()
     ) {
         self.records = records
         self.selectedImage = selectedImage
         self.cleanupFailureCount = cleanupFailureCount
         self.callbacks = callbacks
+        self.settings = settings
         _destination = State(initialValue: destination)
         _selectedRecordID = State(initialValue: selectedRecordID ?? records.first?.id)
         _searchText = State(initialValue: searchText)
         _retention = State(initialValue: retention)
+        _showGeneralSettings = State(initialValue: destination == .settings)
     }
 
     public var body: some View {
@@ -201,6 +260,62 @@ public struct ManagementCenterView: View {
     private var settingsContent: some View {
         Form {
             if showGeneralSettings {
+                Section {
+                    settingsRow(
+                        title: VLMSnapperStrings.languageTitle,
+                        detail: VLMSnapperStrings.languageHint
+                    ) {
+                        Picker("", selection: languageBinding) {
+                            Text(VLMSnapperStrings.languageSystem)
+                                .tag(ApplicationLanguagePreference.system)
+                            Text(VLMSnapperStrings.languageSimplifiedChinese)
+                                .tag(ApplicationLanguagePreference.simplifiedChinese)
+                            Text(VLMSnapperStrings.languageEnglish)
+                                .tag(ApplicationLanguagePreference.english)
+                        }
+                        .labelsHidden()
+                        .frame(width: 180)
+                    }
+                    if settings.languageRestartRequired {
+                        settingsRow(
+                            title: VLMSnapperStrings.languageRestartRequired,
+                            detail: VLMSnapperStrings.languageRestartHint
+                        ) {
+                            Button(
+                                VLMSnapperStrings.restart,
+                                action: callbacks.onRestartForLanguageChange
+                            )
+                        }
+                    }
+                    settingsRow(
+                        title: VLMSnapperStrings.loginItemTitle,
+                        detail: VLMSnapperStrings.loginItemHint
+                    ) {
+                        Toggle("", isOn: loginItemBinding).labelsHidden()
+                    }
+                    if settings.loginItemState == .requiresApproval {
+                        Button(
+                            VLMSnapperStrings.loginItemApproval,
+                            action: callbacks.onOpenLoginItemSettings
+                        )
+                    }
+                } header: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(VLMSnapperStrings.historyGeneralSettings)
+                        Text(VLMSnapperStrings.generalSettingsSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    }
+                }
+                Section(VLMSnapperStrings.updateSection) {
+                    settingsRow(
+                        title: VLMSnapperStrings.updateAutomaticChecks,
+                        detail: VLMSnapperStrings.updateAutomaticChecksHint
+                    ) {
+                        Toggle("", isOn: automaticChecksBinding).labelsHidden()
+                    }
+                    updateStatus
+                }
                 Section(VLMSnapperStrings.historyRetention) {
                     Picker(VLMSnapperStrings.historyRetention, selection: $retention) {
                         ForEach(HistoryRetentionPeriod.allCases, id: \.self) { period in
@@ -212,6 +327,17 @@ public struct ManagementCenterView: View {
                     Text(VLMSnapperStrings.historyRetentionHint)
                         .foregroundStyle(VLMSnapperTheme.secondaryText)
                 }
+                Section(VLMSnapperStrings.diagnosticsSection) {
+                    settingsRow(
+                        title: VLMSnapperStrings.diagnosticsTitle,
+                        detail: VLMSnapperStrings.diagnosticsHint
+                    ) {
+                        Button(
+                            VLMSnapperStrings.diagnosticsExport,
+                            action: callbacks.onExportDiagnostics
+                        )
+                    }
+                }
             } else {
                 Section(VLMSnapperStrings.historyProviderSettings) {
                     Label(VLMSnapperStrings.providerSetupTitle, systemImage: VLMSnapperIcon.providerList.rawValue)
@@ -222,6 +348,124 @@ public struct ManagementCenterView: View {
         }
         .formStyle(.grouped)
         .padding(18)
+    }
+
+    private var languageBinding: Binding<ApplicationLanguagePreference> {
+        Binding(
+            get: { settings.language },
+            set: { value in callbacks.onLanguageChange(value) }
+        )
+    }
+
+    private var loginItemBinding: Binding<Bool> {
+        Binding(
+            get: { settings.loginItemEnabled },
+            set: { value in callbacks.onLoginItemChange(value) }
+        )
+    }
+
+    private var automaticChecksBinding: Binding<Bool> {
+        Binding(
+            get: { settings.automaticallyChecksForUpdates },
+            set: { value in callbacks.onAutomaticUpdateChecksChange(value) }
+        )
+    }
+
+    private func settingsRow<Accessory: View>(
+        title: String,
+        detail: String,
+        @ViewBuilder accessory: () -> Accessory
+    ) -> some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).fontWeight(.semibold)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+            }
+            Spacer()
+            accessory()
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var updateStatus: some View {
+        HStack(spacing: 12) {
+            updateStatusIcon.frame(width: 34, height: 34)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(updateStatusTitle).fontWeight(.semibold)
+                Text(updateStatusDetail)
+                    .font(.caption)
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+            }
+            Spacer()
+            updateStatusAction
+        }
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var updateStatusIcon: some View {
+        switch settings.updateState {
+        case .checking, .downloading:
+            ProgressView().controlSize(.small)
+        case .readyToInstall:
+            VLMSnapperIcon.downloaded.image.foregroundStyle(VLMSnapperTheme.accent)
+        case .failed:
+            VLMSnapperIcon.warningBadge.image.foregroundStyle(VLMSnapperTheme.destructive)
+        default:
+            VLMSnapperIcon.update.image.foregroundStyle(VLMSnapperTheme.accent)
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatusAction: some View {
+        switch settings.updateState {
+        case let .available(version):
+            if let informationURL = version.informationURL {
+                Button(VLMSnapperStrings.updateView) {
+                    callbacks.onOpenUpdateInformation(informationURL)
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button(VLMSnapperStrings.updateDownload, action: callbacks.onDownloadUpdate)
+                    .buttonStyle(.borderedProminent)
+            }
+        case .readyToInstall:
+            Button(VLMSnapperStrings.updateInstallNow, action: callbacks.onInstallUpdate)
+                .buttonStyle(.borderedProminent)
+        case .checking, .downloading:
+            EmptyView()
+        case .failed:
+            Button(VLMSnapperStrings.updateRetry, action: callbacks.onCheckUpdates)
+        default:
+            Button(VLMSnapperStrings.updateCheck, action: callbacks.onCheckUpdates)
+        }
+    }
+
+    private var updateStatusTitle: String {
+        switch settings.updateState {
+        case .idle, .current: VLMSnapperStrings.updateCurrent
+        case .checking: VLMSnapperStrings.updateChecking
+        case let .available(version):
+            String(format: VLMSnapperStrings.updateAvailableTitleFormat, version.displayVersion)
+        case let .downloading(version, _, _):
+            String(format: VLMSnapperStrings.updateDownloadingTitleFormat, version.displayVersion)
+        case let .readyToInstall(version):
+            String(format: VLMSnapperStrings.updateReadyTitleFormat, version.displayVersion)
+        case .failed: VLMSnapperStrings.updateFailedTitle
+        }
+    }
+
+    private var updateStatusDetail: String {
+        switch settings.updateState {
+        case .idle, .current: VLMSnapperStrings.updateAutomaticChecksHint
+        case .checking: VLMSnapperStrings.updateAutomaticChecksHint
+        case .available: VLMSnapperStrings.updateAvailableDetail
+        case .downloading: VLMSnapperStrings.updateDownloadingDetail
+        case .readyToInstall: VLMSnapperStrings.updateReadyDetail
+        case .failed: VLMSnapperStrings.updateFailedDetail
+        }
     }
 
     @ViewBuilder

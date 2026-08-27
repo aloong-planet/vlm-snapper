@@ -281,3 +281,40 @@
 ## 结论
 
 审查发现并修复空月份目录、侧栏状态、窗口刷新和批量查询资源问题；事实层修正后重扫安全与一致性层，无剩余 Ticket 08 核心阻断项。生产组合、真实菜单栏跳转与签名产物仍是 Ticket 09/10 集成门禁。
+
+---
+
+# VLMSnapper v1 — Ticket 09 code review
+
+审查范围：单实例租约与激活、脱敏诊断、本地化、登录项、Sparkle 产品用户驱动，以及菜单/通用设置更新表面。
+
+## 【① 底层前提】
+
+- 锁文件本身不代表所有权；只有进程持有的内核 advisory lease 才是主实例证据，崩溃后由内核释放。
+- Sparkle 的下载按钮只消费一次公开 choice reply；按钮点击不是下载成功证据，下载中和已下载状态只接受 Sparkle 回调。
+- 当前 Package 仍没有签名生产 App。SMAppService、跨进程唤醒、真实 appcast、退出安装和公证产物不能由库测试冒充，继续是 Ticket 10 门禁。
+
+## 【② 可运行性】
+
+- 修复 Swift 对 Darwin `flock` 名称歧义：窄 C seam 持有真实同步锁，新增测试验证第二所有者失败且 lease 释放后恢复。
+- 修复 Sparkle 回调潜在乱序：独立 Task 改为串行 delivery chain；测试按 available → started → expected bytes → bytes → ready 逐项断言。
+- 修复诊断截止日提前删除：七天 cutoff 改为 UTC 日界线，完整保留截止当天；gzip 由系统 `/usr/bin/gzip -dc` 验证可解压原文。
+- 修复语言 bundle 切换缓存：显式加载目标 `Localizable.strings` 词典，避免同 key 在进程内沿用旧语言；设置变化暴露 restart-required 和一键重启 intent。
+
+## 【③ 安全正确性】
+
+- 诊断入口只接受 typed allowlist；无自由消息、正文、路径、截图、密钥、请求/响应或认证头字段。动态 token 不符合字符/长度规则即整字段省略。
+- gzip C seam 对 `uInt` 输入/输出上界显式拒绝，所有分配路径释放；导出只聚合受管理日文件。
+- 信息型更新带 HTTPS intent，不显示 Download，也不能进入 Core 下载路径。Provider/Sparkle 原始错误不持久化或直接展示。
+- 登录项注册后重新读取系统状态；`requiresApproval` 不伪装成启用成功，并保留打开系统设置 intent。
+
+## 【④ 一致性】
+
+- 菜单提醒和 General Settings 共享同一 `UpdateLifecycleState`；状态栏注意点只对 available/downloading/ready 显示。
+- 确认原型中的无自动下载、六小时自动检查开关、下载/查看/退出安装、语言、登录项、保留期和诊断入口均已进入双语 SwiftUI。
+- review 期间恢复了 AGENTS 原有 issue tracker 与 docs layout 入口，i18n 能力声明只追加不覆盖。
+- `docs/features/` 继续不初始化：仓库尚无生产 App executable，按“出现即可用”不提前宣称最终用户可运行；Ticket 10 负责全功能目录收口。
+
+## 结论
+
+审查发现并修复回调乱序、诊断截止日、语言缓存和 AGENTS 覆盖四类真实问题。库与 UI 层无剩余 Ticket 09 阻断项；签名系统交互明确留在 Ticket 10。
