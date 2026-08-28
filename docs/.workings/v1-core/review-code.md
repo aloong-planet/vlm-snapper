@@ -420,3 +420,9 @@
 ## 结论
 
 正式运行暴露的路径解析 bug 已隔离修复。审查未发现新资源泄漏、凭据暴露、发布顺序变化或原子性回归。
+
+## 2026-08-28 follow-up: download prefix directory semantics
+
+- 第二次正式 arm64 运行证明绝对输出路径已经生效，但 enclosure URL 丢失 `v0.1.0`；Sparkle 按标准 URL 相对解析替换了无尾斜杠 prefix 的最后组件。
+- helper 现在先去除用户输入的可选尾斜杠，再追加一个 `/`。这既避免双斜杠，也保证版本组件是目录；release 脚本的 expected URL 仍保持规范化无尾斜杠后自行拼接文件名。
+- 修复只改变传给 Sparkle 的 URL 形态，不改变下载主机、版本、文件名、签名内容、原子发布或凭据边界。

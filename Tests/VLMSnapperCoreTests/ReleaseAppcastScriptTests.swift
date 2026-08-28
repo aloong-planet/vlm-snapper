@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Release appcast script")
 struct ReleaseAppcastScriptTests {
-    @Test("Generated appcast stays inside the architecture staging directory")
+    @Test("Generated appcast stays in staging and preserves the versioned download directory")
     func generatedAppcastUsesStagingDirectory() throws {
         let fileManager = FileManager.default
         let temporaryRoot = fileManager.temporaryDirectory
@@ -27,17 +27,28 @@ struct ReleaseAppcastScriptTests {
         #!/bin/bash
         set -euo pipefail
         output=""
+        download_prefix=""
+        input_directory=""
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 -o)
                     output="$2"
                     shift 2
                     ;;
+                --download-url-prefix)
+                    download_prefix="$2"
+                    shift 2
+                    ;;
+                --ed-key-file|--maximum-versions|--maximum-deltas)
+                    shift 2
+                    ;;
                 *)
+                    input_directory="$1"
                     shift
                     ;;
             esac
         done
+        printf '%s' "$download_prefix" > "$input_directory/received-prefix.txt"
         printf '<rss />' > "$output"
         """.write(to: fakeTool, atomically: true, encoding: .utf8)
         try fileManager.setAttributes(
@@ -53,7 +64,7 @@ struct ReleaseAppcastScriptTests {
             script.path,
             fakeTool.path,
             temporaryRoot.appendingPathComponent("private-key").path,
-            "https://downloads.example/releases/1.0.0",
+            "https://downloads.example/releases/v1.0.0",
             "arm64",
             appcastDirectory.path,
         ]
@@ -66,6 +77,11 @@ struct ReleaseAppcastScriptTests {
         #expect(process.terminationStatus == 0)
         #expect(fileManager.fileExists(atPath: expectedAppcast.path))
         #expect(!fileManager.fileExists(atPath: leakedAppcast.path))
+        let receivedPrefix = try String(
+            contentsOf: appcastDirectory.appendingPathComponent("received-prefix.txt"),
+            encoding: .utf8
+        )
+        #expect(receivedPrefix == "https://downloads.example/releases/v1.0.0/")
     }
 
     private var repositoryRoot: URL {

@@ -388,3 +388,13 @@
 ### 收敛结论
 
 代码、测试、design、issue、review 与功能目录已同步。修复恢复既有原子发布承诺，但不把一次 arm64 诊断运行计作正式三包发布完成。
+
+### 2026-08-28 follow-up: version component preservation
+
+| 关系 | 证据 | 结论 |
+| --- | --- | --- |
+| configured download base ↔ Sparkle enclosure | 第二次 arm64 appcast 的 allowlisted URL | 无尾斜杠会把 `v0.1.0` 当作可替换末组件，不能发布 |
+| helper ↔ regression test | received prefix 精确断言 | 规范化为一个尾斜杠后保留版本目录，旧实现可被测试杀死 |
+| features ↔ 修复 | architecture-specific appcast 与 atomic staging | 仍是既有目标行为，不新增用户功能或修改公开 URL 约定 |
+
+第二次诊断运行仍未创建最终输出目录。合并本 follow-up 后必须从 `main` 重跑三架构，不复用失败运行中的临时 App、DMG 或 appcast。
