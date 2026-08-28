@@ -9,7 +9,7 @@ fi
 
 generate_appcast_tool="$1"
 private_key_file="$2"
-download_base_url="${3%/}"
+download_base_url="${3%/}/"
 architecture="$4"
 appcast_directory="$(cd "$5" && pwd)"
 appcast="$appcast_directory/appcast-$architecture.xml"

@@ -365,3 +365,9 @@
 ## 结论
 
 测试能杀死已知相对路径实现，并同时保护目标存在与无仓库泄漏两个外部行为；未用“命令退出 0”替代文件位置断言。
+
+## 2026-08-28 follow-up: versioned download prefix
+
+- 同一个 CLI seam 额外记录 Sparkle 实际收到的 `--download-url-prefix`；输入 `.../releases/v1.0.0` 时必须得到 `.../releases/v1.0.0/`。
+- 旧 helper 在该目标断言处真实红，返回值精确缺少最后 `/`；一行规范化修复后目标用例 1/1 转绿。
+- 测试不依赖当前仓库路径或真实 Sparkle 私钥，只验证决定 enclosure URL 解析的外部 CLI 契约。
