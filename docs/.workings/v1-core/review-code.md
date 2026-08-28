@@ -390,3 +390,33 @@
 ## 结论
 
 审查修复 timing 的 wall-clock 假设；未发现会泄漏用户内容/凭据、自动重试或绕过失败传播的实现问题。代码门禁已补齐，但真实发布仍因外部凭据、签名、公证、公共 HTTPS 与 live Provider 不稳定而阻塞。
+
+---
+
+# VLMSnapper v1 — Appcast staging path code review
+
+审查范围：`release-macos.sh` 的 Sparkle feed 生成接线、独立 appcast seam 与原子发布边界。
+
+## 【① 底层前提】
+
+- Sparkle `generate_appcast -o` 的相对路径按调用进程当前目录解析，不按最后一个扫描目录解析；正式 arm64 运行已复现该事实。
+- 每架构 appcast 必须在自己的临时 staging 目录生成。仓库工作目录出现 XML 既会让随后的 enclosure 校验找不到文件，也会留下未纳入清理 trap 的孤儿。
+
+## 【② 可运行性】
+
+- 新的 `generate-release-appcast.sh` 先将已存在的架构目录规范化为绝对路径，再把完整 XML 路径交给 Sparkle。
+- 正式脚本仍按 final DMG → appcast → enclosure/EdDSA 校验顺序运行；辅助 seam 没有复制签名、验证或发布逻辑。
+
+## 【③ 安全正确性】
+
+- 私钥文件只作为参数透传给本机 Sparkle 工具，不读取、不记录、不复制；测试使用无内容的占位路径。
+- 修复不改变 fail-closed 和六文件原子移动。任何架构生成或校验失败时，最终输出目录仍不存在。
+
+## 【④ 一致性】
+
+- 设计已补充“绝对输出路径且工作目录不得收到 appcast”的明确不变量。
+- `docs/features/v1-core.md` 已经声明 per-architecture appcast 和 atomic six-file staging；本次只恢复该既有行为，不新增用户可见功能。
+
+## 结论
+
+正式运行暴露的路径解析 bug 已隔离修复。审查未发现新资源泄漏、凭据暴露、发布顺序变化或原子性回归。

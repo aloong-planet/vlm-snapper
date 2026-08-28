@@ -72,7 +72,7 @@ Formal release order is fixed:
 6. Create each final DMG from its already-stapled application and an Applications link.
 7. Sign each DMG, submit it to notarization, require `Accepted`, staple it, and validate the final bytes.
 8. Mount each DMG read-only and verify both the outer DMG and inner application with `codesign`, `stapler`, `spctl`, bundle metadata, and executable architecture checks.
-9. Run Sparkle `generate_appcast` separately over the final DMG for each architecture. All three use the same private key and version but distinct download URLs.
+9. Run Sparkle `generate_appcast` separately over the final DMG for each architecture. All three use the same private key and version but distinct download URLs. The output argument is an absolute path inside that architecture's staging directory; the process working directory must never receive a release appcast.
 10. Parse and validate every enclosure, verify its EdDSA signature against the final DMG, and verify that the supplied public key is derived from the signing key.
 11. Stage all three DMGs and all three appcasts together. Nothing becomes public until every prior gate has passed.
 

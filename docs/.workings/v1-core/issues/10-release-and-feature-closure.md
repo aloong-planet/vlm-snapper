@@ -2,7 +2,7 @@
 
 Status: in progress (formal release gates blocked)
 
-Blocked by: Developer ID identity, Apple notarization credentials, public HTTPS feed/download hosting, and protected live Provider credentials
+Blocked by: public HTTPS artifact hosting, a signed update-from-previous-version exercise, and the remaining protected live Provider contracts
 
 ## Goal
 
@@ -23,3 +23,6 @@ Blocked by: Developer ID identity, Apple notarization credentials, public HTTPS 
 - 2026-08-27: Formal completion remains fail-closed until signed/notarized/stapled/Gatekeeper/EdDSA artifacts and live Provider contracts have real evidence.
 - 2026-08-27: The formal workflow now runs one fixed-image translation contract per Provider and uploads an allowlisted JSON report even when the gate fails. Missing key/model configuration is blocked and no request is retried.
 - 2026-08-27: GitHub has no release or Provider secrets/variables, the local keychain has no valid signing identity, and no public feed/download URL is configured. Repeated Gemini probes produced passed, malformed-output, and first-text-timeout outcomes, so live Provider evidence is not currently green.
+- 2026-08-28: The local Developer ID identity and Apple notary profile were validated. The first formal arm64 pass reached Accepted app and DMG notarization, stapling, and Gatekeeper acceptance before exposing an appcast path defect; these diagnostic artifacts were not published.
+- 2026-08-28: Sparkle resolved a relative `-o` path against the repository working directory, while the release script expected the XML in per-architecture staging. A dedicated script seam now supplies an absolute staging path, with a regression test that rejects both missing staged output and working-directory leakage.
+- 2026-08-28: The selected HTTPS feed and download routes are reachable but return 404 until artifacts are uploaded. No public-hosting or signed-update gate is claimed complete by local packaging alone.

@@ -211,12 +211,11 @@ for architecture in arm64 x64 universal; do
     appcast_directory="$staging_root/appcasts/$architecture"
     mkdir -p "$appcast_directory"
     /usr/bin/ditto "$dmg" "$appcast_directory/$(basename "$dmg")"
-    "$sparkle_tools/generate_appcast" \
-        --ed-key-file "$sparkle_private_key_file" \
-        --download-url-prefix "$download_base_url" \
-        --maximum-versions 1 \
-        --maximum-deltas 0 \
-        -o "appcast-$architecture.xml" \
+    /bin/bash "$project_root/Scripts/generate-release-appcast.sh" \
+        "$sparkle_tools/generate_appcast" \
+        "$sparkle_private_key_file" \
+        "$download_base_url" \
+        "$architecture" \
         "$appcast_directory"
     appcast="$appcast_directory/appcast-$architecture.xml"
     enclosure_url="$(/usr/bin/xmllint --xpath \

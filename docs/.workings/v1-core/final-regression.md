@@ -354,3 +354,37 @@
 ### 收敛结论
 
 本轮三阶段队列已清空。live Provider release gate 的代码、测试、workflow、design 和施工证据一致；功能目录没有被内部 CI 细节污染。Ticket 10 与正式发布继续保持阻塞，不以单次 Gemini 成功或离线测试替代三家真实通过。
+
+---
+
+## 2026-08-28 — Formal release appcast path repair
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| design 的 per-architecture appcast | 正式 arm64 运行、Sparkle CLI 与修复 seam | 原相对 `-o` 写到仓库工作目录；设计已明确绝对 staging 路径不变量，实现已恢复 |
+| features 的 atomic six-file staging | release cleanup/publish 顺序 | 失败运行未创建最终输出目录；修复不提前发布任何单架构文件 |
+| Ticket 10 外部门禁 | 本机 Developer ID/notary 与 HTTPS 路由 | 本地签名/公证能力已确认；托管内容、旧版升级和剩余 live Provider 仍未完成 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| release script ↔ helper seam | 五个显式参数与绝对输出文件 | 私钥只透传；下载前缀、架构与 staging 目录一一对应 |
+| regression test ↔ 真实故障 | 不同 current directory、staged/leaked 双断言 | 测试精确复现正式运行失败，不依赖仓库当前目录或真实凭据 |
+| review ↔ validation | code/test review、strict build、bash syntax、191 tests | 证据一致，0-test 兼容输出未计绿 |
+| features ↔ 本轮事件 | `docs/features/v1-core.md` | 既有描述已经是正确目标行为；无需把内部路径修复写成新用户功能 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 新增 appcast helper | release 唯一调用点与测试 | 仅隔离 Sparkle CLI 边界，没有产生第二套发布流程 |
+| 新增 1 个 Swift 测试/suite | 完整汇总 | 当前为 191 tests / 47 suites，历史时点记录不反写 |
+| 第一次正式 arm64 诊断运行 | Apple Accepted、staple、Gatekeeper、appcast failure | 只证明故障前门禁；未生成最终发布目录，不冒充三架构完成 |
+| `Pending:` /正式门禁 | hosting、旧版升级、live Provider | 继续保持开放，等修复合并后从 `main` 重新执行正式三架构流水线 |
+
+### 收敛结论
+
+代码、测试、design、issue、review 与功能目录已同步。修复恢复既有原子发布承诺，但不把一次 arm64 诊断运行计作正式三包发布完成。
