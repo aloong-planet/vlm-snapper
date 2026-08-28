@@ -398,3 +398,39 @@
 | features ↔ 修复 | architecture-specific appcast 与 atomic staging | 仍是既有目标行为，不新增用户功能或修改公开 URL 约定 |
 
 第二次诊断运行仍未创建最终输出目录。合并本 follow-up 后必须从 `main` 重跑三架构，不复用失败运行中的临时 App、DMG 或 appcast。
+
+---
+
+## 2026-08-28 — Screen-capture purpose metadata repair
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 10 design 的缺失用途说明失败模式 | Distribution 源元数据、组装脚本与包校验器 | fallback、`en`、`zh-Hans` 三个值均成为 fail-closed 条件，与设计一致 |
+| Ticket 10 design review 的 TCC 边界 | 本轮 diff 与系统状态 | 只修复 App 元数据；未重置 TCC、未删除 Transfer 历史条目，没有越过用户授权 |
+| features 的首次权限行为 | 确认文案与当次组装 App | 现行目录已说明 macOS 弹窗标识 VLMSnapper 并说明选区文字提取/翻译用途 |
+| review-code / review-tests 证据 | strict build、定向红绿、变异及 192/48 全量汇总 | 本轮实际结果与施工记录一致；历史轮次计数不改写 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| 项目 i18n 语言集 ↔ bundle locale | `AGENTS.md`、SwiftUI 字典与 `Distribution/*.lproj` | 仍只有简体中文与英语；无繁体、自由输入或 RTL 扩张 |
+| 用户确认文案 ↔ 源测试/包校验 | 三处独立字面断言与 `plutil` 读回 | 英文 fallback 与 `en` 相同，`zh-Hans` 为确认中文；没有未经确认的文案分支 |
+| 打包规则 ↔ 守门脚本 | `build-macos-app.sh` 复制点与 `verify-macos-app.sh` 检出面 | 两个 locale 的复制集合与校验集合相同；缺文件或错值都不能进入后续发布 |
+| Ticket 10 issue ↔ completion gate | issue 状态、checklist 与本轮 full test | 权限元数据修复已有交付证据；公开托管、旧版升级与剩余 live Provider 仍使 Ticket 10 保持 in progress |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 用户在签名 App 中看到 Transfer 而非 VLMSnapper | bundle 身份、TCC 日志、系统设置历史条目与缺失 key | 代码修复针对缺失用途说明；Transfer 条目是外部历史状态，未擅自修改 |
+| 新增两个 locale 资源文件 | 语言成员数与枚举式措辞 | 新文件是既有两种 UI 语言的系统元数据镜像，没有增加支持语言成员 |
+| 新增 1 个 Swift test/suite | 定向与全量 Swift Testing 汇总 | 有效红灯后转绿；当前为 192 tests / 48 suites，无静默 skip |
+| 临时 arm64 App 变异 | 缺 `zh-Hans` 时失败、还原后通过 | 包门禁能杀死已知回归；临时 ad-hoc App 不冒充 Developer ID/TCC 系统验收 |
+| `Pending:` /整个 v1 收口 | checklist 全量既有核销、本轮 strict build 与 192/48 | 开发应用回归仍绿；正式三包必须在本修复合并后从 `main` 重建、签名、公证并重做 TCC 用户验收 |
+
+### 收敛结论
+
+三阶段队列已清空。源元数据、最终 App 接线、变异门禁、design、issue、review 与 features 现已一致。旧的本地包不得继续分发；合并后必须从修复后的 `main` 重建三个签名公证包，再在用户明确授权后验证 macOS 权限弹窗。

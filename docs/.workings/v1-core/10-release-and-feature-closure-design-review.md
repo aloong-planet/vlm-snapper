@@ -52,6 +52,12 @@ Failure mode: recorded fixtures could be reported as current online compatibilit
 
 Correction: fixture contracts and live release contracts are separate result classes. Missing credentials produce a blocking result for a Provider that is enabled in the signed release configuration, never a skip that counts as green.
 
+### 7. Missing screen-capture purpose metadata — fixed in design
+
+Failure mode: the executable can call the screen-capture authorization API while the assembled application lacks `NSScreenCaptureUsageDescription`. The signed identity remains `com.loong.vlmsnapper`, but the system permission flow cannot present the confirmed VLMSnapper-specific explanation, and stale TCC entries from another app can make diagnosis misleading.
+
+Correction: the distribution metadata owns an English fallback and exact `en` and `zh-Hans` localizations. A source-level contract proves the three strings independently, while the final app validator proves that the localized files were copied into `Contents/Resources` before signing. No TCC database reset or removal of another app's permission entry belongs to this code repair.
+
 ## Remaining external gates
 
 - Developer ID signing identity and Apple notarization credentials;

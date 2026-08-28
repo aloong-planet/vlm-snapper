@@ -371,3 +371,27 @@
 - 同一个 CLI seam 额外记录 Sparkle 实际收到的 `--download-url-prefix`；输入 `.../releases/v1.0.0` 时必须得到 `.../releases/v1.0.0/`。
 - 旧 helper 在该目标断言处真实红，返回值精确缺少最后 `/`；一行规范化修复后目标用例 1/1 转绿。
 - 测试不依赖当前仓库路径或真实 Sparkle 私钥，只验证决定 enclosure URL 解析的外部 CLI 契约。
+
+---
+
+# VLMSnapper v1 — Screen-capture purpose metadata test review
+
+## 维度 1：覆盖是否完整
+
+- 源元数据测试同时覆盖英文 fallback、`en` 和 `zh-Hans`，并断言用户确认的完整字面值。
+- 真实 arm64 App 组装加正式包校验覆盖文件进入最终 bundle 的接线。真实 macOS 权限弹窗仍需重建 Developer ID 包、安装并在用户授权后重置 VLMSnapper 的 TCC 状态；本轮不用非签名临时包冒充该系统验收。
+
+## 维度 2：case 设计是否合理
+
+- 测试站在 Distribution 元数据这一公开交付 seam，不 cast 私有成员、不手工构造不可达状态，也不重用生产常量计算期望值。
+- `try?` 只把缺文件与无效 plist 同样归为“未提供预期值”，三条独立断言仍指向缺失的 locale，不存在静默 skip。
+
+## 维度 3：有没有假通过
+
+- 首次有效红灯精确在三个 `NSScreenCaptureUsageDescription` 值断言处失败；之前的文件读取异常已明确作废，没有当成 TDD 证据。
+- 包校验器经过变异：从当次 App 暂时移走 `zh-Hans` 文件后，精确以 `Missing localized Info.plist strings` 终止；只还原该文件后同一校验重新通过。
+- 完整门禁以 Swift Testing 的 192 tests / 48 suites 为准；XCTest 兼容层的 `Executed 0 tests` 仍不作证据。
+
+## 结论
+
+覆盖、case 设计与假通过三维已核对。源元数据和最终 App 接线均有可杀死已知缺陷的独立信号；系统 TCC 弹窗保留为重建正式包后的用户授权验收。

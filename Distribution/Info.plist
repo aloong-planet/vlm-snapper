@@ -28,6 +28,8 @@
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>VLMSnapper needs access to screen content so you can capture a selected area for text extraction or translation.</string>
     <key>SUAllowsAutomaticUpdates</key>
     <false/>
     <key>SUEnableAutomaticChecks</key>
