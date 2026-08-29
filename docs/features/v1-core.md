@@ -8,7 +8,7 @@ VLMSnapper runs as a menu-bar accessory without a Dock icon. The panel starts a 
 
 ## First-run setup and recovery
 
-The onboarding window separates screen-capture permission, online Provider configuration, and storage/privacy details. A user may finish later, but capture remains unavailable until both permission and one Provider/model are usable. Provider setup supports DeepSeek, OpenAI, and Gemini, stores API keys in Apple Keychain, fetches the account model list, and requires an explicit model selection. Permission recovery distinguishes first request, denied/revoked access, Settings, and restart-required states.
+The onboarding window separates screen-capture permission, online Provider configuration, and storage/privacy details. A user may finish later, but capture remains unavailable until both permission and one Provider/model are usable. Provider setup supports DeepSeek, OpenAI, and Gemini, stores API keys in Apple Keychain, fetches the account model list, and requires an explicit model selection. Permission recovery distinguishes first request, denied/revoked access, Settings, and restart-required states. The macOS permission explanation identifies VLMSnapper and states that screen access is used to capture a selected area for text extraction or translation in the supported interface language.
 
 ## Frozen-frame capture
 

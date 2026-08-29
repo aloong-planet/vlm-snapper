@@ -37,6 +37,9 @@ assert_plist_value CFBundleShortVersionString "$version"
 assert_plist_value CFBundleVersion "$build_version"
 assert_plist_value LSMinimumSystemVersion 14.0
 assert_plist_value LSUIElement true
+assert_plist_value \
+    NSScreenCaptureUsageDescription \
+    "VLMSnapper needs access to screen content so you can capture a selected area for text extraction or translation."
 assert_plist_value SUFeedURL "$feed_url"
 assert_plist_value SUPublicEDKey "$sparkle_public_key"
 assert_plist_value SUEnableAutomaticChecks true
@@ -45,6 +48,34 @@ assert_plist_value SUEnableInstallerLauncherService true
 assert_plist_value SUEnableSystemProfiling false
 assert_plist_value SURequireSignedFeed true
 assert_plist_value SUVerifyUpdateBeforeExtraction true
+
+assert_localized_plist_value() {
+    local locale="$1"
+    local expected="$2"
+    local localized_info="$app/Contents/Resources/$locale.lproj/InfoPlist.strings"
+    local actual
+    if [[ ! -f "$localized_info" ]]; then
+        echo "Missing localized Info.plist strings: $localized_info" >&2
+        exit 1
+    fi
+    actual="$(
+        /usr/bin/plutil \
+            -extract NSScreenCaptureUsageDescription raw \
+            -o - \
+            "$localized_info"
+    )"
+    if [[ "$actual" != "$expected" ]]; then
+        echo "Unexpected $locale NSScreenCaptureUsageDescription: expected '$expected', got '$actual'" >&2
+        exit 1
+    fi
+}
+
+assert_localized_plist_value \
+    en \
+    "VLMSnapper needs access to screen content so you can capture a selected area for text extraction or translation."
+assert_localized_plist_value \
+    zh-Hans \
+    "VLMSnapper 需要访问屏幕内容，以便截取你选择的区域并进行文字提取或翻译。"
 
 scheduled_interval="$(/usr/libexec/PlistBuddy -c "Print :SUScheduledCheckInterval" "$info")"
 if [[ "$scheduled_interval" != "21600" && "$scheduled_interval" != "21600.000000" ]]; then

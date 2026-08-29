@@ -106,6 +106,7 @@ The release configuration carries signed, versioned request-size limits. A provi
 10. An installed architecture reads a mismatched feed or artifact: release validation fails; the app does not migrate architectures automatically.
 11. Any app, DMG, notarization, staple, Gatekeeper, EdDSA, feed, or provider gate fails: no architecture is published and no public appcast changes.
 12. CI or a local machine lacks credentials: development validation may produce clearly labelled unsigned artifacts, but formal validation fails and cannot be reported as release-ready.
+13. The distributed app lacks a screen-capture purpose string: the system permission flow may not identify VLMSnapper clearly and the request cannot be accepted as release-ready. The base `Info.plist` carries the English fallback, `en.lproj` and `zh-Hans.lproj` carry the confirmed localized copy, and the final app validator requires all three values before packaging can pass.
 
 ## Testing seams
 
@@ -115,7 +116,7 @@ A public application bootstrap protocol exposes primary/secondary startup, lifec
 
 ### Seam B — release manifest and artifact validator
 
-A deterministic release manifest describes the three architectures, feed URLs, public key, bundle identity, version, and artifact names. Unit tests cover missing members, duplicate architectures, mismatched versions/keys/feeds, placeholder or insecure URLs, and wrong executable slices. Script-level tests execute the validator against minimal fixture bundles and feeds.
+A deterministic release manifest describes the three architectures, feed URLs, public key, bundle identity, version, and artifact names. Unit tests cover missing members, duplicate architectures, mismatched versions/keys/feeds, placeholder or insecure URLs, and wrong executable slices. Distribution-metadata tests require the exact base, English, and Simplified Chinese screen-capture purpose strings. Script-level and packaging checks verify that the localized `InfoPlist.strings` files reach the final app bundle before signing.
 
 ### Seam C — system and provider integration
 

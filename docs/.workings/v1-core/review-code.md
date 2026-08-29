@@ -426,3 +426,33 @@
 - 第二次正式 arm64 运行证明绝对输出路径已经生效，但 enclosure URL 丢失 `v0.1.0`；Sparkle 按标准 URL 相对解析替换了无尾斜杠 prefix 的最后组件。
 - helper 现在先去除用户输入的可选尾斜杠，再追加一个 `/`。这既避免双斜杠，也保证版本组件是目录；release 脚本的 expected URL 仍保持规范化无尾斜杠后自行拼接文件名。
 - 修复只改变传给 Sparkle 的 URL 形态，不改变下载主机、版本、文件名、签名内容、原子发布或凭据边界。
+
+---
+
+# VLMSnapper v1 — Screen-capture purpose metadata code review
+
+审查范围：分发 `Info.plist`、`InfoPlist.strings`、App 组装与最终包校验。
+
+## 【① 底层前提】
+
+- 已用当次重新组装的 arm64 App 实测：主 `Info.plist` 能读到英文 fallback，`en.lproj` 与 `zh-Hans.lproj` 能分别读到确认文案。
+- `InfoPlist.strings` 由 macOS bundle 本地化机制消费，不是 App 内 SwiftUI 字典的替代入口；两者的语言集仍为 `zh-Hans` 和 `en`。
+
+## 【② 可运行性】
+
+- 本地化文件在签名前复制到 App 顶层 `Contents/Resources/<locale>.lproj/`，所以签名覆盖完整最终字节。
+- 正式 App 校验同时核对 fallback 与两份本地化值；丢失任一文件都在架构检查之前终止。该错误仅影响当前产物，不会污染其他架构产物。
+
+## 【③ 安全正确性】
+
+- 新增内容只是用途说明，不包含凭据、用户数据、路径或动态输入。
+- 修复不修改 TCC 数据库，不重置 VLMSnapper 权限，也不删除 Transfer 的历史条目；这些系统状态操作仍需用户单独授权。
+
+## 【④ 一致性】
+
+- 主 fallback、英文本地化和简体中文本地化与用户确认的文案逐字一致；代码、注释与测试名保持英文。
+- 复制清单显式枚举项目支持的两个 locale，没有引入第三种 UI 语言或 RTL 承诺。
+
+## 结论
+
+未发现新的 race、资源泄漏、状态错乱或凭据风险。该修复窄化在分发元数据与打包门禁，不改动权限请求状态机。

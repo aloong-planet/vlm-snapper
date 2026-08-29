@@ -84,6 +84,13 @@ if [[ ! -d "$resource_bundle" ]]; then
     exit 1
 fi
 /usr/bin/ditto "$resource_bundle" "$app/Contents/Resources/$(basename "$resource_bundle")"
+for locale in en zh-Hans; do
+    localized_resources="$app/Contents/Resources/$locale.lproj"
+    mkdir -p "$localized_resources"
+    cp \
+        "$project_root/Distribution/$locale.lproj/InfoPlist.strings" \
+        "$localized_resources/InfoPlist.strings"
+done
 
 sparkle_framework="$project_root/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
 if [[ ! -d "$sparkle_framework" ]]; then
