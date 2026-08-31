@@ -469,3 +469,36 @@
 ### 收敛结论
 
 Ticket 12 的 prototype、CONTEXT、spec、features、design、production wiring、code/test review 与 197/49 完整回归一致。开发实现可以进入 PR；没有把未执行的签名宿主人工验收写成已完成。
+## 2026-08-31 — Ticket 13 status item autosave identity
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 13 acceptance | `MenuBarPanelController` 创建路径 | 固定名称、设置时机、不本地化、不版本化和不控制位置全部兑现 |
+| Ticket 13 design / design review | 当前 macOS SDK 公开头文件与生产代码 | `autosaveName` 的持久身份边界一致；没有把它写成位置 API |
+| `docs/specs/v1-core.md` | 左/右键、菜单栏面板和单实例实现 | 本票不改变已有用户故事，现有 spec 没有变成谎，也不缺新的可承诺行为 |
+| `docs/features/v1-core.md` | 当前生产行为 | 两问均为“无”：没有旧句被改成谎；显式内部身份不构成需要新增的用户可操作能力 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Ticket ↔ checklist | Ticket 13 status、gate、测试豁免和 evidence | 已完成状态与 5/5、197/197、49 suites 证据一致 |
+| 设计 ↔ 实现 | 固定字符串、赋值位置和唯一状态项枚举 | 设计与生产接线逐项一致，没有未实现分支 |
+| CONTEXT/spec/features ↔ 实现 | 菜单栏面板、状态项右键菜单、单实例相关陈述 | 术语和既有行为未变；不新增“自动排序”或“靠近系统图标”承诺 |
+| 规则 ↔ 门禁 | 英文源码、严格构建、CJK 扫描、完整测试、签名 App smoke | 新 Swift 行只有英文稳定标识；build 3 通过 Developer ID 签名、完整 verifier 和启动检查 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 新增一个稳定内部标识 | Provider、语言、渠道、状态项成员数 | 没有任何可枚举产品成员数变化，无其他声明需要更新 |
+| `Pending:` 注记 | v1 spec 与 Ticket 10 正式发布门禁 | 本票未使 Provider、签名、公证或公共发布 Pending 到期 |
+| 新通则 | Ticket 13 design | “状态项身份稳定但位置由系统和用户控制”是本次局部设计边界，不需要提升为 ADR 或 CONTEXT 不变量 |
+
+### 收敛结论
+
+三阶段队列已清空。生产代码、Ticket、checklist、design、code/test review、spec 与 features 对 `autosaveName` 的能力边界一致；没有以内部标识虚构自动菜单栏排序能力。
+
+---
