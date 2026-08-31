@@ -68,5 +68,12 @@ window.PROTOTYPES = [
     id: "quit-with-sheet",
     name: "Quit while a sheet is presented",
     path: "application-termination/quit-with-sheet/index.html"
+  },
+  {
+    module: "application-menu",
+    type: "ui",
+    id: "edit-menu",
+    name: "Application Edit menu",
+    path: "application-menu/prototype-edit-menu.html"
   }
 ];

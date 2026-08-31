@@ -37,13 +37,19 @@ public struct ResultWorkspaceView: View {
             header
             Divider()
             HStack(alignment: .top, spacing: 16) {
-                screenshotCard.frame(minWidth: 300, maxWidth: .infinity)
-                resultCard.frame(minWidth: 430, maxWidth: .infinity)
+                screenshotCard.frame(minWidth: 360, maxWidth: .infinity)
+                resultCard.frame(minWidth: 500, maxWidth: .infinity)
             }
             .padding(20)
+            .frame(maxHeight: .infinity)
+            Divider()
+            footer
         }
         .background(VLMSnapperTheme.window)
-        .frame(minWidth: 820, minHeight: 520)
+        .frame(
+            minWidth: ResultWorkspaceMetrics.minimumSize.width,
+            minHeight: ResultWorkspaceMetrics.minimumSize.height
+        )
     }
 
     private var header: some View {
@@ -59,20 +65,34 @@ public struct ResultWorkspaceView: View {
             HStack {
                 Spacer()
                 Text(providerSummary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(VLMSnapperTheme.subtleSurface, in: Capsule())
                 if operation == .translate {
                     Text(targetLanguage)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(VLMSnapperTheme.subtleSurface, in: Capsule())
                 }
             }
             .font(.caption)
             .foregroundStyle(VLMSnapperTheme.secondaryText)
         }
         .padding(.horizontal, 18)
-        .frame(height: 52)
+        .frame(height: ResultWorkspaceMetrics.headerHeight)
     }
 
     private var screenshotCard: some View {
         card {
-            cardHeader(title: VLMSnapperStrings.originalScreenshot)
+            cardHeader(title: VLMSnapperStrings.originalScreenshot) {
+                if let originalImage {
+                    Text(
+                        "\(Int(originalImage.size.width)) × \(Int(originalImage.size.height))"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+                }
+            }
             Divider()
             Group {
                 if let originalImage {
@@ -97,16 +117,7 @@ public struct ResultWorkspaceView: View {
     private var resultCard: some View {
         let slot = operation == .extract ? snapshot.extract : snapshot.translate
         return card {
-            cardHeader(title: VLMSnapperStrings.result) {
-                if let committed = slot.committedResult ?? slot.unsavedResult {
-                    Button {
-                        onCopy(displayedText(from: committed))
-                    } label: {
-                        Label(VLMSnapperStrings.copy, systemImage: VLMSnapperIcon.copy.rawValue)
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
+            cardHeader(title: VLMSnapperStrings.result)
             Divider()
             ScrollView {
                 resultContent(slot)
@@ -126,18 +137,25 @@ public struct ResultWorkspaceView: View {
         case .streaming:
             VStack(alignment: .leading, spacing: 14) {
                 progressState(VLMSnapperStrings.streaming)
-                markdown(slot.sourceDelta)
+                resultSection(VLMSnapperStrings.historyOriginal, text: slot.sourceDelta)
                 if operation == .translate {
-                    markdown(slot.translationDelta)
+                    Divider()
+                    resultSection(VLMSnapperStrings.historyTranslation, text: slot.translationDelta)
                 }
             }
         case .succeeded:
             if let committed = slot.committedResult {
                 VStack(alignment: .leading, spacing: 18) {
-                    markdown(committed.sourceMarkdown)
+                    resultSection(
+                        VLMSnapperStrings.historyOriginal,
+                        text: committed.sourceMarkdown
+                    )
                     if let translation = committed.translationMarkdown {
                         Divider()
-                        markdown(translation)
+                        resultSection(
+                            VLMSnapperStrings.historyTranslation,
+                            text: translation
+                        )
                     }
                     Button(VLMSnapperStrings.rerun) { onStart(operation) }
                 }
@@ -152,7 +170,17 @@ public struct ResultWorkspaceView: View {
         case .resultPersistenceFailed:
             VStack(alignment: .leading, spacing: 14) {
                 if let unsaved = slot.unsavedResult {
-                    markdown(displayedText(from: unsaved))
+                    resultSection(
+                        VLMSnapperStrings.historyOriginal,
+                        text: unsaved.sourceMarkdown
+                    )
+                    if let translation = unsaved.translationMarkdown {
+                        Divider()
+                        resultSection(
+                            VLMSnapperStrings.historyTranslation,
+                            text: translation
+                        )
+                    }
                 }
                 Text(VLMSnapperStrings.persistenceFailed)
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
@@ -163,6 +191,65 @@ public struct ResultWorkspaceView: View {
 
     private func markdown(_ value: String) -> some View {
         MarkdownResultView(markdown: value)
+    }
+
+    private func resultSection(_ title: String, text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+                Spacer()
+                if !text.isEmpty {
+                    Button {
+                        onCopy(text)
+                    } label: {
+                        Label(VLMSnapperStrings.copy, systemImage: VLMSnapperIcon.copy.rawValue)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            markdown(text)
+        }
+    }
+
+    private var footer: some View {
+        let slot = operation == .extract ? snapshot.extract : snapshot.translate
+        return HStack(spacing: 8) {
+            Circle()
+                .fill(statusColor(for: slot.attempt))
+                .frame(width: 7, height: 7)
+            Text(statusText(for: slot.attempt))
+                .font(.caption)
+                .foregroundStyle(VLMSnapperTheme.secondaryText)
+            Spacer()
+            Text(providerSummary)
+                .font(.caption)
+                .foregroundStyle(VLMSnapperTheme.secondaryText)
+        }
+        .padding(.horizontal, 18)
+        .frame(height: ResultWorkspaceMetrics.footerHeight)
+    }
+
+    private func statusText(for attempt: WorkspaceAttemptState) -> String {
+        switch attempt {
+        case .neverStarted: VLMSnapperStrings.neverStarted
+        case .preparing: VLMSnapperStrings.preparing
+        case .streaming: VLMSnapperStrings.streaming
+        case .succeeded: VLMSnapperStrings.menuStatusSucceeded
+        case let .failed(code): VLMSnapperStrings.failureMessage(code: code)
+        case .canceled: VLMSnapperStrings.canceled
+        case .resultPersistenceFailed: VLMSnapperStrings.persistenceFailed
+        }
+    }
+
+    private func statusColor(for attempt: WorkspaceAttemptState) -> Color {
+        switch attempt {
+        case .succeeded: VLMSnapperTheme.success
+        case .failed, .resultPersistenceFailed: VLMSnapperTheme.destructive
+        case .canceled, .neverStarted: VLMSnapperTheme.secondaryText
+        case .preparing, .streaming: VLMSnapperTheme.accent
+        }
     }
 
     private func progressState(_ title: String) -> some View {
@@ -216,9 +303,4 @@ public struct ResultWorkspaceView: View {
         cardHeader(title: title) { EmptyView() }
     }
 
-    private func displayedText(from result: WorkspaceCommittedResult) -> String {
-        [result.sourceMarkdown, result.translationMarkdown]
-            .compactMap { $0 }
-            .joined(separator: "\n\n")
-    }
 }

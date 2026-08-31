@@ -33,7 +33,8 @@ public struct OnboardingView: View {
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(28)
+            .padding(.horizontal, 24)
+            .frame(height: 76)
             Divider()
             VStack(spacing: 12) {
                 permissionRow
@@ -52,7 +53,7 @@ public struct OnboardingView: View {
                     .padding(.top, 4)
                 }
             }
-            .padding(28)
+            .padding(20)
             Spacer(minLength: 0)
             Divider()
             HStack {
@@ -62,10 +63,12 @@ public struct OnboardingView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!snapshot.canStart)
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .frame(height: 60)
         }
         .background(VLMSnapperTheme.window)
-        .frame(minWidth: 620, minHeight: 560)
+        .frame(width: OnboardingMetrics.width)
+        .frame(minHeight: OnboardingMetrics.minimumHeight)
     }
 
     private var permissionRow: some View {
@@ -131,11 +134,14 @@ public struct OnboardingView: View {
             }
             Button(actionTitle, action: action)
         }
-        .padding(16)
+        .padding(14)
+        .frame(minHeight: OnboardingMetrics.rowMinimumHeight)
         .background(VLMSnapperTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(
+            RoundedRectangle(cornerRadius: OnboardingMetrics.rowCornerRadius, style: .continuous)
+        )
         .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: OnboardingMetrics.rowCornerRadius, style: .continuous)
                 .stroke(VLMSnapperTheme.border, lineWidth: 1)
         }
     }

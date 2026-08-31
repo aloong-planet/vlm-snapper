@@ -34,7 +34,7 @@ public final class ManagementCenterWindowController: NSWindowController {
         self.providerSettings = providerSettings
         self.callbacks = callbacks
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1080, height: 700),
+            contentRect: NSRect(origin: .zero, size: ManagementCenterMetrics.defaultSize),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false

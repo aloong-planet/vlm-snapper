@@ -71,7 +71,7 @@ History and Settings call the same management-center navigation boundary with di
 - Permission recovery uses selected Direction A: one continuous reusable panel, not inline expansion.
 - Menu panel follows confirmed Direction C.
 - Colors are semantic, icons are centralized SF Symbols, and all user-visible text comes from zh-Hans/en localization dictionaries.
-- Actual SwiftUI views are rendered in light/dark and at the narrow Provider sheet width; HTML prototypes are not implementation evidence.
+- HTML prototypes define the confirmed structural and visual contract but do not replace validation of the actual SwiftUI output. Production SwiftUI views must match that contract and be rendered in light/dark and at the narrow Provider sheet width; if the implementation intentionally diverges, the affected prototype decision must be updated or explicitly marked stale.
 
 ## Verification
 

@@ -14,6 +14,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private(set) var permission: ScreenCapturePermissionReadiness = .notRequested
     private(set) var providerReadiness: ProviderReadiness = .missing
+    private(set) var providerConfigurations: [ProviderID: ProviderConfiguration] = [:]
     private(set) var providerSnapshot = ProviderSetupSnapshot(
         selectedProvider: .deepSeek,
         availableModelIDs: [],
@@ -214,15 +215,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
     func menuView() -> MenuBarContainerView {
         MenuBarContainerView(
             recentItems: historyRecords.prefix(3).map {
-                MenuRecentItem(
-                    id: $0.id.uuidString,
-                    title: $0.operation.sourceMarkdown ?? $0.operation.selection.modelID,
-                    detail: $0.operation.translationMarkdown ?? ""
-                )
+                MenuRecentItem(record: $0)
             },
             permission: permission,
             provider: providerReadiness,
             providerSnapshot: providerSnapshot,
+            providerConfigurations: providerConfigurations,
             updateState: updateState,
             captureShortcut: GlobalShortcutDisplayFormatter.string(
                 for: captureShortcut
@@ -240,6 +238,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 provider: providerReadiness
             ).snapshot,
             providerSnapshot: providerSnapshot,
+            providerConfigurations: providerConfigurations,
             apiKey: binding(\.apiKey),
             pendingModelID: binding(\.pendingModelID),
             callbacks: onboardingCallbacks()
@@ -303,6 +302,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     func providerSettingsConfiguration() -> ProviderSettingsConfiguration {
         ProviderSettingsConfiguration(
             snapshot: providerSnapshot,
+            configurations: providerConfigurations,
             apiKey: binding(\.apiKey),
             pendingModelID: binding(\.pendingModelID),
             onSelectProvider: { [weak self] provider in
@@ -400,6 +400,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private func refreshProviderReadiness() async throws {
         let state = try await providerCoordinator.configurationState()
+        providerConfigurations = state.configurations
         if let provider = state.currentProvider,
            let configuration = state.configurations[provider],
            let modelID = configuration.selectedModelID,

@@ -545,3 +545,37 @@
 
 - 冲突解决保留 Ticket 11 的 sheet 退出语义和 Ticket 12 的左/右键入口语义；现行 spec 与 feature catalog 同时描述两者。
 - 严格构建、完整测试、脚本语法与三架构 development DMG 门禁均通过。未发现需要另开的重构项。
+
+---
+
+# VLMSnapper v1 — Ticket 13 Edit menu and prototype parity code review
+
+审查范围：原生 application/Edit menu、菜单栏左键面板、onboarding/provider/permission/privacy、截图操作栏、结果工作台、管理中心以及真实应用状态接线。
+
+## 【① 底层前提】
+
+- API Key 输入使用标准 SwiftUI `SecureField`，Command-V 的缺口来自应用没有 `NSApp.mainMenu`，不需要字段专用键盘处理。
+- AppKit responder 项全部保持 `target == nil`；Find 使用 `performTextFinderAction:` 与 `NSTextFinder.Action` tag，菜单启用与动作对象由当前 first responder 决定。
+- HTML 原型继续是已经确认的产品契约；生产保留原生 AppKit/SwiftUI 控件、字体栅格和辅助功能语义，不复制浏览器 harness 或 fixture 数据。
+
+## 【② 可运行性】
+
+- 应用在语言配置完成后安装 Application/File/Edit/Window/Help 菜单；Edit 的完整层级、selector、快捷键和双语标题均由独立测试承兑。
+- 左键面板从真实 Provider readiness、持久化历史、截图路径和 Sparkle 状态生成品牌状态、三条最近记录、更新提示与双列入口；未配置时不会伪报 Provider 可用。
+- 十个生产表面统一采用确认几何并通过同一 production view 离屏渲染；Provider、permission、privacy sheet 仍保留统一退出策略，截图按钮仍复用已有 capture route。
+
+## 【③ 审查发现与修复】
+
+1. `ProviderSetupSnapshot` 只描述当前选中的 Provider，最初直接拿它渲染所有行会把其他已配置 Provider 错报为未配置。修复新增只读 presentation seam，并把完整持久化 configuration map 接到 onboarding、菜单栏配置 sheet 和管理中心；非当前 Provider 现在保留真实模型与可用状态。
+2. 最近记录最初直接取 Markdown 第一行，`# Designing Calm Software` 会在菜单中带出标题标记。修复只清理首行 heading marker 和空白；空标题仍回退到操作名称/失败标题。
+3. 已确认 companion prototype 不包含独立手动更新行。生产面板只在更新状态需要注意时展示 inline notice；手动检查保持在 General Settings，避免同一动作出现两个不一致入口。
+
+## 【④ 安全与回归】
+
+- 没有修改截图冻结、PNG、Provider 请求、重试/超时、Keychain、历史删除或 Sparkle 下载语义；新增数据只读取已有配置和历史快照。
+- 缺失或无法读取截图时 recent row 使用占位图；没有把文件错误提升为面板失败。
+- 代码、注释和测试名保持英语；产品文案来自 234 键双语字典。扫描到的中文只存在于本地化行为断言和中文结果 fixture。
+
+## 结论
+
+审查发现的两处用户可见状态错误均已补成回归测试并修复。未发现剩余 race、资源泄漏、凭据暴露或第二套业务流程；实现与所有确认原型的生产数据边界一致。

@@ -57,11 +57,23 @@ enum VLMSnapperStrings {
     static var validating: String { localized("providerSetup.validating") }
     static var configured: String { localized("providerSetup.configured") }
     static var providerReadOnly: String { localized("providerSetup.readOnly") }
+    static var providerSetupFooterNote: String { localized("providerSetup.footerNote") }
     static var permissionRecoveryTitle: String { localized("permissionRecovery.title") }
     static var permissionRecoveryDenied: String { localized("permissionRecovery.unavailable") }
     static var permissionRecoveryInitial: String { localized("permissionRecovery.initial") }
     static var permissionRecoveryRestart: String { localized("permissionRecovery.restart") }
     static var permissionReady: String { localized("permissionRecovery.ready") }
+    static var permissionRecoverySubtitle: String { localized("permissionRecovery.subtitle") }
+    static var permissionRecoveryBlockedTitle: String { localized("permissionRecovery.blockedTitle") }
+    static var permissionRecoveryRestartTitle: String { localized("permissionRecovery.restartTitle") }
+    static var permissionRecoveryRestartSubtitle: String { localized("permissionRecovery.restartSubtitle") }
+    static var permissionRecoveryNotGrantedTitle: String { localized("permissionRecovery.notGrantedTitle") }
+    static var permissionRecoveryRevokedTitle: String { localized("permissionRecovery.revokedTitle") }
+    static var permissionRecoveryEnabledTitle: String { localized("permissionRecovery.enabledTitle") }
+    static var permissionRecoveryStepOne: String { localized("permissionRecovery.stepOne") }
+    static var permissionRecoveryStepTwo: String { localized("permissionRecovery.stepTwo") }
+    static var permissionRecoveryLaterNote: String { localized("permissionRecovery.laterNote") }
+    static var permissionRecoveryRestartNote: String { localized("permissionRecovery.restartNote") }
     static var permissionBlocker: String { localized("onboarding.blocker.permission") }
     static var providerBlocker: String { localized("onboarding.blocker.provider") }
     static var menuCapture: String { localized("menu.capture") }
@@ -70,6 +82,55 @@ enum VLMSnapperStrings {
     static var menuSettings: String { localized("menu.settings") }
     static var menuCheckUpdates: String { localized("menu.checkUpdates") }
     static var menuQuit: String { localized("menu.quit") }
+    static var menuFile: String { localized("applicationMenu.file") }
+    static var menuEdit: String { localized("applicationMenu.edit") }
+    static var menuWindow: String { localized("applicationMenu.window") }
+    static var menuHelp: String { localized("applicationMenu.help") }
+    static var menuAboutFormat: String { localized("applicationMenu.aboutFormat") }
+    static var menuHideFormat: String { localized("applicationMenu.hideFormat") }
+    static var menuHideOthers: String { localized("applicationMenu.hideOthers") }
+    static var menuShowAll: String { localized("applicationMenu.showAll") }
+    static var menuCloseWindow: String { localized("applicationMenu.closeWindow") }
+    static var menuMinimize: String { localized("applicationMenu.minimize") }
+    static var menuZoom: String { localized("applicationMenu.zoom") }
+    static var menuBringAllToFront: String { localized("applicationMenu.bringAllToFront") }
+    static var editUndo: String { localized("edit.undo") }
+    static var editRedo: String { localized("edit.redo") }
+    static var editCut: String { localized("edit.cut") }
+    static var editCopy: String { localized("edit.copy") }
+    static var editPaste: String { localized("edit.paste") }
+    static var editPasteAndMatchStyle: String { localized("edit.pasteAndMatchStyle") }
+    static var editDelete: String { localized("edit.delete") }
+    static var editSelectAll: String { localized("edit.selectAll") }
+    static var editFind: String { localized("edit.find") }
+    static var editFindPanel: String { localized("edit.findPanel") }
+    static var editFindNext: String { localized("edit.findNext") }
+    static var editFindPrevious: String { localized("edit.findPrevious") }
+    static var editUseSelectionForFind: String { localized("edit.useSelectionForFind") }
+    static var editJumpToSelection: String { localized("edit.jumpToSelection") }
+    static var editSpellingAndGrammar: String { localized("edit.spellingAndGrammar") }
+    static var editShowSpellingAndGrammar: String { localized("edit.showSpellingAndGrammar") }
+    static var editCheckDocumentNow: String { localized("edit.checkDocumentNow") }
+    static var editCheckSpellingWhileTyping: String { localized("edit.checkSpellingWhileTyping") }
+    static var editCheckGrammarWithSpelling: String { localized("edit.checkGrammarWithSpelling") }
+    static var editCorrectSpellingAutomatically: String { localized("edit.correctSpellingAutomatically") }
+    static var editSubstitutions: String { localized("edit.substitutions") }
+    static var editShowSubstitutions: String { localized("edit.showSubstitutions") }
+    static var editSmartCopyPaste: String { localized("edit.smartCopyPaste") }
+    static var editSmartQuotes: String { localized("edit.smartQuotes") }
+    static var editSmartDashes: String { localized("edit.smartDashes") }
+    static var editSmartLinks: String { localized("edit.smartLinks") }
+    static var editDataDetectors: String { localized("edit.dataDetectors") }
+    static var editTextReplacement: String { localized("edit.textReplacement") }
+    static var editTransformations: String { localized("edit.transformations") }
+    static var editMakeUpperCase: String { localized("edit.makeUpperCase") }
+    static var editMakeLowerCase: String { localized("edit.makeLowerCase") }
+    static var editCapitalize: String { localized("edit.capitalize") }
+    static var editSpeech: String { localized("edit.speech") }
+    static var editStartSpeaking: String { localized("edit.startSpeaking") }
+    static var editStopSpeaking: String { localized("edit.stopSpeaking") }
+    static var editStartDictation: String { localized("edit.startDictation") }
+    static var editEmojiAndSymbols: String { localized("edit.emojiAndSymbols") }
     static var privacyDetailsTitle: String { localized("privacy.title") }
     static var privacyUploadTitle: String { localized("privacy.upload.title") }
     static var privacyUploadBody: String { localized("privacy.upload.body") }
@@ -80,6 +141,18 @@ enum VLMSnapperStrings {
     static var privacyBackupTitle: String { localized("privacy.backup.title") }
     static var privacyBackupBody: String { localized("privacy.backup.body") }
     static var noRecentItems: String { localized("menu.noRecentItems") }
+    static var menuProviderRequestFailed: String { localized("menu.providerRequestFailed") }
+    static var menuSetupRequired: String { localized("menu.setupRequired") }
+    static var menuProviderAvailableFormat: String { localized("menu.providerAvailableFormat") }
+    static var menuProviderNeedsModelFormat: String { localized("menu.providerNeedsModelFormat") }
+    static var menuStatusActive: String { localized("menu.status.active") }
+    static var menuStatusSucceeded: String { localized("menu.status.succeeded") }
+    static var menuStatusFailed: String { localized("menu.status.failed") }
+    static var menuStatusCanceled: String { localized("menu.status.canceled") }
+    static var menuTimeNow: String { localized("menu.time.now") }
+    static var menuTimeMinutesFormat: String { localized("menu.time.minutesFormat") }
+    static var menuTimeHoursFormat: String { localized("menu.time.hoursFormat") }
+    static var menuTimeDaysFormat: String { localized("menu.time.daysFormat") }
     static var historyAll: String { localized("history.filter.all") }
     static var historySearch: String { localized("history.search") }
     static var historyEmptyTitle: String { localized("history.empty.title") }
