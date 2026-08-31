@@ -489,3 +489,59 @@
 ## 结论
 
 未发现新的 race、展示状态丢失或退出绕过。修复范围仅覆盖 VLMSnapper-owned SwiftUI sheets；未来新增 `.sheet` 时必须继续纳入同一 class-level 审计。
+# VLMSnapper v1 — Ticket 12 status item interaction code review
+
+审查范围：状态项左右键分流、原生 Quit 菜单、popover 关闭后截图接线、主面板入口和应用终止接线。
+
+## 【① 底层前提】
+
+- 当前 macOS SDK 的受支持入口是 `NSStatusItem.button` 与按钮的 `sendAction(on:)`；旧 `NSStatusItem.sendActionOn` 已弃用。
+- `NSMenu.popUpContextMenu` 接收触发事件和状态项按钮即可展示原生菜单；不需要 Carbon、自绘窗口或第二个状态项。
+- 真实截图入口已经存在于 `VLMSnapperApplicationModel.capture()`，全局快捷键和菜单栏按钮只应汇合到该入口。
+
+## 【② 可运行性】
+
+- 状态按钮现在接收左键和右键抬起：右键进入单项原生菜单，其他激活保持原有 popover toggle 行为。
+- 主面板的 Capture Screen 先复用 `MenuCaptureRouter`。Provider/权限恢复仍在原 popover 展示；ready 分支通过 `popoverDidClose` 信号再调用已有 capture callback。
+- 环境中没有生产 popover coordinator 时，preview、UI harness 和离屏渲染直接执行 callback，不会因测试宿主缺 AppKit controller 而失效。
+
+## 【③ 安全正确性】
+
+- 第一版环境动作草稿依赖 `@unchecked Sendable`。审查中把它替换为直接注入 `@MainActor` dismissal coordinator，去掉不必要的并发安全豁免。
+- Quit item 只调用 `NSApp.terminate(nil)`；`applicationShouldTerminate` 仍是唯一调用 `prepareForTermination()` 的协调入口。主面板旧 callback 和模型 `requestQuit()` 已删除，避免同一路径准备两次。
+- 右键路径不主动关闭 popover，不会在退出被取消前先销毁 Provider/权限 sheet 状态。截图路径只在 ready 分支关闭，且 pending callback 执行一次后立即清空。
+
+## 【④ 回归与范围】
+
+- Check for Updates、最近记录、History、Settings 与状态点保持原接线；只移除主面板 Quit 行和因此产生的未用图标。
+- 没有修改 ScreenCaptureKit、冻结帧、选区、PNG、Provider、历史、Sparkle 或终止确认规则。
+- 明暗模式真实 SwiftUI 离屏渲染已检查：主面板布局完整，Quit 行消失，Capture 与更新入口仍可见。
+
+## 结论
+
+审查发现并修正一处不必要的 unchecked concurrency seam，未发现剩余 race、双重退出准备、资源泄漏或第二套截图流程。实现与确认原型的入口分工一致。
+
+---
+
+# 2026-08-31 — Ticket 11/12 integration review
+
+## 【① 底层前提】
+
+- 当前 Installed App 的标准 Apple Event Quit 返回 `User canceled (-128)`，且 PID 保持不变；这排除了“退出后被登录项重新拉起”。
+- `main` 已包含右键 Quit 到 `NSApp.terminate(nil)` 的接线，但未包含 Ticket 11 的 sheet window policy；PR #6 未合并是当前安装包仍失败的直接原因。
+
+## 【② 可运行性】
+
+- 合入最新 `main` 后，Ticket 11 的代码与 Ticket 12 的状态项代码没有冲突；冲突仅发生在两票共同追加的施工记录、spec 与 feature catalog。
+- 三个 production `.sheet` host 仍只呈现 Provider setup、permission recovery 和 storage/privacy 三类内容，三类 root 都应用同一幂等 window policy。
+- 右键 Quit 继续只进入 application delegate 的统一退出协调；本次合并没有引入第二次 preflight、提前关闭 sheet 或改变未保存结果确认。
+
+## 【③ 安全正确性】
+
+- 允许终止的策略仍局限于 VLMSnapper 自有 sheet，不影响 `NSAlert`、`NSSavePanel` 或 Sparkle 管理的窗口。
+- 合并未改变 Provider 凭据、截图、历史或更新数据路径；故障面局限于退出请求是否能到达既有 coordinator。
+
+## 【④ 一致性】
+
+- 冲突解决保留 Ticket 11 的 sheet 退出语义和 Ticket 12 的左/右键入口语义；现行 spec 与 feature catalog 同时描述两者。
+- 严格构建、完整测试、脚本语法与三架构 development DMG 门禁均通过。未发现需要另开的重构项。

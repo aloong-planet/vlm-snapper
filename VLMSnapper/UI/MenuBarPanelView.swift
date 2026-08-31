@@ -28,7 +28,6 @@ public struct MenuBarPanelView: View {
     private let onCheckUpdates: () -> Void
     private let onDownloadUpdate: () -> Void
     private let onOpenUpdateInformation: (URL) -> Void
-    private let onQuit: () -> Void
 
     public init(
         recentItems: [MenuRecentItem],
@@ -39,8 +38,7 @@ public struct MenuBarPanelView: View {
         onNavigate: @escaping (ManagementCenterDestination) -> Void,
         onCheckUpdates: @escaping () -> Void,
         onDownloadUpdate: @escaping () -> Void = {},
-        onOpenUpdateInformation: @escaping (URL) -> Void = { _ in },
-        onQuit: @escaping () -> Void
+        onOpenUpdateInformation: @escaping (URL) -> Void = { _ in }
     ) {
         self.recentItems = recentItems
         self.updateState = updateState
@@ -51,7 +49,6 @@ public struct MenuBarPanelView: View {
         self.onCheckUpdates = onCheckUpdates
         self.onDownloadUpdate = onDownloadUpdate
         self.onOpenUpdateInformation = onOpenUpdateInformation
-        self.onQuit = onQuit
     }
 
     public var body: some View {
@@ -113,7 +110,6 @@ public struct MenuBarPanelView: View {
             }
             Divider()
             menuButton(VLMSnapperStrings.menuCheckUpdates, icon: .update, action: onCheckUpdates)
-            menuButton(VLMSnapperStrings.menuQuit, icon: .quit, action: onQuit)
         }
         .padding(.vertical, 6)
         .background(VLMSnapperTheme.window)

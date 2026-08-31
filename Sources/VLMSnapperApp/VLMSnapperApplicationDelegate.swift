@@ -87,7 +87,10 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
             self?.showOnboarding()
         }
 
-        let menuController = MenuBarPanelController(content: model.menuView())
+        let menuController = MenuBarPanelController(
+            content: model.menuView(),
+            onQuit: { NSApp.terminate(nil) }
+        )
         self.menuController = menuController
         try await model.start()
         refreshPresentedSurfaces()

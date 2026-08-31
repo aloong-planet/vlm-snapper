@@ -340,8 +340,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             onNavigate: { [weak self] destination in self?.onNavigate?(destination) },
             onCheckUpdates: { [weak self] in Task { await self?.checkUpdates() } },
             onDownloadUpdate: { [weak self] in Task { await self?.downloadUpdate() } },
-            onOpenUpdateInformation: { NSWorkspace.shared.open($0) },
-            onQuit: { [weak self] in Task { await self?.requestQuit() } }
+            onOpenUpdateInformation: { NSWorkspace.shared.open($0) }
         )
     }
 
@@ -492,11 +491,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private func installUpdate() async {
         guard await prepareForTermination() else { return }
         _ = try? await updateCoordinator.requestImmediateInstall()
-    }
-
-    private func requestQuit() async {
-        guard await prepareForTermination() else { return }
-        NSApp.terminate(nil)
     }
 
     func prepareForTermination() async -> Bool {

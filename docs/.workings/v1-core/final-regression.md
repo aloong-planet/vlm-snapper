@@ -468,3 +468,67 @@
 ## 结论
 
 三阶段队列已清空。spec、feature catalog、prototype、design、实现、测试、review、Ticket 与 checklist 对退出行为的描述一致；Ticket 11 完成，但 Ticket 10 的公证发布、托管、升级和剩余 live Provider 门禁没有被本次 smoke 冒充完成。
+## 2026-08-31 — Status item interactions and clickable capture
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的状态项左/右键分工 | `MenuBarPanelController` 事件 mask、router 与原生 `NSMenu` | 左键保持 panel toggle；右键仅一个本地化 Quit item |
+| spec 的面板按钮截图 | `MenuBarContainerView` → dismissal coordinator → model `capture()` | ready 时先等 popover close 再复用快捷键入口；未 ready 时保留恢复 sheet |
+| features 的协调退出 | Quit item → `NSApp.terminate` → application delegate | 没有模型专用第二套退出，也没有重复 `prepareForTermination()` |
+| confirmed prototype | companion-shell README/HTML 与生产主面板 | 主面板无 Quit；右键单项菜单；截图按钮仍为主操作 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| CONTEXT 术语 ↔ source naming | Menu Bar Panel / Status Item Context Menu | 两个表面不再混称；右键菜单不是面板列表 |
+| Provider/permission router ↔ UI host | 三个 route 与 active sheet | 两个恢复分支不因新增关闭时序而失去宿主 |
+| termination invariant ↔ new Quit | application delegate 唯一 preparation | Command-Q、右键 Quit 与后续合并的 sheet 修复保持同一协调边界 |
+| feature catalog ↔ current development app | source、5 tests、两张渲染图 | 用户可见描述与实现一致；未写入内部测试细节 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 主面板移除 Quit | callback、图标与渲染扫描 | 仅原生右键菜单保留 Quit；无本轮 orphan |
+| 点击 Capture Screen | ready / provider / permission 三路测试 | ready callback 真实接回现有 `capture()`；快捷键不是唯一入口 |
+| 测试从 192/48 增至 197/49 | 完整 Swift Testing 汇总 | 新增 5 个行为测试；历史时点记录不反写 |
+| `Pending:` /签名宿主验收 | Ticket 10 外部门禁 | 当前开发回归全绿；安装 App 的实际左右键、TCC 与正式三包仍由发布验收承兑 |
+
+### 收敛结论
+
+Ticket 12 的 prototype、CONTEXT、spec、features、design、production wiring、code/test review 与 197/49 完整回归一致。开发实现可以进入 PR；没有把未执行的签名宿主人工验收写成已完成。
+
+---
+
+# 2026-08-31 — Ticket 11/12 integration regression
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 11 sheet 退出 | 三类 sheet root 与真实 AppKit window test | sheet 不再在 delegate 之前取消退出 |
+| Ticket 12 右键 Quit | status item event route、单项原生菜单与 app delegate | 右键入口只进入既有协调退出，不重复 preflight |
+| spec 与 feature catalog | 合并后的 production code | 同时保留左/右键分工、sheet 可退出与取消未保存确认语义 |
+
+## 阶段二：关系对读
+
+| 关系 | 核对 | 结论 |
+| --- | --- | --- |
+| 三个 `.sheet` host ↔ 三类 content root | 全量 `rg '\\.sheet\\('` 与 modifier call site | onboarding、menu、management 均被覆盖，无新增遗漏 |
+| 旧构建失败 ↔ 新分支修复 | Apple Event `User canceled (-128)`、PR #6 diff | 当前失败来自 PR #6 未合并，不是 Ticket 12 callback 未触发 |
+| Ticket 11/12 review ↔ 当前门禁 | 目标 test、198/50 full suite、strict build、三架构 DMG | 合并后的确定性行为与分发形态均通过 |
+
+## 阶段三：事件核销
+
+| 事件 | 结论 |
+| --- | --- |
+| PR #6 与最新 `main` 冲突 | 仅六份共享文档冲突；双方语义按时间顺序保留，代码与测试无冲突 |
+| 测试 toolchain 首次选错 | 该编译失败已作废，改用 CI 同款 Xcode toolchain 后重跑 |
+| 测试总数从分票时点增加 | 当前组合为 198/50；历史施工记录中的 193/49 与 197/49 保持时点记录，不反写 |
+
+## 收敛结论
+
+三阶段队列已清空。Ticket 11 的 sheet termination policy 与 Ticket 12 的右键 Quit 入口在最新 `main` 上组合一致；当前 Installed App 仍是缺少 Ticket 11 的旧构建，必须安装合并后的新包才可做最终宿主复测。

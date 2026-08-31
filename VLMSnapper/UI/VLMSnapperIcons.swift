@@ -20,7 +20,6 @@ enum VLMSnapperIcon: String {
     case history = "clock.arrow.circlepath"
     case settings = "gearshape"
     case update = "arrow.down.circle"
-    case quit = "power"
     case folder = "folder"
     case search = "magnifyingglass"
     case pin = "pin"

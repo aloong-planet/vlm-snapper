@@ -1,6 +1,24 @@
 import SwiftUI
 import VLMSnapperCore
 
+enum MenuCaptureActionHandler {
+    static func perform(
+        route: MenuCaptureRoute,
+        showProviderConfiguration: () -> Void,
+        showPermissionRecovery: () -> Void,
+        captureAfterPanelDismissal: () -> Void
+    ) {
+        switch route {
+        case .configureProvider:
+            showProviderConfiguration()
+        case .recoverPermission:
+            showPermissionRecovery()
+        case .capture:
+            captureAfterPanelDismissal()
+        }
+    }
+}
+
 public struct MenuBarCallbacks {
     public let onCapture: () -> Void
     public let onPermissionPrimaryAction: () -> Void
@@ -14,7 +32,6 @@ public struct MenuBarCallbacks {
     public let onCheckUpdates: () -> Void
     public let onDownloadUpdate: () -> Void
     public let onOpenUpdateInformation: (URL) -> Void
-    public let onQuit: () -> Void
 
     public init(
         onCapture: @escaping () -> Void,
@@ -28,8 +45,7 @@ public struct MenuBarCallbacks {
         onNavigate: @escaping (ManagementCenterDestination) -> Void,
         onCheckUpdates: @escaping () -> Void,
         onDownloadUpdate: @escaping () -> Void = {},
-        onOpenUpdateInformation: @escaping (URL) -> Void = { _ in },
-        onQuit: @escaping () -> Void
+        onOpenUpdateInformation: @escaping (URL) -> Void = { _ in }
     ) {
         self.onCapture = onCapture
         self.onPermissionPrimaryAction = onPermissionPrimaryAction
@@ -43,7 +59,6 @@ public struct MenuBarCallbacks {
         self.onCheckUpdates = onCheckUpdates
         self.onDownloadUpdate = onDownloadUpdate
         self.onOpenUpdateInformation = onOpenUpdateInformation
-        self.onQuit = onQuit
     }
 }
 
@@ -58,6 +73,7 @@ public struct MenuBarContainerView: View {
     @Binding private var pendingModelID: String?
     private let callbacks: MenuBarCallbacks
     @State private var activeSheet: MenuEntrySheet?
+    @Environment(\.menuBarPanelDismissalCoordinator) private var panelDismissalCoordinator
 
     public init(
         recentItems: [MenuRecentItem],
@@ -91,8 +107,7 @@ public struct MenuBarContainerView: View {
             onNavigate: callbacks.onNavigate,
             onCheckUpdates: callbacks.onCheckUpdates,
             onDownloadUpdate: callbacks.onDownloadUpdate,
-            onOpenUpdateInformation: callbacks.onOpenUpdateInformation,
-            onQuit: callbacks.onQuit
+            onOpenUpdateInformation: callbacks.onOpenUpdateInformation
         )
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -126,14 +141,18 @@ public struct MenuBarContainerView: View {
     }
 
     private func routeCapture() {
-        switch MenuCaptureRouter.route(permission: permission, provider: provider) {
-        case .configureProvider:
-            activeSheet = .provider
-        case .recoverPermission:
-            activeSheet = .permission
-        case .capture:
-            callbacks.onCapture()
-        }
+        MenuCaptureActionHandler.perform(
+            route: MenuCaptureRouter.route(permission: permission, provider: provider),
+            showProviderConfiguration: { activeSheet = .provider },
+            showPermissionRecovery: { activeSheet = .permission },
+            captureAfterPanelDismissal: {
+                guard let panelDismissalCoordinator else {
+                    callbacks.onCapture()
+                    return
+                }
+                panelDismissalCoordinator.performAfterDismissing(callbacks.onCapture)
+            }
+        )
     }
 }
 

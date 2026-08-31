@@ -128,8 +128,7 @@ private struct HarnessRoot: View {
                 onCapture: {},
                 onOpenRecent: { _ in },
                 onNavigate: { _ in },
-                onCheckUpdates: {},
-                onQuit: {}
+                onCheckUpdates: {}
             )
         case .privacy:
             StoragePrivacyDetailView(onClose: {})

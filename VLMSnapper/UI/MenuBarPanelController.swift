@@ -2,22 +2,94 @@ import AppKit
 import SwiftUI
 import VLMSnapperCore
 
+enum MenuBarStatusItemInteraction: Equatable {
+    case primaryPanel
+    case contextMenu
+}
+
+enum MenuBarStatusItemInteractionRouter {
+    static func route(eventType: NSEvent.EventType?) -> MenuBarStatusItemInteraction {
+        eventType == .rightMouseUp ? .contextMenu : .primaryPanel
+    }
+}
+
 @MainActor
-public final class MenuBarPanelController<Content: View>: NSObject {
+final class MenuBarPanelDismissalCoordinator {
+    private let isPanelShown: () -> Bool
+    private let requestClose: () -> Void
+    private var pendingAction: (() -> Void)?
+
+    init(
+        isPanelShown: @escaping () -> Bool,
+        requestClose: @escaping () -> Void
+    ) {
+        self.isPanelShown = isPanelShown
+        self.requestClose = requestClose
+    }
+
+    func performAfterDismissing(_ action: @escaping () -> Void) {
+        guard isPanelShown() else {
+            action()
+            return
+        }
+        pendingAction = action
+        requestClose()
+    }
+
+    func panelDidClose() {
+        let action = pendingAction
+        pendingAction = nil
+        action?()
+    }
+}
+
+private struct MenuBarPanelDismissalCoordinatorKey: EnvironmentKey {
+    static let defaultValue: MenuBarPanelDismissalCoordinator? = nil
+}
+
+extension EnvironmentValues {
+    var menuBarPanelDismissalCoordinator: MenuBarPanelDismissalCoordinator? {
+        get { self[MenuBarPanelDismissalCoordinatorKey.self] }
+        set { self[MenuBarPanelDismissalCoordinatorKey.self] = newValue }
+    }
+}
+
+@MainActor
+public final class MenuBarPanelController<Content: View>: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let updateIndicator = NSView()
+    private let onQuit: () -> Void
+    private var hostingController: NSHostingController<AnyView>!
+    private var dismissalCoordinator: MenuBarPanelDismissalCoordinator!
+    lazy var contextMenu: NSMenu = {
+        let menu = NSMenu()
+        let quitItem = NSMenuItem(
+            title: VLMSnapperStrings.menuQuit,
+            action: #selector(quitApplication),
+            keyEquivalent: ""
+        )
+        quitItem.target = self
+        menu.addItem(quitItem)
+        return menu
+    }()
 
-    public init(content: Content) {
+    public init(content: Content, onQuit: @escaping () -> Void) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        self.onQuit = onQuit
         super.init()
+        dismissalCoordinator = MenuBarPanelDismissalCoordinator(
+            isPanelShown: { [popover] in popover.isShown },
+            requestClose: { [popover] in popover.performClose(nil) }
+        )
         statusItem.button?.image = NSImage(
             systemSymbolName: VLMSnapperIcon.capture.rawValue,
             accessibilityDescription: VLMSnapperStrings.menuCapture
         )
         statusItem.button?.target = self
-        statusItem.button?.action = #selector(togglePopover)
+        statusItem.button?.action = #selector(handleStatusItemAction)
         if let button = statusItem.button {
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             updateIndicator.translatesAutoresizingMaskIntoConstraints = false
             updateIndicator.wantsLayer = true
             updateIndicator.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
@@ -33,15 +105,14 @@ public final class MenuBarPanelController<Content: View>: NSObject {
         }
         popover.behavior = .transient
         popover.animates = false
-        popover.contentViewController = NSHostingController(rootView: content)
+        popover.delegate = self
+        let hostingController = NSHostingController(rootView: hostedContent(content))
+        self.hostingController = hostingController
+        popover.contentViewController = hostingController
     }
 
     public func update(content: Content) {
-        guard let hostingController = popover.contentViewController
-            as? NSHostingController<Content> else {
-            return
-        }
-        hostingController.rootView = content
+        hostingController.rootView = hostedContent(content)
     }
 
     public func setUpdateIndicatorVisible(_ visible: Bool) {
@@ -57,11 +128,38 @@ public final class MenuBarPanelController<Content: View>: NSObject {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
-    @objc private func togglePopover() {
+    public func popoverDidClose(_ notification: Notification) {
+        dismissalCoordinator.panelDidClose()
+    }
+
+    @objc private func handleStatusItemAction() {
+        switch MenuBarStatusItemInteractionRouter.route(eventType: NSApp.currentEvent?.type) {
+        case .primaryPanel:
+            togglePopover()
+        case .contextMenu:
+            guard let event = NSApp.currentEvent, let button = statusItem.button else { return }
+            NSMenu.popUpContextMenu(contextMenu, with: event, for: button)
+        }
+    }
+
+    private func togglePopover() {
         if popover.isShown {
             popover.performClose(nil)
             return
         }
         show()
+    }
+
+    @objc private func quitApplication() {
+        onQuit()
+    }
+
+    private func hostedContent(_ content: Content) -> AnyView {
+        return AnyView(
+            content.environment(
+                \.menuBarPanelDismissalCoordinator,
+                dismissalCoordinator
+            )
+        )
     }
 }

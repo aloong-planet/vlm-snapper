@@ -102,8 +102,7 @@ struct Ticket07RenderingTests {
                         onProviderDone: {},
                         onOpenRecent: { _ in },
                         onNavigate: { _ in },
-                        onCheckUpdates: {},
-                        onQuit: {}
+                        onCheckUpdates: {}
                     )
                 ),
                 size: CGSize(width: 330, height: 330),
