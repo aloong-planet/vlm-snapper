@@ -66,6 +66,7 @@ public struct ProviderSetupView: View {
             }
         }
         .frame(minWidth: 720, idealWidth: 820, minHeight: 590)
+        .permitsApplicationTerminationWhilePresented()
     }
 
     private var header: some View {

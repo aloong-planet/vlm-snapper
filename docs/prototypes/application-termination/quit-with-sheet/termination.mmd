@@ -1,0 +1,43 @@
+%% title: Modal sheet 与统一退出协调
+%%{init: {
+  'theme': 'base',
+  'htmlLabels': false,
+  'state': { 'htmlLabels': false },
+  'flowchart': { 'htmlLabels': false },
+  'themeVariables': {
+    'primaryColor': '#ECECFF',
+    'primaryBorderColor': '#D5D5FF',
+    'primaryTextColor': '#000000',
+    'lineColor': '#757575',
+    'textColor': '#212121',
+    'edgeLabelBackground': 'transparent',
+    'noteBkgColor': '#FFF6B8',
+    'noteBorderColor': '#E4C800',
+    'noteTextColor': '#5C5100',
+    'tertiaryColor': '#f5f5f5',
+    'background': '#FFFFFF'
+  }
+}}%%
+stateDiagram-v2
+  direction LR
+  state "应用运行\nsheet 可见或无 sheet" as Running
+  state "统一退出协调" as Preparing
+  state "确认丢弃未保存结果" as Confirming
+  state "继续运行\n恢复原有 sheet" as Resumed
+  state "正常终止" as Terminated
+
+  [*] --> Running
+  Running --> Preparing: 菜单退出 / Command-Q / 系统 Quit
+  Preparing --> Terminated: 清理完成
+  Preparing --> Confirming: 存在未保存结果
+  Confirming --> Terminated: 确认丢弃
+  Confirming --> Resumed: 取消退出
+  Resumed --> Preparing: 再次退出
+  Terminated --> [*]
+
+  note right of Running
+    sheet 不再由 AppKit 提前取消退出
+  end note
+  note right of Resumed
+    取消退出不应关闭原有配置上下文
+  end note

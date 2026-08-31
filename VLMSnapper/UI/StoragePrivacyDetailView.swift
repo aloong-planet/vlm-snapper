@@ -63,6 +63,7 @@ public struct StoragePrivacyDetailView: View {
             )
         )
         .frame(width: 620, height: 520)
+        .permitsApplicationTerminationWhilePresented()
     }
 
     private func section(

@@ -57,6 +57,7 @@ public struct ScreenCapturePermissionRecoveryView: View {
             .stroke(VLMSnapperTheme.border, lineWidth: 1)
         }
         .frame(width: 470)
+        .permitsApplicationTerminationWhilePresented()
     }
 
     private var detail: String {

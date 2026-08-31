@@ -14,6 +14,7 @@
 | 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 已完成 |
 | 09 | 单实例、诊断、本地化、登录项与 Sparkle 更新 | 已完成 |
 | 10 | 三架构直接分发、签名/公证/appcast 门禁与全功能收口 | 进行中（正式门禁阻塞） |
+| 11 | app-owned sheet 打开时的菜单退出、Command-Q 与系统 Quit 进入统一退出协调 | 已完成 |
 | 12 | 状态项左/右键分流、右键退出与面板按钮真实截图衔接 | 已完成 |
 
 ## Ticket 01 evidence
@@ -76,3 +77,9 @@
 - Implemented surfaces: production accessory executable, application composition, frozen overlay, searchable target-language picker, persistent custom shortcut, menu/history/settings/onboarding/result routing, hourly cleanup wake with a 24-hour core gate, sanitized diagnostic export, and coordinated termination for Quit, Command-Q, language restart, and Sparkle installation.
 - Release pipeline: exact three-member manifest, separate architecture feeds, fail-closed credentials and HTTPS validation, nested hardened-runtime signing, app and DMG notarization/stapling/Gatekeeper checks, EdDSA verification, and atomic six-file staging.
 - Formal gate remains blocked: no local Developer ID identity or notarization evidence, no public HTTPS feed/download host, and no protected live OpenAI/Gemini/DeepSeek credentials. Development DMGs are not release evidence; Ticket 10 stays in progress.
+
+## Ticket 11 evidence
+
+- Gate: strict Swift/C warnings-as-errors build、完整 Swift Testing 193/193（49 suites）、目标 AppKit test 1/1、三架构 development App/DMG 组装与校验、脚本语法、prototype JS 语法和 `git diff --check`。
+- Tests: 真实 `NSHostingController`/`NSWindow` 同时呈现 Provider setup、permission recovery、storage/privacy 三个 sheet，并逐个断言 attached window 不再阻止 termination。移除其中一个 modifier 的定向变异准确在 `true` 窗口属性处红，恢复后同一 case 重新转绿。
+- Evidence: `ApplicationTerminationSheet.swift`、三个 sheet root、`ApplicationTerminationSheetTests.swift`、logic prototype、Ticket design/review。独立 bundle-id 的 Developer ID probe 在 Provider sheet 打开时接收标准 Apple Event Quit 后 PID 正常退出；没有覆盖或终止当前安装的旧版 App。

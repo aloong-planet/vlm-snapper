@@ -61,5 +61,12 @@ window.PROTOTYPES = [
     id: "screen-capture",
     name: "Screen capture permission recovery",
     path: "permission-recovery/prototype-permission-recovery.html"
+  },
+  {
+    module: "application-termination",
+    type: "logic",
+    id: "quit-with-sheet",
+    name: "Quit while a sheet is presented",
+    path: "application-termination/quit-with-sheet/index.html"
   }
 ];
