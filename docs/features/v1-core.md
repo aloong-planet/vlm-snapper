@@ -4,7 +4,7 @@ Status: implemented in the development application; not yet eligible for a forma
 
 ## Menu-bar application
 
-VLMSnapper runs as a menu-bar accessory without a Dock icon. The panel starts a capture, shows the active capture shortcut, opens the three most recent records, navigates to History or Settings, exposes update checks, and quits through the coordinated shutdown path. Only one primary instance per macOS user opens protected storage, registers the shortcut, performs cleanup, or checks for updates.
+VLMSnapper runs as a menu-bar accessory without a Dock icon. A left click opens or closes the panel; a right click opens a native context menu containing only Quit VLMSnapper. The panel starts a capture, shows the active capture shortcut, opens the three most recent records, navigates to History or Settings, and exposes update checks without duplicating Quit. Quit and Command-Q use the same coordinated shutdown path. Only one primary instance per macOS user opens protected storage, registers the shortcut, performs cleanup, or checks for updates.
 
 ## First-run setup and recovery
 
@@ -12,7 +12,7 @@ The onboarding window separates screen-capture permission, online Provider confi
 
 ## Frozen-frame capture
 
-The global capture shortcut defaults to `⌥⇧S` and can be changed through a key-recording control in General Settings. A replacement is registered before the previous shortcut is released; invalid or conflicting input leaves the old shortcut active and shows a localized explanation.
+The global capture shortcut defaults to `⌥⇧S` and can be changed through a key-recording control in General Settings. A replacement is registered before the previous shortcut is released; invalid or conflicting input leaves the old shortcut active and shows a localized explanation. The panel's Capture Screen button enters the same workflow. Missing Provider or permission readiness keeps the panel open for recovery; a ready capture closes the panel before freezing the screens.
 
 Triggering capture freezes every available display at that instant through ScreenCaptureKit. Selection panels show only those frozen images, so videos and animation cannot advance between trigger and crop. A rectangular selection is mapped into display-local physical pixels and cropped into the original sRGB PNG. Escape, cancel, or retriggering before a model request discards the in-memory capture without creating history.
 

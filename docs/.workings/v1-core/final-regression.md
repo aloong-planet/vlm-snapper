@@ -434,3 +434,38 @@
 ### 收敛结论
 
 三阶段队列已清空。源元数据、最终 App 接线、变异门禁、design、issue、review 与 features 现已一致。旧的本地包不得继续分发；合并后必须从修复后的 `main` 重建三个签名公证包，再在用户明确授权后验证 macOS 权限弹窗。
+
+---
+
+## 2026-08-31 — Status item interactions and clickable capture
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的状态项左/右键分工 | `MenuBarPanelController` 事件 mask、router 与原生 `NSMenu` | 左键保持 panel toggle；右键仅一个本地化 Quit item |
+| spec 的面板按钮截图 | `MenuBarContainerView` → dismissal coordinator → model `capture()` | ready 时先等 popover close 再复用快捷键入口；未 ready 时保留恢复 sheet |
+| features 的协调退出 | Quit item → `NSApp.terminate` → application delegate | 没有模型专用第二套退出，也没有重复 `prepareForTermination()` |
+| confirmed prototype | companion-shell README/HTML 与生产主面板 | 主面板无 Quit；右键单项菜单；截图按钮仍为主操作 |
+
+### 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| CONTEXT 术语 ↔ source naming | Menu Bar Panel / Status Item Context Menu | 两个表面不再混称；右键菜单不是面板列表 |
+| Provider/permission router ↔ UI host | 三个 route 与 active sheet | 两个恢复分支不因新增关闭时序而失去宿主 |
+| termination invariant ↔ new Quit | application delegate 唯一 preparation | Command-Q、右键 Quit 与后续合并的 sheet 修复保持同一协调边界 |
+| feature catalog ↔ current development app | source、5 tests、两张渲染图 | 用户可见描述与实现一致；未写入内部测试细节 |
+
+### 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 主面板移除 Quit | callback、图标与渲染扫描 | 仅原生右键菜单保留 Quit；无本轮 orphan |
+| 点击 Capture Screen | ready / provider / permission 三路测试 | ready callback 真实接回现有 `capture()`；快捷键不是唯一入口 |
+| 测试从 192/48 增至 197/49 | 完整 Swift Testing 汇总 | 新增 5 个行为测试；历史时点记录不反写 |
+| `Pending:` /签名宿主验收 | Ticket 10 外部门禁 | 当前开发回归全绿；安装 App 的实际左右键、TCC 与正式三包仍由发布验收承兑 |
+
+### 收敛结论
+
+Ticket 12 的 prototype、CONTEXT、spec、features、design、production wiring、code/test review 与 197/49 完整回归一致。开发实现可以进入 PR；没有把未执行的签名宿主人工验收写成已完成。

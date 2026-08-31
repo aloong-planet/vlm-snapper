@@ -395,3 +395,32 @@
 ## 结论
 
 覆盖、case 设计与假通过三维已核对。源元数据和最终 App 接线均有可杀死已知缺陷的独立信号；系统 TCC 弹窗保留为重建正式包后的用户授权验收。
+
+---
+
+# VLMSnapper v1 — Ticket 12 status item interaction test review
+
+## 维度 1：覆盖是否完整
+
+- 事件路由覆盖右键抬起、左键抬起和无当前鼠标事件；右键菜单覆盖单 item、无分隔线、英中本地化与实际 target/action 调用。
+- dismissal coordinator 覆盖 visible 延后、hidden 立即执行、无 pending close 与重复 close 幂等。
+- capture action handler 同批覆盖 Provider 配置、权限恢复与 ready capture 三条互斥路径，明确只有 ready 使用“关闭后截图”。
+- Ticket 07 明暗渲染覆盖主面板移除 Quit 后的生产 View；完整测试同时回归全局快捷键、capture router、操作状态与协调终止。
+
+## 维度 2：case 设计是否合理
+
+- 鼠标事件和 capture route 测试站在确定性行为 seam，不通过阻塞的真实 `NSMenu` tracking 或脆弱的 SwiftUI 私有层级完成断言。
+- 原生菜单测试真实构造 `MenuBarPanelController` 和 `NSMenuItem`，用 AppKit action dispatch 证明注入 closure 被调用，不只检查 selector 名称。
+- popover 时序以 `isPanelShown`、`requestClose` 和 `panelDidClose` 三个系统边界替身控制，断言 callback 相对关闭通知的顺序，而不是等待任意时间。
+- UI 渲染只承兑视觉结果；“按钮是否截图”由 capture route + dismissal seam + 生产 `callbacks.onCapture -> capture()` 接线共同承兑，避免把截图像素逻辑复制到 UI 测试。
+
+## 维度 3：有没有假通过
+
+- 初始有效红灯分别因事件 router、Quit init/menu、dismissal coordinator 和 capture handler 不存在而编译失败；实现各自最小纵切后转绿。最初错误 toolchain/cache 运行被明确作废，没有计作行为红灯。
+- 受控变异把 `.rightMouseUp` 错路由到主面板，目标测试精确在 `.contextMenu` 断言失败；还原后重新转绿。
+- 第二个受控变异把 ready capture 错路由到权限恢复，目标测试得到 `provider, permission, permission` 并精确拒绝，证明测试能发现按钮未截图的核心回归。
+- 最终以 Swift Testing 的 197/197、49 suites 为证据；XCTest 兼容层 `Executed 0 tests` 不作证据。严格 Swift/C warnings-as-errors build、双语 strings 校验、源码/测试 CJK 扫描、prototype script parse 与 `git diff --check` 均通过。
+
+## 结论
+
+测试覆盖、case 边界与假通过检查完整。系统级人工剩余项只是安装 App 后实际左右键触感与真实 ScreenCaptureKit/TCC 路径，不影响当前确定性回归证据，也不会被冒充为已完成的签名宿主验收。

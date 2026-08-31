@@ -47,8 +47,7 @@ struct Ticket09RenderingTests {
                             onOpenRecent: { _ in },
                             onNavigate: { _ in },
                             onCheckUpdates: {},
-                            onDownloadUpdate: {},
-                            onQuit: {}
+                            onDownloadUpdate: {}
                         ),
                         size: CGSize(width: 330, height: 390),
                         appearance: appearance,
