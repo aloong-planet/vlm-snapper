@@ -4,7 +4,7 @@ Status: implemented in the development application; not yet eligible for a forma
 
 ## Menu-bar application
 
-VLMSnapper runs as a menu-bar accessory without a Dock icon. The panel starts a capture, shows the active capture shortcut, opens the three most recent records, navigates to History or Settings, exposes update checks, and quits through the coordinated shutdown path. Only one primary instance per macOS user opens protected storage, registers the shortcut, performs cleanup, or checks for updates.
+VLMSnapper runs as a menu-bar accessory without a Dock icon. The panel starts a capture, shows the active capture shortcut, opens the three most recent records, navigates to History or Settings, exposes update checks, and quits through the coordinated shutdown path. Provider setup, permission recovery, and storage/privacy sheets do not block that path; canceling an unsaved-result confirmation keeps both the application and the original sheet open. Only one primary instance per macOS user opens protected storage, registers the shortcut, performs cleanup, or checks for updates.
 
 ## First-run setup and recovery
 

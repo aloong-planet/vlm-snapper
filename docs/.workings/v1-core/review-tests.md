@@ -395,3 +395,29 @@
 ## 结论
 
 覆盖、case 设计与假通过三维已核对。源元数据和最终 App 接线均有可杀死已知缺陷的独立信号；系统 TCC 弹窗保留为重建正式包后的用户授权验收。
+
+---
+
+# VLMSnapper v1 — Quit with app-owned sheet test review
+
+## 维度 1：覆盖是否完整
+
+- 一个真实 AppKit 集成 case 同时呈现 Provider setup、permission recovery 和 storage/privacy 三个 SwiftUI sheet，并逐个断言 attached `NSWindow` 不再阻止应用退出。
+- 现有生产 `.sheet` call site 已全量枚举为 onboarding、menu-bar container 和 management center；它们呈现的内容集合与测试中的三个 root 一致。
+- 既有 shutdown coordinator 测试继续覆盖活动请求取消/持久化和未保存结果允许/取消；本票没有复制这些断言。独立 bundle-id 的 Developer ID probe 负责普通系统 Quit smoke，不用单元测试冒充进程退出。
+
+## 维度 2：case 设计是否合理
+
+- 测试 seam 是实际 `NSHostingController`、`NSWindow.beginSheet` 产生的 attached sheet，不直接调用私有 bridge，也不手工设置目标属性。
+- 断言对象正是 Unified Log 指向的 AppKit window policy，不以“modifier 存在”或“进程启动成功”替代目标行为。
+- 三个 sheet 同时呈现，避免连续释放 SwiftUI sheet 时测试框架自身的异步 teardown signal 11；父窗口仅在测试进程内受控保留。
+
+## 维度 3：有没有假通过
+
+- 最初按 suite 显示名使用 `swift test --filter` 时实际运行 0 tests；该结果已明确作废。通过 `swift test list` 获得真实标识后，所有定向结论均要求 Swift Testing 汇总显示 1 test / 1 suite。
+- 临时移除 storage/privacy root 的 modifier，并用 `rg` 独立确认目标调用不存在；精确目标测试随后在 `preventsApplicationTerminationWhenModal -> true` 的窗口断言处红。
+- 只恢复该 modifier 后，同一精确测试以 1 test / 1 suite 转绿，证明新增 gate 能杀死本次已知回归。
+
+## 结论
+
+测试直接测量导致 Installed App 退出失败的窗口属性，并经过可定位的红绿变异。0-test 输出未计作证据；Developer ID probe 的系统 Quit 返回成功且目标 PID 消失，完成了真实进程层验收。

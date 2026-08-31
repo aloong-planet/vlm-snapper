@@ -456,3 +456,36 @@
 ## 结论
 
 未发现新的 race、资源泄漏、状态错乱或凭据风险。该修复窄化在分发元数据与打包门禁，不改动权限请求状态机。
+
+---
+
+# VLMSnapper v1 — Quit with app-owned sheet code review
+
+审查范围：`ApplicationTerminationSheet.swift`、三个 app-owned sheet root、真实 AppKit 集成测试及统一退出文档。
+
+## 【① 底层前提】
+
+- 当前 macOS SDK 明确提供 `NSWindow.preventsApplicationTerminationWhenModal` 控制 modal window 是否阻止应用退出；Installed App 的 Unified Log 已在应用 delegate 之前报出 `App termination blocked by modal sheet`。
+- 修复把策略写在 backing view 已进入真实 sheet window 的 `viewDidMoveToWindow`，不会依赖 SwiftUI 创建窗口之前的无效时机。
+
+## 【② 可运行性】
+
+- Provider setup、permission recovery 和 storage/privacy 三个实际内容 view 都应用同一 modifier；生产目录现有三个 `.sheet` host 均只呈现这三类内容。
+- modifier 只设置现有 sheet window 的单个幂等属性，不持有 presentation binding，不关闭窗口，也不创建第二个退出入口。
+- 真实 `NSWindow` 测试等待 attached sheet 出现后读取窗口属性；测试父窗口的受控进程期保留避免 SwiftUI 异步 teardown 在测试返回后释放 AppKit 状态。
+
+## 【③ 安全正确性】
+
+- 退出决定仍由既有 application delegate 与 shutdown coordinator 作出；活动请求取消、持久化和未保存结果确认没有被绕过。
+- 用户取消未保存结果确认时，修复没有预先关闭或改写 sheet 状态，因此原面板可继续保持。
+- 策略没有全局应用到 `NSAlert`、`NSSavePanel` 或 Sparkle window，未弱化不属于本票的 modal 行为。
+
+## 【④ 一致性】
+
+- spec、feature catalog、logic prototype、Ticket design 与实现都描述“sheet 不再抢先取消退出，统一协调仍是唯一决定者”。
+- 没有新增用户文案、语言键、图标、尺寸、颜色或布局像素；无需新增视觉快照。
+- review 修正了 design 中“每次 SwiftUI update 都重新应用”的过强措辞，使其与实际的 window-attachment policy 一致。
+
+## 结论
+
+未发现新的 race、展示状态丢失或退出绕过。修复范围仅覆盖 VLMSnapper-owned SwiftUI sheets；未来新增 `.sheet` 时必须继续纳入同一 class-level 审计。

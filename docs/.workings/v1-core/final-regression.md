@@ -434,3 +434,37 @@
 ### 收敛结论
 
 三阶段队列已清空。源元数据、最终 App 接线、变异门禁、design、issue、review 与 features 现已一致。旧的本地包不得继续分发；合并后必须从修复后的 `main` 重建三个签名公证包，再在用户明确授权后验证 macOS 权限弹窗。
+
+---
+
+# 2026-08-31 — Ticket 11 final regression
+
+## 阶段 1：直接引用与显式声明
+
+| 检查 | 对照 | 结果 |
+|---|---|---|
+| Ticket 11 acceptance | 三个 sheet root、AppKit integration test、Developer ID probe | Provider、permission、privacy 均允许统一退出；系统 Quit 返回 0 且目标 PID 消失，状态改为 completed |
+| `v1-core.md` 启动/失败模式/集成 seam | window policy 与既有 shutdown coordinator | sheet 只让退出请求到达 delegate，不关闭面板、不绕过活动请求和未保存结果确认 |
+| feature catalog | production sheet 集合与 cancel 语义 | 用户可见功能说明已补充；没有引入新的设置或视觉承诺 |
+| logic prototype | implementation and cancel path | sheet visible → coordinated termination；取消未保存确认回到原 sheet，和实现边界一致 |
+
+## 阶段 2：间接派生声明
+
+| 派生声明 | 代码事实 | 结果 |
+|---|---|---|
+| app-owned sheet 类别完整 | production `.sheet` host 为 onboarding、menu、management；内容归并为 Provider、permission、privacy | 三个内容 root 都使用同一 modifier，测试也实例化同一集合 |
+| 测试计数 | 完整 Swift Testing 汇总 | 当前为 193 tests / 49 suites；历史时点计数不反写 |
+| 视觉与本地化 | modifier 仅配置 backing `NSWindow` property | 无新字符串、图标、几何、颜色或像素，既有 snapshot 无需更新 |
+| distribution shape | 三架构 development packaging | arm64、x64、universal App/DMG 均重新组装、签名形态校验和 hdiutil verify 通过 |
+
+## 阶段 3：已到期的未来注记与反向引用
+
+| 检查 | 结果 |
+|---|---|
+| Ticket 10 的统一退出基础能力 | 本票只修复 AppKit 在 delegate 之前的 sheet gate；既有 coordinator 和正式发布阻塞不变 |
+| Signed-app smoke | 使用独立 bundle-id 的 Developer ID probe，避免覆盖已安装旧版或争抢 primary lock；Provider sheet 打开时系统 Quit 成功 |
+| Future app-owned sheets | design/review 明确要求新增 `.sheet` 时纳入同一 class-level audit；当前没有遗漏 call site |
+
+## 结论
+
+三阶段队列已清空。spec、feature catalog、prototype、design、实现、测试、review、Ticket 与 checklist 对退出行为的描述一致；Ticket 11 完成，但 Ticket 10 的公证发布、托管、升级和剩余 live Provider 门禁没有被本次 smoke 冒充完成。

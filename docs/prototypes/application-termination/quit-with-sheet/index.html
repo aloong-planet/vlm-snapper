@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VLMSnapper — sheet 打开时退出</title>
+<style>
+  :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+  body { max-width: 920px; margin: 0 auto; padding: 28px; background: Canvas; color: CanvasText; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  .question { color: GrayText; line-height: 1.6; margin-bottom: 20px; }
+  .panel { border: 1px solid color-mix(in srgb, CanvasText 15%, transparent); border-radius: 10px; padding: 16px; margin-top: 16px; }
+  .diagram { overflow: auto; background: white; color: black; min-height: 260px; }
+  .state { display: grid; grid-template-columns: 150px 1fr; gap: 8px; font: 13px ui-monospace, Menlo, monospace; }
+  .value { font-weight: 650; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  button { min-height: 30px; padding: 4px 11px; border-radius: 6px; border: 1px solid color-mix(in srgb, CanvasText 24%, transparent); background: Canvas; color: CanvasText; }
+  button[aria-disabled="true"] { border-style: dotted; color: GrayText; cursor: not-allowed; }
+  .receipt { margin-top: 14px; padding: 9px 11px; border-radius: 7px; background: color-mix(in srgb, AccentColor 9%, Canvas); }
+  .hint { color: GrayText; font-size: 12px; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <h1>sheet 打开时的统一退出</h1>
+  <div class="question">验证的问题：Provider 配置等 sheet 打开时，Quit 是否仍进入统一退出协调；若用户取消未保存结果确认，sheet 是否保持可见。</div>
+  <div id="diagram" class="panel diagram"></div>
+  <div class="panel">
+    <div class="state">
+      <span>status</span><span id="status" class="value"></span>
+      <span>sheetPresented</span><span id="sheet" class="value"></span>
+      <span>unsavedResult</span><span id="unsaved" class="value"></span>
+    </div>
+    <div class="actions">
+      <button data-reset="sheet">以 sheet 可见启动</button>
+      <button data-reset="plain">以无 sheet 启动</button>
+      <button data-action="SET_UNSAVED_RESULT" data-value="true">制造未保存结果</button>
+      <button data-action="SET_UNSAVED_RESULT" data-value="false">清除未保存结果</button>
+      <button data-action="REQUEST_QUIT">请求退出</button>
+      <button data-action="PREPARE_COMPLETE">清理完成</button>
+      <button data-action="CONFIRM_DISCARD">确认丢弃并退出</button>
+      <button data-action="CANCEL_QUIT">取消退出</button>
+    </div>
+    <div id="receipt" class="receipt">尚未派发事件</div>
+    <p class="hint">推荐验证：以 sheet 可见启动 → 制造未保存结果 → 请求退出 → 清理完成 → 取消退出。最终应为 resumed，且 sheetPresented 仍为 true。</p>
+  </div>
+<script src="../../vendor/mermaid.min.js"></script>
+<script src="./model.mmd.js"></script>
+<script src="./logic.js"></script>
+<script>
+  const model = window.TerminationModel;
+  let state = model.initial(true);
+  const els = {
+    status: document.getElementById("status"),
+    sheet: document.getElementById("sheet"),
+    unsaved: document.getElementById("unsaved"),
+    receipt: document.getElementById("receipt"),
+  };
+
+  function actionKey(button) {
+    return button.dataset.action + (button.dataset.value ? `:${button.dataset.value}` : "");
+  }
+
+  function render() {
+    els.status.textContent = state.status;
+    els.sheet.textContent = String(state.sheetPresented);
+    els.unsaved.textContent = String(state.unsavedResult);
+    const legality = model.legal(state);
+    document.querySelectorAll("[data-action]").forEach((button) => {
+      const entry = legality[actionKey(button)];
+      button.setAttribute("aria-disabled", String(!entry.legal));
+      button.title = entry.why || "";
+    });
+  }
+
+  document.querySelectorAll("[data-reset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state = model.initial(button.dataset.reset === "sheet");
+      els.receipt.textContent = "已重置";
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.getAttribute("aria-disabled") === "true") return;
+      const action = { type: button.dataset.action };
+      if (button.dataset.value) action.value = button.dataset.value === "true";
+      const previous = state.status;
+      state = model.reduce(state, action);
+      els.receipt.textContent = `${action.type}: ${previous} → ${state.status}`;
+      render();
+    });
+  });
+
+  const diagrams = Object.values(window.MERMAID_SOURCES || {}).flat();
+  if (window.mermaid && diagrams.length) {
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+    mermaid.render("termination-state", diagrams[0].src).then(({ svg }) => {
+      document.getElementById("diagram").innerHTML = svg;
+    });
+  } else {
+    document.getElementById("diagram").textContent = diagrams[0]?.src || "状态图不可用";
+  }
+  render();
+</script>
+</body>
+</html>
