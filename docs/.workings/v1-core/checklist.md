@@ -15,6 +15,7 @@
 | 09 | 单实例、诊断、本地化、登录项与 Sparkle 更新 | 已完成 |
 | 10 | 三架构直接分发、签名/公证/appcast 门禁与全功能收口 | 进行中（正式门禁阻塞） |
 | 12 | 状态项左/右键分流、右键退出与面板按钮真实截图衔接 | 已完成 |
+| 13 | 状态项显式持久身份，且不越界控制 macOS 菜单栏排序 | 已完成 |
 
 ## Ticket 01 evidence
 
@@ -76,3 +77,9 @@
 - Implemented surfaces: production accessory executable, application composition, frozen overlay, searchable target-language picker, persistent custom shortcut, menu/history/settings/onboarding/result routing, hourly cleanup wake with a 24-hour core gate, sanitized diagnostic export, and coordinated termination for Quit, Command-Q, language restart, and Sparkle installation.
 - Release pipeline: exact three-member manifest, separate architecture feeds, fail-closed credentials and HTTPS validation, nested hardened-runtime signing, app and DMG notarization/stapling/Gatekeeper checks, EdDSA verification, and atomic six-file staging.
 - Formal gate remains blocked: no local Developer ID identity or notarization evidence, no public HTTPS feed/download host, and no protected live OpenAI/Gemini/DeepSeek credentials. Development DMGs are not release evidence; Ticket 10 stays in progress.
+
+## Ticket 13 evidence
+
+- Gate: existing status-item interaction tests 5/5, strict Swift/C warnings-as-errors build, complete Swift Testing 197/197 in 49 suites, `git diff --check`, a production Swift CJK scan, and Developer ID-signed arm64 build 3 passing the repository app verifier and launch smoke test.
+- Testing decision: no new unit test because observing the private AppKit status item would require a production test hook, private reflection, or an assertion against a duplicated implementation constant; none would verify macOS cross-launch persistence. The signed-app restart check remains the honest system-level acceptance seam.
+- Evidence: `MenuBarPanelController` assigns the fixed, nonlocalized, version-independent `autosaveName` immediately after status-item creation; Ticket 13 design, design review, code review, test review, and final regression record the public-API boundary and the explicit non-goal of controlling menu-bar position.

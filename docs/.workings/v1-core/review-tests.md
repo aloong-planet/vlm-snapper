@@ -424,3 +424,29 @@
 ## 结论
 
 测试覆盖、case 边界与假通过检查完整。系统级人工剩余项只是安装 App 后实际左右键触感与真实 ScreenCaptureKit/TCC 路径，不影响当前确定性回归证据，也不会被冒充为已完成的签名宿主验收。
+# VLMSnapper v1 — Ticket 13 status item autosave identity test review
+
+审查范围：Ticket 13 的 TDD 豁免、现有状态项测试、严格构建和完整回归门禁。
+
+## 维度 1：覆盖是否完整
+
+- `Ticket12MenuBarInteractionTests` 的 5 个用例继续覆盖 controller 初始化、左/右键路由、单一退出菜单、退出 action、面板关闭后截图和非截图恢复路径。
+- 新接线没有可用公开 seam 验证 macOS 跨启动持久化；缺口明确保留为签名应用中的移动、退出、重启人工验收，不用私有字段断言冒充系统验证。
+- 严格 Swift/C warnings-as-errors 构建和完整 197/197、49 suites 回归通过；Developer ID-signed arm64 build 3 通过完整 App verifier 并成功启动。
+
+## 维度 2：case 设计是否合理
+
+- 现有测试经 controller 和行为 router 的真实入口运行，不反射私有 `NSStatusItem`，也不读取 macOS 私有偏好。
+- 没有为了本票暴露只供测试读取的生产属性；避免让实现细节成为长期公共测试 seam。
+
+## 维度 3：假通过检查
+
+- 定向输出包含 Swift Testing 的 5 tests / 1 suite 通过；XCTest 兼容层的 `Executed 0 tests` 不计入证据。
+- 全量输出包含 Swift Testing 的 197 tests / 49 suites 通过；严格构建独立运行，不以增量测试替代编译门禁。
+- 本票没有新增断言，因此不声称通过红灯或变异检验证明系统持久化；该限制已同时写入 Ticket、设计和 checklist evidence。
+
+## 结论
+
+既有行为回归门禁有效，系统级持久化缺口被诚实标注且没有假测试。Ticket 13 的一行 AppKit 接线按无有效单元测试 seam 豁免 TDD。
+
+---

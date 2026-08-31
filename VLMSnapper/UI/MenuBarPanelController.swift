@@ -76,6 +76,7 @@ public final class MenuBarPanelController<Content: View>: NSObject, NSPopoverDel
 
     public init(content: Content, onQuit: @escaping () -> Void) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.autosaveName = "com.loong.vlmsnapper.menu-bar-status-item"
         self.onQuit = onQuit
         super.init()
         dismissalCoordinator = MenuBarPanelDismissalCoordinator(
