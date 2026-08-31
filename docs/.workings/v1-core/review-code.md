@@ -456,3 +456,37 @@
 ## 结论
 
 未发现新的 race、资源泄漏、状态错乱或凭据风险。该修复窄化在分发元数据与打包门禁，不改动权限请求状态机。
+
+---
+
+# VLMSnapper v1 — Ticket 12 status item interaction code review
+
+审查范围：状态项左右键分流、原生 Quit 菜单、popover 关闭后截图接线、主面板入口和应用终止接线。
+
+## 【① 底层前提】
+
+- 当前 macOS SDK 的受支持入口是 `NSStatusItem.button` 与按钮的 `sendAction(on:)`；旧 `NSStatusItem.sendActionOn` 已弃用。
+- `NSMenu.popUpContextMenu` 接收触发事件和状态项按钮即可展示原生菜单；不需要 Carbon、自绘窗口或第二个状态项。
+- 真实截图入口已经存在于 `VLMSnapperApplicationModel.capture()`，全局快捷键和菜单栏按钮只应汇合到该入口。
+
+## 【② 可运行性】
+
+- 状态按钮现在接收左键和右键抬起：右键进入单项原生菜单，其他激活保持原有 popover toggle 行为。
+- 主面板的 Capture Screen 先复用 `MenuCaptureRouter`。Provider/权限恢复仍在原 popover 展示；ready 分支通过 `popoverDidClose` 信号再调用已有 capture callback。
+- 环境中没有生产 popover coordinator 时，preview、UI harness 和离屏渲染直接执行 callback，不会因测试宿主缺 AppKit controller 而失效。
+
+## 【③ 安全正确性】
+
+- 第一版环境动作草稿依赖 `@unchecked Sendable`。审查中把它替换为直接注入 `@MainActor` dismissal coordinator，去掉不必要的并发安全豁免。
+- Quit item 只调用 `NSApp.terminate(nil)`；`applicationShouldTerminate` 仍是唯一调用 `prepareForTermination()` 的协调入口。主面板旧 callback 和模型 `requestQuit()` 已删除，避免同一路径准备两次。
+- 右键路径不主动关闭 popover，不会在退出被取消前先销毁 Provider/权限 sheet 状态。截图路径只在 ready 分支关闭，且 pending callback 执行一次后立即清空。
+
+## 【④ 回归与范围】
+
+- Check for Updates、最近记录、History、Settings 与状态点保持原接线；只移除主面板 Quit 行和因此产生的未用图标。
+- 没有修改 ScreenCaptureKit、冻结帧、选区、PNG、Provider、历史、Sparkle 或终止确认规则。
+- 明暗模式真实 SwiftUI 离屏渲染已检查：主面板布局完整，Quit 行消失，Capture 与更新入口仍可见。
+
+## 结论
+
+审查发现并修正一处不必要的 unchecked concurrency seam，未发现剩余 race、双重退出准备、资源泄漏或第二套截图流程。实现与确认原型的入口分工一致。
