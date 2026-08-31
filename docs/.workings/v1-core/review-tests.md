@@ -468,3 +468,30 @@
 - 首次未指定 `DEVELOPER_DIR` 的测试因 Command Line Tools 缺少 `Testing` 模块而在编译阶段失败，未计作行为红灯；改用 CI 同款 `/Applications/Xcode.app` toolchain 后目标测试与全量测试真实执行。
 - Swift Testing 明确汇总 198 tests / 50 suites；XCTest compatibility layer 的 `Executed 0 tests` 未计作证据。
 - 严格 Swift/C warnings-as-errors build、脚本语法和 arm64/x64/universal DMG 组装与 `hdiutil verify` 全部通过。
+
+---
+
+# VLMSnapper v1 — Ticket 13 Edit menu and prototype parity test review
+
+## 维度 1：覆盖是否完整
+
+- Application menu 测试覆盖完整 Edit 层级、子菜单顺序、标准 selector、快捷键、Find tag、nil target、真实 `NSTextView` responder Paste，以及简体中文菜单。
+- Presentation/contract 测试覆盖真实历史标题/操作/相对时间/终态/截图路径、Provider badge、非当前 Provider 的持久化配置状态，以及 menu/onboarding/provider/permission/result/management 的独立确认几何。
+- production render 直接实例化十个生产 view，在简体中文/英语和 light/dark 下生成 40 张精确命名 PNG；人工抽查了所有关键表面的层级、截断、圆角、对齐和主题表现。
+
+## 维度 2：case 设计是否合理
+
+- responder 测试调用真实 `NSTextView.tryToPerform`，不是只断言菜单里出现了 “Paste”；selector/target 断言与行为断言相互独立。
+- 几何期望在测试中写确认字面值，不用生产 view 自己的 layout 结果计算期望。Provider row 测试构造“当前 DeepSeek 未配置、非当前 OpenAI 已配置”的可达状态，正面覆盖原实现的误报路径。
+- render 测试每次先移除固定临时输出目录，再精确比较全部预期文件名；旧截图或遗漏渲染不能再仅靠总数 40 假通过。PNG 字节门槛只证明产物非空，视觉结论仍来自实际查看。
+
+## 维度 3：有没有假通过
+
+- 把 Paste selector 从 `paste:` 变异为 `copy:` 后，目标测试精确在 selector 断言处红；恢复后完整门禁转绿。
+- 把菜单栏确认宽度从 370 变异为 369 后，几何测试精确拒绝；恢复后转绿。
+- 把非当前 Provider 的 `isConfigured` 强制为 false 后，Provider row 状态测试精确红；恢复真实 `configuration.isUsable` 后转绿。
+- 最终 Swift Testing 汇总为 209 tests / 54 suites；XCTest compatibility layer 的 `Executed 0 tests` 不作证据。严格 Swift/C warnings-as-errors build、234/234 双语键、prototype shared blocks、UI literal scan 与 `git diff --check` 均通过。
+
+## 结论
+
+覆盖、case 设计和假通过三维均已核对。Edit 菜单行为、生产状态映射、确认几何和完整表面渲染都有能杀死对应回归的独立信号；真实安装 App 的鼠标/键盘手感仍属于合并后安装验收，不被离屏测试冒充。

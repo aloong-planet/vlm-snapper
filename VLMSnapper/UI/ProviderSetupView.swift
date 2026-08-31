@@ -1,8 +1,51 @@
 import SwiftUI
 import VLMSnapperCore
 
+public struct ProviderSidebarPresentation: Equatable, Sendable {
+    public let detail: String
+    public let isConfigured: Bool
+
+    public init(
+        provider: ProviderID,
+        snapshot: ProviderSetupSnapshot,
+        configurations: [ProviderID: ProviderConfiguration]
+    ) {
+        if provider == snapshot.selectedProvider {
+            switch snapshot.phase {
+            case .validating:
+                detail = VLMSnapperStrings.validating
+                isConfigured = false
+                return
+            case .selectingModel:
+                detail = VLMSnapperStrings.modelPending
+                isConfigured = false
+                return
+            case .ready:
+                detail = snapshot.selectedModelID ?? VLMSnapperStrings.modelPending
+                isConfigured = snapshot.selectedModelID != nil
+                return
+            case .failed:
+                detail = VLMSnapperStrings.failed
+                isConfigured = false
+                return
+            case .awaitingValidation:
+                break
+            }
+        }
+
+        if let configuration = configurations[provider] {
+            detail = configuration.selectedModelID ?? VLMSnapperStrings.modelPending
+            isConfigured = configuration.isUsable
+        } else {
+            detail = VLMSnapperStrings.notConfigured
+            isConfigured = false
+        }
+    }
+}
+
 public struct ProviderSetupView: View {
     private let snapshot: ProviderSetupSnapshot
+    private let configurations: [ProviderID: ProviderConfiguration]
     @Binding private var apiKey: String
     @Binding private var pendingModelID: String?
     private let onSelectProvider: (ProviderID) -> Void
@@ -14,6 +57,7 @@ public struct ProviderSetupView: View {
 
     public init(
         snapshot: ProviderSetupSnapshot,
+        configurations: [ProviderID: ProviderConfiguration] = [:],
         apiKey: Binding<String>,
         pendingModelID: Binding<String?>,
         onSelectProvider: @escaping (ProviderID) -> Void,
@@ -24,6 +68,7 @@ public struct ProviderSetupView: View {
         onDone: @escaping () -> Void
     ) {
         self.snapshot = snapshot
+        self.configurations = configurations
         _apiKey = apiKey
         _pendingModelID = pendingModelID
         self.onSelectProvider = onSelectProvider
@@ -43,19 +88,20 @@ public struct ProviderSetupView: View {
                 Divider()
                 detailPane.disabled(snapshot.isReadOnly)
             }
+            .frame(height: ProviderSetupMetrics.bodyHeight)
             Divider()
             footer
         }
         .background(VLMSnapperTheme.window)
         .clipShape(
             RoundedRectangle(
-                cornerRadius: VLMSnapperUIConstants.attachedSheetCornerRadius,
+                cornerRadius: ProviderSetupMetrics.cornerRadius,
                 style: .continuous
             )
         )
         .overlay {
             RoundedRectangle(
-                cornerRadius: VLMSnapperUIConstants.attachedSheetCornerRadius,
+                cornerRadius: ProviderSetupMetrics.cornerRadius,
                 style: .continuous
             )
             .stroke(VLMSnapperTheme.border, lineWidth: 1)
@@ -65,7 +111,13 @@ public struct ProviderSetupView: View {
                 apiKey = ""
             }
         }
-        .frame(minWidth: 720, idealWidth: 820, minHeight: 590)
+        .frame(
+            width: ProviderSetupMetrics.width,
+            height: ProviderSetupMetrics.headerHeight
+                + ProviderSetupMetrics.bodyHeight
+                + ProviderSetupMetrics.footerHeight
+                + 2
+        )
         .permitsApplicationTerminationWhilePresented()
     }
 
@@ -85,7 +137,8 @@ public struct ProviderSetupView: View {
             .accessibilityLabel(VLMSnapperStrings.close)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
+        .padding(.horizontal, 20)
+        .frame(height: ProviderSetupMetrics.headerHeight)
     }
 
     private var providerSidebar: some View {
@@ -95,6 +148,11 @@ public struct ProviderSetupView: View {
                 .foregroundStyle(VLMSnapperTheme.secondaryText)
                 .accessibilityHidden(true)
             ForEach(providerDisplayOrder, id: \.self) { provider in
+                let presentation = ProviderSidebarPresentation(
+                    provider: provider,
+                    snapshot: snapshot,
+                    configurations: configurations
+                )
                 Button {
                     onSelectProvider(provider)
                 } label: {
@@ -108,12 +166,18 @@ public struct ProviderSetupView: View {
                             )
                             .background(VLMSnapperTheme.subtleSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
-                        Text(VLMSnapperStrings.providerName(provider))
-                            .font(.headline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(VLMSnapperStrings.providerName(provider))
+                                .font(.headline)
+                            Text(presentation.detail)
+                                .font(.caption)
+                                .foregroundStyle(VLMSnapperTheme.secondaryText)
+                                .lineLimit(1)
+                        }
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 10)
-                    .frame(height: 50)
+                    .frame(height: 62)
                     .background(
                         provider == snapshot.selectedProvider
                             ? VLMSnapperTheme.accent.opacity(0.12)
@@ -125,8 +189,8 @@ public struct ProviderSetupView: View {
             }
             Spacer()
         }
-        .padding(20)
-        .frame(width: 240)
+        .padding(16)
+        .frame(width: 218)
         .background(VLMSnapperTheme.subtleSurface)
     }
 
@@ -178,7 +242,7 @@ public struct ProviderSetupView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             Spacer()
         }
-        .padding(28)
+        .padding(20)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
@@ -206,6 +270,9 @@ public struct ProviderSetupView: View {
 
     private var footer: some View {
         HStack {
+            Text(VLMSnapperStrings.providerSetupFooterNote)
+                .font(.caption)
+                .foregroundStyle(VLMSnapperTheme.secondaryText)
             Spacer()
             Button(VLMSnapperStrings.cancel, action: onCancel)
                 .keyboardShortcut(.cancelAction)
@@ -213,7 +280,8 @@ public struct ProviderSetupView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!snapshot.canFinish)
         }
-        .padding(18)
+        .padding(.horizontal, 18)
+        .frame(height: ProviderSetupMetrics.footerHeight)
     }
 
     private var statusBadge: some View {

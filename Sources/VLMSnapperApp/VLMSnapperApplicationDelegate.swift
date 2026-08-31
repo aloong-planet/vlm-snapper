@@ -71,6 +71,9 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
             preferredLanguages: Locale.preferredLanguages
         )
         VLMSnapperLocalization.configure(effectiveLanguage: effectiveLanguage)
+        NSApp.mainMenu = VLMSnapperApplicationMenuBuilder.makeMainMenu(
+            applicationName: "VLMSnapper"
+        )
 
         let model = try VLMSnapperApplicationModel(
             applicationSupportRoot: root,

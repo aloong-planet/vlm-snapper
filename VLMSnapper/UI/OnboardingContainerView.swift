@@ -35,6 +35,7 @@ public struct OnboardingCallbacks {
 public struct OnboardingContainerView: View {
     private let snapshot: OnboardingSnapshot
     private let providerSnapshot: ProviderSetupSnapshot
+    private let providerConfigurations: [ProviderID: ProviderConfiguration]
     @Binding private var apiKey: String
     @Binding private var pendingModelID: String?
     private let callbacks: OnboardingCallbacks
@@ -43,12 +44,14 @@ public struct OnboardingContainerView: View {
     public init(
         snapshot: OnboardingSnapshot,
         providerSnapshot: ProviderSetupSnapshot,
+        providerConfigurations: [ProviderID: ProviderConfiguration] = [:],
         apiKey: Binding<String>,
         pendingModelID: Binding<String?>,
         callbacks: OnboardingCallbacks
     ) {
         self.snapshot = snapshot
         self.providerSnapshot = providerSnapshot
+        self.providerConfigurations = providerConfigurations
         _apiKey = apiKey
         _pendingModelID = pendingModelID
         self.callbacks = callbacks
@@ -74,6 +77,7 @@ public struct OnboardingContainerView: View {
             case .provider:
                 ProviderSetupView(
                     snapshot: providerSnapshot,
+                    configurations: providerConfigurations,
                     apiKey: $apiKey,
                     pendingModelID: $pendingModelID,
                     onSelectProvider: callbacks.onSelectProvider,

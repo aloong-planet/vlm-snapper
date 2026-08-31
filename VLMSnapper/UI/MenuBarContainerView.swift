@@ -67,6 +67,7 @@ public struct MenuBarContainerView: View {
     private let permission: ScreenCapturePermissionReadiness
     private let provider: ProviderReadiness
     private let providerSnapshot: ProviderSetupSnapshot
+    private let providerConfigurations: [ProviderID: ProviderConfiguration]
     private let updateState: UpdateLifecycleState
     private let captureShortcut: String
     @Binding private var apiKey: String
@@ -80,6 +81,7 @@ public struct MenuBarContainerView: View {
         permission: ScreenCapturePermissionReadiness,
         provider: ProviderReadiness,
         providerSnapshot: ProviderSetupSnapshot,
+        providerConfigurations: [ProviderID: ProviderConfiguration] = [:],
         updateState: UpdateLifecycleState = .idle,
         captureShortcut: String = "⌥⇧S",
         apiKey: Binding<String>,
@@ -90,6 +92,7 @@ public struct MenuBarContainerView: View {
         self.permission = permission
         self.provider = provider
         self.providerSnapshot = providerSnapshot
+        self.providerConfigurations = providerConfigurations
         self.updateState = updateState
         self.captureShortcut = captureShortcut
         _apiKey = apiKey
@@ -100,6 +103,7 @@ public struct MenuBarContainerView: View {
     public var body: some View {
         MenuBarPanelView(
             recentItems: recentItems,
+            provider: provider,
             updateState: updateState,
             captureShortcut: captureShortcut,
             onCapture: routeCapture,
@@ -120,6 +124,7 @@ public struct MenuBarContainerView: View {
             case .provider:
                 ProviderSetupView(
                     snapshot: providerSnapshot,
+                    configurations: providerConfigurations,
                     apiKey: $apiKey,
                     pendingModelID: $pendingModelID,
                     onSelectProvider: callbacks.onSelectProvider,

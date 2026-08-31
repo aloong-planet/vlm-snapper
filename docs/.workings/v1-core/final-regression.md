@@ -532,3 +532,39 @@ Ticket 12 的 prototype、CONTEXT、spec、features、design、production wiring
 ## 收敛结论
 
 三阶段队列已清空。Ticket 11 的 sheet termination policy 与 Ticket 12 的右键 Quit 入口在最新 `main` 上组合一致；当前 Installed App 仍是缺少 Ticket 11 的旧构建，必须安装合并后的新包才可做最终宿主复测。
+
+---
+
+# 2026-08-31 — Ticket 13 Edit menu and confirmed prototype parity
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| complete Edit menu | native menu builder、application delegate、4 个 AppKit tests | 完整层级、双语、selector、快捷键与 responder Paste 一致 |
+| left-click companion panel | production history/provider/update snapshots 与 confirmed companion prototype | 370 pt、Provider 状态、截图主按钮、inline update、三条 rich recent rows、双列 footer 一致 |
+| all confirmed pages | onboarding/privacy/provider/permission/toolbar/result/management production views | 十个表面均使用确认层级和几何；prototype fixture 未进入应用状态 |
+| spec/features | 当前代码、原型 manifest 与 Ticket design | 手动更新只在 General Settings；完整 Edit 和多 Provider 状态已同步 |
+
+## 阶段二：关系对读
+
+| 关系 | 核对 | 结论 |
+| --- | --- | --- |
+| API Key field ↔ application menu | standard `SecureField` ↔ nil-target `paste:` | Command-V 通过 AppKit responder chain，无字段旁路 |
+| provider rows ↔ persisted metadata | full configuration map ↔ selected setup snapshot | 当前交互状态与每个 Provider 的持久化模型状态不再混淆 |
+| recent rows ↔ history ownership | stored source/status/path ↔ thumbnail/placeholder | 只展示真实记录；缺文件安全降级，Markdown heading 不污染标题 |
+| prototype geometry ↔ test oracle | production metrics ↔ independent literal assertions | accidental 1 pt drift 可被测试发现，不从实现反算期望 |
+
+## 阶段三：事件核销
+
+| 事件 | 结论 |
+| --- | --- |
+| Paste 只能手输 | 完整 Edit menu 与真实 responder test 已核销 |
+| 左键页面与原型不一致 | confirmed companion hierarchy 和全部页面 production renders 已核销 |
+| 非当前 Provider 被误报 | configuration map seam 与定向测试已核销 |
+| render 旧文件假通过 | 每轮清空固定临时目录并校验 40 个精确文件名 |
+| 门禁 | strict build、209/209 tests（54 suites）、40 renders、234/234 localization、prototype check、literal/CJK scan、diff check 全部通过 |
+
+## 收敛结论
+
+Ticket 13 的 issue、design、design review、prototype、spec、feature catalog、production wiring、code/test review 与最终门禁一致。开发任务已完成；正式签名、公证、真实安装后的鼠标/键盘/TCC 验收仍由 Ticket 10 承兑。
