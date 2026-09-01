@@ -526,3 +526,36 @@
 ## 结论
 
 本轮行为与主题回归都有可杀死已知错误的独立测试。纯历史布局保留诚实的视觉验收缺口，并已由当前产物整窗核对；下一道完整门禁和安装 smoke 仍需继续执行。
+# Ticket 15 — Production regression follow-up test review
+
+## 维度 1：覆盖完整性
+
+| 用户操作/边界 | Test / evidence | 结论 |
+| --- | --- | --- |
+| 可见菜单面板关闭后才进入 readiness，并且不在 close callback 内同步执行 | `visiblePanelDefersActionUntilAfterCloseCallback` | 已覆盖异步 race；有界等待避免挂死 |
+| hidden panel 的既有路径仍立即执行且 close callback 幂等 | `hiddenPanelPerformsActionImmediately` | 既有回归覆盖保持 |
+| 401/403 typed rejection 显示 invalid credential | `rejectedAPIKeyIsReportedAsInvalidCredentials` | 通过公开 `validate(apiKey:)` 路径覆盖 |
+| 非鉴权 model-list failure 不被误标为 invalid credential | `providerOutageIsNotReportedAsInvalidCredentials` | 503 反例覆盖 |
+| 管理窗口最小值约束完整内容区 | `minimumAppliesToContentArea` | 覆盖独立 `920×620` literal 与 AppKit minimum frame 的实际 content layout |
+| 最小内容区的完整视觉层级 | `confirmedSurfacesRender` 的四张 `management-minimum-*` | 已生成并目视核对双语明暗 |
+| status-item 到 frontmost key window 的跨应用 activation | 签名安装版手动 acceptance | 自动化缺口已在 `Ticket12MenuBarInteractionTests.swift` 文件头说明；需要真实 WindowServer 与另一前台应用 |
+
+## 维度 2：case 设计
+
+- Provider 用例通过 `ProviderSetupConfiguring` 公开边界抛出生产 typed error，没有 cast、私有状态或项目内 mock。
+- 管理窗口用例构造真实 `ManagementCenterWindowController` 和 `NSWindow`，独立期望值为用户确认的 `920×620`；没有复用 production constant 作为 expected。
+- menu 用例通过既有 dismissal coordinator 公开路径进入可达状态，断言 close request、callback 内未执行和后续 exactly-once 结果。
+- render 使用 production `ManagementCenterView`，不是 prototype fixture；其定位是视觉补充证据，不冒充窗口约束行为测试。
+- 所有 async 断言都在 awaited 测试体内执行，没有 callback 内静默绿或空集合循环。
+
+## 维度 3：假通过检查
+
+- Provider auth 用例在实现前准确红于 `.unavailable == .invalidConfiguration`；成因就是目标错误分类。
+- Management 用例在实现前准确红于 `contentMinSize=(920,588)` 及 content height 588；成因就是 frame/content 混用。
+- Menu lifecycle 用例在实现前准确红于 callback 内 `events=["capture"]`；成因就是目标同步执行。
+- 503 反例用于防止过宽映射；review 变异把任意 `ProviderModelListError` 视为 invalid credential 时，该用例必须红于 `.invalidConfiguration == .unavailable`，还原后重新转绿。
+- 无恒真阈值、输入别名期望、复用 production constant、静默 skip 或陈旧构建产物；每次 focused run 都先触发 SwiftPM 重建受改目标。
+
+## Review result
+
+覆盖完整、case 站在现有公开 seam、三条核心回归均有准确红灯。唯一无法在 SwiftPM 单测内证明的是跨应用 WindowServer activation，已诚实保留为签名安装版 acceptance，不用合成断言冒充。

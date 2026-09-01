@@ -18,6 +18,7 @@
 | 12 | 状态项左/右键分流、右键退出与面板按钮真实截图衔接 | 已完成 |
 | 13 | 完整 Edit 菜单、文本编辑 responder chain 与所有确认原型的生产界面一致性 | 已完成 |
 | 14 | 未就绪截图回到前台引导、Provider 输入与居中恢复、管理侧栏和历史详情原型回归 | 已完成 |
+| 15 | 菜单截图恢复置前、Provider 鉴权失败原因和管理窗口最小内容区回归 | 已实现，待安装版验收 |
 
 ## Ticket 01 evidence
 
@@ -97,3 +98,9 @@
 - Gate: 严格 Swift/C warnings-as-errors build、完整 Swift Testing 213/213（56 suites）、40 张双语/明暗生产界面渲染、234/234 本地化键一致、prototype JavaScript 检查、UI 硬编码扫描、本票源码与测试 CJK 扫描、shell syntax 与 `git diff --check`。
 - Tests: `Ticket12MenuBarInteractionTests` 的三个未就绪/就绪路由都先关闭面板、`ProviderSetupInputStateTests` 2 例验证粘贴立即启用和切换 Provider 清理草稿、`ThemeSurfaceRenderingTests` 2 例验证 Aqua/Dark Aqua 自适应次级表面；三处定向变异均准确红灯并在恢复后转绿。
 - Evidence: `MenuBarContainerView.swift` 移除状态项 popover 内的重复 sheet host、`ProviderSetupView.swift` 使用可观察的本地输入状态、`VLMSnapperTheme.swift` 恢复原型层级的自适应浅色表面、`ManagementCenterView.swift` 恢复带边框的历史详情卡；Ticket design/review、code/test review、production renders 与 `final-regression.md` 完成闭环。
+
+## Ticket 15 evidence
+
+- Gate: 严格 Swift/C warnings-as-errors build、完整 Swift Testing 216/216（57 suites）、44 张双语/明暗生产界面渲染、234/234 本地化键一致、prototype JavaScript、shell syntax、UI literal/CJK 与 `git diff --check` 全部通过；Developer ID arm64 build 6 已验证并安装，等待真实 WindowServer 用户验收后核销本票。
+- Tests: `ProviderSetupSessionTests` 的 401 正例和 503 反例区分无效凭据与服务不可用；`ManagementCenterWindowContractTests` 用真实 AppKit window 证明 `920×620` 约束完整内容区；`Ticket12MenuBarInteractionTests` 证明 pending Capture 不在 popover close callback 内同步执行，而在下一主线程周期 exactly once 运行；Ticket 13 render 追加四张最小管理窗口产物。
+- Evidence: 安装版统一日志确认 OpenAI 请求完成 DNS/TLS/HTTP2 后返回 401；独立 AppKit probe 证明 `920×620` 外框只有 `920×588` 内容区；三条 TDD 红绿、503 过宽映射变异、code/test review、spec/features 与 `final-regression.md` 完成闭环。跨应用 WindowServer 置前仍由本票签名安装版手动 acceptance 承兑，不以 SwiftPM 单测冒充。

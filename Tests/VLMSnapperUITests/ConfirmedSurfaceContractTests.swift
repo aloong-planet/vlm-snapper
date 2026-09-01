@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import Testing
@@ -50,5 +51,25 @@ struct ConfirmedSurfaceContractTests {
 
         #expect(presentation.isConfigured)
         #expect(presentation.detail == "gpt-vision")
+    }
+}
+
+@Suite("Management center window contract", .serialized)
+@MainActor
+struct ManagementCenterWindowContractTests {
+    @Test("the minimum applies to the complete content area")
+    func minimumAppliesToContentArea() throws {
+        let controller = ManagementCenterWindowController(records: [])
+        let window = try #require(controller.window)
+
+        #expect(window.contentMinSize == NSSize(width: 920, height: 620))
+
+        window.setFrame(
+            NSRect(origin: .zero, size: window.minSize),
+            display: false
+        )
+
+        #expect(window.contentLayoutRect.width >= 920)
+        #expect(window.contentLayoutRect.height >= 620)
     }
 }
