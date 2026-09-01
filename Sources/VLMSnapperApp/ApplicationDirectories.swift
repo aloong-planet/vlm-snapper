@@ -1,4 +1,5 @@
 import Foundation
+import VLMSnapperCore
 
 enum ApplicationDirectories {
     static func applicationSupportRoot(
@@ -24,6 +25,6 @@ enum ApplicationDirectories {
             appropriateFor: nil,
             create: true
         )
-        return pictures.appendingPathComponent("VLMSnapper", isDirectory: true)
+        return ManagedScreenshotRoot.directURL(for: pictures)
     }
 }
