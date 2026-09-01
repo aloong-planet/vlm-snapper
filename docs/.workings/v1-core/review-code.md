@@ -655,3 +655,39 @@
 ## Refactor disposition
 
 - 无需另开重构。其他普通窗口的 activation 顺序属于既有代码且无同类实测故障；为保持窄范围，本票不改。
+
+---
+
+# VLMSnapper v1 — Ticket 16 code review
+
+审查范围：Developer ID provisioning profile 验证、动态 entitlement 派生、三架构签名门禁、Data Protection Keychain 烟测以及 Provider 安全存储错误呈现。
+
+## 【① 底层前提】
+
+- 下载到本机的真实 Developer ID distribution profile 已由系统 `security cms` 解码；实际 UUID、到期时间、`OSX` 平台、全设备分发标志、App ID Prefix、Team ID、Bundle ID、Keychain allowlist 与 Developer ID Application 证书均由实现按真实结构读取，不以合成 fixture 代替外部事实。
+- 当前登录钥匙串中的 `Developer ID Application: Longfei Zhou (RHQ28XS7D9)` 证书与 profile 内证书 DER 实际匹配；arm64、x64、Universal 三种临时 App 均由该身份真实签名并通过校验。
+- Xcode 26 在 Apple Silicon 主机显式传入 arm64 triple 时会命中预编译 Foundation/优化器故障；构建脚本只在“本机即 arm64”时使用宿主目标，x64 与 Intel 主机上的 arm64 仍使用显式 triple。两条分支均以实际 release build 验证，不把旧 scratch 产物当本轮结果。
+
+## 【② 可运行性】
+
+- profile 缺失、CMS 解码失败、过期、渠道不符、Bundle/Prefix/Team 不符、Keychain group 未授权或签名证书不在 profile 内时，准备步骤在任何正式签名前终止；故障逃逸面为整次发布，属于预期 fail-closed，不留下可发布降级产物。
+- 嵌套 Sparkle 代码逐项先签，外层 App 最后签；三架构均复验嵌入 profile 摘要、UUID、外层实际 entitlement、证书 authority、Team ID、runtime 与 secure timestamp。
+- Universal 最终签名进程使用唯一 service 执行随机假凭据的增、读、改、删，成功与失败路径均尽力删除；真实运行已通过。Keychain 写入失败只使当前 Provider 配置失败并保留输入，不污染其他 Provider 或误报远端服务故障。
+- review 清理了新文件内从未构造或匹配的 `signingCertificateUnavailable` 枚举分支。全库引用检索及 `git log -S` 均无其他实例；它没有持久化值或跨端消费者。
+
+## 【③ 安全正确性】
+
+- 仓库、Git index 与 artifact 清单都不包含 profile 输入、解码 plist、派生 entitlement 或 API Key；CI 仅从 protected secret 写入 runner 临时文件，权限由 `umask 077` 限制，并在 `always()` 清理步骤删除。
+- App ID Prefix 不在生产代码、脚本或 CI 中硬编码；精确 application identifier、Team ID 与单一 Keychain access group 全部从已验证 profile 动态派生，再与最终签名实际值逐项比较。
+- 签名准备拒绝覆盖既有输出；release staging 使用独立临时目录。准备过程的检查与写入之间仍有理论 TOCTOU，但调用目标均位于本次发布私有临时目录，不存在同层或上层故障逃逸面，故不扩张为通用文件事务重构。
+- 日志和错误不包含 API Key。真实 Keychain 烟测的随机假凭据只存在于唯一临时 Keychain 条目，失败时执行 best-effort 清理。
+
+## 【④ 一致性】
+
+- 实现符合 ADR-0001 的 Keychain 保存、ADR-0005 的稳定 `com.loong.vlmsnapper` 身份、ADR-0007 的 Developer ID 直接分发和 ADR-0004 的三架构原子门禁。
+- Provider 安全存储失败沿用现有 `local_storage` 用户错误类别；没有新增页面、控件、颜色、间距或状态结构，因此按已记录的原型例外无需新视觉原型。
+- 新源码、注释、测试名与命令错误均为英文；用户文案通过 zh-Hans/en 字典成对进入。未发现需要另开任务的重构项。
+
+## 结论
+
+review 发现并删除 1 个本次引入的 orphan enum case；事实层重扫后，三架构签名、Keychain 生命周期、安全边界与既有 ADR 均无剩余阻断项。

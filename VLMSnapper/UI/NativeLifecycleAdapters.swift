@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import ServiceManagement
 import VLMSnapperCore
 
@@ -72,15 +73,21 @@ public final class DistributedPrimaryInstanceMessaging: PrimaryInstanceMessaging
     public func beginObserving(
         _ handler: @escaping @Sendable () async -> Void
     ) async {
-        observerLock.withLock {
-            guard observer == nil else { return }
-            observer = notificationCenter.addObserver(
-                forName: notificationName,
-                object: nil,
-                queue: .main
-            ) { _ in
-                Task { await handler() }
-            }
+        installObserverIfNeeded(handler)
+    }
+
+    private func installObserverIfNeeded(
+        _ handler: @escaping @Sendable () async -> Void
+    ) {
+        observerLock.lock()
+        defer { observerLock.unlock() }
+        guard observer == nil else { return }
+        observer = notificationCenter.addObserver(
+            forName: notificationName,
+            object: nil,
+            queue: Foundation.OperationQueue.main
+        ) { _ in
+            Task { await handler() }
         }
     }
 

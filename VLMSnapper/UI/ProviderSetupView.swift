@@ -366,6 +366,7 @@ public struct ProviderSetupView: View {
         switch failure {
         case .configurationLocked: VLMSnapperStrings.failed
         case .invalidConfiguration: VLMSnapperStrings.failureMessage(code: "invalid_credential")
+        case .secureStorage: VLMSnapperStrings.failureMessage(code: "local_storage")
         case .unavailable: VLMSnapperStrings.failureMessage(code: "provider_unavailable")
         }
     }

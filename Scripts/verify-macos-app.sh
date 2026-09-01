@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-if [[ $# -ne 6 ]]; then
-    echo "Usage: $0 <app> <universal|arm64|x64> <version> <build-version> <feed-url> <sparkle-public-key>" >&2
+if [[ $# -ne 6 && $# -ne 8 ]]; then
+    echo "Usage: $0 <app> <universal|arm64|x64> <version> <build-version> <feed-url> <sparkle-public-key> [<signing-metadata> <signing-identity>]" >&2
     exit 64
 fi
 
@@ -13,6 +13,9 @@ version="$3"
 build_version="$4"
 feed_url="$5"
 sparkle_public_key="$6"
+signing_metadata="${7:-}"
+signing_identity="${8:-}"
+project_root="$(cd "$(dirname "$0")/.." && pwd)"
 info="$app/Contents/Info.plist"
 executable="$app/Contents/MacOS/VLMSnapperApp"
 
@@ -130,3 +133,10 @@ assert_entitlement_value \
 assert_entitlement_value \
     com.apple.security.temporary-exception.mach-lookup.global-name:1 \
     com.loong.vlmsnapper-spks
+
+if [[ -n "$signing_metadata" ]]; then
+    "$project_root/Scripts/verify-developer-id-app.sh" \
+        "$app" \
+        "$signing_metadata" \
+        "$signing_identity"
+fi

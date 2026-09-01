@@ -31,6 +31,7 @@
 "failure.imageTooLarge" = "截图超过当前 Provider 或模型的大小限制。";
 "failure.timeout" = "等待 Provider 响应超时，请检查网络后手动重试。";
 "failure.transport" = "无法连接 Provider，请检查网络后手动重试。";
+"failure.localStorage" = "VLMSnapper 无法将 API Key 安全保存到 Apple Keychain。请保留当前窗口，检查应用安装后重试。";
 "failure.incomplete" = "Provider 返回了不完整或无法解析的结果。";
 "failure.unknown" = "请求失败，请查看错误详情后手动重试。";
 "onboarding.title" = "欢迎使用 VLMSnapper";

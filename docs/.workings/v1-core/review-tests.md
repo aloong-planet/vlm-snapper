@@ -559,3 +559,33 @@
 ## Review result
 
 覆盖完整、case 站在现有公开 seam、三条核心回归均有准确红灯。唯一无法在 SwiftPM 单测内证明的是跨应用 WindowServer activation，已诚实保留为签名安装版 acceptance，不用合成断言冒充。
+
+---
+
+# VLMSnapper v1 — Ticket 16 test review
+
+## 维度 1：覆盖是否完整
+
+- profile 测试覆盖匹配成功、动态 entitlement、过期、错误 Bundle ID、未授权证书、未授权 Keychain group、非 Developer ID distribution profile，以及基础 entitlement 禁止预写三项受管理身份键。
+- preparation/script 测试覆盖既有输出拒绝覆盖和正式发布缺少外部 profile 时的状态 78 fail-closed。真实下载 profile 另走系统 CMS 解码与签名工具，提供独立于 spec/合成 fixture 的外部结构样本。
+- Provider 测试覆盖 Keychain 写失败映射到本地安全存储；既有配置协调器测试覆盖失败时回滚 pending journal、保留旧配置。烟测单元测试覆盖完整增读改删顺序与中途读取失败仍清理。
+- SwiftPM 无签名宿主不能证明 Data Protection Keychain。该缺口由最终签名 Universal App 的真实 CRUD 进程验收填补；arm64、x64、Universal 三种 App 均另做静态 profile/签名一致性验收。
+- 未执行完整公证上传、stapling 与公开 appcast 发布；这些仍由既有正式发布 workflow 承兑，本票只改变其签名前置 profile 与 Keychain 门禁，不把本地签名验收冒充正式发布完成。
+
+## 维度 2：case 设计是否合理
+
+- profile 用例从公开初始化与 `validatedSigningMetadata` seam 驱动；期望值是已知字面量，不复用生产常量或按实现算法重算。
+- Keychain smoke fake 记录外部存储边界操作；顺序本身就是“增、读、改、读、删、确认删除”的验收契约，因此精确序列断言属于系统边界豁免，不是内部协作者耦合。
+- release script 测试启动真实 shell 入口并断言退出状态与稳定错误，不读取私有函数。真实签名验收读取最终 bundle 的系统签名与 entitlement，不以源文件存在性替代生效验证。
+- 所有临时目录和随机 service 都由用例独占并清理；无私有 cast、手工不可达状态、空集合循环断言或条件静默 return。
+
+## 维度 3：有没有假通过
+
+- profile 合成用例开发期分别红于缺少 parser、派生身份和受管理 entitlement；Provider 分类用例红于 `.unavailable != .secureStorage`；smoke 清理用例红于失败后没有 delete。
+- 三架构验收均在本轮重新 build 后执行。Universal 真实 CRUD 输出来自最终 Developer ID 签名进程；未签名 SwiftPM 在 Codex 沙箱内返回 `-50` 的失败已判为环境假信号，并在沙箱外完整 Xcode 环境重跑为绿。
+- 对签名一致性新门禁做了负向变异：只修改临时 metadata 副本中的 application identifier，确认被检对象确实包含错误值后，校验器以状态 1 精确失败在实际 entitlement 比较；原 App 与正式 metadata 未改动。
+- 最终全量为 229 tests / 61 suites；Keychain 与 AppKit 必须在沙箱外运行，所有套件均实际执行，无 skip。`git diff --check` 与五个 shell 脚本语法检查同时通过。
+
+## Review result
+
+单元、脚本、真实 profile、三架构签名和最终签名进程 CRUD 形成互相独立的验证层；没有发现恒真断言、陈旧产物或用合成路径冒充系统行为的剩余缺口。

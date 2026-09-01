@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import Testing
 @testable import VLMSnapperCore
 
@@ -153,6 +154,22 @@ struct ProviderSetupSessionTests {
 
         #expect(snapshot.phase == .failed)
         #expect(snapshot.failure == .unavailable)
+    }
+
+    @Test("a Keychain write failure is reported as local secure storage")
+    func keychainWriteFailureIsReportedAsLocalSecureStorage() async {
+        let session = ProviderSetupSession(
+            selectedProvider: .deepSeek,
+            boundary: FailingProviderBoundary(
+                error: AppleKeychainError.unexpectedStatus(errSecMissingEntitlement)
+            )
+        )
+
+        await session.validate(apiKey: "candidate-secret")
+        let snapshot = await session.snapshot()
+
+        #expect(snapshot.phase == .failed)
+        #expect(snapshot.failure == .secureStorage)
     }
 }
 

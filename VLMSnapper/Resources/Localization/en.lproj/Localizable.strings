@@ -31,6 +31,7 @@
 "failure.imageTooLarge" = "The screenshot exceeds the current Provider or model size limit.";
 "failure.timeout" = "The Provider response timed out. Check the network and retry manually.";
 "failure.transport" = "VLMSnapper could not reach the Provider. Check the network and retry manually.";
+"failure.localStorage" = "VLMSnapper could not save the API key securely in Apple Keychain. Keep this window open and retry after checking the app installation.";
 "failure.incomplete" = "The Provider returned an incomplete or unreadable result.";
 "failure.unknown" = "The request failed. Review the error details and retry manually.";
 "onboarding.title" = "Welcome to VLMSnapper";
