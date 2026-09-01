@@ -219,14 +219,10 @@ final class VLMSnapperApplicationModel: ObservableObject {
             },
             permission: permission,
             provider: providerReadiness,
-            providerSnapshot: providerSnapshot,
-            providerConfigurations: providerConfigurations,
             updateState: updateState,
             captureShortcut: GlobalShortcutDisplayFormatter.string(
                 for: captureShortcut
             ),
-            apiKey: binding(\.apiKey),
-            pendingModelID: binding(\.pendingModelID),
             callbacks: menuCallbacks()
         )
     }
@@ -324,16 +320,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private func menuCallbacks() -> MenuBarCallbacks {
         MenuBarCallbacks(
             onCapture: { [weak self] in self?.capture() },
-            onPermissionPrimaryAction: { [weak self] in
-                Task { await self?.performPermissionAction() }
-            },
-            onSelectProvider: { [weak self] provider in
-                Task { await self?.selectProvider(provider) }
-            },
-            onValidateProvider: { [weak self] in Task { await self?.validateProvider() } },
-            onRefreshModels: { [weak self] in Task { await self?.refreshModels() } },
-            onSelectModel: { [weak self] modelID in Task { await self?.selectModel(modelID) } },
-            onProviderDone: {},
             onOpenRecent: { [weak self] id in
                 Task { await self?.openRecentHistoryItem(id) }
             },

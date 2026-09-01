@@ -568,3 +568,41 @@ Ticket 12 的 prototype、CONTEXT、spec、features、design、production wiring
 ## 收敛结论
 
 Ticket 13 的 issue、design、design review、prototype、spec、feature catalog、production wiring、code/test review 与最终门禁一致。开发任务已完成；正式签名、公证、真实安装后的鼠标/键盘/TCC 验收仍由 Ticket 10 承兑。
+
+---
+
+# 2026-09-01 — Ticket 14 confirmed UI regression fixes
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| 未就绪截图恢复 | 菜单按钮、快捷键、应用 readiness 与 onboarding window | 菜单按钮先关闭状态项面板，再统一进入应用 readiness；缺 Provider 或权限时把 onboarding 带到最前，不再把 sheet 附着到状态项 popover |
+| Provider 输入与位置 | `ProviderSetupInputState`、app-owned onboarding/management sheet | SecureField 粘贴后 Validate 立即启用；Provider 配置由居中的应用级 sheet 承载，不再随菜单栏位置越出屏幕 |
+| 管理侧栏与历史详情 | semantic theme、production management renders、confirmed prototype | 浅色侧栏恢复为轻微区分的次级表面；详情区恢复次级页面底色和独立带边框内容卡 |
+| spec/features | 当前实现、Ticket 14 design/review | 截图恢复、Provider 验证、管理中心视觉层级和失败路径描述一致 |
+
+## 阶段二：关系对读
+
+| 关系 | 核对 | 结论 |
+| --- | --- | --- |
+| menu panel ↔ onboarding | dismissal callback ↔ `VLMSnapperApplicationModel.capture()` | 三种 readiness 路由均在关闭面板后由同一应用模型决定，不存在第二套 popover sheet 状态 |
+| API Key field ↔ Validate | local observable draft ↔ validate phase | 粘贴即时驱动按钮；验证开始时禁用，切换到另一个 Provider 时清理旧草稿 |
+| semantic surface ↔ appearance | Aqua/Dark Aqua offscreen render | Aqua 合成亮度保持浅色、Dark Aqua 保持深色；未使用硬编码 RGB，也未把层级压平成同一背景 |
+| prototype ↔ production render | management/provider/history light/dark images | 左侧导航、详情卡、Provider 面板均与已确认结构一致；HTML 仍只作为设计契约，不冒充生产验证 |
+| localization/index ↔ changed surface | 234/234 strings、spec index、literal/CJK scan | 没有新增用户文案；索引范围不变；唯一允许的生产字符串字面量为产品名 `VLMSnapper` |
+
+## 阶段三：事件核销
+
+| 事件 | 结论 |
+| --- | --- |
+| 点击截图后引导页留在后台 | 菜单面板先关闭，应用级 onboarding 调用既有前置窗口路径 |
+| 历史详情排版与原型不一致 | 次级背景、边框卡片、header/divider/body 层级已恢复并渲染核对 |
+| 粘贴 API Key 后 Validate 不可用 | 本地可观察输入状态与两项定向测试核销 |
+| Provider 配置框随菜单栏越出屏幕 | 状态项 popover sheet host 已移除，配置继续由 app-owned 居中 sheet 承载 |
+| 左侧菜单栏深灰 | 生产 subtle surface 已替换并通过明暗主题取样和截图核对 |
+| 门禁 | strict build、213/213 tests（56 suites）、40 renders、234/234 localization、prototype/shell/literal/CJK/diff checks 全部通过 |
+
+## 收敛结论
+
+Ticket 14 的五项已确认回归已在原有产品边界内修复。issue、design、design review、spec、feature catalog、production wiring、code/test review、测试和 production renders 一致；正式签名、公证及真实安装后的 TCC/鼠标交互仍由 Ticket 10 承兑，不以离屏渲染替代。

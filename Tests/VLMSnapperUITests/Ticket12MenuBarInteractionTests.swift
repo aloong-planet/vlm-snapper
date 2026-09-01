@@ -93,33 +93,31 @@ struct Ticket12MenuBarInteractionTests {
         #expect(captureCount == 1)
     }
 
-    @Test("only a ready capture route dismisses the panel before capture")
+    @Test("every capture route dismisses the panel before application readiness handling")
     func captureRouteActions() {
         var events: [String] = []
-        let showProvider = { events.append("provider") }
-        let showPermission = { events.append("permission") }
         let captureAfterDismissal = { events.append("capture-after-dismissal") }
 
         MenuCaptureActionHandler.perform(
             route: .configureProvider,
-            showProviderConfiguration: showProvider,
-            showPermissionRecovery: showPermission,
             captureAfterPanelDismissal: captureAfterDismissal
         )
         MenuCaptureActionHandler.perform(
             route: .recoverPermission,
-            showProviderConfiguration: showProvider,
-            showPermissionRecovery: showPermission,
             captureAfterPanelDismissal: captureAfterDismissal
         )
         MenuCaptureActionHandler.perform(
             route: .capture,
-            showProviderConfiguration: showProvider,
-            showPermissionRecovery: showPermission,
             captureAfterPanelDismissal: captureAfterDismissal
         )
 
-        #expect(events == ["provider", "permission", "capture-after-dismissal"])
+        #expect(
+            events == [
+                "capture-after-dismissal",
+                "capture-after-dismissal",
+                "capture-after-dismissal",
+            ]
+        )
     }
 
 }

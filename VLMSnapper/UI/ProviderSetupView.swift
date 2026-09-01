@@ -43,6 +43,34 @@ public struct ProviderSidebarPresentation: Equatable, Sendable {
     }
 }
 
+struct ProviderSetupInputState: Equatable, Sendable {
+    private(set) var apiKey: String
+    private(set) var selectedProvider: ProviderID
+
+    init(apiKey: String = "", selectedProvider: ProviderID) {
+        self.apiKey = apiKey
+        self.selectedProvider = selectedProvider
+    }
+
+    func canValidate(phase: ProviderSetupPhase) -> Bool {
+        !apiKey.isEmpty && phase != .validating
+    }
+
+    mutating func updateAPIKey(_ value: String) {
+        apiKey = value
+    }
+
+    mutating func prepareForProviderSelection(_ provider: ProviderID) {
+        guard provider != selectedProvider else { return }
+        selectedProvider = provider
+        apiKey = ""
+    }
+
+    mutating func clearAPIKey() {
+        apiKey = ""
+    }
+}
+
 public struct ProviderSetupView: View {
     private let snapshot: ProviderSetupSnapshot
     private let configurations: [ProviderID: ProviderConfiguration]
@@ -54,6 +82,7 @@ public struct ProviderSetupView: View {
     private let onSelectModel: (String) -> Void
     private let onCancel: () -> Void
     private let onDone: () -> Void
+    @State private var inputState: ProviderSetupInputState
 
     public init(
         snapshot: ProviderSetupSnapshot,
@@ -77,6 +106,12 @@ public struct ProviderSetupView: View {
         self.onSelectModel = onSelectModel
         self.onCancel = onCancel
         self.onDone = onDone
+        _inputState = State(
+            initialValue: ProviderSetupInputState(
+                apiKey: apiKey.wrappedValue,
+                selectedProvider: snapshot.selectedProvider
+            )
+        )
     }
 
     public var body: some View {
@@ -108,8 +143,13 @@ public struct ProviderSetupView: View {
         }
         .onChange(of: snapshot.phase) { _, phase in
             if phase == .selectingModel || phase == .ready {
+                inputState.clearAPIKey()
                 apiKey = ""
             }
+        }
+        .onChange(of: snapshot.selectedProvider) { _, provider in
+            inputState.prepareForProviderSelection(provider)
+            apiKey = ""
         }
         .frame(
             width: ProviderSetupMetrics.width,
@@ -154,6 +194,8 @@ public struct ProviderSetupView: View {
                     configurations: configurations
                 )
                 Button {
+                    inputState.prepareForProviderSelection(provider)
+                    apiKey = ""
                     onSelectProvider(provider)
                 } label: {
                     HStack(spacing: 12) {
@@ -209,11 +251,20 @@ public struct ProviderSetupView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(VLMSnapperStrings.apiKey).font(.headline)
                 HStack(spacing: 10) {
-                    SecureField(VLMSnapperStrings.apiKey, text: $apiKey)
+                    SecureField(
+                        VLMSnapperStrings.apiKey,
+                        text: Binding(
+                            get: { inputState.apiKey },
+                            set: { inputState.updateAPIKey($0) }
+                        )
+                    )
                         .textFieldStyle(.roundedBorder)
-                    Button(VLMSnapperStrings.validate, action: onValidate)
+                    Button(VLMSnapperStrings.validate) {
+                        apiKey = inputState.apiKey
+                        onValidate()
+                    }
                         .buttonStyle(.borderedProminent)
-                        .disabled(apiKey.isEmpty || snapshot.phase == .validating)
+                        .disabled(!inputState.canValidate(phase: snapshot.phase))
                 }
             }
             if !snapshot.availableModelIDs.isEmpty {

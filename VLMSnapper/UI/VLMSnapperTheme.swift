@@ -3,7 +3,8 @@ import SwiftUI
 enum VLMSnapperTheme {
     static let window = Color(nsColor: .windowBackgroundColor)
     static let surface = Color(nsColor: .controlBackgroundColor)
-    static let subtleSurface = Color(nsColor: .underPageBackgroundColor)
+    static let subtleSurface = Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
+        .opacity(0.35)
     static let border = Color(nsColor: .separatorColor)
     static let primaryText = Color(nsColor: .labelColor)
     static let secondaryText = Color(nsColor: .secondaryLabelColor)

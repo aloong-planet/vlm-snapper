@@ -654,39 +654,58 @@ public struct ManagementCenterView: View {
     private var detail: some View {
         if let record = selectedRecord {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(record.operation.sourceMarkdown ?? VLMSnapperStrings.failed)
-                                .font(.title2.bold()).lineLimit(2)
-                            Text("\(record.operation.selection.providerID) · \(record.operation.selection.modelID)")
-                                .foregroundStyle(VLMSnapperTheme.secondaryText)
+                VStack(spacing: 0) {
+                    historyDetailHeader(record)
+                    Divider()
+                    VStack(alignment: .leading, spacing: 18) {
+                        screenshot(record)
+                        resultSection(VLMSnapperStrings.historyOriginal, text: record.operation.sourceMarkdown)
+                        if record.operation.kind == .translate {
+                            resultSection(VLMSnapperStrings.historyTranslation, text: record.operation.translationMarkdown)
                         }
-                        Spacer()
-                        Button {
-                            callbacks.onSetPinned(record.id, !record.isPinned)
-                        } label: {
-                            (record.isPinned ? VLMSnapperIcon.pinned : VLMSnapperIcon.pin).image
-                        }
-                        .buttonStyle(.borderless)
-                        Button(role: .destructive) { pendingDeletion = record } label: {
-                            VLMSnapperIcon.delete.image
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(record.operation.status.isActive)
+                        metrics(record)
                     }
-                    screenshot(record)
-                    resultSection(VLMSnapperStrings.historyOriginal, text: record.operation.sourceMarkdown)
-                    if record.operation.kind == .translate {
-                        resultSection(VLMSnapperStrings.historyTranslation, text: record.operation.translationMarkdown)
-                    }
-                    metrics(record)
+                    .padding(15)
                 }
-                .padding(22)
+                .background(VLMSnapperTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 11))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 11)
+                        .stroke(VLMSnapperTheme.border, lineWidth: 1)
+                }
+                .padding(16)
             }
+            .background(VLMSnapperTheme.subtleSurface)
         } else {
             ContentUnavailableView(VLMSnapperStrings.historyEmptyTitle, systemImage: VLMSnapperIcon.history.rawValue)
         }
+    }
+
+    private func historyDetailHeader(_ record: HistoryRecord) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(record.operation.sourceMarkdown ?? VLMSnapperStrings.failed)
+                    .font(.title2.bold())
+                    .lineLimit(2)
+                Text("\(record.operation.selection.providerID) · \(record.operation.selection.modelID)")
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+            }
+            Spacer()
+            Button {
+                callbacks.onSetPinned(record.id, !record.isPinned)
+            } label: {
+                (record.isPinned ? VLMSnapperIcon.pinned : VLMSnapperIcon.pin).image
+            }
+            .buttonStyle(.borderless)
+            Button(role: .destructive) { pendingDeletion = record } label: {
+                VLMSnapperIcon.delete.image
+            }
+            .buttonStyle(.borderless)
+            .disabled(record.operation.status.isActive)
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 8)
+        .frame(minHeight: 46)
     }
 
     private var filteredRecords: [HistoryRecord] {
