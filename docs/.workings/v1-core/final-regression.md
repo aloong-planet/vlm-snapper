@@ -719,3 +719,37 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。本次让 `docs/features/` 中哪句话变成了谎：无；缺了哪句新的用户可见行为：无。实现修复了既有 feature 声明与实际运行之间的偏差，因此 feature 正文和索引无需改写；review 与本报告随代码进入同一 PR。
+
+---
+
+# 2026-09-02 — Localization test isolation repair
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| ADR-0003 的两语种运行时边界 | 生产本地化 store 与本轮 diff | 生产实现、资源加载和用户语言行为均未改变；修复仅位于 test target |
+| features 的菜单、历史、Provider 与结果页文案 | 原受影响的 7 个 suite / 17 个 focused tests | 既有用户可见断言保持原样并全部通过 |
+| 完整门禁必须真实并发 | 三轮 `--parallel --num-workers 8` | 每轮 231 tests / 63 suites 全绿，不再依赖单 worker 回避共享状态 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| 全局语言写入 ↔ 测试临界区 | 16 次 `configure`、10 个测试函数、共同协调器 | 当前全部显式写入都在跨 suite 互斥区内，解锁前统一恢复默认简体中文 |
+| 既有 suite `.serialized` ↔ 跨 suite 并发 | Swift Testing suite 边界与实际多 worker 复现 | `.serialized` 继续保留但不再被误当作全局串行保证 |
+| 项目 i18n 能力 ↔ 本轮字典变更 | 项目能力声明与 git diff | 按项目能力声明，i18n 已启用；本轮无用户文案，zh-Hans/en 字典无需修改 |
+| spec/features/ADR ↔ 测试基础设施 | 本轮用户行为与接口面 | 没有新行为、术语或架构决策，无需改写正本文档或原型 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 默认多 worker 下读取到其他 suite 的语言状态 | 行为红灯、共同锁、mutation 与三轮完整门禁 | 目标竞态已形成永久回归测试并修复 |
+| 默认格式化产生机械 diff | 最终 stat 与逐文件 diff | 噪声已移除；既有六个文件只增加 20 行协调调用 |
+| 测试总数变化 | 沙箱外 Xcode 汇总 | 新增 1 个测试和 1 个 suite，当前为 231 tests / 63 suites |
+| 无关 SQLite 偶发信号 | 单测连续 10 次与后续完整三轮 | 未复现且未归因，本轮不扩大修复范围；在 test review 中保留独立诊断建议 |
+
+## 收敛结论
+
+三阶段队列已清空。本次让 `docs/features/` 中哪句话变成了谎：无；缺了哪句新的用户可见行为：无。它只修复测试隔离，因此 feature 正文、索引、spec、ADR 与原型均无需修改；review 与本报告随代码进入同一 PR。

@@ -8,6 +8,8 @@ import VLMSnapperCore
 struct ApplicationMenuTests {
     @Test("the Edit menu exposes the complete confirmed hierarchy")
     func completeEditMenuHierarchy() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
         defer {
             VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)
@@ -46,6 +48,8 @@ struct ApplicationMenuTests {
 
     @Test("editing commands use native responder selectors and confirmed shortcuts")
     func responderSelectorsAndShortcuts() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
         defer {
             VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)
@@ -94,6 +98,8 @@ struct ApplicationMenuTests {
 
     @Test("Paste resolves through the active responder")
     func pasteUsesActiveResponder() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
         let menu = VLMSnapperApplicationMenuBuilder.makeMainMenu(
             applicationName: "VLMSnapper"
@@ -109,6 +115,8 @@ struct ApplicationMenuTests {
 
     @Test("the complete Edit menu is localized in Simplified Chinese")
     func simplifiedChineseMenu() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)
         let menu = VLMSnapperApplicationMenuBuilder.makeMainMenu(
             applicationName: "VLMSnapper"

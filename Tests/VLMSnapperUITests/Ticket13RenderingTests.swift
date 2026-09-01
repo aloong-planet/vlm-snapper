@@ -9,6 +9,8 @@ import VLMSnapperCore
 struct Ticket13RenderingTests {
     @Test("every confirmed production surface renders in both languages and appearances")
     func confirmedSurfacesRender() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         let outputDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("vlmsnapper-ticket13-renders", isDirectory: true)
         if FileManager.default.fileExists(atPath: outputDirectory.path) {

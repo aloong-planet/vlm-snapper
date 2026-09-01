@@ -27,6 +27,8 @@ struct Ticket12MenuBarInteractionTests {
 
     @Test("the context menu contains only localized Quit and invokes the quit action")
     func contextMenuContract() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
         defer {
             VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)

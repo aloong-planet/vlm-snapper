@@ -9,6 +9,8 @@ import VLMSnapperCore
 struct Ticket10RenderingTests {
     @Test("production toolbar renders localized target-language selection")
     func toolbarRendersTargetLanguageSelection() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         let outputDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(
                 "vlmsnapper-ticket10-renders-\(UUID().uuidString)",

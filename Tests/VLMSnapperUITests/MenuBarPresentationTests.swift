@@ -7,6 +7,8 @@ import VLMSnapperCore
 struct MenuBarPresentationTests {
     @Test("recent records map to real operation, time, status, and screenshot data")
     func recordPresentation() {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
         defer {
             VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)

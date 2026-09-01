@@ -622,3 +622,34 @@
 ## Review result
 
 覆盖包含模拟真实代理形态的永久回归测试、既有安全边界测试和一次真实签名沙盒验收。测试会在直接路径解析被移除时准确失败，未发现恒真断言或用合成路径冒充产品行为的剩余缺口。
+
+---
+
+# VLMSnapper v1 — Localization test isolation test review (2026-09-02)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| 两个本地化测试区段不能重叠且不能泄漏语言 | `LocalizationTestCoordinatorTests.localizationTestSectionsCannotOverlap` | 直接并发竞争共同协调器，覆盖持锁、阻塞、释放后继续和默认简体中文恢复 |
+| 当前全部显式语言切换点 | 六个文件、10 个测试函数、16 次 `VLMSnapperLocalization.configure` | 每个函数入口都有共同 `acquire` 与配对 `defer release` |
+| 原受影响 suite 的行为回归 | 7 suites / 17 focused tests | 应用菜单、菜单栏、Ticket 09/10/12/13 渲染与交互全部通过 |
+| 正常并发完整门禁 | `--parallel --num-workers 8` | 最小 diff 版本连续三轮 231 tests / 63 suites 全绿，不再用单 worker 隐藏竞态 |
+
+## 维度 2：case 设计是否合理
+
+- 回归测试使用协调器的公开 test-target seam，不读取私有锁状态或按生产实现重算期望。
+- 第一个队列明确发出“已进入”信号并等待释放；第二个队列的“提前进入”是本次故障的直接反例。释放后两条队列都必须在有界时间内完成，最终字符串还必须恢复为简体中文，避免死锁或状态泄漏型假绿。
+- 首次进入允许等待 15 秒，是因为完整并发运行中其他 production render 测试可能合法持锁约 5–9 秒；拿到锁后的关键反例仍限定为 100 毫秒，没有通过放宽目标断言掩盖互斥失效。
+- 既有测试只增加配对协调调用，原输入、渲染、用户文案和期望均未改变。
+
+## 维度 3：有没有假通过
+
+- TDD 第一阶段先因 `LocalizationTestCoordinator` 不存在产生编译红；加入空实现后，行为测试准确红于第二个区段提前进入。
+- 最终 API 形态再次做 mutation test：移除 `lock.lock()/unlock()`，测试在 5 毫秒内精确红于 `.success != .timedOut`；恢复两行锁操作后转绿。
+- 最小 diff 版本 focused 17/17 通过，随后三次正常 8-worker 完整运行均为 231/231；没有缓存旧二进制、skip 或单 worker 降级。
+- 调整前的一次完整并发运行曾在无关的 `SQLiteHistoryStoreTests.uploadingExtractionSurvivesReopeningDatabase` 抛 `databaseFailure`。该用例单独连续 10 次全绿，后续最小 diff 三轮完整运行也全绿；当前证据不足以归因或证明不存在独立偶发问题，本 PR 不改 SQLite。建议另开诊断任务做可观测错误码与并发压力复现，不把本次绿色结果冒充该信号已修复。
+
+## Review result
+
+测试覆盖目标竞态、全部现有调用点和正常多 worker 门禁，且 mutation 会准确打红。未发现本次修复的假通过；SQLite 偶发信号明确隔离并保留为独立诊断候选。
