@@ -606,3 +606,40 @@ Ticket 13 的 issue、design、design review、prototype、spec、feature catalo
 ## 收敛结论
 
 Ticket 14 的五项已确认回归已在原有产品边界内修复。issue、design、design review、spec、feature catalog、production wiring、code/test review、测试和 production renders 一致；正式签名、公证及真实安装后的 TCC/鼠标交互仍由 Ticket 10 承兑，不以离屏渲染替代。
+
+---
+
+# 2026-09-01 — Ticket 15 production regression follow-up
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| 截图恢复置前 | menu dismissal coordinator、application readiness、onboarding window helper | 可见面板先完成关闭，pending Capture 在下一主线程周期进入既有 readiness；未就绪时普通 onboarding window 被激活、设为 key 并显式 order front，不变成持续置顶窗口 |
+| Provider 鉴权原因 | 安装版 unified log、model lister typed error、setup session presentation | 实测请求完成 DNS/TLS/HTTP2 后收到 401；仅 `authenticationRejected` 映射无效凭据，503 等仍为服务不可用，失败不保存候选 Key、不重试 |
+| 管理窗口最小布局 | AppKit geometry probe、window controller、production render | 原外框最小值只留下 `920×588` content；现以 `contentMinSize=920×620` 约束，Header、列表底栏和详情均完整 |
+| spec/features | 当前实现、Ticket 15 design/review | 三项行为、失败边界和视觉不变量一致；没有新增 Provider、控件、文案或网络行为 |
+
+## 阶段二：关系对读
+
+| 关系 | 核对 | 结论 |
+| --- | --- | --- |
+| popover close ↔ onboarding activation | close callback ↔ next main turn ↔ application activation | presentation 不再与 popover close transaction 竞争，pending action 取出即清空，重复 callback 不会重复执行 |
+| HTTP status ↔ user reason | `ProviderModelListError.authenticationRejected` ↔ `.invalidConfiguration` | 401/403 明确提示凭据被拒绝；transport、5xx、payload 和 pagination failure 不被误判 |
+| AppKit frame ↔ SwiftUI content | `contentMinSize` ↔ root minimum | 两层都以 `920×620` 内容坐标表达，不再用外框尺寸冒充内容尺寸 |
+| prototype ↔ production render | confirmed management structure ↔ 4 个 minimum renders | 未改视觉方向；中英文、Aqua/Dark Aqua 的最小布局均由生产 View 渲染并目视核对 |
+| localization/index ↔ changed surface | 234/234 strings、UI literal/CJK scan | 没有新增用户文案或本地化键；测试 fixture 中已有的中文 Markdown 是双语渲染输入，不是生产硬编码 |
+
+## 阶段三：事件核销
+
+| 事件 | 结论 |
+| --- | --- |
+| 点击截图后引导页仍在后台 | 面板 close callback 与窗口 presentation 已跨主线程周期分离；签名安装版保留真实 WindowServer acceptance |
+| Validate 报 Provider 暂不可用 | 统一日志已坐实为 HTTP 401；当前映射显示无效凭据，503 反例防止过宽修复 |
+| 默认管理窗口 Header 被遮挡 | content minimum 修复与真实 AppKit geometry test、四张最小尺寸 production render 核销 |
+| SwiftPM 只读缓存产生假失败 | 该次旧二进制结果已作废；允许写入 `.build` 后重新编译，503 反例恢复为绿 |
+| 门禁 | strict build、216/216 tests（57 suites）、44 renders、234/234 localization、prototype/shell/literal/CJK/diff checks 全部通过 |
+
+## 收敛结论
+
+Ticket 15 的 issue、design、design review、spec、feature catalog、生产接线、code/test review、完整测试与 production renders 已一致。自动化证明了生命周期边界、typed error 分类和内容区几何；跨应用最前窗口属于真实 WindowServer 行为，继续由新签名安装版人工复测，不用离屏或合成断言冒充。

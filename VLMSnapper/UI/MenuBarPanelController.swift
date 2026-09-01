@@ -39,7 +39,11 @@ final class MenuBarPanelDismissalCoordinator {
     func panelDidClose() {
         let action = pendingAction
         pendingAction = nil
-        action?()
+        guard let action else { return }
+        Task { @MainActor in
+            await Task.yield()
+            action()
+        }
     }
 }
 

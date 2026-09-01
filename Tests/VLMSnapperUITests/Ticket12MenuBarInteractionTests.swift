@@ -4,6 +4,8 @@ import Testing
 import VLMSnapperCore
 @testable import VLMSnapperUI
 
+// Signed-app acceptance still verifies that AppKit activation makes onboarding
+// the frontmost key window after the real status-item popover closes.
 @Suite("Ticket 12 menu bar interactions", .serialized)
 @MainActor
 struct Ticket12MenuBarInteractionTests {
@@ -51,8 +53,8 @@ struct Ticket12MenuBarInteractionTests {
         #expect(chineseItem.title == "\u{9000}\u{51FA} VLMSnapper")
     }
 
-    @Test("a visible panel defers capture until the close callback")
-    func visiblePanelDefersActionUntilClose() {
+    @Test("a visible panel defers capture until the turn after the close callback")
+    func visiblePanelDefersActionUntilAfterCloseCallback() async {
         var isPanelShown = true
         var closeCount = 0
         var events: [String] = []
@@ -71,6 +73,10 @@ struct Ticket12MenuBarInteractionTests {
         isPanelShown = false
         coordinator.panelDidClose()
 
+        #expect(events.isEmpty)
+        for _ in 0..<10 where events.isEmpty {
+            await Task.yield()
+        }
         #expect(events == ["capture"])
     }
 

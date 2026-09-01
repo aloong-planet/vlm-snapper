@@ -616,3 +616,42 @@
 ## 结论
 
 审查发现并修正三处实现层问题：不可达的第二套 popover recovery、过度扁平的主题修复，以及不必要的公开输入状态。未发现剩余 race、资源泄漏、凭据落盘或业务语义扩张。
+# Ticket 15 — Production regression follow-up code review
+
+## 【① 底层前提】
+
+- **发现并坐实**：安装版的 Provider 请求不是网络不可达。统一日志显示 DNS、TCP、TLS 和 HTTP/2 均成功，最终状态为 401；因此修复只调整 typed error 的 presentation 映射，不触碰请求端点、Authorization header 或网络权限。
+- **发现并坐实**：`NSWindow.minSize` 约束外框，而已确认的 `920×620` 是 SwiftUI 内容区尺寸。独立 AppKit probe 得到 `frame=920×620 / content=920×588`，与用户截图上 32pt 的纵向裁切一致。
+- **核对通过**：现行 Xcode SDK 明确说明应用 activation 不保证立即完成；引导路径因此不能只依赖 activation 顺序。实现额外使用一次 `orderFrontRegardless()` 保证用户显式恢复动作后的可见性，但没有改变 window level。
+- **同类枚举**：结果窗口不在 status-item popover close transaction 中，因此没有本票的置前 race。审查同时发现其既有 `820×520` frame minimum 与 `1020×620` SwiftUI content minimum 不一致；用户本次没有报告结果窗口缩放故障，且它不属于历史管理中心验收，因此不在本票顺手修改，作为独立后续观察保留。
+
+## 【② 可运行性】
+
+- **窗口状态路径**：新建引导、复用已关闭引导、Provider 未就绪、权限未就绪均汇入同一 presentation helper；ready Capture 不进入该 helper。popover pending action 在取出后立即清空，所以重复 `popoverDidClose` 不会重复执行。
+- **异步生命周期**：post-close Task 只持有一个短生命周期 action，没有循环、timer 或 retained continuation；hidden-panel 路径仍同步执行，避免给快捷键或非 popover 调用增加延迟。
+- **Provider 状态路径**：只有真实 `ProviderModelListError.authenticationRejected` 映射为 invalid credential；503 等其他 model-list 错误仍为 unavailable。候选 key 的持久化仍发生在完整模型列表成功之后，失败不改变旧配置。
+- **窗口几何路径**：默认 content rect 保持 `1200×720`，交互式最小外框由 AppKit 根据 `contentMinSize=920×620` 自动换算；SwiftUI 根视图的同值 minimum 不再大于可用内容区。
+- **故障逃逸面**：三个原问题均为单次用户操作的自伤，不污染其他 Provider、历史记录或请求；修复没有新增同层或上层逃逸。
+
+## 【③ 安全正确性】
+
+- API Key 未进入日志、测试输出、诊断文件或新增文档；测试使用固定假值。
+- 401 分类不展示 Provider 原始响应正文，只复用现有本地化 invalid-credential 文案。
+- 没有新增网络请求、重试、Keychain 写入、权限请求、路径处理或持久化输入。
+- `orderFrontRegardless()` 只在用户显式触发且 readiness 阻断时调用，不创建持续置顶窗口或扩大系统权限。
+
+## 【④ 一致性】
+
+- 实现继续遵守 one Capture workflow、panel-close-before-action、single Provider request、failure without auto-retry 和 confirmed prototype hierarchy。
+- 新代码与注释均为英文，产品文字继续来自现有本地化字典；没有字符图标或硬编码 UI 文案。
+- 坏味道核对：没有新增重复 switch、数据泥团、通用抽象或霰弹式修改。private onboarding helper 消除新建/复用两条路径的重复 presentation 顺序，具有直接行为增值，不是中间人。
+
+## Review findings resolved
+
+1. 测试 review 前的异步用例使用无截止 `AsyncStream`，若 action 永不执行会使测试挂死。已改为最多 10 次 main-actor yield 的有界等待，失败会产生明确断言而不是卡住测试进程。
+2. Provider 分类测试最初只覆盖 401。已增加 503 反例，防止未来把所有模型列表错误都误标为凭据错误。
+3. Ticket 13 只渲染默认管理尺寸。已增加 `920×620` 最小内容区的中英文/明暗四张 production render，并目视确认 Header、列表底栏和详情卡完整。
+
+## Refactor disposition
+
+- 无需另开重构。其他普通窗口的 activation 顺序属于既有代码且无同类实测故障；为保持窄范围，本票不改。

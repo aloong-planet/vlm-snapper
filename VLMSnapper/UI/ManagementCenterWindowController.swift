@@ -40,7 +40,7 @@ public final class ManagementCenterWindowController: NSWindowController {
             defer: false
         )
         window.title = "VLMSnapper"
-        window.minSize = NSSize(width: 920, height: 620)
+        window.contentMinSize = NSSize(width: 920, height: 620)
         super.init(window: window)
     }
 

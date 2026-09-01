@@ -124,9 +124,7 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         guard let model else { return }
         if let onboardingController {
             onboardingHostingController?.rootView = model.onboardingView()
-            onboardingController.showWindow(nil)
-            onboardingController.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            presentOnboarding(onboardingController)
             return
         }
         let window = NSWindow(
@@ -142,9 +140,14 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         window.contentViewController = hostingController
         let controller = NSWindowController(window: window)
         onboardingController = controller
-        controller.showWindow(nil)
-        window.makeKeyAndOrderFront(nil)
+        presentOnboarding(controller)
+    }
+
+    private func presentOnboarding(_ controller: NSWindowController) {
         NSApp.activate(ignoringOtherApps: true)
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+        controller.window?.orderFrontRegardless()
     }
 
     private func showManagementCenter(destination: ManagementCenterDestination) {

@@ -122,6 +122,68 @@ struct ProviderSetupSessionTests {
         #expect(await boundary.validatedKeys.isEmpty)
         #expect(await boundary.selectedModels.isEmpty)
     }
+
+    @Test("a rejected API key is reported as invalid credentials")
+    func rejectedAPIKeyIsReportedAsInvalidCredentials() async {
+        let session = ProviderSetupSession(
+            selectedProvider: .openAI,
+            boundary: FailingProviderBoundary(
+                error: ProviderModelListError.authenticationRejected
+            )
+        )
+
+        await session.validate(apiKey: "rejected-secret")
+        let snapshot = await session.snapshot()
+
+        #expect(snapshot.phase == .failed)
+        #expect(snapshot.failure == .invalidConfiguration)
+    }
+
+    @Test("a Provider outage is not reported as invalid credentials")
+    func providerOutageIsNotReportedAsInvalidCredentials() async {
+        let session = ProviderSetupSession(
+            selectedProvider: .openAI,
+            boundary: FailingProviderBoundary(
+                error: ProviderModelListError.requestRejected(statusCode: 503)
+            )
+        )
+
+        await session.validate(apiKey: "candidate-secret")
+        let snapshot = await session.snapshot()
+
+        #expect(snapshot.phase == .failed)
+        #expect(snapshot.failure == .unavailable)
+    }
+}
+
+private actor FailingProviderBoundary: ProviderSetupConfiguring {
+    let error: any Error
+
+    init(error: any Error) {
+        self.error = error
+    }
+
+    func configurationState() -> ProviderMetadataState {
+        ProviderMetadataState()
+    }
+
+    func validateAndSaveKey(
+        _ apiKey: String,
+        for provider: ProviderID
+    ) throws -> ProviderConfiguration {
+        throw error
+    }
+
+    func refreshModels(for provider: ProviderID) -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
+
+    func selectModel(
+        _ modelID: String,
+        for provider: ProviderID
+    ) -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
 }
 
 private actor ProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {

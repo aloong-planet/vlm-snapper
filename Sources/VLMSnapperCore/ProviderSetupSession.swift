@@ -201,6 +201,9 @@ public actor ProviderSetupSession {
                  .incompatibleModel, .inconsistentCredentialState:
                 .invalidConfiguration
             }
+        } else if let modelListError = error as? ProviderModelListError,
+                  modelListError == .authenticationRejected {
+            failure = .invalidConfiguration
         } else {
             failure = .unavailable
         }

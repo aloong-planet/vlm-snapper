@@ -72,6 +72,19 @@ struct Ticket13RenderingTests {
                 )
                 try render(
                     ManagementCenterView(
+                        destination: .history,
+                        records: records,
+                        selectedRecordID: records.first?.id,
+                        selectedImage: sampleImage
+                    ),
+                    size: CGSize(width: 920, height: 620),
+                    appearance: appearance,
+                    outputURL: outputDirectory.appendingPathComponent(
+                        "management-minimum-\(suffix).png"
+                    )
+                )
+                try render(
+                    ManagementCenterView(
                         destination: .settings,
                         records: records,
                         showsGeneralSettings: true,
@@ -123,6 +136,7 @@ struct Ticket13RenderingTests {
                     "privacy-\(suffix).png",
                     "result-\(suffix).png",
                     "management-\(suffix).png",
+                    "management-minimum-\(suffix).png",
                     "management-general-\(suffix).png",
                     "management-provider-\(suffix).png",
                     "toolbar-\(suffix).png",
