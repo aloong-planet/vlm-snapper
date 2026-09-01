@@ -691,3 +691,37 @@
 ## 结论
 
 review 发现并删除 1 个本次引入的 orphan enum case；事实层重扫后，三架构签名、Keychain 生命周期、安全边界与既有 ADR 均无剩余阻断项。
+
+---
+
+# VLMSnapper v1 — Direct Pictures storage code review (2026-09-02)
+
+审查范围：将系统 Pictures 目录 API 在沙盒中返回的代理路径解析为直接用户 Pictures 路径，并继续使用既有截图存储安全边界。
+
+## 【① 底层前提】
+
+- 已用签名、嵌入 provisioning profile 且启用 App Sandbox 的当前分支 App 实测：系统 API 返回的代理经解析后，实际保存路径为 `/Users/loong_zhou/Pictures/VLMSnapper/2026-09/...png`，不是 Container 内的 `Data/Pictures` 路径。
+- 回归 fixture 复现了真实路径形态：Container 下的 `Pictures` 是指向用户 Pictures 的符号链接；测试不是仅按 spec 想象数据结构。
+- 全库生产引用检索确认截图存储只在 `VLMSnapperApplicationModel` 构造一次，根目录只由 `ApplicationDirectories.screenshotRoot()` 提供；没有第二个未修复的同类入口。
+
+## 【② 可运行性】
+
+- `ManagedScreenshotRoot.directURL(for:)` 先解析系统提供的 Pictures 目录，再标准化并追加 `VLMSnapper`；返回 URL 不再依赖 Container 代理，因此 `FileSystemScreenshotStore` 可以按原规则创建根目录和月份目录。
+- 失败面保持自伤：系统目录查询或目录创建失败只终止当前截图保存，既有流程不会上传或创建成功历史；没有污染其他历史记录或 Provider 配置。
+- 真实签名沙盒验收执行了保存与删除，证明本次构建产物实际获得 Pictures entitlement 且直接路径可写；完整 SwiftPM 构建与 230 tests / 62 suites 同时通过。
+
+## 【③ 安全正确性】
+
+- 只在可信的系统目录 API 边界解析一次代理路径。解析后的 `VLMSnapper` 根目录仍由 `FileSystemScreenshotStore` 检查根目录、父目录、年月目录和图片文件不得是符号链接；既有 10 个存储安全测试全部通过。
+- 解析结果是直接绝对 URL，后续保存不再穿过 Container 代理，代理在保存期间变化也不会改变已选定目标。应用仍不扫描 `VLMSnapper` 之外的 Pictures 内容。
+- 本轮未放宽 `FileSystemScreenshotStore` 的通用符号链接策略，也未引入硬编码用户主目录、环境变量或自定义保存位置。
+
+## 【④ 一致性】
+
+- 实现恢复 ADR-0006 的既有结论：通过系统目录 API 获取 Pictures，用户可见与持久化路径为 `~/Pictures/VLMSnapper/`，不把 Container 代理路径当作保存位置。
+- spec 中“固定保存到 `~/Pictures/VLMSnapper/YYYY-MM/`”和“不跟随符号链接提供隐式自定义位置”继续成立；系统 API 代理在存储边界前被消解，应用自建根目录及其后代仍拒绝符号链接。
+- 新类型名称表达单一职责，没有重复条件、发散职责、未用参数或跨文件霰弹式修改；无需另开重构任务。
+
+## 结论
+
+四层审查未发现剩余阻断项。本次改动只修正截图根目录入口，不放宽截图文件所有权与符号链接安全不变量。

@@ -589,3 +589,36 @@
 ## Review result
 
 单元、脚本、真实 profile、三架构签名和最终签名进程 CRUD 形成互相独立的验证层；没有发现恒真断言、陈旧产物或用合成路径冒充系统行为的剩余缺口。
+
+---
+
+# VLMSnapper v1 — Direct Pictures storage test review (2026-09-02)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| 沙盒 Pictures 代理必须转换为直接用户 Pictures 根目录 | `sandboxPicturesProxyResolvesToDirectUserPicturesPath` | 覆盖真实代理形态、根目录字面值与最终受管理文件路径 |
+| 直接根目录仍能保存原始 PNG | 同一测试通过 `FileSystemScreenshotStore.save(originalPNG:)` | 走公开存储 seam，不只断言路径字符串 |
+| 应用自建根目录、祖先、年月目录或图片被符号链接替换 | `FileSystemScreenshotStoreTests` 既有 10 个用例 | focused 安全套件全绿，未因入口修复放宽通用防护 |
+| 已签名沙盒 App 实际写入用户 Pictures | Developer ID 签名诊断运行 | 保存路径实测为 `/Users/loong_zhou/Pictures/VLMSnapper/2026-09/...png`，随后删除诊断文件 |
+| 其余应用回归 | 完整 SwiftPM test run | 230 tests / 62 suites 全部执行并通过 |
+
+## 维度 2：case 设计是否合理
+
+- 新用例通过公开 `ManagedScreenshotRoot.directURL(for:)` 与 `FileSystemScreenshotStore.save(originalPNG:)` 验证行为，没有 cast 私有状态、mock 自有模块或断言内部调用顺序。
+- fixture 使用真实系统形态：一个存在的 Container `Data/Pictures` 符号链接指向另一个存在的 Pictures 目录；状态可经文件系统公开操作构造且可复现。
+- 期望根目录由独立字面量 `Pictures/VLMSnapper` 构造，不复用生产解析算法；最终文件还必须位于该根下且不得位于 Container 路径下。
+- 临时目录由用例独占并在 `defer` 清理；异步保存被 `await`，断言不会落在未执行 callback 或空集合循环里。
+
+## 维度 3：有没有假通过
+
+- 开发红灯准确发生在生产类型尚不存在的编译错误；该红只证明缺少 seam，因此另做目标变异验证。
+- 变异检验只删除生产实现的 `.resolvingSymlinksInPath()`，SwiftPM 明确重新编译该文件，测试精确红于 `Caught error: unsafePath`；这正是本次要防止的旧故障。
+- 只用 `apply_patch` 恢复该一行后，同一 focused 测试重新构建并通过。变异到达、失败归因和还原三项均有直接输出证据。
+- 签名沙盒验收使用本轮重新构建和重新签名的 App，并断言实际返回的保存路径；不是文件存在性、旧构建产物或手动调用内部函数。
+- 变异还原后的默认完整运行曾有一次既有 `ApplicationMenuTests` 读到另一套件写入的简体中文全局语言状态；该套件单独运行 4/4 通过，完整套件限制为一个 worker 后 230/230 通过。它是改动面外的测试隔离问题，不把重跑绿冒充不存在；本轮完整门禁采用 `--parallel --num-workers 1` 消除跨 worker 共享状态干扰。
+
+## Review result
+
+覆盖包含模拟真实代理形态的永久回归测试、既有安全边界测试和一次真实签名沙盒验收。测试会在直接路径解析被移除时准确失败，未发现恒真断言或用合成路径冒充产品行为的剩余缺口。

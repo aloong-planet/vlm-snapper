@@ -682,3 +682,40 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。spec、features、ADR、CONTEXT 既有术语、两语种文案、release/CI 门禁、生产错误映射与真实签名验收一致；本轮没有界面结构变化，无需修改确认原型。Ticket 16 可以进入 PR，但公证与正式公开发布仍保持独立门禁。
+
+---
+
+# 2026-09-02 — Direct Pictures storage repair
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的 `~/Pictures/VLMSnapper/YYYY-MM/` 固定保存位置 | `ApplicationDirectories`、`ManagedScreenshotRoot`、`FileSystemScreenshotStore` 与签名沙盒验收 | 当前实现直接写入用户 Pictures，不再把 Container 代理路径交给存储层 |
+| spec 的“不跟随符号链接到其他位置”边界 | 入口解析范围与既有存储安全测试 | 只消解系统目录 API 提供的代理；应用自建根目录、年月目录与图片文件仍拒绝符号链接 |
+| features 的本地 PNG 保存说明 | 真实签名 App 输出与永久回归测试 | `~/Pictures/VLMSnapper/` 的现行声明现在与运行行为一致，无需改写 feature 文案 |
+| ADR-0006 的分层存储决策 | 用户 Pictures 实际路径与 Container 内部历史路径 | 本轮只修正 PNG 根目录；内部历史和日志位置未改变 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| `ApplicationDirectories` ↔ 唯一生产截图存储入口 | 全库检索 `screenshotRoot(` 与 `FileSystemScreenshotStore(` | 生产环境各只有一个接线点，没有第二个仍使用代理路径的实例 |
+| 路径规则 ↔ 安全门禁 | 新回归测试与 `FileSystemScreenshotStoreTests` | 新测试守直接路径；既有 10 个测试守应用目录及图片不得被符号链接替换，覆盖面互补 |
+| feature 文件 ↔ features 索引 | `docs/features/v1-core.md` 与 `docs/features/README.md` | feature 名称与一句话未变，本轮无需修改索引 |
+| spec/ADR/feature 的 Pictures 陈述 ↔ 实现 | `rg` 检索 Pictures、Container、symbolic link 陈述 | 三处都要求用户 Pictures 直存，修复没有引入相反陈述 |
+| 项目 i18n 能力 ↔ 文案字典 | 项目能力声明与本轮 diff | 按项目能力声明，i18n 已启用；本轮无用户可见文案变化，两语种字典无需修改 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 截图根目录从 Container 代理改为直接用户 Pictures URL | 新路径测试、真实签名沙盒验收 | 用户可见保存行为恢复到既有 spec/features；没有新增自定义目录或迁移行为 |
+| 新增一个公开路径解析 seam | 全库生产与测试引用 | 只用于系统 Pictures 入口与其回归测试，不改变 Provider、语言、平台或分发渠道成员数 |
+| 测试总数变化 | 单 worker 完整 SwiftPM 汇总 | 当前为 230 tests / 62 suites，全部实际执行并通过；默认多 worker 下的既有全局语言状态干扰已在 test review 记录，不归因于本次存储改动 |
+| 范围内 Pending 注记 | spec、features 与 ADR 的相关存储段落 | 本轮没有使 Pending 注记到期，也没有新增待决存储行为 |
+| 本轮是否形成新通则 | ADR-0006 既有决策 | 没有新通则；“系统 API 取目录、直接保存到用户 Pictures、应用路径拒绝符号链接”已有 ADR 正本 |
+
+## 收敛结论
+
+三阶段队列已清空。本次让 `docs/features/` 中哪句话变成了谎：无；缺了哪句新的用户可见行为：无。实现修复了既有 feature 声明与实际运行之间的偏差，因此 feature 正文和索引无需改写；review 与本报告随代码进入同一 PR。
