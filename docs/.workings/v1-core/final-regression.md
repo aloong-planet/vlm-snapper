@@ -643,3 +643,42 @@ Ticket 14 的五项已确认回归已在原有产品边界内修复。issue、de
 ## 收敛结论
 
 Ticket 15 的 issue、design、design review、spec、feature catalog、生产接线、code/test review、完整测试与 production renders 已一致。自动化证明了生命周期边界、typed error 分类和内容区几何；跨应用最前窗口属于真实 WindowServer 行为，继续由新签名安装版人工复测，不用离屏或合成断言冒充。
+
+---
+
+# 2026-09-01 — Ticket 16 Developer ID Keychain provisioning
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的 Provider 安全存储失败 | setup session、配置协调器、两语种错误文案与定向测试 | Keychain 写失败不保存 Provider，API Key draft 保留，错误归入本地安全存储而非远端 Provider |
+| spec 的正式 profile 输入 | release script、CI secret、准备工具与缺失输入测试 | profile 在仓库外提供；缺失、解码/身份/授权不一致均在正式签名前 fail closed |
+| spec 的三架构签名与 Universal CRUD | arm64、x64、Universal 临时最终 App | 三者 profile、entitlement、证书、runtime、timestamp 一致；Universal 真实 Data Protection Keychain 墅读改删通过 |
+| features 的 Provider 配置行为 | 生产错误映射与输入 state | 新增的安全存储失败说明是可操作的现行用户行为，不暴露发布实现细节 |
+| features 的分发状态 | 本轮真实 Developer ID 验收与未执行门禁 | Developer ID/profile 已不再是本地阻塞；公证 workflow、hosting、旧版升级和剩余 live Provider 仍保持开放 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| ADR-0001 ↔ spec/features | Keychain 保存、稳定 Team/身份与本地错误 | 决策未被反向表述；本轮补齐了直接分发签名访问 Data Protection Keychain 的前置条件 |
+| ADR-0004/0005/0007 ↔ release gate | 三架构 feed、固定 Bundle ID、Developer ID 渠道 | 三个架构共享 `com.loong.vlmsnapper` 与精确 Keychain group，仍分别输出架构 feed，不引入 MAS 第四渠道 |
+| spec 文件 ↔ specs 索引 | `docs/specs/README.md` 的 v1 范围 | slug、状态与范围未变，无需修改索引行 |
+| 本地化规则 ↔字典与 UI 映射 | zh-Hans/en `failure.localStorage`、`VLMSnapperStrings` | 项目能力声明的两种语言成对存在；无繁体、自由输入或 RTL 扩张 |
+| 发布规则 ↔ CI/脚本门禁 | profile secret 临时恢复、签名前准备、签名后复验、always cleanup | 门禁覆盖缺输入、身份派生、最终 bundle 一致性和真实 Universal Keychain 行为；没有只检查文件存在即宣称生效 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 正式发布新增外部 profile 输入 | Git index、生产前缀检索与 Actions artifact 路径 | profile、解码 plist和派生 entitlement 不入仓库/独立 artifact；App 内只保留系统要求的 embedded profile 与签名声明 |
+| 新增 release support 与 signing tool target | Package products/targets、strict release build | 只服务发布与验证，不增加用户入口、Provider、语言或分发渠道成员 |
+| 新增 Data Protection Keychain smoke 模式 | 精确命令行 flag、随机 service 与 cleanup | 普通启动路径不变；正式 Universal release 在公证前执行真实验收，失败阻断整个版本 |
+| 本轮测试总数变化 | 沙箱外完整 Xcode 汇总 | 当前为 229 tests / 61 suites；Keychain/AppKit 套件全部实际执行，无静默 skip |
+| 签名门禁负向变异 | metadata 副本的错误 application identifier | 校验器状态 1 精确失败于实际 entitlement 比较，证明新门禁会红且命中目标对象 |
+| 范围内 Pending 注记 | features distribution status、spec 发布事实门槛 | Developer ID/profile 本地门槛已核销并就地改写；公证、hosting、旧版升级与未完成 live Provider 仍未到期，不误报正式发布完成 |
+
+## 收敛结论
+
+三阶段队列已清空。spec、features、ADR、CONTEXT 既有术语、两语种文案、release/CI 门禁、生产错误映射与真实签名验收一致；本轮没有界面结构变化，无需修改确认原型。Ticket 16 可以进入 PR，但公证与正式公开发布仍保持独立门禁。

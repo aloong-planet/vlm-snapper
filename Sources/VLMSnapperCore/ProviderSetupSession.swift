@@ -22,6 +22,7 @@ public enum ProviderSetupPhase: Equatable, Sendable {
 public enum ProviderSetupFailure: Equatable, Sendable {
     case configurationLocked
     case invalidConfiguration
+    case secureStorage
     case unavailable
 }
 
@@ -204,6 +205,8 @@ public actor ProviderSetupSession {
         } else if let modelListError = error as? ProviderModelListError,
                   modelListError == .authenticationRejected {
             failure = .invalidConfiguration
+        } else if error is AppleKeychainError {
+            failure = .secureStorage
         } else {
             failure = .unavailable
         }

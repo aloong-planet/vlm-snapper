@@ -12,10 +12,18 @@ let package = Package(
         .library(name: "VLMSnapperCore", targets: ["VLMSnapperCore"]),
         .library(name: "VLMSnapperSparkle", targets: ["VLMSnapperSparkle"]),
         .library(name: "VLMSnapperUI", targets: ["VLMSnapperUI"]),
+        .library(
+            name: "VLMSnapperReleaseSupport",
+            targets: ["VLMSnapperReleaseSupport"]
+        ),
         .executable(name: "VLMSnapperApp", targets: ["VLMSnapperApp"]),
         .executable(
             name: "VLMSnapperLiveProviderGate",
             targets: ["VLMSnapperLiveProviderGate"]
+        ),
+        .executable(
+            name: "VLMSnapperSigningTool",
+            targets: ["VLMSnapperSigningTool"]
         ),
         .executable(
             name: "VLMSnapperUIHarness",
@@ -68,6 +76,10 @@ let package = Package(
                 .product(name: "Sparkle", package: "Sparkle"),
             ]
         ),
+        .target(
+            name: "VLMSnapperReleaseSupport",
+            linkerSettings: [.linkedFramework("Security")]
+        ),
         .executableTarget(
             name: "VLMSnapperApp",
             dependencies: [
@@ -96,6 +108,10 @@ let package = Package(
                 .linkedFramework("UniformTypeIdentifiers"),
             ]
         ),
+        .executableTarget(
+            name: "VLMSnapperSigningTool",
+            dependencies: ["VLMSnapperReleaseSupport"]
+        ),
         .testTarget(
             name: "VLMSnapperCoreTests",
             dependencies: ["VLMSnapperCore"]
@@ -107,6 +123,10 @@ let package = Package(
         .testTarget(
             name: "VLMSnapperSparkleTests",
             dependencies: ["VLMSnapperCore", "VLMSnapperSparkle"]
+        ),
+        .testTarget(
+            name: "VLMSnapperReleaseSupportTests",
+            dependencies: ["VLMSnapperReleaseSupport"]
         ),
     ],
     swiftLanguageModes: [.v6]

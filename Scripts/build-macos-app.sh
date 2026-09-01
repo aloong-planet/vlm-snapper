@@ -14,6 +14,7 @@ feed_url="$4"
 sparkle_public_key="$5"
 output_app="$6"
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
+scratch_path="${VLMSNAPPER_SCRATCH_PATH:-$project_root/.build}"
 
 case "$architecture" in
     universal|arm64|x64) ;;
@@ -25,19 +26,45 @@ esac
 
 build_architecture() {
     local triple="$1"
+    if [[ "$triple" == "arm64-apple-macosx14.0" \
+        && "$(/usr/bin/uname -m)" == "arm64" ]]; then
+        DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
+            /usr/bin/xcrun swift build \
+                --scratch-path "$scratch_path" \
+                --disable-build-manifest-caching \
+                --configuration release \
+                --product VLMSnapperApp \
+                -Xswiftc -warnings-as-errors \
+                -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+        return
+    fi
     DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
         /usr/bin/xcrun swift build \
-        --configuration release \
-        --triple "$triple" \
-        --product VLMSnapperApp \
-        -Xswiftc -warnings-as-errors \
-        -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+            --scratch-path "$scratch_path" \
+            --disable-build-manifest-caching \
+            --configuration release \
+            --triple "$triple" \
+            --product VLMSnapperApp \
+            -Xswiftc -warnings-as-errors \
+            -Xcc -Wall -Xcc -Wextra -Xcc -Werror
 }
 
 release_bin_path() {
     local triple="$1"
+    if [[ "$triple" == "arm64-apple-macosx14.0" \
+        && "$(/usr/bin/uname -m)" == "arm64" ]]; then
+        DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
+            /usr/bin/xcrun swift build \
+                --scratch-path "$scratch_path" \
+                --disable-build-manifest-caching \
+                --configuration release \
+                --show-bin-path
+        return
+    fi
     DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
         /usr/bin/xcrun swift build \
+            --scratch-path "$scratch_path" \
+            --disable-build-manifest-caching \
             --configuration release \
             --triple "$triple" \
             --show-bin-path
@@ -92,7 +119,7 @@ for locale in en zh-Hans; do
         "$localized_resources/InfoPlist.strings"
 done
 
-sparkle_framework="$project_root/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+sparkle_framework="$scratch_path/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
 if [[ ! -d "$sparkle_framework" ]]; then
     echo "Missing resolved Sparkle framework: $sparkle_framework" >&2
     exit 1

@@ -87,6 +87,7 @@ VLMSnapper 是原生 macOS 14+ 菜单栏应用。v1 接入 OpenAI、Gemini 和 D
 - 模型的图片能力状态为未知、已验证或不兼容。首次真实图片操作完成验证；只有可明确归类为不支持图片模态的错误才标记不兼容并清除当前模型，普通 HTTP 400 不足以改变状态。新 Key 或成功的新列表刷新把兼容状态重置为未知。
 - 活动请求期间 Provider 配置只读：API Key、模型选择、清除配置和列表刷新均禁用；请求进入终态后恢复。
 - API Key 按 ADR-0001 存入 Apple Keychain；稳定应用身份按 ADR-0005 使用 `com.loong.vlmsnapper`。
+- API Key 验证成功但 Apple Keychain 写入失败时，Provider 不得被标记为已配置；应保留当前输入并显示本地安全存储错误，不得误报为 Provider 临时不可用。
 
 ### 8. 错误、限流与取消
 
@@ -135,6 +136,9 @@ VLMSnapper 是原生 macOS 14+ 菜单栏应用。v1 接入 OpenAI、Gemini 和 D
 - 发现新版本后在菜单栏和通用设置中提示，由用户显式开始下载。菜单栏与设置页监听同一应用级 Sparkle 状态，只有 Sparkle 确认下载完成后才显示“已下载”。下载完成不打断截图或模型任务，在退出时安装，也允许用户选择立即重启并更新；应用连续运行 7 天仍未安装时温和提醒一次。手动检查更新只在通用设置中提供。
 - appcast 使用 HTTPS；应用和 DMG 通过 Developer ID 签名、Apple 公证与 stapling，更新包另有 Sparkle EdDSA 签名。
 - Universal、Apple Silicon、Intel 分别打包并订阅独立 appcast，保持当前安装架构，遵循 ADR-0004。三个产物必须使用相同版本和 Sparkle 公钥；任一架构的签名、公证、stapling 或更新签名失败，整个版本不发布。
+- 三个 Developer ID 应用必须嵌入同一份与 `com.loong.vlmsnapper` 匹配的分发 provisioning profile。正式签名从 profile 动态派生 App ID Prefix、Team ID、完整 application identifier 和精确 Keychain access group，不在仓库中硬编码账号前缀。
+- provisioning profile 是仓库外的发布输入，不进入 Git。缺失、无法验签或解码、过期、分发渠道错误，或与 Bundle ID、Team ID、Developer ID Application 证书、Keychain allowlist 不一致时，正式流水线必须在签名前失败，不得回退到无 profile 或 legacy Keychain 构建。
+- 最终已签名 App 必须声明 profile 授权的精确 application identifier、Team ID 和 Keychain access group。三个架构均做 profile/签名静态一致性验证；Universal 产物还必须由最终已签名的应用进程执行一次 Data Protection Keychain 的增、读、改、删验收。
 
 ## Failure Modes
 
@@ -159,6 +163,9 @@ VLMSnapper 是原生 macOS 14+ 菜单栏应用。v1 接入 OpenAI、Gemini 和 D
 17. 历史数据库损坏或版本过新：阻止新模型操作和写入，不静默新建；保留恢复路径。
 18. 更新准备安装时存在活动请求：先正常取消并持久化取消状态，再退出安装。
 19. 应用附着面板打开时退出：仍进入统一退出协调；若未保存结果确认被取消，应用继续运行且原面板保持打开。
+20. 用户验证有效 API Key，但当前已签名应用没有 Data Protection Keychain 授权或本地 Keychain 写入失败：验证流程终止，不保存 Provider 配置，显示本地安全存储错误及可操作建议，不改写为网络或 Provider 错误。
+21. 发布者启动正式构建，但 provisioning profile 缺失、过期、损坏，或与应用身份、签名证书、Keychain allowlist 不匹配：在任何可发布产物签名或上传前终止，不留下可被误当成正式发布的降级产物。
+22. provisioning profile 验证通过，但 profile 授权与最终 App 签名实际声明不一致，或 Universal 产物的 Data Protection Keychain CRUD 失败：整个三架构版本失败，不进入公证、分发或 appcast 发布。
 
 ## Implementation Decisions
 
@@ -182,7 +189,7 @@ VLMSnapper 是原生 macOS 14+ 菜单栏应用。v1 接入 OpenAI、Gemini 和 D
 
 ### Seam 3：macOS 与持久化集成验收
 
-用集成测试和签名产物验收覆盖多显示器冻结、物理像素裁剪、TCC 权限恢复、全局快捷键冲突、Keychain、PNG 原子写入与哈希所有权、数据库迁移/故障保留、单实例、附着面板打开时的正常退出、Sparkle 架构 appcast、签名、公证和 Gatekeeper。纯视觉常量按已确认原型与截图做人工/快照核对，不为 CSS 式细节建立脆弱单元测试。
+用集成测试和签名产物验收覆盖多显示器冻结、物理像素裁剪、TCC 权限恢复、全局快捷键冲突、Keychain、PNG 原子写入与哈希所有权、数据库迁移/故障保留、单实例、附着面板打开时的正常退出、Sparkle 架构 appcast、签名、公证和 Gatekeeper。Developer ID profile 解码、身份派生和 fail-closed 判定通过可重复的脚本契约测试覆盖；三架构最终 App 均验证嵌入 profile 与实际签名 entitlement 的一致性，Universal 最终签名 App 执行使用随机假凭据的 Data Protection Keychain CRUD，并在失败后仍尝试清理。纯视觉常量按已确认原型与截图做人工/快照核对，不为 CSS 式细节建立脆弱单元测试。
 
 ## Prototype Coverage
 

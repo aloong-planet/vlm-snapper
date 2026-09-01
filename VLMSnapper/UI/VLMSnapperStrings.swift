@@ -248,6 +248,7 @@ enum VLMSnapperStrings {
         case "first_text_timeout", "stream_stalled", "total_timeout":
             "failure.timeout"
         case "transport": "failure.transport"
+        case "local_storage": "failure.localStorage"
         case "malformed_output", "incomplete_response": "failure.incomplete"
         default: "failure.unknown"
         }

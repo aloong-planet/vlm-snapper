@@ -14,10 +14,12 @@ download_base_url="${4%/}"
 sparkle_public_key="$5"
 output_root="$6"
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
+scratch_path="${VLMSNAPPER_SCRATCH_PATH:-$project_root/.build}"
 signing_identity="${MACOS_SIGNING_IDENTITY:-}"
 notary_profile="${MACOS_NOTARY_PROFILE:-}"
 sparkle_private_key_file="${SPARKLE_PRIVATE_KEY_FILE:-}"
-sparkle_tools="$project_root/.build/artifacts/sparkle/Sparkle/bin"
+provisioning_profile="${MACOS_PROVISIONING_PROFILE:-}"
+sparkle_tools="$scratch_path/artifacts/sparkle/Sparkle/bin"
 
 require_value() {
     local name="$1"
@@ -40,9 +42,11 @@ require_https() {
 require_value MACOS_SIGNING_IDENTITY "$signing_identity"
 require_value MACOS_NOTARY_PROFILE "$notary_profile"
 require_value SPARKLE_PRIVATE_KEY_FILE "$sparkle_private_key_file"
+require_value MACOS_PROVISIONING_PROFILE "$provisioning_profile"
 require_https appcast-base-url "$appcast_base_url"
 require_https download-base-url "$download_base_url"
 [[ -f "$sparkle_private_key_file" ]]
+[[ -f "$provisioning_profile" ]]
 [[ -x "$sparkle_tools/generate_appcast" ]]
 [[ -x "$sparkle_tools/sign_update" ]]
 if [[ -e "$output_root" ]]; then
@@ -60,6 +64,23 @@ if [[ "$derived_public_key" != "$sparkle_public_key" ]]; then
     exit 78
 fi
 
+DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
+    /usr/bin/xcrun swift build \
+        --scratch-path "$scratch_path" \
+        --disable-build-manifest-caching \
+        --configuration release \
+        --product VLMSnapperSigningTool \
+        -Xswiftc -warnings-as-errors
+signing_tool_bin="$({
+    DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
+        /usr/bin/xcrun swift build \
+            --scratch-path "$scratch_path" \
+            --disable-build-manifest-caching \
+            --configuration release \
+            --show-bin-path
+})/VLMSnapperSigningTool"
+[[ -x "$signing_tool_bin" ]]
+
 staging_root="$(mktemp -d "${TMPDIR:-/tmp}/vlmsnapper-release.XXXXXX")"
 publish_staging=""
 cleanup() {
@@ -73,37 +94,13 @@ mkdir -p "$staging_root/apps" "$staging_root/dmgs" "$staging_root/appcasts"
 
 sign_application() {
     local app="$1"
-    local framework="$app/Contents/Frameworks/Sparkle.framework"
-    local sparkle="$framework/Versions/Current"
-    local signable
-    for signable in \
-        "$sparkle/XPCServices/Downloader.xpc" \
-        "$sparkle/XPCServices/Installer.xpc" \
-        "$sparkle/Updater.app" \
-        "$sparkle/Autoupdate" \
-        "$framework"; do
-        /usr/bin/codesign \
-            --force \
-            --options runtime \
-            --timestamp \
-            --preserve-metadata=identifier,entitlements,requirements \
-            --sign "$signing_identity" \
-            "$signable"
-    done
-    /usr/bin/codesign \
-        --force \
-        --options runtime \
-        --timestamp \
-        --sign "$signing_identity" \
-        "$app/Contents/MacOS/VLMSnapperApp"
-    /usr/bin/codesign \
-        --force \
-        --options runtime \
-        --timestamp \
-        --entitlements "$project_root/Distribution/VLMSnapper.entitlements" \
-        --sign "$signing_identity" \
-        "$app"
-    /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"
+    local signing_metadata="$2"
+    "$project_root/Scripts/sign-developer-id-app.sh" \
+        "$app" \
+        "$signing_identity" \
+        "$provisioning_profile" \
+        "$signing_tool_bin" \
+        "$signing_metadata"
 }
 
 notarize_and_staple() {
@@ -150,6 +147,7 @@ verify_final_dmg() {
     local dmg="$1"
     local architecture="$2"
     local feed_url="$3"
+    local signing_metadata="$4"
     (
         local mountpoint
         local attached=false
@@ -169,7 +167,9 @@ verify_final_dmg() {
             "$version" \
             "$build_version" \
             "$feed_url" \
-            "$sparkle_public_key"
+            "$sparkle_public_key" \
+            "$signing_metadata" \
+            "$signing_identity"
         /usr/sbin/spctl --assess --type execute --verbose=4 "$mountpoint/VLMSnapper.app"
         DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
             /usr/bin/xcrun stapler validate "$mountpoint/VLMSnapper.app"
@@ -184,6 +184,7 @@ verify_final_dmg() {
 for architecture in arm64 x64 universal; do
     feed_url="$appcast_base_url/appcast-$architecture.xml"
     app="$staging_root/apps/$architecture/VLMSnapper.app"
+    signing_metadata="$staging_root/apps/signing-$architecture.plist"
     "$project_root/Scripts/build-macos-app.sh" \
         "$architecture" \
         "$version" \
@@ -191,7 +192,11 @@ for architecture in arm64 x64 universal; do
         "$feed_url" \
         "$sparkle_public_key" \
         "$app"
-    sign_application "$app"
+    sign_application "$app" "$signing_metadata"
+    if [[ "$architecture" == "universal" ]]; then
+        "$app/Contents/MacOS/VLMSnapperApp" \
+            --verify-data-protection-keychain
+    fi
     app_zip="$staging_root/apps/VLMSnapper-$version-mac-$architecture.zip"
     /usr/bin/ditto -c -k --keepParent "$app" "$app_zip"
     notarize_and_staple \
@@ -206,7 +211,7 @@ for architecture in arm64 x64 universal; do
         "$dmg" \
         "$dmg" \
         "$staging_root/dmgs/notary-$architecture.json"
-    verify_final_dmg "$dmg" "$architecture" "$feed_url"
+    verify_final_dmg "$dmg" "$architecture" "$feed_url" "$signing_metadata"
 
     appcast_directory="$staging_root/appcasts/$architecture"
     mkdir -p "$appcast_directory"
