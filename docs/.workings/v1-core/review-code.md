@@ -579,3 +579,40 @@
 ## 结论
 
 审查发现的两处用户可见状态错误均已补成回归测试并修复。未发现剩余 race、资源泄漏、凭据暴露或第二套业务流程；实现与所有确认原型的生产数据边界一致。
+
+---
+
+# 2026-09-01 — Ticket 14 confirmed UI regression code review
+
+审查范围：菜单栏 Capture 恢复路径、Provider API Key 输入状态、共享表面语义色、管理中心侧栏与历史详情卡片。
+
+## 【① 底层前提】
+
+- `VLMSnapperApplicationModel.capture()` 已经是 readiness 的真实生产入口：权限或 Provider 未就绪时调用 onboarding，ready 时才启动截图。`showOnboarding()` 对已有和新建窗口都执行 `makeKeyAndOrderFront` 与应用激活。
+- 当前 Aqua 实测把 `underPageBackgroundColor` 渲染为相对亮度 `0.303`，与原型的浅色 `surface-subtle` 不同；该深灰在无 modal 的离屏生产渲染中同样出现，排除了遮罩导致变灰。
+- API Key 的生产 binding 写入普通 application-model 属性，不发 SwiftUI observation；字段编辑器能显示新值不代表同一 view 的 sibling button 会重算。
+
+## 【② 可运行性】
+
+- 三种菜单 Capture readiness route 现在都先经 popover dismissal coordinator，再进入 application-model Capture；菜单 popover 不再持有 Provider/permission sheet，所以 720 pt Provider 面板不再锚定状态项屏幕边缘。
+- Provider view 的本地 draft 驱动 SecureField 与 Validate enablement；点击 Validate 时先同步到现有 binding，再调用现有 async callback。Provider 切换和成功进入模型阶段会清除 draft。
+- 历史 detail 保留原有 pin/delete、截图、原文/译文、metrics 和滚动路径，只增加原型确认的外层 secondary surface 与 bordered detail card。
+- 最新中英文明暗 production renders 已重建；浅色侧栏、Provider sidebar、hint/metrics 与历史详情层级均恢复，暗色仍保持对比。
+
+## 【③ 安全正确性】
+
+- API Key draft 只存在于 Provider sheet 的内存状态；没有日志、磁盘或新持久化路径。成功验证仍由现有 session 写入 Keychain，失败不会触发额外请求或自动重试。
+- 点击 Validate 的 binding 更新发生在创建 async Task 之前，现有 `validateProvider()` 读取到本次 draft 后才清空 application-model 临时值。
+- Capture 修复没有跳过权限/Provider 检查；它只是把检查收回已有 application-model 单一入口。
+- modal 移除只覆盖 menu popover 中已被新恢复路径取代的两类 sheet；onboarding 和 Management Center 的 app-owned sheet 与退出协调策略保持不变。
+
+## 【④ 一致性】
+
+- 审查发现菜单 handler 变更后仍残留整套不可达 popover sheet 参数和 Provider callbacks。该类级重复 recovery path 已从 `MenuBarContainerView`、application-model composition 与 render fixture 中删除，避免未来误接回边缘 sheet。
+- 初版主题修复把 secondary surface 直接等同于 window surface，会丢掉原型的浅层级。复查系统语义色后改为 adaptive `unemphasizedSelectedContentBackgroundColor` 的轻透明层；浅/暗均通过当前产物渲染，而不是硬编码 RGB。
+- `ProviderSetupInputState` 不需要成为 UI module 的公开 API；审查已缩回 internal test seam。
+- 未新增图标或用户文案；现有 SF Symbols 图标模块与双语字典不变。未发现本次改动面外新增字符图标。
+
+## 结论
+
+审查发现并修正三处实现层问题：不可达的第二套 popover recovery、过度扁平的主题修复，以及不必要的公开输入状态。未发现剩余 race、资源泄漏、凭据落盘或业务语义扩张。

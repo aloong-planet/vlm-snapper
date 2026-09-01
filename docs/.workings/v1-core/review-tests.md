@@ -495,3 +495,34 @@
 ## 结论
 
 覆盖、case 设计和假通过三维均已核对。Edit 菜单行为、生产状态映射、确认几何和完整表面渲染都有能杀死对应回归的独立信号；真实安装 App 的鼠标/键盘手感仍属于合并后安装验收，不被离屏测试冒充。
+
+---
+
+# 2026-09-01 — Ticket 14 confirmed UI regression test review
+
+## 维度 1：覆盖是否完整
+
+- Menu capture case 同批驱动 `.configureProvider`、`.recoverPermission` 与 `.capture` 三个公开 route，逐项要求进入 panel-dismissal 后的 application callback；现有 dismissal tests 继续承兑 visible/hidden panel 时序和幂等关闭。
+- Provider input state 覆盖用户粘贴后立即可验证、validating 期间禁用、点当前 Provider 保留 draft、切换到另一 Provider 清除旧 draft。
+- Theme render case 在真实 `NSHostingView` 中把 secondary surface 合成到 window surface 后取中心像素，分别固定 Aqua 与 Dark Aqua；浅色亮度必须大于 `0.8`，暗色必须小于 `0.2`。
+- History detail 的 card hierarchy 属纯视觉结构，SwiftUI 私有层级没有稳定公开 seam。测试不添加与实现共享的几何常量；由最新 production whole-window render 承兑 outer surface、bordered card、header divider、截图/文字/metrics 层级。
+- 真实安装 App 的“点击 Capture 后 onboarding 成为系统最前窗”和实际 SecureField 粘贴手感仍需本地安装 smoke；离屏/纯状态测试不冒充系统窗口层验收。
+
+## 维度 2：case 设计是否合理
+
+- Menu test 站在生产 handler seam，三种 route 都来自公开枚举；断言用户动作最终是否进入 application callback，不断言内部 sheet state。
+- Provider state 是为修复 plain binding 不观察而建立的 presentation seam；状态全部通过公开编辑/Provider 选择动作到达，没有 cast、私有字段改写或 application-model mock。
+- Theme test 的阈值来自已确认原型的浅/暗表面关系，未 import 生产常量作期望；先绘制真实 window backing，避免半透明颜色在透明 bitmap 上产生无意义 RGB。
+- Ticket 13 render 每次重建当前分支的 production views 并清空固定输出目录；本轮实际查看了管理历史、Provider settings、Provider setup 和暗色管理页。
+
+## 维度 3：有没有假通过
+
+- 菜单定向变异让 `.configureProvider` 不调用 dismissal callback；目标测试从三次事件变为两次，并精确红在缺少一次 `capture-after-dismissal`。
+- Provider 定向变异让 `updateAPIKey` 丢弃输入；目标测试精确红在 draft 仍为空和 Validate readiness 为 false。
+- Theme 定向变异恢复旧 `underPageBackgroundColor`；浅色实际合成亮度降为 `0.358`，目标测试精确拒绝。
+- 三处变异分别用 `apply_patch` 只还原变异行；还原后 menu 1/1、Provider 2/2、theme 2/2 全部重新转绿。
+- Ticket 13 PNG 生成测试仍只证明产物存在，不单独承担视觉正确性；本轮结论明确依赖实际查看的新渲染图，避免把旧的 byte-count 假绿继续当原型一致证据。
+
+## 结论
+
+本轮行为与主题回归都有可杀死已知错误的独立测试。纯历史布局保留诚实的视觉验收缺口，并已由当前产物整窗核对；下一道完整门禁和安装 smoke 仍需继续执行。

@@ -17,6 +17,7 @@
 | 11 | app-owned sheet 打开时的菜单退出、Command-Q 与系统 Quit 进入统一退出协调 | 已完成 |
 | 12 | 状态项左/右键分流、右键退出与面板按钮真实截图衔接 | 已完成 |
 | 13 | 完整 Edit 菜单、文本编辑 responder chain 与所有确认原型的生产界面一致性 | 已完成 |
+| 14 | 未就绪截图回到前台引导、Provider 输入与居中恢复、管理侧栏和历史详情原型回归 | 已完成 |
 
 ## Ticket 01 evidence
 
@@ -90,3 +91,9 @@
 - Gate: 严格 Swift/C warnings-as-errors build、完整 Swift Testing 209/209（54 suites）、40 张精确命名的中英文/明暗生产界面渲染、本地化 234/234 键一致、prototype shared-block 检查、UI 硬编码扫描与 `git diff --check`。
 - Tests: `ApplicationMenuTests` 4 例、`MenuBarPresentationTests` 3 例、`ConfirmedSurfaceContractTests` 3 例和 `Ticket13RenderingTests` 1 例，覆盖完整 Edit 层级、标准 selector/快捷键/responder Paste、真实历史与 Provider 状态、独立原型几何，以及十个生产表面在双语双主题下的 40 个精确产物。
 - Evidence: `VLMSnapperApplicationMenu.swift`、`MenuBarPanelView.swift`、`ProviderSetupView.swift`、`ScreenCapturePermissionRecoveryView.swift`、`ResultWorkspaceView.swift`、`ManagementCenterView.swift` 与对应 production wiring；`review-code.md`、`review-tests.md` 的批判式审查和三项变异证据；`final-regression.md` 的三阶段一致性核销。
+
+## Ticket 14 evidence
+
+- Gate: 严格 Swift/C warnings-as-errors build、完整 Swift Testing 213/213（56 suites）、40 张双语/明暗生产界面渲染、234/234 本地化键一致、prototype JavaScript 检查、UI 硬编码扫描、本票源码与测试 CJK 扫描、shell syntax 与 `git diff --check`。
+- Tests: `Ticket12MenuBarInteractionTests` 的三个未就绪/就绪路由都先关闭面板、`ProviderSetupInputStateTests` 2 例验证粘贴立即启用和切换 Provider 清理草稿、`ThemeSurfaceRenderingTests` 2 例验证 Aqua/Dark Aqua 自适应次级表面；三处定向变异均准确红灯并在恢复后转绿。
+- Evidence: `MenuBarContainerView.swift` 移除状态项 popover 内的重复 sheet host、`ProviderSetupView.swift` 使用可观察的本地输入状态、`VLMSnapperTheme.swift` 恢复原型层级的自适应浅色表面、`ManagementCenterView.swift` 恢复带边框的历史详情卡；Ticket design/review、code/test review、production renders 与 `final-regression.md` 完成闭环。

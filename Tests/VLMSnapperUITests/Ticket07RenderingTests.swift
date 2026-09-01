@@ -83,23 +83,8 @@ struct Ticket07RenderingTests {
                         provider: .deepSeek,
                         modelID: "deepseek-v4-flash-vision-exp"
                     ),
-                    providerSnapshot: ProviderSetupSnapshot(
-                        selectedProvider: .deepSeek,
-                        availableModelIDs: ["deepseek-v4-flash-vision-exp"],
-                        selectedModelID: "deepseek-v4-flash-vision-exp",
-                        phase: .ready,
-                        failure: nil
-                    ),
-                    apiKey: .constant(""),
-                    pendingModelID: .constant("deepseek-v4-flash-vision-exp"),
                     callbacks: MenuBarCallbacks(
                         onCapture: {},
-                        onPermissionPrimaryAction: {},
-                        onSelectProvider: { _ in },
-                        onValidateProvider: {},
-                        onRefreshModels: {},
-                        onSelectModel: { _ in },
-                        onProviderDone: {},
                         onOpenRecent: { _ in },
                         onNavigate: { _ in },
                         onCheckUpdates: {}
