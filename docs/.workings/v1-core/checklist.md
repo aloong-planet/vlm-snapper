@@ -105,3 +105,16 @@
 - Gate: 严格 Swift/C warnings-as-errors build、完整 Swift Testing 216/216（57 suites）、44 张双语/明暗生产界面渲染、234/234 本地化键一致、prototype JavaScript、shell syntax、UI literal/CJK 与 `git diff --check` 全部通过；Developer ID arm64 build 6 已验证并安装，等待真实 WindowServer 用户验收后核销本票。
 - Tests: `ProviderSetupSessionTests` 的 401 正例和 503 反例区分无效凭据与服务不可用；`ManagementCenterWindowContractTests` 用真实 AppKit window 证明 `920×620` 约束完整内容区；`Ticket12MenuBarInteractionTests` 证明 pending Capture 不在 popover close callback 内同步执行，而在下一主线程周期 exactly once 运行；Ticket 13 render 追加四张最小管理窗口产物。
 - Evidence: 安装版统一日志确认 OpenAI 请求完成 DNS/TLS/HTTP2 后返回 401；独立 AppKit probe 证明 `920×620` 外框只有 `920×588` 内容区；三条 TDD 红绿、503 过宽映射变异、code/test review、spec/features 与 `final-regression.md` 完成闭环。跨应用 WindowServer 置前仍由本票签名安装版手动 acceptance 承兑，不以 SwiftPM 单测冒充。
+
+## Ticket 18 — Result window, rerun history, and menu interactions
+
+- [x] Result workspace presents once, refreshes in place, and otherwise behaves as a normal backgroundable window.
+- [x] Try Again reuses the current screenshot-operation history identity and replaces the successful result.
+- [x] Menu capture, recent-record, History, and Settings actions use full visible hit targets and hover states.
+- [x] Targeted red/green tests, full verification, code review, test review, and documentation consistency are complete.
+
+## Ticket 18 evidence
+
+- Gate: strict Swift/C warnings-as-errors build, full Swift Testing 246/246 in 65 suites, 44 bilingual light/dark production renders, `git diff --check`, and three targeted behavior mutations.
+- Tests: real AppKit window level and hidden refresh, runner history identity/replacement and failed-rerun preservation, SQLite identity/pin/metadata replacement, full-width AppKit edge click, and all menu roles' hover response.
+- Evidence: `ResultWorkspaceWindowController.swift`, application presentation wiring, `PersistedOperationWorkspaceRunner.swift`, `SQLiteHistoryStore.swift`, the shared menu action component, Ticket 18 design/reviews, and the three-stage final regression. Physical pointer hover and cross-application ordering remain installed-App acceptance checks.

@@ -790,3 +790,42 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。本次补入 feature catalog 的新事实是：DeepSeek 持续内部处理时不会被误判为 10 秒无活动超时，且私有推理内容永不显示或保存。spec、ADR、`CONTEXT.md`、实现、测试和真实运行证据一致；本轮不改变确认原型。
+
+---
+
+# 2026-09-02 — Result window, rerun history, and menu interaction repair
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的结果窗口前后台行为 | normal-level window 与 present/update 调用点 | 首次或显式请求置前；五个状态刷新点不激活或展示窗口 |
+| spec 的当前结果重跑原子覆盖 | runner、SQLite 和三条持久化测试 | 同槽复用 UUID；成功替换，失败/取消保留旧成功结果 |
+| features 的用户可见描述 | 菜单组件、窗口 controller 与完整测试 | 当前版本行为已就地改写，与实现一致 |
+| 已确认 companion-shell/core-result 原型 | 44 张生产渲染与 AppKit 命中测试 | 后台窗口、菜单整行 hover/点击和结果布局一致；原型无需改写 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| 当前结果重跑 ↔ 历史操作重跑 | `CONTEXT.md`、spec、features 与全库关键词检索 | 两个术语边界已明确；本轮不改变管理中心历史重跑语义 |
+| 窗口展示 ↔ 全部调用点 | `showResultWorkspace` 全量调用枚举 | 1 个首次展示点显式置前，5 个更新点不置前；已有工作区的再次截图请求仍显式置前 |
+| 菜单按钮类别 ↔ 统一交互组件 | Capture、recent、footer 全量按钮枚举 | 三类都接入全宽 hit target 与 hover；更新提示使用原生 bordered button，未受窄命中问题影响 |
+| i18n 能力 ↔ 用户文案字典 | 项目能力声明与本轮 diff | i18n 已启用；无新增文案或 key，zh-Hans/en 字典无需修改 |
+| 图标规则 ↔ UI diff | `VLMSnapperIcons.swift` 与菜单 diff | 沿用既有集中 SF Symbols，没有文本/Unicode 图标 |
+| features 文件 ↔ 索引 | `docs/features/README.md` | 文件名与一句话未变，不需调整索引 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 窗口从 floating 改为 normal | level mutation 与真实 AppKit test | 旧层级会准确红；内容刷新也不能把隐藏窗口重新显示 |
+| 同槽重复执行不再 INSERT | runner 初始红灯、SQLite readback | 历史成员数不变，未改变 Provider/语言/渠道等枚举维度 |
+| 菜单按钮交互组件新增 | edge-click 与 hover mutations | 完整可见区域命中和三角色视觉反馈都有永久回归 |
+| 测试与构建总数变化 | strict build、full test、production renders | warnings-as-errors 通过；246 tests / 65 suites 和 44 renders 全绿 |
+| 范围内 Pending 注记 | spec/features/CONTEXT/issue | 没有到期 Pending，也没有新增待决产品行为 |
+| 本轮新通则 | `CONTEXT.md` | 当前结果重跑与历史操作重跑的身份边界已落正本 |
+
+## 收敛结论
+
+三阶段队列已清空。本次让旧 feature 声明变成谎的行为是结果窗口持续置顶和当前 Try Again 产生重复历史；两处均已就地改写并由实现、测试和原型对核。没有遗漏新的用户可见行为。
