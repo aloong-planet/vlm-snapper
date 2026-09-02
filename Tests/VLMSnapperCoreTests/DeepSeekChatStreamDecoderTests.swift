@@ -71,6 +71,29 @@ struct DeepSeekChatStreamDecoderTests {
         ])
     }
 
+    @Test("only nonempty reasoning is reported as private provider activity")
+    func onlyNonemptyReasoningIsPrivateProviderActivity() throws {
+        var decoder = DeepSeekChatStreamDecoder(operation: .extractText)
+
+        let reasoningEvents = try decoder.consume(
+            #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"Inspecting"},"finish_reason":null}]}"#
+        )
+        #expect(reasoningEvents.isEmpty)
+        #expect(decoder.lastPayloadContainedReasoningActivity)
+
+        let bufferedContentEvents = try decoder.consume(
+            #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":"{"},"finish_reason":null}]}"#
+        )
+        #expect(bufferedContentEvents.isEmpty)
+        #expect(!decoder.lastPayloadContainedReasoningActivity)
+
+        let emptyReasoningEvents = try decoder.consume(
+            #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":""},"finish_reason":null}]}"#
+        )
+        #expect(emptyReasoningEvents.isEmpty)
+        #expect(!decoder.lastPayloadContainedReasoningActivity)
+    }
+
     @Test("the text alias remains invalid for translation")
     func textAliasRemainsInvalidForTranslation() {
         var decoder = DeepSeekChatStreamDecoder(

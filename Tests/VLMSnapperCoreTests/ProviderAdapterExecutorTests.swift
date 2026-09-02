@@ -103,6 +103,35 @@ struct ProviderAdapterExecutorTests {
         #expect(await transport.requestCount == 1)
     }
 
+    @Test("DeepSeek reasoning activity keeps the first-text deadline alive")
+    func deepSeekReasoningKeepsFirstTextDeadlineAlive() async throws {
+        let executor = ProviderAdapterExecutor(
+            transport: DeepSeekReasoningStreamingTransport(),
+            timeouts: ProviderStreamTimeouts(
+                firstText: .milliseconds(250),
+                stalled: .milliseconds(250),
+                total: .seconds(1)
+            )
+        )
+        var events: [ProviderStreamEvent] = []
+
+        for try await event in executor.stream(
+            provider: .deepSeek,
+            modelID: "deepseek-v4-flash-vision-exp",
+            apiKey: "secret",
+            originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
+            operation: .extractText
+        ) {
+            events.append(event)
+        }
+
+        #expect(events == [
+            .sourceDelta("Hello"),
+            .metadata(ProviderResponseMetadata(requestID: "chat_reasoning", usage: nil)),
+            .completed,
+        ])
+    }
+
     @Test("The stall deadline resets after text and terminates an idle stream")
     func stallDeadlineTerminatesAfterText() async {
         let transport = RecordingStreamingTransport(
@@ -247,6 +276,39 @@ private actor RecordingStreamingTransport: ProviderHTTPStreaming {
     func stream(for request: URLRequest) async throws -> ProviderHTTPStreamResponse {
         requestCount += 1
         return try result.get()
+    }
+}
+
+private struct DeepSeekReasoningStreamingTransport: ProviderHTTPStreaming {
+    func stream(for request: URLRequest) async throws -> ProviderHTTPStreamResponse {
+        ProviderHTTPStreamResponse(
+            statusCode: 200,
+            headers: [:],
+            body: AsyncThrowingStream { continuation in
+                let producer = Task {
+                    continuation.yield(Self.sse(
+                        #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"Inspecting"},"finish_reason":null}]}"#
+                    ))
+                    try await Task.sleep(for: .milliseconds(150))
+                    continuation.yield(Self.sse(
+                        #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"Reading"},"finish_reason":null}]}"#
+                    ))
+                    try await Task.sleep(for: .milliseconds(150))
+                    continuation.yield(Self.sse(
+                        #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":"{\"source\":\"Hello\"}"},"finish_reason":"stop"}]}"#
+                    ))
+                    continuation.yield(Self.sse("[DONE]"))
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in
+                    producer.cancel()
+                }
+            }
+        )
+    }
+
+    private static func sse(_ payload: String) -> Data {
+        Data("data: \(payload)\n\n".utf8)
     }
 }
 

@@ -759,3 +759,37 @@ review 发现并删除 1 个本次引入的 orphan enum case；事实层重扫�
 ## 结论
 
 四层审查未发现剩余阻断项。修复位于测试基础设施，覆盖了当前全部 16 个显式语言切换点，同时保持生产行为不变。
+
+---
+
+# VLMSnapper v1 — DeepSeek reasoning activity timeout review (2026-09-02)
+
+审查范围：只修复 DeepSeek 实验视觉模型在持续返回私有推理分片时被 10 秒首字计时误杀的问题；不修改请求格式、公开事件协议、结果界面、自动重试或其他 Provider 行为。
+
+## 【① 底层前提】
+
+- 真实流式样本证明首个 SSE 在 317 ms 内到达、非空 `reasoning_content` 在 1,144 ms 内开始，而公开 `content` 最晚到 16,676 ms 才出现；旧实现只在公开文字事件上重置计时，因此把“Provider 正在处理”误判为“连接无活动”。
+- `DeepSeekChatStreamDecoder` 是唯一理解该私有字段的层；统一 Provider 事件仍只包含 source、translation、metadata 和 completed，不能把推理内容提升为公开协议。
+- 首字/停滞计时与 90 秒总计时由同一 actor 串行管理；本轮只重建当前无活动 timer，不触碰 total timer。
+
+## 【② 可运行性】
+
+- DeepSeek decoder 每个 payload 先清空活动位，只在所选 choice 的非空 `reasoning_content` 上置位；空字符串、普通缓冲 content、metadata 和 DONE 都不会冒充私有活动。
+- executor 先把 decoder 结果折叠为公开事件与私有活动布尔值，再通知 timeout coordinator；公开事件仍按原顺序 yield，OpenAI/Gemini decoder 不产生私有活动。
+- coordinator 在首个公开文字出现前收到私有活动时重启 first-text timer；收到公开文字后切换并持续重启 stalled timer。完成、失败和取消仍同时取消两个 timer。
+
+## 【③ 安全正确性】
+
+- 推理字符串只在 decoder 内做非空判断，没有进入 `ProviderStreamEvent`、accumulator、持久化、诊断或日志；全库引用检查未发现其他生产消费者。
+- API Key、截图内容和模型输出没有写入测试报告。真实 10 次测试只保留耗时、运行序号和归一化状态，临时 CLI 测试入口已撤销。
+- 失败策略没有放宽：连续 10 秒无有效活动仍失败，90 秒总时限仍不可延长，不自动重试、不切模型，也不接受残缺结构化结果。
+
+## 【④ 一致性】
+
+- spec、feature catalog、ADR-0011 与 `CONTEXT.md` 已同步同一边界：DeepSeek 私有活动可刷新无活动计时但不可显示或保存，OpenAI/Gemini 不变。
+- 本轮没有用户界面结构、样式或文案变化，既有确认原型无需修改；按项目能力声明，i18n 已启用，但本轮没有新增本地化键或字典变更。
+- 生产代码、注释和测试名均为英文；施工与审查记录继续保留在既有 v1-core working 目录。
+
+## 结论
+
+四层审查未发现剩余阻断项。实现将 Provider 私有活动限制在 DeepSeek decoder 到 timeout coordinator 的单向布尔信号中，没有扩大公开契约或安全暴露面。
