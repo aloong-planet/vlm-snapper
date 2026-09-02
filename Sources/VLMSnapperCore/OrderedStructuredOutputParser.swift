@@ -7,12 +7,19 @@ public enum OrderedStructuredOutputParserError: Error, Equatable {
 
 public struct OrderedStructuredOutputParser: Sendable {
     private let operation: ProviderOperation
+    private let acceptedSourceKeys: Set<String>
     private var buffer = ""
     private var emittedSource = ""
     private var emittedTranslation = ""
 
     public init(operation: ProviderOperation) {
         self.operation = operation
+        acceptedSourceKeys = ["source"]
+    }
+
+    init(operation: ProviderOperation, acceptedSourceKeys: Set<String>) {
+        self.operation = operation
+        self.acceptedSourceKeys = acceptedSourceKeys
     }
 
     public mutating func consume(_ delta: String) throws -> [ProviderStreamEvent] {
@@ -67,7 +74,7 @@ public struct OrderedStructuredOutputParser: Sendable {
         guard sourceKey.complete else {
             return Snapshot()
         }
-        guard sourceKey.value == "source" else {
+        guard acceptedSourceKeys.contains(sourceKey.value) else {
             throw OrderedStructuredOutputParserError.malformedOutput
         }
         skipWhitespace(at: &cursor)

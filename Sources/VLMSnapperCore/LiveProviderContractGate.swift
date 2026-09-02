@@ -71,6 +71,11 @@ public enum LiveProviderContractOutcome: String, Codable, Equatable, Sendable {
     case failed
 }
 
+public enum LiveProviderContractOperation: String, CaseIterable, Codable, Equatable, Sendable {
+    case extract
+    case translate
+}
+
 public struct LiveProviderContractUsage: Codable, Equatable, Sendable {
     public let inputTokens: Int
     public let outputTokens: Int
@@ -85,6 +90,7 @@ public struct LiveProviderContractUsage: Codable, Equatable, Sendable {
 
 public struct LiveProviderContractReport: Codable, Equatable, Sendable {
     public let provider: ProviderID
+    public let operation: LiveProviderContractOperation
     public let modelID: String?
     public let stage: LiveProviderContractStage
     public let outcome: LiveProviderContractOutcome
@@ -95,6 +101,7 @@ public struct LiveProviderContractReport: Codable, Equatable, Sendable {
 
     public init(
         provider: ProviderID,
+        operation: LiveProviderContractOperation,
         modelID: String?,
         stage: LiveProviderContractStage,
         outcome: LiveProviderContractOutcome,
@@ -104,6 +111,7 @@ public struct LiveProviderContractReport: Codable, Equatable, Sendable {
         usage: LiveProviderContractUsage?
     ) {
         self.provider = provider
+        self.operation = operation
         self.modelID = modelID
         self.stage = stage
         self.outcome = outcome
@@ -134,48 +142,52 @@ public struct LiveProviderContractGate: Sendable {
     ) async -> [LiveProviderContractReport] {
         var reports: [LiveProviderContractReport] = []
         for provider in ProviderID.allCases {
-            guard let configuration = configurations[provider],
-                  configuration.hasRequiredValues else {
-                reports.append(
-                    LiveProviderContractReport(
-                        provider: provider,
-                        modelID: nil,
-                        stage: .configuration,
-                        outcome: .blocked,
-                        durationMilliseconds: 0,
-                        status: "missing_configuration",
-                        requestID: nil,
-                        usage: nil
+            for operation in LiveProviderContractOperation.allCases {
+                guard let configuration = configurations[provider],
+                      configuration.hasRequiredValues else {
+                    reports.append(
+                        LiveProviderContractReport(
+                            provider: provider,
+                            operation: operation,
+                            modelID: nil,
+                            stage: .configuration,
+                            outcome: .blocked,
+                            durationMilliseconds: 0,
+                            status: "missing_configuration",
+                            requestID: nil,
+                            usage: nil
+                        )
                     )
-                )
-                continue
+                    continue
+                }
+                reports.append(await run(
+                    provider: provider,
+                    operation: operation,
+                    configuration: configuration,
+                    originalPNG: originalPNG
+                ))
             }
-            reports.append(await run(
-                provider: provider,
-                configuration: configuration,
-                originalPNG: originalPNG
-            ))
         }
         return reports
     }
 
     private func run(
         provider: ProviderID,
+        operation: LiveProviderContractOperation,
         configuration: LiveProviderContractConfiguration,
         originalPNG: Data
     ) async -> LiveProviderContractReport {
         let startedAt = nowMilliseconds()
-        var accumulator = ProviderStreamAccumulator(
-            operation: .translate(targetLanguage: "Simplified Chinese")
-        )
         do {
+            let providerOperation = operation.providerOperation
+            var accumulator = ProviderStreamAccumulator(operation: providerOperation)
             var completedOutput: ProviderCompletedOutput?
             for try await event in streamer.stream(
                 provider: provider,
                 modelID: configuration.modelID,
                 apiKey: configuration.apiKey,
                 originalPNG: originalPNG,
-                operation: .translate(targetLanguage: "Simplified Chinese")
+                operation: providerOperation
             ) {
                 do {
                     if let output = try accumulator.consume(event) {
@@ -184,6 +196,7 @@ public struct LiveProviderContractGate: Sendable {
                 } catch {
                     return failureReport(
                         provider: provider,
+                        operation: operation,
                         modelID: configuration.modelID,
                         stage: .validation,
                         startedAt: startedAt,
@@ -194,6 +207,7 @@ public struct LiveProviderContractGate: Sendable {
             guard let completedOutput else {
                 return failureReport(
                     provider: provider,
+                    operation: operation,
                     modelID: configuration.modelID,
                     stage: .validation,
                     startedAt: startedAt,
@@ -202,6 +216,7 @@ public struct LiveProviderContractGate: Sendable {
             }
             return LiveProviderContractReport(
                 provider: provider,
+                operation: operation,
                 modelID: configuration.modelID,
                 stage: .validation,
                 outcome: .passed,
@@ -219,6 +234,7 @@ public struct LiveProviderContractGate: Sendable {
         } catch let error as ProviderAdapterError {
             return failureReport(
                 provider: provider,
+                operation: operation,
                 modelID: configuration.modelID,
                 stage: .request,
                 startedAt: startedAt,
@@ -227,6 +243,7 @@ public struct LiveProviderContractGate: Sendable {
         } catch {
             return failureReport(
                 provider: provider,
+                operation: operation,
                 modelID: configuration.modelID,
                 stage: .request,
                 startedAt: startedAt,
@@ -237,6 +254,7 @@ public struct LiveProviderContractGate: Sendable {
 
     private func failureReport(
         provider: ProviderID,
+        operation: LiveProviderContractOperation,
         modelID: String,
         stage: LiveProviderContractStage,
         startedAt: Int64,
@@ -244,6 +262,7 @@ public struct LiveProviderContractGate: Sendable {
     ) -> LiveProviderContractReport {
         LiveProviderContractReport(
             provider: provider,
+            operation: operation,
             modelID: modelID,
             stage: stage,
             outcome: .failed,
@@ -261,6 +280,17 @@ public struct LiveProviderContractGate: Sendable {
     private func redactRequestID(_ requestID: String) -> String {
         let digest = SHA256.hash(data: Data(requestID.utf8))
         return "sha256:" + digest.prefix(6).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+private extension LiveProviderContractOperation {
+    var providerOperation: ProviderOperation {
+        switch self {
+        case .extract:
+            return .extractText
+        case .translate:
+            return .translate(targetLanguage: "Simplified Chinese")
+        }
     }
 }
 

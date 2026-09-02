@@ -39,6 +39,62 @@ struct DeepSeekChatStreamDecoderTests {
         )
     }
 
+    @Test("the observed text field is normalized for extraction")
+    func observedTextFieldIsNormalizedForExtraction() throws {
+        var decoder = DeepSeekChatStreamDecoder(operation: .extractText)
+        let payloads = [
+            #"{"id":"chat_extract","choices":[{"index":0,"delta":{"content":"{\"text\":\"Captured"},"finish_reason":null}]}"#,
+            #"{"id":"chat_extract","choices":[{"index":0,"delta":{"content":" text\"}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":20,"completion_tokens":4,"total_tokens":24}}"#,
+            "[DONE]",
+        ]
+        var events: [ProviderStreamEvent] = []
+
+        for payload in payloads {
+            events.append(contentsOf: try decoder.consume(payload))
+        }
+        try decoder.finish()
+
+        #expect(events == [
+            .sourceDelta("Captured"),
+            .sourceDelta(" text"),
+            .metadata(
+                ProviderResponseMetadata(
+                    requestID: "chat_extract",
+                    usage: ProviderTokenUsage(
+                        inputTokens: 20,
+                        outputTokens: 4,
+                        totalTokens: 24
+                    )
+                )
+            ),
+            .completed,
+        ])
+    }
+
+    @Test("the text alias remains invalid for translation")
+    func textAliasRemainsInvalidForTranslation() {
+        var decoder = DeepSeekChatStreamDecoder(
+            operation: .translate(targetLanguage: "es")
+        )
+
+        #expect(throws: ProviderAdapterError.malformedOutput) {
+            _ = try decoder.consume(
+                #"{"id":"chat_translate","choices":[{"index":0,"delta":{"content":"{\"text\":\"Hello\",\"translation\":\"Hola\"}"},"finish_reason":"stop"}]}"#
+            )
+        }
+    }
+
+    @Test("the extraction alias does not permit extra fields")
+    func extractionAliasDoesNotPermitExtraFields() {
+        var decoder = DeepSeekChatStreamDecoder(operation: .extractText)
+
+        #expect(throws: ProviderAdapterError.malformedOutput) {
+            _ = try decoder.consume(
+                #"{"id":"chat_extract","choices":[{"index":0,"delta":{"content":"{\"text\":\"Hello\",\"extra\":true}"},"finish_reason":"stop"}]}"#
+            )
+        }
+    }
+
     @Test("clean EOF without DONE is incomplete")
     func missingDoneIsIncomplete() throws {
         var decoder = DeepSeekChatStreamDecoder(operation: .extractText)
