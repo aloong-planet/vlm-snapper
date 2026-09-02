@@ -39,6 +39,7 @@ actor ProviderStreamTimeoutCoordinator {
     private let clock: any ProviderTimeoutClock
     private let timeouts: ProviderStreamTimeouts
     private var active = true
+    private var hasReceivedText = false
     private var textTimer: Task<Void, Never>?
     private var totalTimer: Task<Void, Never>?
 
@@ -63,12 +64,19 @@ actor ProviderStreamTimeoutCoordinator {
         textTimer = timer(for: .firstText, duration: timeouts.firstText)
     }
 
-    func receivedText() {
+    func receivedActivity(includesText: Bool) {
         guard active else {
             return
         }
+        if includesText {
+            hasReceivedText = true
+        }
         textTimer?.cancel()
-        textTimer = timer(for: .stalled, duration: timeouts.stalled)
+        if hasReceivedText {
+            textTimer = timer(for: .stalled, duration: timeouts.stalled)
+        } else {
+            textTimer = timer(for: .firstText, duration: timeouts.firstText)
+        }
     }
 
     func complete() {

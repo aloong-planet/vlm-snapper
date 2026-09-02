@@ -653,3 +653,35 @@
 ## Review result
 
 测试覆盖目标竞态、全部现有调用点和正常多 worker 门禁，且 mutation 会准确打红。未发现本次修复的假通过；SQLite 偶发信号明确隔离并保留为独立诊断候选。
+
+---
+
+# VLMSnapper v1 — DeepSeek reasoning activity timeout test review (2026-09-02)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| 两段推理活动跨过 250 ms 首字期限后仍能完成 | `deepSeekReasoningKeepsFirstTextDeadlineAlive` | 公开文字在约 300 ms 才到达，若推理活动未重置计时则必然失败，修复后成功 |
+| 推理内容不进入公开结果 | 同一 executor 用例的完整事件数组 | 只得到 `sourceDelta("Hello")`、metadata、completed，没有推理增量 |
+| 只有非空推理字段算私有活动 | `onlyNonemptyReasoningIsPrivateProviderActivity` | 覆盖非空推理、普通缓冲 content 与空推理三个相邻形态 |
+| 首字、停滞、总时限及 OpenAI 行为 | `ProviderAdapterExecutorTests` 既有 timeout 用例 | 共享 coordinator 回归保持通过；total timer 未被活动路径取消 |
+| 真实模型波动 | 同一原图、生产 executor、顺序 10 次 | 10/10 通过，0 次 `first_text_timeout`；两次总耗时超过 10 秒仍完成 |
+
+## 维度 2：case 设计是否合理
+
+- executor 回归使用真实 DeepSeek SSE JSON 与生产 decoder/timeout actor，仅替换传输边界和时间长度；它没有直接调用 `receivedActivity`，因此能覆盖字段解码、私有信号传播和 timer 重置整条链路。
+- 250 ms first-text 与 150 ms + 150 ms 分片间隔构成清晰反例：任何单段间隔都未超时，但若推理活动不被识别，总等待必然越过旧 deadline；100 ms 余量降低高负载 CI 的调度型假红风险。
+- decoder scope 用例先断言推理没有公开事件，再用尚未形成公开事件的普通 `{` content 验证它不获得私有特权，最后验证空推理不算活动。
+- 真实测试使用用户授权的同一原始 PNG 和实际 `deepseek-v4-flash-vision-exp`，顺序执行以避免并发限流；报告不包含 API Key 或识别文本。
+
+## 维度 3：有没有假通过
+
+- 第一条回归最初以 60 ms deadline 和 40 ms 分片间隔在实现前实际运行，并于 68 ms 精确红为 `firstTextTimeout`；实现后转绿，最终测试再放大为 250/150 ms 以增加调度余量，证明不是只调整期望。
+- 收紧范围时新增 decoder 用例，当前补丁先精确红于普通缓冲 content 被误标为活动；删除该越界置位后同一用例转绿，证明测试能区分推理与普通 content。
+- 完整 8-worker 测试实际执行 239 tests / 63 suites 并一次通过；warnings-as-errors 严格构建通过，没有 skip、串行降级或失败后重跑。
+- 真实 10 次生产链耗时为 6,396–19,827 ms，中位 8,945 ms、平均 10,140.1 ms；结果保留了两次超过 10 秒的慢样本，没有筛除波动以制造全绿。
+
+## Review result
+
+单元层能对旧 bug 和越界修复分别打红，完整套件守住共享行为，真实生产链覆盖实际模型波动。未发现恒真断言、未到达代码、陈旧构建或绕过应用 timeout 的假通过。

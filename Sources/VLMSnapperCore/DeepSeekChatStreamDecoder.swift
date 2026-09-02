@@ -6,6 +6,7 @@ public struct DeepSeekChatStreamDecoder: Sendable {
     private var usage: ProviderTokenUsage?
     private var receivedStop = false
     private var receivedDone = false
+    private(set) var lastPayloadContainedReasoningActivity = false
 
     public init(operation: ProviderOperation) {
         let acceptedSourceKeys: Set<String>
@@ -22,6 +23,7 @@ public struct DeepSeekChatStreamDecoder: Sendable {
     }
 
     public mutating func consume(_ payload: String) throws -> [ProviderStreamEvent] {
+        lastPayloadContainedReasoningActivity = false
         guard !receivedDone else {
             throw ProviderAdapterError.incompleteResponse
         }
@@ -59,6 +61,10 @@ public struct DeepSeekChatStreamDecoder: Sendable {
         }
         var events: [ProviderStreamEvent] = []
         if let choice = chunk.choices.first(where: { $0.index == 0 }) {
+            if let reasoningContent = choice.delta.reasoningContent,
+               !reasoningContent.isEmpty {
+                lastPayloadContainedReasoningActivity = true
+            }
             if let content = choice.delta.content, !content.isEmpty {
                 do {
                     events.append(contentsOf: try structuredOutput.consume(content))
@@ -120,6 +126,12 @@ private struct DeepSeekChoice: Decodable {
 
 private struct DeepSeekDelta: Decodable {
     let content: String?
+    let reasoningContent: String?
+
+    enum CodingKeys: String, CodingKey {
+        case content
+        case reasoningContent = "reasoning_content"
+    }
 }
 
 private struct DeepSeekUsage: Decodable {

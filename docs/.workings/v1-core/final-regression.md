@@ -753,3 +753,40 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。本次让 `docs/features/` 中哪句话变成了谎：无；缺了哪句新的用户可见行为：无。它只修复测试隔离，因此 feature 正文、索引、spec、ADR 与原型均无需修改；review 与本报告随代码进入同一 PR。
+
+---
+
+# 2026-09-02 — DeepSeek reasoning activity timeout repair
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的连续 10 秒无活动与 90 秒总时限 | timeout coordinator、两条新回归与真实 10 次运行 | DeepSeek 推理活动只重启当前无活动 timer；total timer 保持独立 |
+| features 的单请求、无自动重试和私有推理不可见 | executor 与完整公开事件断言 | 每次仍是一条请求；推理内容不 yield、不保存，失败策略未改变 |
+| ADR-0011 的实验流式契约 | 真实 SSE 样本与 decoder | `reasoning_content` 只在 DeepSeek 层识别并降为布尔活动信号 |
+| `CONTEXT.md` 的 Provider 事件流边界 | 全库生产引用与 accumulator | 统一事件成员没有增加，source/translation 顺序及最终校验保持不变 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| DeepSeek decoder ↔ executor ↔ timeout coordinator | `lastPayloadContainedReasoningActivity` 的全部生产引用 | 信号单向流动且没有第二个消费者；普通 content 沿用原公开文字判定 |
+| 首字状态 ↔ 停滞状态 | `hasReceivedText` 与既有 timeout tests | 私有活动不把状态提前切成 stalled；首个公开文字才完成状态切换 |
+| 私有活动 ↔ total deadline | coordinator timer 所有权与严格测试 | 活动路径只取消/重建 text timer，total timer 只在终态取消 |
+| 项目 i18n 能力 ↔ 本轮 diff | 项目能力声明与资源文件 | 按项目能力声明，i18n 已启用；没有用户文案变更，zh-Hans/en 字典无需修改 |
+| 用户可见行为 ↔确认原型 | UI target 与本轮 diff | 只修复请求计时，无结构、样式、布局或文案变化，不需要新原型 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 安装版在 10,015 ms 报 `first_text_timeout` | 旧诊断记录与 deterministic red | 根因已由测试固定为忽略 DeepSeek 推理活动，不是网络无首包 |
+| 10 次裸 HTTP 中 4 次公开文字晚于 10 秒 | 修复前真实波动记录 | 解释了旧版偶发失败，不把 Provider 最终成功当作应用路径成功 |
+| 修复后同一原图生产 executor 10 次 | 脱敏 JSON 状态与耗时 | 10/10 passed、0 次首字超时；6,396–19,827 ms，保留全部慢样本 |
+| 测试与构建总数变化 | focused、8-worker full、strict build | 两条新测试均有真实红绿证据；完整 239 tests / 63 suites 与 warnings-as-errors 通过 |
+| 文档与目录状态 | spec、features、ADR、CONTEXT、issue/checklist | 用户可见行为与技术边界已就地同步，Ticket 17 标记完成 |
+
+## 收敛结论
+
+三阶段队列已清空。本次补入 feature catalog 的新事实是：DeepSeek 持续内部处理时不会被误判为 10 秒无活动超时，且私有推理内容永不显示或保存。spec、ADR、`CONTEXT.md`、实现、测试和真实运行证据一致；本轮不改变确认原型。

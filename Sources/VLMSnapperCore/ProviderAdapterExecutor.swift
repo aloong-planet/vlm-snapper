@@ -64,10 +64,13 @@ public struct ProviderAdapterExecutor: Sendable {
                     for try await chunk in response.body {
                         try Task.checkCancellation()
                         for payload in try sseDecoder.consume(chunk) {
-                            for event in try providerDecoder.consume(payload) {
-                                if event.containsText {
-                                    await coordinator.receivedText()
-                                }
+                            let decoded = try providerDecoder.consume(payload)
+                            if decoded.containsActivity {
+                                await coordinator.receivedActivity(
+                                    includesText: decoded.containsText
+                                )
+                            }
+                            for event in decoded.events {
                                 continuation.yield(event)
                             }
                         }
@@ -145,20 +148,23 @@ private enum ProviderWireStreamDecoder {
         }
     }
 
-    mutating func consume(_ payload: String) throws -> [ProviderStreamEvent] {
+    mutating func consume(_ payload: String) throws -> ProviderWireDecodeResult {
         switch self {
         case var .openAI(decoder):
             let events = try decoder.consume(payload)
             self = .openAI(decoder)
-            return events
+            return ProviderWireDecodeResult(events: events)
         case var .gemini(decoder):
             let events = try decoder.consume(payload)
             self = .gemini(decoder)
-            return events
+            return ProviderWireDecodeResult(events: events)
         case var .deepSeek(decoder):
             let events = try decoder.consume(payload)
             self = .deepSeek(decoder)
-            return events
+            return ProviderWireDecodeResult(
+                events: events,
+                containsProviderActivity: decoder.lastPayloadContainedReasoningActivity
+            )
         }
     }
 
@@ -175,5 +181,26 @@ private enum ProviderWireStreamDecoder {
             try decoder.finish()
             return []
         }
+    }
+}
+
+private struct ProviderWireDecodeResult {
+    let events: [ProviderStreamEvent]
+    let containsProviderActivity: Bool
+
+    init(
+        events: [ProviderStreamEvent],
+        containsProviderActivity: Bool = false
+    ) {
+        self.events = events
+        self.containsProviderActivity = containsProviderActivity
+    }
+
+    var containsText: Bool {
+        events.contains { $0.containsText }
+    }
+
+    var containsActivity: Bool {
+        containsProviderActivity || containsText
     }
 }
