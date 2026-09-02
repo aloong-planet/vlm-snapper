@@ -159,7 +159,7 @@ public struct ProviderRequestFactory: Sendable {
     private func prompt(for operation: ProviderOperation) -> String {
         switch operation {
         case .extractText:
-            return "VLMSnapper extraction prompt v1. Transcribe all visible text from the image. Preserve reading order and useful Markdown structure. Return only the required JSON object."
+            return "VLMSnapper extraction prompt v1. Transcribe all visible text from the image. Preserve reading order and useful Markdown structure. Return exactly one JSON object with this shape: {\"source\":\"<transcribed Markdown>\"}. Do not use other field names or include text outside the JSON object."
         case let .translate(targetLanguage):
             return "VLMSnapper translation prompt v1. First transcribe all visible text from the image into source. Then translate it into \(targetLanguage) in translation. Preserve meaning and useful Markdown structure. Return only the required JSON object, with source before translation."
         }

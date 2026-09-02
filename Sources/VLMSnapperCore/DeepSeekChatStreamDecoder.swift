@@ -8,7 +8,17 @@ public struct DeepSeekChatStreamDecoder: Sendable {
     private var receivedDone = false
 
     public init(operation: ProviderOperation) {
-        structuredOutput = OrderedStructuredOutputParser(operation: operation)
+        let acceptedSourceKeys: Set<String>
+        switch operation {
+        case .extractText:
+            acceptedSourceKeys = ["source", "text"]
+        case .translate:
+            acceptedSourceKeys = ["source"]
+        }
+        structuredOutput = OrderedStructuredOutputParser(
+            operation: operation,
+            acceptedSourceKeys: acceptedSourceKeys
+        )
     }
 
     public mutating func consume(_ payload: String) throws -> [ProviderStreamEvent] {

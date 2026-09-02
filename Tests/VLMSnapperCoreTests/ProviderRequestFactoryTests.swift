@@ -134,4 +134,27 @@ struct ProviderRequestFactoryTests {
         let responseFormat = try #require(json["response_format"] as? [String: Any])
         #expect(responseFormat["type"] as? String == "json_object")
     }
+
+    @Test("DeepSeek extraction prompt requires the canonical source field")
+    func deepSeekExtractionPromptRequiresCanonicalSourceField() throws {
+        let request = try ProviderRequestFactory().makeRequest(
+            provider: .deepSeek,
+            modelID: "deepseek-v4-flash-vision-exp",
+            apiKey: "deepseek-secret",
+            originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
+            operation: .extractText
+        )
+        let body = try #require(request.httpBody)
+        let json = try #require(
+            JSONSerialization.jsonObject(with: body) as? [String: Any]
+        )
+        let messages = try #require(json["messages"] as? [[String: Any]])
+        let content = try #require(messages.first?["content"] as? [[String: Any]])
+        let textPart = try #require(content.first { $0["type"] as? String == "text" })
+
+        #expect(
+            textPart["text"] as? String
+                == "VLMSnapper extraction prompt v1. Transcribe all visible text from the image. Preserve reading order and useful Markdown structure. Return exactly one JSON object with this shape: {\"source\":\"<transcribed Markdown>\"}. Do not use other field names or include text outside the JSON object."
+        )
+    }
 }
