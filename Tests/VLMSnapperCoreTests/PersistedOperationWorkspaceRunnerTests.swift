@@ -77,6 +77,120 @@ struct PersistedOperationWorkspaceRunnerTests {
         #expect(await provider.streamCount == 2)
     }
 
+    @Test("rerunning one operation replaces its existing history record")
+    func rerunReplacesExistingHistoryRecord() async throws {
+        let history = RunnerHistoryProbe()
+        let provider = RunnerQueuedProviderProbe(outputs: ["First result", "Replacement result"])
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: provider
+        )
+        let selection = ProviderSelection(providerID: "deepseek", modelID: "vision")
+
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: selection
+            )
+        )
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: selection
+            )
+        )
+
+        #expect(await history.operations == [.extractText])
+        #expect(await history.currentOutcomes.count == 1)
+        #expect(
+            await history.currentOutcomes.values.first
+                == .succeeded(
+                    sourceMarkdown: "Replacement result",
+                    translationMarkdown: nil
+                )
+        )
+    }
+
+    @Test("a failed rerun preserves the previous persisted result")
+    func failedRerunPreservesPreviousPersistedResult() async throws {
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerRerunFailureProviderProbe()
+        )
+        let selection = ProviderSelection(providerID: "deepseek", modelID: "vision")
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: selection
+            )
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "provider_unavailable")) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: selection
+                )
+            )
+        }
+
+        #expect(await history.operations == [.extractText])
+        #expect(
+            await history.currentOutcomes.values.first
+                == .succeeded(sourceMarkdown: "Original result", translationMarkdown: nil)
+        )
+    }
+
+    @Test("retrying a failed replacement save reuses its history identity")
+    func retryingReplacementSaveReusesHistoryIdentity() async throws {
+        let history = RunnerHistoryProbe()
+        let provider = RunnerQueuedProviderProbe(outputs: ["Original result", "Replacement result"])
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: provider
+        )
+        let selection = ProviderSelection(providerID: "deepseek", modelID: "vision")
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: selection
+            )
+        )
+        await history.setFailsSuccessfulFinish(true)
+
+        let rerunEvents = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: selection
+            )
+        )
+        guard case let .resultPersistenceFailed(unsaved) = rerunEvents.last else {
+            Issue.record("Expected the replacement result to remain unsaved")
+            return
+        }
+        await history.setFailsSuccessfulFinish(false)
+
+        let saved = try await runner.retrySavingResult()
+
+        #expect(saved == unsaved)
+        #expect(await history.operations == [.extractText])
+        #expect(await history.currentOutcomes.count == 1)
+        #expect(
+            await history.currentOutcomes.values.first
+                == .succeeded(sourceMarkdown: "Replacement result", translationMarkdown: nil)
+        )
+    }
+
     @Test("a stream without completion persists failure instead of remaining in flight")
     func incompleteStreamPersistsFailure() async throws {
         let history = RunnerHistoryProbe()
@@ -288,6 +402,7 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
     private(set) var outcomes: [PersistedOperationOutcome] = []
     private(set) var completions: [OperationCompletion] = []
     private(set) var metrics: [PersistedOperationMetrics] = []
+    private(set) var currentOutcomes: [UUID: PersistedOperationOutcome] = [:]
     private var failsPreparation: Bool
     private var cancelsPreparation: Bool
     private var failsSuccessfulFinish: Bool
@@ -358,6 +473,7 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
             throw RunnerProbeError.failed
         }
         outcomes.append(outcome)
+        currentOutcomes[operationID] = outcome
     }
 
     func finish(
@@ -369,11 +485,72 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
         self.metrics.append(metrics)
     }
 
+    func replace(
+        operationID: UUID,
+        selection: ProviderSelection,
+        operation: ProviderOperation,
+        with outcome: PersistedOperationOutcome,
+        metrics: PersistedOperationMetrics
+    ) async throws {
+        try await finish(
+            operationID: operationID,
+            with: outcome,
+            metrics: metrics
+        )
+    }
+
     func finish(
         operationID: UUID,
         as completion: OperationCompletion
     ) async throws {
         completions.append(completion)
+    }
+}
+
+private actor RunnerQueuedProviderProbe: PreparedOperationStreaming {
+    private var outputs: [String]
+
+    init(outputs: [String]) {
+        self.outputs = outputs
+    }
+
+    func stream(
+        originalPNG: Data,
+        preparedOperation: PreparedOperation
+    ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        let output = outputs.removeFirst()
+        return AsyncThrowingStream { continuation in
+            continuation.yield(.sourceDelta(output))
+            continuation.yield(
+                .metadata(ProviderResponseMetadata(requestID: nil, usage: nil))
+            )
+            continuation.yield(.completed)
+            continuation.finish()
+        }
+    }
+}
+
+private actor RunnerRerunFailureProviderProbe: PreparedOperationStreaming {
+    private var streamCount = 0
+
+    func stream(
+        originalPNG: Data,
+        preparedOperation: PreparedOperation
+    ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        streamCount += 1
+        if streamCount == 2 {
+            return AsyncThrowingStream { continuation in
+                continuation.finish(throwing: ProviderAdapterError.providerUnavailable)
+            }
+        }
+        return AsyncThrowingStream { continuation in
+            continuation.yield(.sourceDelta("Original result"))
+            continuation.yield(
+                .metadata(ProviderResponseMetadata(requestID: nil, usage: nil))
+            )
+            continuation.yield(.completed)
+            continuation.finish()
+        }
     }
 }
 

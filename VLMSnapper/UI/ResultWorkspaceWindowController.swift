@@ -21,7 +21,7 @@ public final class ResultWorkspaceWindowController: NSWindowController,
             backing: .buffered,
             defer: false
         )
-        window.level = .floating
+        window.level = .normal
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 820, height: 520)
         window.collectionBehavior = [.managed, .fullScreenAuxiliary]
@@ -34,11 +34,15 @@ public final class ResultWorkspaceWindowController: NSWindowController,
         fatalError("init(coder:) is unavailable")
     }
 
-    public func show<Content: View>(content: Content) {
+    public func present<Content: View>(content: Content) {
         window?.contentViewController = NSHostingController(rootView: content)
         window?.center()
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    public func update<Content: View>(content: Content) {
+        window?.contentViewController = NSHostingController(rootView: content)
     }
 
     public func windowShouldClose(_ sender: NSWindow) -> Bool {

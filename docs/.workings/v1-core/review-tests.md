@@ -656,6 +656,45 @@
 
 ---
 
+# VLMSnapper v1 — Result window, rerun history, and menu interaction test review (2026-09-02)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| 普通窗口层级 | `normalWindowAndNonPresentingRefresh` | 直接断言真实 `NSWindow.level == .normal` |
+| 内容刷新不得重新显示隐藏窗口 | 同一用例先保持新窗口隐藏，再调用 production `update` | `isVisible` 仍为 false；不会用内容刷新冒充展示 |
+| 当前结果重跑复用历史身份 | `rerunReplacesExistingHistoryRecord` | 两次同槽运行只 prepare 一次、字典只保留一个 UUID，最终内容为第二次结果 |
+| 失败重跑保留旧成功结果 | `failedRerunPreservesPreviousPersistedResult` | 第二次 Provider 失败后仍为同一 ID 和首次成功内容 |
+| 替换保存失败后手动重试 | `retryingReplacementSaveReusesHistoryIdentity` | unsaved replacement 可再次持久化到原 ID，不重新请求 Provider |
+| SQLite 原子替换 | `replacingResultPreservesIdentityAndPinState` | 经公开 history 查询读回同 ID、新内容、新模型、新耗时及原 pin 状态 |
+| 菜单完整可见区域点击 | `completeRowIsClickable` | 真实 `NSWindow + NSHostingView` 在 240 pt 按钮的 x=235 边缘点击 exactly once |
+| 三种菜单角色 hover | `everyRoleHasHoverResponse` | Capture、row、footer 的 hover 与 idle 背景状态均不同 |
+| 生产界面回归 | `Ticket13RenderingTests` | 44 张中英文/明暗生产表面实际渲染；菜单非 hover 布局人工核对通过 |
+
+真实跨应用退后台和真实鼠标 hover 仍需安装版 WindowServer 验收；单元层不以合成事件冒充这两项系统集成结论。
+
+## 维度 2：case 设计是否合理
+
+- runner 用例从公开 `run` 接口驱动两个完整 Provider 流，并通过 history boundary 的 UUID/当前结果观察效果；没有直写 runner 状态或只断言内部调用顺序。
+- SQLite 用例通过公开 prepare/finish/replace/history 接口读回，期望内容使用独立字面量，不复算 SQL 或读取数据库私有字段。
+- 菜单点击走 `NSWindow.sendEvent` 的正常命中与 responder 路径，断言 action 的用户可见效果；它证明组件几何，不声称覆盖真实物理鼠标或状态栏窗口。
+- 窗口用例构造真实 controller/window；应用层全部调用点另以全量检索核对，只有首次打开传 `bringToFront: true`，五个流式/终态刷新点使用非展示路径。
+
+## 维度 3：有没有假通过
+
+- 历史用例在修复前实际红于 prepare 两次和两个 UUID，成因正是目标重复记录。
+- 窗口用例初始编译红只证明缺少 refresh seam，因此另将 `.normal` 变异回 `.floating`；测试精确红于 level 3 对 level 0 的断言，随后只还原该行。
+- 菜单命中用例将 label 的 `maxWidth: .infinity` 移除后，右侧边缘 actionCount 精确保持 0；恢复该 modifier 后转绿。
+- hover 用例把 row/footer 的 hover opacity 固定为 0 后精确产生两条失败；恢复分支后转绿。
+- 完整运行实际执行 246 tests / 65 suites；没有 skip、零断言循环、陈旧构建或失败后放宽断言。
+
+## Review result
+
+测试能对三个旧故障形态分别打红，并覆盖成功、失败、保存替换和 UI 几何。安装版仍需用户验证真实跨应用排序与物理鼠标 hover，缺口已明确，不用单元绿灯替代。
+
+---
+
 # VLMSnapper v1 — DeepSeek reasoning activity timeout test review (2026-09-02)
 
 ## 维度 1：覆盖是否完整

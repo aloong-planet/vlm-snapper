@@ -126,6 +126,64 @@ public enum MenuBarPanelMetrics {
     public static let recentThumbnailSize = CGSize(width: 58, height: 42)
 }
 
+enum MenuBarPanelActionRole: CaseIterable {
+    case primary
+    case row
+    case footer
+
+    func backgroundOpacity(isHovering: Bool) -> Double {
+        switch self {
+        case .primary:
+            isHovering ? 0.84 : 1
+        case .row, .footer:
+            isHovering ? 1 : 0
+        }
+    }
+}
+
+struct MenuBarPanelActionButton<Label: View>: View {
+    private let role: MenuBarPanelActionRole
+    private let action: () -> Void
+    private let label: () -> Label
+    @State private var isHovering = false
+
+    init(
+        role: MenuBarPanelActionRole,
+        action: @escaping () -> Void,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.role = role
+        self.action = action
+        self.label = label
+    }
+
+    var body: some View {
+        Button(action: action) {
+            label()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(background)
+        .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        switch role {
+        case .primary:
+            VLMSnapperTheme.accent.opacity(
+                role.backgroundOpacity(isHovering: isHovering)
+            )
+        case .row, .footer:
+            VLMSnapperTheme.subtleSurface.opacity(
+                role.backgroundOpacity(isHovering: isHovering)
+            )
+        }
+    }
+}
+
 public struct MenuBarPanelView: View {
     private let recentItems: [MenuRecentItem]
     private let provider: ProviderReadiness
@@ -173,7 +231,7 @@ public struct MenuBarPanelView: View {
             .padding(.horizontal, 14)
             .frame(height: 50)
 
-            Button(action: onCapture) {
+            MenuBarPanelActionButton(role: .primary, action: onCapture) {
                 HStack {
                     Label(VLMSnapperStrings.menuCapture, systemImage: VLMSnapperIcon.capture.rawValue)
                     Spacer()
@@ -184,10 +242,8 @@ public struct MenuBarPanelView: View {
                 .font(.headline)
                 .foregroundStyle(Color.white)
                 .padding(.horizontal, 14)
-                .frame(height: MenuBarPanelMetrics.captureButtonHeight)
             }
-            .buttonStyle(.plain)
-            .background(VLMSnapperTheme.accent)
+            .frame(height: MenuBarPanelMetrics.captureButtonHeight)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .padding(.horizontal, 10)
             if updateState.showsMenuNotice {
@@ -207,7 +263,10 @@ public struct MenuBarPanelView: View {
                         .padding(.vertical, 10)
                 } else {
                     ForEach(recentItems.prefix(3)) { item in
-                        Button { onOpenRecent(item.id) } label: {
+                        MenuBarPanelActionButton(
+                            role: .row,
+                            action: { onOpenRecent(item.id) }
+                        ) {
                             HStack(spacing: 10) {
                                 recentThumbnail(for: item)
                                     .frame(
@@ -234,8 +293,10 @@ public struct MenuBarPanelView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 14)
                             .frame(height: 54)
+                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .padding(.horizontal, 6)
                     }
                 }
             }
@@ -341,14 +402,13 @@ public struct MenuBarPanelView: View {
     }
 
     private func footerButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        MenuBarPanelActionButton(role: .footer, action: action) {
             Text(title)
                 .font(.callout)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .multilineTextAlignment(.center)
                 .frame(height: 42)
         }
-        .buttonStyle(.plain)
     }
 }
 

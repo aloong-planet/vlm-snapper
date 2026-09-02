@@ -873,7 +873,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         Task {
             await session.select(operation)
             workspaceSnapshot = await session.snapshot()
-            showResultWorkspace()
+            showResultWorkspace(bringToFront: true)
             let previousAttempt = selectedAttempt
             let run = Task {
                 try await session.startSelectedOperation(
@@ -908,27 +908,30 @@ final class VLMSnapperApplicationModel: ObservableObject {
         }
     }
 
-    private func showResultWorkspace() {
-        resultController.show(
-            content: ResultWorkspaceView(
-                operation: binding(\.selectedOperation),
-                snapshot: workspaceSnapshot,
-                originalImage: originalImage,
-                providerSummary: providerSummary,
-                targetLanguage: targetLanguageName,
-                onStart: { [weak self] operation in
-                    Task { await self?.rerunWorkspace(operation) }
-                },
-                onCopy: { value in
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(value, forType: .string)
-                },
-                onRetrySave: { [weak self] in
-                    Task { await self?.retrySavingWorkspace() }
-                }
-            )
+    private func showResultWorkspace(bringToFront: Bool = false) {
+        let content = ResultWorkspaceView(
+            operation: binding(\.selectedOperation),
+            snapshot: workspaceSnapshot,
+            originalImage: originalImage,
+            providerSummary: providerSummary,
+            targetLanguage: targetLanguageName,
+            onStart: { [weak self] operation in
+                Task { await self?.rerunWorkspace(operation) }
+            },
+            onCopy: { value in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(value, forType: .string)
+            },
+            onRetrySave: { [weak self] in
+                Task { await self?.retrySavingWorkspace() }
+            }
         )
-        NSApp.activate(ignoringOtherApps: true)
+        if bringToFront {
+            resultController.present(content: content)
+            NSApp.activate(ignoringOtherApps: true)
+        } else {
+            resultController.update(content: content)
+        }
     }
 
     private func rerunWorkspace(_ operation: WorkspaceOperationKind) async {

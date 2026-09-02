@@ -95,6 +95,43 @@ struct SQLiteHistoryStoreTests {
         ))
     }
 
+    @Test("replacing a result preserves identity and pin state")
+    func replacingResultPreservesIdentityAndPinState() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try SQLiteHistoryStore(
+            databaseURL: directory.appendingPathComponent("history.sqlite")
+        )
+        let prepared = try await store.prepareOperation(
+            screenshot: ManagedScreenshot(path: "/Pictures/rerun.png", sha256: "sha"),
+            selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"),
+            operation: .extractText
+        )
+        try await store.finish(
+            operationID: prepared.operationID,
+            with: .succeeded(sourceMarkdown: "Old result", translationMarkdown: nil)
+        )
+        try await store.setPinned(true, operationID: prepared.operationID)
+
+        try await store.replace(
+            operationID: prepared.operationID,
+            selection: ProviderSelection(providerID: "deepseek", modelID: "new-model"),
+            operation: .extractText,
+            with: .succeeded(sourceMarkdown: "Replacement result", translationMarkdown: nil),
+            metrics: PersistedOperationMetrics(totalLatencyMilliseconds: 420)
+        )
+
+        let records = try await store.history(matching: HistoryQuery())
+        #expect(records.count == 1)
+        #expect(records.first?.operation.id == prepared.operationID)
+        #expect(records.first?.operation.selection.modelID == "new-model")
+        #expect(records.first?.operation.sourceMarkdown == "Replacement result")
+        #expect(records.first?.isPinned == true)
+        #expect(records.first?.metrics.totalLatencyMilliseconds == 420)
+    }
+
     @Test("a typed translation operation persists its target language")
     func typedTranslationPersistsTargetLanguage() async throws {
         let directory = FileManager.default.temporaryDirectory

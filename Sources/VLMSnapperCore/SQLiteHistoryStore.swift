@@ -527,6 +527,76 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         }
     }
 
+    public func replace(
+        operationID: UUID,
+        selection: ProviderSelection,
+        operation: ProviderOperation,
+        with outcome: PersistedOperationOutcome,
+        metrics: PersistedOperationMetrics
+    ) async throws {
+        let kind: PersistedOperationKind
+        let targetLanguage: String?
+        switch operation {
+        case .extractText:
+            kind = .extract
+            targetLanguage = nil
+        case let .translate(language):
+            kind = .translate
+            targetLanguage = language
+        }
+        let status: OperationStatus
+        let sourceMarkdown: String?
+        let translationMarkdown: String?
+        let normalizedErrorCode: String?
+        switch outcome {
+        case let .succeeded(source, translation):
+            status = .succeeded
+            sourceMarkdown = source
+            translationMarkdown = translation
+            normalizedErrorCode = nil
+        case let .failed(errorCode):
+            status = .failed
+            sourceMarkdown = nil
+            translationMarkdown = nil
+            normalizedErrorCode = errorCode
+        }
+        let sql = """
+            UPDATE operations
+            SET provider_id = ?, model_id = ?, status = ?, source_markdown = ?,
+                translation_markdown = ?, normalized_error_code = ?,
+                operation_kind = ?, target_language = ?, first_text_latency_ms = ?,
+                total_latency_ms = ?, input_tokens = ?, output_tokens = ?, total_tokens = ?
+            WHERE id = ?
+            """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        defer { sqlite3_finalize(statement) }
+        try Self.bind(selection.providerID, at: 1, to: statement)
+        try Self.bind(selection.modelID, at: 2, to: statement)
+        try Self.bind(status.rawValue, at: 3, to: statement)
+        try Self.bind(sourceMarkdown, at: 4, to: statement)
+        try Self.bind(translationMarkdown, at: 5, to: statement)
+        try Self.bind(normalizedErrorCode, at: 6, to: statement)
+        try Self.bind(kind.rawValue, at: 7, to: statement)
+        try Self.bind(targetLanguage, at: 8, to: statement)
+        try Self.bind(metrics.firstTextLatencyMilliseconds, at: 9, to: statement)
+        try Self.bind(metrics.totalLatencyMilliseconds, at: 10, to: statement)
+        try Self.bind(metrics.usage?.inputTokens, at: 11, to: statement)
+        try Self.bind(metrics.usage?.outputTokens, at: 12, to: statement)
+        try Self.bind(metrics.usage?.totalTokens, at: 13, to: statement)
+        try Self.bind(operationID.uuidString, at: 14, to: statement)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        guard sqlite3_changes(database) == 1 else {
+            throw SQLiteHistoryStoreError.operationNotFound
+        }
+    }
+
     public func markInFlight(
         operationID: UUID,
         as progress: OperationProgress
