@@ -9,6 +9,8 @@ import VLMSnapperCore
 struct Ticket09RenderingTests {
     @Test("configured localization bundle changes visible strings")
     func configuredLocalizationChangesStrings() {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
         #expect(VLMSnapperStrings.updateAutomaticChecks == "Automatically Check for Updates")
         VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)
@@ -20,6 +22,8 @@ struct Ticket09RenderingTests {
 
     @Test("menu and General Settings render updater callback states")
     func updaterStatesRender() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
         let outputDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(
                 "vlmsnapper-ticket09-renders-\(UUID().uuidString)",
