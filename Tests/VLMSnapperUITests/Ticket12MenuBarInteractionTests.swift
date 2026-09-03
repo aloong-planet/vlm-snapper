@@ -5,7 +5,7 @@ import VLMSnapperCore
 @testable import VLMSnapperUI
 
 // Signed-app acceptance verifies that capture excludes the open status-item
-// popover before the controller retires it behind the frozen overlay.
+// panel before the controller retires it behind the frozen overlay.
 @Suite("Ticket 12 menu bar interactions", .serialized)
 @MainActor
 struct Ticket12MenuBarInteractionTests {
@@ -22,6 +22,68 @@ struct Ticket12MenuBarInteractionTests {
         #expect(
             MenuBarStatusItemInteractionRouter.route(eventType: nil)
                 == .primaryPanel
+        )
+    }
+
+    @Test("panel stays below the menu bar and clamps horizontally to the visible screen")
+    func panelPlacement() {
+        let placement = MenuBarPanelPlacement.resolve(
+            anchorFrame: CGRect(x: 980, y: 780, width: 24, height: 20),
+            screenFrame: CGRect(x: 0, y: 0, width: 1_000, height: 800),
+            contentSize: CGSize(width: 300, height: 360)
+        )
+
+        #expect(placement.frame.maxY == 780)
+        #expect(placement.frame.maxX == 996)
+        #expect(placement.arrowCenterX == 288)
+
+        let tallPlacement = MenuBarPanelPlacement.resolve(
+            anchorFrame: CGRect(x: 400, y: 780, width: 24, height: 20),
+            screenFrame: CGRect(x: 0, y: 0, width: 1_000, height: 800),
+            contentSize: CGSize(width: 300, height: 900)
+        )
+        #expect(tallPlacement.frame.maxY == 780)
+    }
+
+    @Test("only clicks outside the panel and status item dismiss the panel")
+    func dismissalRouting() {
+        let statusItemFrame = CGRect(x: 40, y: 0, width: 24, height: 22)
+
+        #expect(
+            MenuBarPanelDismissalRouter.route(
+                eventWindowNumber: 10,
+                eventLocationInWindow: .zero,
+                panelWindowNumber: 10,
+                statusItemWindowNumber: 20,
+                statusItemFrame: statusItemFrame
+            ) == .keepOpen
+        )
+        #expect(
+            MenuBarPanelDismissalRouter.route(
+                eventWindowNumber: 20,
+                eventLocationInWindow: CGPoint(x: 52, y: 11),
+                panelWindowNumber: 10,
+                statusItemWindowNumber: 20,
+                statusItemFrame: statusItemFrame
+            ) == .keepOpen
+        )
+        #expect(
+            MenuBarPanelDismissalRouter.route(
+                eventWindowNumber: 20,
+                eventLocationInWindow: CGPoint(x: 12, y: 11),
+                panelWindowNumber: 10,
+                statusItemWindowNumber: 20,
+                statusItemFrame: statusItemFrame
+            ) == .dismiss
+        )
+        #expect(
+            MenuBarPanelDismissalRouter.route(
+                eventWindowNumber: 30,
+                eventLocationInWindow: .zero,
+                panelWindowNumber: 10,
+                statusItemWindowNumber: 20,
+                statusItemFrame: statusItemFrame
+            ) == .dismiss
         )
     }
 

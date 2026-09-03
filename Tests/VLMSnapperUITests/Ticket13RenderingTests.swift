@@ -26,8 +26,10 @@ struct Ticket13RenderingTests {
             for appearance in Ticket13Appearance.allCases {
                 let suffix = "\(language.rawValue)-\(appearance.rawValue)"
                 try render(
-                    menuView,
-                    size: CGSize(width: 370, height: 390),
+                    MenuBarPanelChrome(arrowCenterX: 280) {
+                        menuView
+                    },
+                    size: CGSize(width: 300, height: 394),
                     appearance: appearance,
                     outputURL: outputDirectory.appendingPathComponent("menu-\(suffix).png")
                 )
