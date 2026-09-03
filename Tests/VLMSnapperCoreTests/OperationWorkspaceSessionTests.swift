@@ -186,6 +186,156 @@ struct OperationWorkspaceSessionTests {
         #expect(disposition == .confirmDiscardUnsavedResult)
     }
 
+    @Test("a completed workspace retires before a new capture")
+    func completedWorkspaceRetiresForCapture() async throws {
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: WorkspaceRunnerProbe(events: [
+                .succeeded(
+                    WorkspaceCommittedResult(
+                        sourceMarkdown: "Saved",
+                        translationMarkdown: nil
+                    )
+                ),
+            ]),
+            activeGate: ActiveOperationGate()
+        )
+        try await session.startSelectedOperation(
+            selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+            targetLanguage: "en"
+        )
+
+        let preparation = await session.prepareForCapture()
+
+        #expect(preparation == .beginCapture)
+    }
+
+    @Test("an active request keeps the current workspace in front")
+    func activeRequestKeepsWorkspaceForCapture() async throws {
+        let runner = SuspendedWorkspaceRunnerProbe()
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: runner,
+            activeGate: ActiveOperationGate()
+        )
+        let running = Task {
+            try await session.startSelectedOperation(
+                selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+                targetLanguage: "en"
+            )
+        }
+        await runner.waitUntilStarted()
+
+        let preparation = await session.prepareForCapture()
+
+        #expect(preparation == .presentWorkspace)
+        await runner.succeed()
+        try await running.value
+    }
+
+    @Test("a failed workspace retires before a new capture")
+    func failedWorkspaceRetiresForCapture() async {
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: SequencedWorkspaceRunnerProbe(runs: [
+                .failure([]),
+            ]),
+            activeGate: ActiveOperationGate()
+        )
+        await #expect(throws: WorkspaceRunnerProbeError.failed) {
+            try await session.startSelectedOperation(
+                selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+                targetLanguage: "en"
+            )
+        }
+
+        let preparation = await session.prepareForCapture()
+
+        #expect(preparation == .beginCapture)
+    }
+
+    @Test("a canceled workspace retires before a new capture")
+    func canceledWorkspaceRetiresForCapture() async {
+        let runner = SuspendedWorkspaceRunnerProbe()
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: runner,
+            activeGate: ActiveOperationGate()
+        )
+        let running = Task {
+            try await session.startSelectedOperation(
+                selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+                targetLanguage: "en"
+            )
+        }
+        await runner.waitUntilStarted()
+        #expect(await session.close() == .cancelAndHide)
+        do {
+            try await running.value
+            Issue.record("Expected the running attempt to terminate")
+        } catch {}
+
+        let preparation = await session.prepareForCapture()
+
+        #expect(preparation == .beginCapture)
+    }
+
+    @Test("an unsaved result keeps its recovery workspace in front")
+    func unsavedResultKeepsWorkspaceForCapture() async throws {
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: WorkspaceRunnerProbe(events: [
+                .resultPersistenceFailed(
+                    WorkspaceCommittedResult(
+                        sourceMarkdown: "Unsaved",
+                        translationMarkdown: nil
+                    )
+                ),
+            ]),
+            activeGate: ActiveOperationGate()
+        )
+        try await session.startSelectedOperation(
+            selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+            targetLanguage: "en"
+        )
+
+        let preparation = await session.prepareForCapture()
+
+        #expect(preparation == .presentWorkspace)
+    }
+
+    @Test("workspace capture preparation is consumed exactly once")
+    func workspaceCapturePreparationIsConsumedOnce() async {
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: WorkspaceRunnerProbe(events: []),
+            activeGate: ActiveOperationGate()
+        )
+
+        let first = await session.prepareForCapture()
+        let second = await session.prepareForCapture()
+
+        #expect(first == .beginCapture)
+        #expect(second == .alreadyPrepared)
+    }
+
+    @Test("a retired workspace cannot start another model request")
+    func retiredWorkspaceRejectsAnotherOperation() async {
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: WorkspaceRunnerProbe(events: []),
+            activeGate: ActiveOperationGate()
+        )
+        _ = await session.prepareForCapture()
+
+        await #expect(throws: OperationWorkspaceSessionError.busy) {
+            try await session.startSelectedOperation(
+                selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+                targetLanguage: "en"
+            )
+        }
+    }
+
     @Test("confirming discard clears an unsaved completed result")
     func confirmingDiscardClearsUnsavedResult() async throws {
         let result = WorkspaceCommittedResult(

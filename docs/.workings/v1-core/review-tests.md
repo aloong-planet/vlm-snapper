@@ -759,3 +759,32 @@
 ## Review result
 
 单元层能对旧 bug 和越界修复分别打红，完整套件守住共享行为，真实生产链覆盖实际模型波动。未发现恒真断言、未到达代码、陈旧构建或绕过应用 timeout 的假通过。
+
+---
+
+# VLMSnapper v1 — Capture from result workspace test review (2026-09-03)
+
+## 维度 1：覆盖是否完整
+
+- 工作区 seam 覆盖已保存成功、失败、取消三种终态，活动请求、未保存结果、重复截图准入和退让后 Try Again 六类边界；所有状态都经公开操作路径构造，没有直写 actor 内部字段。
+- 窗口 seam 使用真实 AppKit `NSWindow`，同时断言隐藏后的可见性、动作同步时尚未执行，以及后续主 actor 调度中只执行一次。
+- 应用入口的已安装旧版由真实全局快捷键复现过原始症状；本次 SwiftPM 测试不发送 Provider 请求，也不替代下一次本地安装后的完整快捷键验收。补测条件是把本 PR 合并并更新签名 App 后，在已保存结果工作区再次按 `⌥⇧S`。
+- spec Failure Modes 23–24 的活动、未保存、三类安全终态和重复触发均有对应测试；没有新的外部数据 fixture。
+
+## 维度 2：case 设计是否合理
+
+- 测试只调用 `OperationWorkspaceSession` 和 `ResultWorkspaceWindowController` 的公开 seam；不 mock 项目内部模块、不 cast 私有状态、不读取数据库或窗口内部实现作旁路断言。
+- 终态用例分别让 runner 成功、失败和在公开 close 路径取消；活动用例使用受控系统边界 runner 保持请求进行中，未保存用例使用公开持久化失败事件。
+- 窗口测试断言的是用户关心的可观测状态 `isVisible` 和截图动作发生顺序；exactly-once 次数本身就是重复截图准入契约，不是内部协作者顺序耦合。
+- 所有异步断言均被 await；等待循环有最终精确断言，不存在 callback 未执行或空集合导致的静默绿。
+
+## 维度 3：有没有假通过
+
+- 最初的工作区回归在实现前准确红于旧 `.presentWorkspace` 行为；窗口回归在隐藏和延迟尚未实现时分别红于 `isVisible == true` 和同步 `captureCount == 1`。
+- 负向变异分别移除活动请求保护、移除未保存结果保护、移除一次性消费，以及把安全终态改回“展示工作区”。对应测试逐一精确红于 `.beginCapture` / `.presentWorkspace` / `.alreadyPrepared` 的目标断言，恢复后 17 项工作区测试重新全绿。
+- 变异直接落在生产 `prepareForCapture` 的已枚举唯一实现中，SwiftPM 每次重新编译该文件；错误位置均落在新增测试断言，不是陈旧构建或其他 suite 偶发失败。
+- 完整 8-worker 测试实际执行 259 tests / 66 suites 并通过。严格 warnings-as-errors 构建已通过，无 skip、串行降级、输入别名期望或 production constant 同义反复。
+
+## Review result
+
+新增测试能分别打红根因、保护边界和调度顺序。唯一保留缺口是新签名安装版的真实快捷键端到端验收，已明确补测条件，没有用合成事件或旧构建冒充。
