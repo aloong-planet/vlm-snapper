@@ -829,3 +829,41 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。本次让旧 feature 声明变成谎的行为是结果窗口持续置顶和当前 Try Again 产生重复历史；两处均已就地改写并由实现、测试和原型对核。没有遗漏新的用户可见行为。
+
+---
+
+# 2026-09-03 — Retina frozen capture resolution repair
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的 Retina 物理像素冻结 | `SCContentFilter.contentRect × pointPixelScale` 与返回图片尺寸 gate | 捕获配置和运行期校验均使用同一物理 raster，未再按逻辑 point 分辨率请求帧 |
+| features 的清晰预览与 PNG | 冻结帧、overlay logical size 与既有 pixel cropper | Retina backing surface 显示完整物理像素，最终裁剪保持原始 pixel dimensions |
+| ADR-0010 的原始像素约束 | spec、features 与实现 | 不缩放、不转 JPEG、不增强的既有决策未变；本轮恢复实现一致性 |
+| 已确认原型 | UI diff | 没有结构、布局、样式或文案变化，不需要修改原型 |
+| `CONTEXT.md` 领域术语 | 本轮 diff | 没有新增或改变领域术语，不需要更新 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| filter scale ↔ current display geometry | `currentCaptureDisplayGeometry` 的全部定义与调用点 | 捕获和完成选择都显式提供当前 scale，既有 geometry equality gate 继续拒绝变化 |
+| feature 文件 ↔ feature 索引 | `docs/features/README.md` | 文件名和一句话摘要未变，不需要调整索引 |
+| 同一事实的多文档表达 | spec、features 与 ADR-0010 的 Retina、物理像素、原始像素检索 | 三处边界一致，没有重复出第二套规则 |
+| 项目 i18n 能力 ↔ 本轮用户文案 | 项目能力声明与资源文件 | 按项目能力声明，i18n 已启用；本轮没有新增 UI 文案或 key，两语种字典无需修改 |
+| 换算规则 ↔ regression tests | `ScreenCaptureKitFrozenDisplayCapturerTests` | 1×、2×、fractional、零尺寸和整数溢出均有独立断言 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| Retina 冻结图被放大后模糊 | 旧逻辑尺寸与新物理 raster 计算 | 根因已修复，`1512 × 982 @2x` 现在请求 `3024 × 1964` |
+| 返回帧与请求尺寸可能不一致 | 生产运行期 image dimension gate | 不完整或意外缩放的帧不会进入 overlay、裁剪或 Provider |
+| 测试与构建总数变化 | focused、full、warnings-as-errors | 5 条聚焦测试通过；完整 251 tests / 66 suites 与零警告构建通过 |
+| 范围内 Pending 注记 | spec、features 与 `CONTEXT.md` | 两条 Provider 发布门禁未到期且不属于截图修复；没有新增待决产品行为 |
+| 既有即时失效缺口 | `CaptureSelectionSession.applyCurrentDisplayGeometries(_:)` 全量生产引用 | 已写入 `issues/01-live-display-reconfiguration.md`，推荐独立接入 display-reconfiguration observer，不扩大本次清晰度修复 |
+
+## 收敛结论
+
+三阶段队列已清空。此前 feature 对“物理像素裁剪”的描述被旧捕获配置实际违背；本轮补齐 Retina 用户可见说明并恢复 spec、feature、ADR、实现与测试的一致性。真实 WindowServer 输出及视觉清晰度仍需用签名安装版在 Retina 显示器上验收，该系统集成缺口没有被纯函数测试冒充为已完成。

@@ -34,6 +34,43 @@
 
 ---
 
+# VLMSnapper v1 — Retina frozen capture code review (2026-09-03)
+
+审查范围：只修复 ScreenCaptureKit 冻结帧按逻辑 point 分辨率捕获、随后在 Retina overlay 中被放大的问题；不改变选区界面、图片格式、Provider 或历史行为。
+
+## 【① 底层前提】
+
+- 当前 SDK 声明 `SCContentFilter.contentRect` 使用 screen points、`pointPixelScale` 用于 point 到 pixel 的换算，且两项从 macOS 14 可用；项目最低版本正是 macOS 14。
+- 先前真实屏幕诊断得到 logical `1512 × 982`、scale `2.0`、ScreenCaptureKit raster `3024 × 1964`。旧实现使用 `CGDisplayPixelsWide/High` 得到 logical 尺寸，与实际模糊的 2 倍放大相符。
+- `NSImage(cgImage:size:)` 继续使用 logical point 尺寸，overlay 在 Retina backing surface 上显示完整物理像素；半透明遮罩只降低亮度和对比度，不参与缩放或模糊滤镜。
+
+## 【② 可运行性】
+
+- 每块显示器先建立 filter，再把 `contentRect × pointPixelScale` 四舍五入为输出尺寸；无效、非有限、零像素或超出 `Int` 的尺寸只使该屏捕获失败。
+- filter 尺寸与当前 CoreGraphics logical bounds 不一致时，该屏以 geometry changed 失败；其他显示器仍由现有批处理继续。
+- 捕获返回的 `CGImage` 必须与请求 raster 完全同宽高，尺寸不一致不会进入 overlay 或裁剪。
+- 鼠标松开时重新从当前 `NSScreen.screens` 按 display ID 取 backing scale，再通过同一换算函数建立当前 geometry；分辨率或 scale 变化继续由既有 equality gate 拒绝。
+- 现有 `applyCurrentDisplayGeometries(_:)` 没有生产调用者，只能在 mouse-up 检出变化。这是改动面外的既有即时失效缺口，已独立记录为 `issues/01-live-display-reconfiguration.md`，不混入清晰度修复。
+
+## 【③ 安全正确性】
+
+- 尺寸换算在浮点转整数前检查 finite、正值、舍入后至少 1 pixel 且严格小于 `Int.max`；真实溢出测试证明旧边界会 trap，修复后返回 nil。
+- 本轮不读取或持久化用户内容，不改变屏幕录制权限、文件路径、PNG 所有权或网络边界。
+- 显示配置变化的故障面为自伤：只移除或拒绝对应显示器；没有清空其他成功显示器或把错误冻结帧上传给 Provider。
+
+## 【④ 一致性】
+
+- 实现恢复 spec、feature catalog 与 ADR-0010 已有的物理像素、原始 PNG 和不缩放不增强约束；feature/spec 补充 Retina 可见行为，ADR 决策无需改变。
+- `CaptureDisplayGeometry` interface 保持不变；新增 raster 类型与换算函数只在 Core 模块内部形成测试 seam，没有引入第二套公开 geometry。
+- 全部四个 `currentCaptureDisplayGeometry` 定义/调用点已枚举并迁移到显式 scale，仓库内不再有 `CGDisplayPixelsWide/High` 的 Swift 调用。
+- 按项目能力声明，i18n 已启用；本轮没有新增 UI 文案或本地化 key，不需要修改两语种字典。界面结构与视觉样式未变，不需要新原型。
+
+## 结论
+
+四层审查未发现本次修复的剩余阻断项。真实 ScreenCaptureKit 输出仍需签名安装版在 Retina 显示器上验收，单元测试不冒充该系统集成证据。
+
+---
+
 # VLMSnapper v1 — Ticket 02 code review
 
 审查范围：受管理截图文件系统、SQLite 历史与数据库保留式重置。

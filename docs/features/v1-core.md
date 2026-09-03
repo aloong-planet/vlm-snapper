@@ -16,7 +16,7 @@ The onboarding window separates screen-capture permission, online Provider confi
 
 The global capture shortcut defaults to `⌥⇧S` and can be changed through a key-recording control in General Settings. A replacement is registered before the previous shortcut is released; invalid or conflicting input leaves the old shortcut active and shows a localized explanation. The panel's Capture Screen button enters the same workflow. Every panel Capture action closes the menu panel first; missing Provider or permission readiness then brings the centered onboarding window to the front, while a ready capture freezes the screens.
 
-Triggering capture freezes every available display at that instant through ScreenCaptureKit. Selection panels show only those frozen images, so videos and animation cannot advance between trigger and crop. A rectangular selection is mapped into display-local physical pixels and cropped into the original sRGB PNG. Escape, cancel, or retriggering before a model request discards the in-memory capture without creating history.
+Triggering capture freezes every available display at that instant through ScreenCaptureKit. Selection panels show only those frozen images, so videos and animation cannot advance between trigger and crop. On Retina displays, the frozen preview and cropped PNG retain the display's native pixel detail instead of using its lower logical point resolution. A rectangular selection is mapped into display-local physical pixels and cropped into the original sRGB PNG. Escape, cancel, or retriggering before a model request discards the in-memory capture without creating history.
 
 ## Extract and translate operations
 
