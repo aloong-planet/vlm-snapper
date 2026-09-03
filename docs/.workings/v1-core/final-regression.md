@@ -867,3 +867,41 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。此前 feature 对“物理像素裁剪”的描述被旧捕获配置实际违背；本轮补齐 Retina 用户可见说明并恢复 spec、feature、ADR、实现与测试的一致性。真实 WindowServer 输出及视觉清晰度仍需用签名安装版在 Retina 显示器上验收，该系统集成缺口没有被纯函数测试冒充为已完成。
+
+---
+
+# 2026-09-03 — Capture from result workspace repair
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的安全终态截图行为 | 工作区 actor、应用截图入口与窗口控制器 | 成功、失败或取消且已保存时只接纳一次退让，窗口先隐藏，随后进入既有冻结流程 |
+| spec 的活动与未保存保护 | 活动、启动中与未保存结果回归测试 | 两类状态都不启动新截图，继续展示当前工作区 |
+| features 的结果窗口行为 | 真实 AppKit 可见性与工作区策略测试 | 新增的用户可见说明与实现一致；旧结果保留在既有历史中 |
+| 已确认原型 | core-result、companion-shell 与 capture-overlay 可见状态 | 结果普通窗口和冻结选区形态未变，本轮只修复路由，不修改原型 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| 结果窗口展示 ↔ 截图入口 | 全量枚举 `resultController.present/update/performAfterHidingForCapture` 与两个 `capture()` 入口 | 只有安全终态截图走隐藏后冻结；活动或未保存状态仍显式置前 |
+| 工作区准入 ↔ 模型启动 | `prepareForCapture`、`startSelectedOperation` 的唯一生产实现和全部引用 | 一次性准入同时阻断重复截图准备和旧工作区 Try Again 竞态 |
+| ADR-0010 ↔ spec/features | “冻结帧不含 VLMSnapper 自有界面”与隐藏顺序 | 新行为恢复既有截图内容边界，没有改写冻结像素或其他应用内容 |
+| feature/spec 文件 ↔ 索引 | `docs/specs/README.md` 与当前单文件 feature 布局 | spec 名称、状态和索引摘要未变；features 目录没有独立 README 索引 |
+| 项目 i18n 能力 ↔ 本轮 UI diff | 项目能力声明、字符串字典与改动清单 | i18n 已启用；没有新增文案或键，两语种资源无需修改 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| 已保存结果窗口阻断截图 | 已安装旧版真实快捷键复现与生产根因 | 无条件置前返回已替换为 actor 准入；当前构建窗口隐藏状态由真实 AppKit 测试覆盖 |
+| 新增工作区截图准备状态 | 枚举的三种 disposition 与负向变异 | `beginCapture`、`presentWorkspace`、`alreadyPrepared` 均有可红回归，未增加 Provider、语言或渠道成员 |
+| 用户可见行为变化 | spec Failure Modes 23–24 与 features 结果段 | 补上“安全终态可截图、危险状态保持保护”的现行行为，无相反陈述 |
+| 测试与构建总数变化 | focused、8-worker full、warnings-as-errors | 完整 259 tests / 66 suites 与严格 warnings-as-errors 构建均通过 |
+| 范围内 Pending 注记 | spec 末尾两条 Provider 发布门槛 | 两条均未因窗口路由修复到期，也没有新增待决产品行为 |
+| 本轮是否形成新通则 | spec 与既有 ADR-0010 | 没有跨功能新通则；工作区截图准入属于 v1 core 现行行为，不新增 ADR |
+
+## 收敛结论
+
+三阶段队列已清空。本次让旧 feature 声明缺少的行为是：终态结果工作区可以退让并启动新截图，而活动请求与未保存结果不能被替换；spec、features、实现、测试和既有冻结帧决策已同步。新签名安装版的真实快捷键验收保留为下一次本地更新后的明确补测，不由合成事件冒充。

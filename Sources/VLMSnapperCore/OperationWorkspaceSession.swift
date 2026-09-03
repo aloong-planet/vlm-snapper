@@ -60,6 +60,12 @@ public enum WorkspaceCloseDisposition: Equatable, Sendable {
     case hide
 }
 
+public enum WorkspaceCapturePreparation: Equatable, Sendable {
+    case beginCapture
+    case alreadyPrepared
+    case presentWorkspace
+}
+
 public protocol OperationActivityGating: Sendable {
     func acquire() async -> UUID?
     func release(_ lease: UUID) async
@@ -149,6 +155,7 @@ public actor OperationWorkspaceSession {
     private var activeOperation: WorkspaceOperationKind?
     private var isStarting = false
     private var startCancelled = false
+    private var acceptsOperationStarts = true
 
     public init(
         originalPNG: Data,
@@ -172,10 +179,27 @@ public actor OperationWorkspaceSession {
         )
     }
 
+    public func prepareForCapture() -> WorkspaceCapturePreparation {
+        guard acceptsOperationStarts else {
+            return .alreadyPrepared
+        }
+        guard activeTask == nil, !isStarting else {
+            return .presentWorkspace
+        }
+        guard extract.unsavedResult == nil, translate.unsavedResult == nil else {
+            return .presentWorkspace
+        }
+        acceptsOperationStarts = false
+        return .beginCapture
+    }
+
     public func startSelectedOperation(
         selection: ProviderSelection,
         targetLanguage: String
     ) async throws {
+        guard acceptsOperationStarts else {
+            throw OperationWorkspaceSessionError.busy
+        }
         guard extract.unsavedResult == nil, translate.unsavedResult == nil else {
             throw OperationWorkspaceSessionError.unsavedResultRequiresSave
         }

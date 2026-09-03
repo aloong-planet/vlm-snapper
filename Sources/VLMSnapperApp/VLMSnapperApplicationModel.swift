@@ -708,11 +708,36 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func capture() {
-        if workspaceSession != nil {
-            resultController.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+        if let workspaceSession {
+            Task {
+                await handleCaptureRequest(from: workspaceSession)
+            }
             return
         }
+        captureWithoutWorkspace()
+    }
+
+    private func handleCaptureRequest(
+        from workspaceSession: OperationWorkspaceSession
+    ) async {
+        let preparation = await workspaceSession.prepareForCapture()
+        guard self.workspaceSession === workspaceSession else { return }
+        switch preparation {
+        case .beginCapture:
+            self.workspaceSession = nil
+            originalImage = nil
+            resultController.performAfterHidingForCapture { [weak self] in
+                self?.captureWithoutWorkspace()
+            }
+        case .alreadyPrepared:
+            break
+        case .presentWorkspace:
+            resultController.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    private func captureWithoutWorkspace() {
         if captureSelectionSession != nil || captureGeneration != nil {
             requestCapture(replacingCurrent: true)
             return
