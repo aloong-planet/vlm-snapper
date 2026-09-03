@@ -231,6 +231,15 @@ public actor OperationWorkspaceSession {
         return .beginCapture
     }
 
+    public func restoreAfterCaptureFailure() {
+        guard activeTask == nil, !isStarting,
+              extract.unsavedResult == nil, translate.unsavedResult == nil
+        else {
+            return
+        }
+        acceptsOperationStarts = true
+    }
+
     public func reserveReplacementWithSavedHistory() -> Bool {
         prepareForCapture() == .beginCapture
     }

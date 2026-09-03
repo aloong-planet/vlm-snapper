@@ -26,7 +26,7 @@ esac
 
 build_architecture() {
     local triple="$1"
-    if [[ "$triple" == "arm64-apple-macosx14.0" \
+    if [[ "$triple" == "arm64-apple-macosx14.4" \
         && "$(/usr/bin/uname -m)" == "arm64" ]]; then
         DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
             /usr/bin/xcrun swift build \
@@ -51,7 +51,7 @@ build_architecture() {
 
 release_bin_path() {
     local triple="$1"
-    if [[ "$triple" == "arm64-apple-macosx14.0" \
+    if [[ "$triple" == "arm64-apple-macosx14.4" \
         && "$(/usr/bin/uname -m)" == "arm64" ]]; then
         DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" \
             /usr/bin/xcrun swift build \
@@ -73,12 +73,12 @@ release_bin_path() {
 arm64_bin=""
 x64_bin=""
 if [[ "$architecture" == "arm64" || "$architecture" == "universal" ]]; then
-    build_architecture arm64-apple-macosx14.0
-    arm64_bin="$(release_bin_path arm64-apple-macosx14.0)"
+    build_architecture arm64-apple-macosx14.4
+    arm64_bin="$(release_bin_path arm64-apple-macosx14.4)"
 fi
 if [[ "$architecture" == "x64" || "$architecture" == "universal" ]]; then
-    build_architecture x86_64-apple-macosx14.0
-    x64_bin="$(release_bin_path x86_64-apple-macosx14.0)"
+    build_architecture x86_64-apple-macosx14.4
+    x64_bin="$(release_bin_path x86_64-apple-macosx14.4)"
 fi
 
 staging_root="$(mktemp -d "${TMPDIR:-/tmp}/vlmsnapper-app.XXXXXX")"

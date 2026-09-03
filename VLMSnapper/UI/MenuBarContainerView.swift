@@ -4,11 +4,11 @@ import VLMSnapperCore
 enum MenuCaptureActionHandler {
     static func perform(
         route: MenuCaptureRoute,
-        captureAfterPanelDismissal: () -> Void
+        performCapture: () -> Void
     ) {
         switch route {
         case .configureProvider, .recoverPermission, .capture:
-            captureAfterPanelDismissal()
+            performCapture()
         }
     }
 }
@@ -45,7 +45,6 @@ public struct MenuBarContainerView: View {
     private let updateState: UpdateLifecycleState
     private let captureShortcut: String
     private let callbacks: MenuBarCallbacks
-    @Environment(\.menuBarPanelDismissalCoordinator) private var panelDismissalCoordinator
 
     public init(
         recentItems: [MenuRecentItem],
@@ -81,13 +80,7 @@ public struct MenuBarContainerView: View {
     private func routeCapture() {
         MenuCaptureActionHandler.perform(
             route: MenuCaptureRouter.route(permission: permission, provider: provider),
-            captureAfterPanelDismissal: {
-                guard let panelDismissalCoordinator else {
-                    callbacks.onCapture()
-                    return
-                }
-                panelDismissalCoordinator.performAfterDismissing(callbacks.onCapture)
-            }
+            performCapture: callbacks.onCapture
         )
     }
 }

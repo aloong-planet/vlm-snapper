@@ -14,58 +14,12 @@ enum MenuBarStatusItemInteractionRouter {
 }
 
 @MainActor
-final class MenuBarPanelDismissalCoordinator {
-    private let isPanelShown: () -> Bool
-    private let requestClose: () -> Void
-    private var pendingAction: (() -> Void)?
-
-    init(
-        isPanelShown: @escaping () -> Bool,
-        requestClose: @escaping () -> Void
-    ) {
-        self.isPanelShown = isPanelShown
-        self.requestClose = requestClose
-    }
-
-    func performAfterDismissing(_ action: @escaping () -> Void) {
-        guard isPanelShown() else {
-            action()
-            return
-        }
-        pendingAction = action
-        requestClose()
-    }
-
-    func panelDidClose() {
-        let action = pendingAction
-        pendingAction = nil
-        guard let action else { return }
-        Task { @MainActor in
-            await Task.yield()
-            action()
-        }
-    }
-}
-
-private struct MenuBarPanelDismissalCoordinatorKey: EnvironmentKey {
-    static let defaultValue: MenuBarPanelDismissalCoordinator? = nil
-}
-
-extension EnvironmentValues {
-    var menuBarPanelDismissalCoordinator: MenuBarPanelDismissalCoordinator? {
-        get { self[MenuBarPanelDismissalCoordinatorKey.self] }
-        set { self[MenuBarPanelDismissalCoordinatorKey.self] = newValue }
-    }
-}
-
-@MainActor
-public final class MenuBarPanelController<Content: View>: NSObject, NSPopoverDelegate {
+public final class MenuBarPanelController<Content: View>: NSObject {
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let updateIndicator = NSView()
     private let onQuit: () -> Void
     private var hostingController: NSHostingController<AnyView>!
-    private var dismissalCoordinator: MenuBarPanelDismissalCoordinator!
     lazy var contextMenu: NSMenu = {
         let menu = NSMenu()
         let quitItem = NSMenuItem(
@@ -82,10 +36,6 @@ public final class MenuBarPanelController<Content: View>: NSObject, NSPopoverDel
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.onQuit = onQuit
         super.init()
-        dismissalCoordinator = MenuBarPanelDismissalCoordinator(
-            isPanelShown: { [popover] in popover.isShown },
-            requestClose: { [popover] in popover.performClose(nil) }
-        )
         statusItem.button?.image = NSImage(
             systemSymbolName: VLMSnapperIcon.capture.rawValue,
             accessibilityDescription: VLMSnapperStrings.menuCapture
@@ -109,7 +59,6 @@ public final class MenuBarPanelController<Content: View>: NSObject, NSPopoverDel
         }
         popover.behavior = .transient
         popover.animates = false
-        popover.delegate = self
         let hostingController = NSHostingController(rootView: hostedContent(content))
         self.hostingController = hostingController
         popover.contentViewController = hostingController
@@ -132,8 +81,8 @@ public final class MenuBarPanelController<Content: View>: NSObject, NSPopoverDel
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
-    public func popoverDidClose(_ notification: Notification) {
-        dismissalCoordinator.panelDidClose()
+    public func hideForCapture() {
+        popover.performClose(nil)
     }
 
     @objc private func handleStatusItemAction() {
@@ -159,11 +108,6 @@ public final class MenuBarPanelController<Content: View>: NSObject, NSPopoverDel
     }
 
     private func hostedContent(_ content: Content) -> AnyView {
-        return AnyView(
-            content.environment(
-                \.menuBarPanelDismissalCoordinator,
-                dismissalCoordinator
-            )
-        )
+        AnyView(content)
     }
 }

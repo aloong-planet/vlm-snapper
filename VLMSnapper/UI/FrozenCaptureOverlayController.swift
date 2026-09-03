@@ -12,15 +12,20 @@ public final class FrozenCaptureOverlayController {
     }
 
     private var panels: [CaptureOverlayPanel] = []
+    private var displayIDs: Set<UInt32> = []
+
+    public var presentedDisplayIDs: Set<UInt32> {
+        displayIDs
+    }
 
     public init() {}
 
-    public func show(
+    @discardableResult
+    public func replace(
         displays: [FrozenCaptureDisplay],
         onSelection: @escaping @MainActor (Selection) -> Void,
         onCancel: @escaping @MainActor () -> Void
-    ) {
-        close()
+    ) -> Bool {
         let screensByDisplayID: [UInt32: NSScreen] = Dictionary(
             uniqueKeysWithValues: NSScreen.screens.compactMap { screen
                 -> (UInt32, NSScreen)? in
@@ -32,6 +37,8 @@ public final class FrozenCaptureOverlayController {
                 return (number.uint32Value, screen)
             }
         )
+        var replacementPanels: [CaptureOverlayPanel] = []
+        var replacementDisplayIDs: Set<UInt32> = []
         for display in displays {
             guard let screen = screensByDisplayID[display.geometry.displayID] else {
                 continue
@@ -60,18 +67,44 @@ public final class FrozenCaptureOverlayController {
                 onCancel: onCancel
             )
             panel.contentView = view
-            panels.append(panel)
-            panel.orderFrontRegardless()
-            panel.makeKey()
+            panel.contentView?.displayIfNeeded()
+            replacementPanels.append(panel)
+            replacementDisplayIDs.insert(display.geometry.displayID)
         }
+        guard !replacementPanels.isEmpty else {
+            return false
+        }
+        for panel in replacementPanels {
+            panel.orderFrontRegardless()
+        }
+        replacementPanels.last?.makeKey()
+
+        let retiredPanels = panels
+        panels = replacementPanels
+        displayIDs = replacementDisplayIDs
+        retire(retiredPanels)
+        return true
     }
 
     public func close() {
+        let retiredPanels = panels
+        panels.removeAll()
+        displayIDs.removeAll()
+        retire(retiredPanels)
+    }
+
+    public func prepareFailurePresentation(_ alert: NSAlert) {
+        guard !panels.isEmpty else { return }
+        alert.window.level = NSWindow.Level(
+            rawValue: NSWindow.Level.screenSaver.rawValue + 1
+        )
+    }
+
+    private func retire(_ panels: [CaptureOverlayPanel]) {
         for panel in panels {
             panel.orderOut(nil)
             panel.contentView = nil
         }
-        panels.removeAll()
     }
 }
 

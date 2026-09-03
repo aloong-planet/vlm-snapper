@@ -6,7 +6,7 @@ let package = Package(
     name: "VLMSnapper",
     defaultLocalization: "zh-Hans",
     platforms: [
-        .macOS(.v14),
+        .macOS("14.4"),
     ],
     products: [
         .library(name: "VLMSnapperCore", targets: ["VLMSnapperCore"]),
