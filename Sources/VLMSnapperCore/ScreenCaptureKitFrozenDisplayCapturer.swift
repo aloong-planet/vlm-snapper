@@ -80,15 +80,63 @@ private struct NativeDisplayCaptureAttempt: Sendable {
     let permissionDenied: Bool
 }
 
+struct CaptureRasterSize: Equatable, Sendable {
+    let width: Int
+    let height: Int
+}
+
+func captureRasterSize(
+    contentRect: CGRect,
+    pointPixelScale: Float
+) -> CaptureRasterSize? {
+    let scaledWidth = Double(contentRect.width) * Double(pointPixelScale)
+    let scaledHeight = Double(contentRect.height) * Double(pointPixelScale)
+    guard scaledWidth.isFinite,
+          scaledHeight.isFinite,
+          scaledWidth > 0,
+          scaledHeight > 0
+    else {
+        return nil
+    }
+    let roundedWidth = scaledWidth.rounded()
+    let roundedHeight = scaledHeight.rounded()
+    guard roundedWidth >= 1,
+          roundedHeight >= 1,
+          roundedWidth < Double(Int.max),
+          roundedHeight < Double(Int.max)
+    else {
+        return nil
+    }
+    return CaptureRasterSize(
+        width: Int(roundedWidth),
+        height: Int(roundedHeight)
+    )
+}
+
 private func capture(display: SCDisplay) async -> NativeDisplayCaptureAttempt {
     let displayID = display.displayID
-    guard let initialGeometry = currentCaptureDisplayGeometry(for: displayID) else {
+    let filter = SCContentFilter(display: display, excludingWindows: [])
+    guard let captureSize = captureRasterSize(
+        contentRect: filter.contentRect,
+        pointPixelScale: filter.pointPixelScale
+    ) else {
+        return failedAttempt(displayID: displayID, reason: .captureFailed)
+    }
+    guard let initialGeometry = currentCaptureDisplayGeometry(
+        for: displayID,
+        pointPixelScale: filter.pointPixelScale
+    ) else {
         return failedAttempt(displayID: displayID, reason: .displayDisconnected)
+    }
+    guard initialGeometry.pixelWidth == captureSize.width,
+          initialGeometry.pixelHeight == captureSize.height
+    else {
+        return failedAttempt(displayID: displayID, reason: .geometryChanged)
     }
 
     let configuration = SCStreamConfiguration()
-    configuration.width = initialGeometry.pixelWidth
-    configuration.height = initialGeometry.pixelHeight
+    configuration.width = captureSize.width
+    configuration.height = captureSize.height
     configuration.pixelFormat = kCVPixelFormatType_32BGRA
     configuration.showsCursor = false
     configuration.scalesToFit = false
@@ -96,20 +144,22 @@ private func capture(display: SCDisplay) async -> NativeDisplayCaptureAttempt {
     configuration.colorSpaceName = CGColorSpace.sRGB
     configuration.captureResolution = .best
 
-    let filter = SCContentFilter(display: display, excludingWindows: [])
     do {
         let image = try await SCScreenshotManager.captureImage(
             contentFilter: filter,
             configuration: configuration
         )
-        guard let finalGeometry = currentCaptureDisplayGeometry(for: displayID) else {
+        guard let finalGeometry = currentCaptureDisplayGeometry(
+            for: displayID,
+            pointPixelScale: filter.pointPixelScale
+        ) else {
             return failedAttempt(displayID: displayID, reason: .displayDisconnected)
         }
         guard finalGeometry == initialGeometry else {
             return failedAttempt(displayID: displayID, reason: .geometryChanged)
         }
-        guard image.width == initialGeometry.pixelWidth,
-              image.height == initialGeometry.pixelHeight
+        guard image.width == captureSize.width,
+              image.height == captureSize.height
         else {
             return failedAttempt(displayID: displayID, reason: .captureFailed)
         }
@@ -138,25 +188,27 @@ private func capture(display: SCDisplay) async -> NativeDisplayCaptureAttempt {
 }
 
 public func currentCaptureDisplayGeometry(
-    for displayID: CGDirectDisplayID
+    for displayID: CGDirectDisplayID,
+    pointPixelScale: Float
 ) -> CaptureDisplayGeometry? {
     guard CGDisplayIsActive(displayID) != 0 else {
         return nil
     }
-    let pixelWidth = Int(CGDisplayPixelsWide(displayID))
-    let pixelHeight = Int(CGDisplayPixelsHigh(displayID))
-    guard pixelWidth > 0, pixelHeight > 0 else {
+    let bounds = CGDisplayBounds(displayID)
+    guard let rasterSize = captureRasterSize(
+        contentRect: bounds,
+        pointPixelScale: pointPixelScale
+    ) else {
         return nil
     }
-    let bounds = CGDisplayBounds(displayID)
     return CaptureDisplayGeometry(
         displayID: displayID,
         logicalX: bounds.origin.x,
         logicalY: bounds.origin.y,
         logicalWidth: bounds.width,
         logicalHeight: bounds.height,
-        pixelWidth: pixelWidth,
-        pixelHeight: pixelHeight,
+        pixelWidth: rasterSize.width,
+        pixelHeight: rasterSize.height,
         rotationDegrees: CGDisplayRotation(displayID)
     )
 }

@@ -800,8 +800,17 @@ final class VLMSnapperApplicationModel: ObservableObject {
         _ selection: FrozenCaptureOverlayController.Selection
     ) async {
         guard let captureSelectionSession,
+              let currentScreen = NSScreen.screens.first(where: { screen in
+                  guard let number = screen.deviceDescription[
+                      NSDeviceDescriptionKey("NSScreenNumber")
+                  ] as? NSNumber else {
+                      return false
+                  }
+                  return number.uint32Value == selection.displayID
+              }),
               let currentGeometry = currentCaptureDisplayGeometry(
-                  for: selection.displayID
+                  for: selection.displayID,
+                  pointPixelScale: Float(currentScreen.backingScaleFactor)
               )
         else {
             await cancelCapture()

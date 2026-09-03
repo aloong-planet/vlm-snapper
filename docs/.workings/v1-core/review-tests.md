@@ -34,6 +34,41 @@
 
 ---
 
+# VLMSnapper v1 — Retina frozen capture test review (2026-09-03)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| 1× display 不被无条件放大 | `preservesOneTimesDimensions` | `1920 × 1080 @1x` 保持原尺寸 |
+| Retina filter geometry 使用物理像素 | `convertsRetinaGeometryToPhysicalPixels` | 真实诊断形态 `1512 × 982 @2x` 得到 `3024 × 1964` |
+| fractional raster 舍入 | `roundsFractionalPhysicalDimensions` | 两个 `.5` 边界独立断言为相邻整数 pixel |
+| 小于半 pixel 的无效尺寸 | `rejectsRoundedZeroDimension` | 不产生 0 宽 raster |
+| 浮点到 Int 溢出 | `rejectsIntegerOverflow` | 不 trap，返回 nil |
+| point 到 pixel 选区映射 | 既有 `CaptureCoordinateMapperTests` | Retina 2× 映射与上下轴翻转继续通过 |
+| 原始 PNG 不缩放裁剪 | 既有 `SRGBPNGCropperTests` | pixel rect 直接裁切且输出尺寸精确 |
+| 真实 ScreenCaptureKit 返回 raster | 签名安装版验收缺口 | 需要屏幕录制权限和 WindowServer；发布前在 Retina 真机检查冻结预览及 PNG dimensions |
+
+## 维度 2：case 设计是否合理
+
+- 新用例使用 Core 模块内部 raster seam，不构造 `SCContentFilter` 私有状态、不 mock 自有模块，也不依赖某台机器的活动显示器。
+- Retina fixture 来自本机真实诊断形态，而非仅由 spec 想象；期望 `3024 × 1964` 是独立字面量，没有复用生产算法重算。
+- 1×、fractional、零像素和溢出均使用互不别名的输入与期望；测试函数同步执行，没有未 await callback 或空集合断言。
+- 测试名称只声称验证 filter geometry 换算；它不声称纯函数绿灯证明系统截图输出。生产代码另以实际 `CGImage` dimensions 做运行期 gate。
+
+## 维度 3：有没有假通过
+
+- 首个 Retina 用例在生产路径已接入但仍忽略 `pointPixelScale` 时，准确红为 `1512 × 982 != 3024 × 1964`；加入 scale 后转绿，失败原因正是本次旧行为。
+- 溢出用例在旧上界判断下实际以 Swift `Double` 转 `Int` trap 退出；把 gate 改为对舍入值执行严格上界检查后转绿。
+- 变异到达由 SwiftPM 重新编译 `ScreenCaptureKitFrozenDisplayCapturer.swift` 和失败位置确认；没有使用陈旧 App 产物、skip 或条件 return。
+- 纯单测不能证明 WindowServer 实际输出，缺口已在维度 1 明示；不以 helper 测试冒充签名 App 端到端验收。
+
+## Review result
+
+测试覆盖旧 1× 错误、正常 1×、舍入及转换安全边界，且两个目标故障均有真实红绿证据。系统截图与 Retina 视觉清晰度保留为明确的安装版验收项。
+
+---
+
 # VLMSnapper v1 — Ticket 02 test review
 
 审查范围：`FileSystemScreenshotStoreTests` 与 `SQLiteHistoryStoreTests`。
