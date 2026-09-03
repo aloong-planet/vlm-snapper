@@ -142,6 +142,44 @@ public struct OperationWorkspaceSnapshot: Equatable, Sendable {
         self.extract = extract
         self.translate = translate
     }
+
+    public init(restoring operation: StoredOperation) {
+        let selectedOperation: WorkspaceOperationKind = operation.kind == .extract
+            ? .extract
+            : .translate
+        let restoredSlot = WorkspaceOperationSlot(restoring: operation)
+        self.init(
+            selectedOperation: selectedOperation,
+            extract: selectedOperation == .extract ? restoredSlot : WorkspaceOperationSlot(),
+            translate: selectedOperation == .translate ? restoredSlot : WorkspaceOperationSlot()
+        )
+    }
+}
+
+private extension WorkspaceOperationSlot {
+    init(restoring operation: StoredOperation) {
+        let committedResult = operation.sourceMarkdown.map {
+            WorkspaceCommittedResult(
+                sourceMarkdown: $0,
+                translationMarkdown: operation.translationMarkdown
+            )
+        }
+        let attempt: WorkspaceAttemptState = switch operation.status {
+        case .succeeded:
+            committedResult == nil
+                ? .failed(code: "incomplete_output")
+                : .succeeded
+        case .failed:
+            .failed(code: operation.normalizedErrorCode ?? "operation_failed")
+        case .canceled:
+            .canceled
+        case .resultPersistenceFailed:
+            .failed(code: operation.normalizedErrorCode ?? "result_persistence_failed")
+        case .preparing, .uploading, .streaming, .interrupted:
+            .failed(code: operation.normalizedErrorCode ?? "interrupted")
+        }
+        self.init(attempt: attempt, committedResult: committedResult)
+    }
 }
 
 public actor OperationWorkspaceSession {
@@ -191,6 +229,10 @@ public actor OperationWorkspaceSession {
         }
         acceptsOperationStarts = false
         return .beginCapture
+    }
+
+    public func reserveReplacementWithSavedHistory() -> Bool {
+        prepareForCapture() == .beginCapture
     }
 
     public func startSelectedOperation(

@@ -89,6 +89,13 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         model.onShowOnboarding = { [weak self] in
             self?.showOnboarding()
         }
+        model.onRetireManagementCenter = { [weak self] action in
+            guard let controller = self?.managementController else {
+                action()
+                return
+            }
+            controller.performAfterHiding(action)
+        }
 
         let menuController = MenuBarPanelController(
             content: model.menuView(),

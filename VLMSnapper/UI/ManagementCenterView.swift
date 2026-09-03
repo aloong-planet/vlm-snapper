@@ -78,6 +78,7 @@ public enum ShortcutSettingsFailure: Equatable, Sendable {
 
 public struct ManagementCenterCallbacks {
     public let onSelectRecord: (UUID) -> Void
+    public let onOpenRecord: (UUID) -> Void
     public let onSetPinned: (UUID, Bool) -> Void
     public let onDelete: (UUID) -> Void
     public let onClearHistory: (Bool) -> Void
@@ -99,6 +100,7 @@ public struct ManagementCenterCallbacks {
 
     public init(
         onSelectRecord: @escaping (UUID) -> Void = { _ in },
+        onOpenRecord: @escaping (UUID) -> Void = { _ in },
         onSetPinned: @escaping (UUID, Bool) -> Void = { _, _ in },
         onDelete: @escaping (UUID) -> Void = { _ in },
         onClearHistory: @escaping (Bool) -> Void = { _ in },
@@ -119,6 +121,7 @@ public struct ManagementCenterCallbacks {
         onExportDiagnostics: @escaping () -> Void = {}
     ) {
         self.onSelectRecord = onSelectRecord
+        self.onOpenRecord = onOpenRecord
         self.onSetPinned = onSetPinned
         self.onDelete = onDelete
         self.onClearHistory = onClearHistory
@@ -335,7 +338,13 @@ public struct ManagementCenterView: View {
                     )
                 } else {
                     List(filteredRecords, selection: $selectedRecordID) { record in
-                        historyRow(record).tag(record.id)
+                        historyRow(record)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .onTapGesture(count: 2) {
+                                callbacks.onOpenRecord(record.id)
+                            }
+                            .tag(record.id)
                     }
                     .onChange(of: selectedRecordID) { _, value in
                         if let value { callbacks.onSelectRecord(value) }

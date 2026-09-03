@@ -57,6 +57,8 @@ struct ConfirmedSurfaceContractTests {
 @Suite("Management center window contract", .serialized)
 @MainActor
 struct ManagementCenterWindowContractTests {
+    // Integration gap: SwiftUI List double-click delivery and the disabled
+    // rerun state for a missing screenshot require verification in the built app.
     @Test("the minimum applies to the complete content area")
     func minimumAppliesToContentArea() throws {
         let controller = ManagementCenterWindowController(records: [])
@@ -71,5 +73,43 @@ struct ManagementCenterWindowContractTests {
 
         #expect(window.contentLayoutRect.width >= 920)
         #expect(window.contentLayoutRect.height >= 620)
+    }
+
+    @Test("capture retires the visible management center before continuing")
+    func captureRetiresVisibleManagementCenter() async throws {
+        let controller = ManagementCenterWindowController(records: [])
+        let window = try #require(controller.window)
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        var captureCount = 0
+
+        controller.performAfterHidingForCapture {
+            captureCount += 1
+        }
+
+        #expect(window.isVisible == false)
+        #expect(captureCount == 0)
+        for _ in 0..<10 where captureCount == 0 {
+            await Task.yield()
+        }
+        #expect(captureCount == 1)
+    }
+
+    @Test("history callbacks keep selection and opening as separate actions")
+    func historyCallbacksSeparateSelectionAndOpening() {
+        let id = UUID()
+        var selectedID: UUID?
+        var openedID: UUID?
+        let callbacks = ManagementCenterCallbacks(
+            onSelectRecord: { selectedID = $0 },
+            onOpenRecord: { openedID = $0 }
+        )
+
+        callbacks.onSelectRecord(id)
+        #expect(selectedID == id)
+        #expect(openedID == nil)
+
+        callbacks.onOpenRecord(id)
+        #expect(openedID == id)
     }
 }
