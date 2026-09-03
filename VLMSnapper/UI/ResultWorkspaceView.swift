@@ -8,6 +8,7 @@ public struct ResultWorkspaceView: View {
     private let originalImage: NSImage?
     private let providerSummary: String
     private let targetLanguage: String
+    private let allowsOperationStart: Bool
     private let onStart: (WorkspaceOperationKind) -> Void
     private let onCopy: (String) -> Void
     private let onRetrySave: () -> Void
@@ -18,6 +19,7 @@ public struct ResultWorkspaceView: View {
         originalImage: NSImage?,
         providerSummary: String,
         targetLanguage: String,
+        allowsOperationStart: Bool = true,
         onStart: @escaping (WorkspaceOperationKind) -> Void,
         onCopy: @escaping (String) -> Void,
         onRetrySave: @escaping () -> Void
@@ -27,6 +29,7 @@ public struct ResultWorkspaceView: View {
         self.originalImage = originalImage
         self.providerSummary = providerSummary
         self.targetLanguage = targetLanguage
+        self.allowsOperationStart = allowsOperationStart
         self.onStart = onStart
         self.onCopy = onCopy
         self.onRetrySave = onRetrySave
@@ -158,6 +161,7 @@ public struct ResultWorkspaceView: View {
                         )
                     }
                     Button(VLMSnapperStrings.rerun) { onStart(operation) }
+                        .disabled(!allowsOperationStart)
                 }
             }
         case let .failed(code):
@@ -185,6 +189,7 @@ public struct ResultWorkspaceView: View {
                 Text(VLMSnapperStrings.persistenceFailed)
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
                 Button(VLMSnapperStrings.retrySave, action: onRetrySave)
+                    .disabled(!allowsOperationStart)
             }
         }
     }
@@ -263,6 +268,7 @@ public struct ResultWorkspaceView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title).foregroundStyle(VLMSnapperTheme.secondaryText)
             Button(action) { onStart(operation) }
+                .disabled(!allowsOperationStart)
         }
     }
 

@@ -35,6 +35,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     var onSnapshotChange: (@MainActor () -> Void)?
     var onNavigate: (@MainActor (ManagementCenterDestination) -> Void)?
     var onShowOnboarding: (@MainActor () -> Void)?
+    var onRetireManagementCenter: (@MainActor (@escaping @MainActor () -> Void) -> Void)?
 
     private let defaults: UserDefaults
     private let shortcutStore: UserDefaultsGlobalShortcutStore
@@ -64,6 +65,10 @@ final class VLMSnapperApplicationModel: ObservableObject {
         translate: WorkspaceOperationSlot()
     )
     private var originalImage: NSImage?
+    private var workspaceProviderSummary: String?
+    private var workspaceTargetLanguageCode: String?
+    private var workspaceAllowsOperationStart = true
+    private var historyOpenGeneration: UUID?
     private var shortcutCoordinator: GlobalShortcutCoordinator?
     private var cleanupTask: Task<Void, Never>?
     private lazy var resultController = ResultWorkspaceWindowController(
@@ -245,6 +250,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
         ManagementCenterCallbacks(
             onSelectRecord: { [weak self] id in
                 Task { await self?.selectHistoryRecord(id) }
+            },
+            onOpenRecord: { [weak self] id in
+                Task { await self?.openHistoryRecord(id) }
             },
             onSetPinned: { [weak self] id, pinned in
                 Task { await self?.setHistoryPinned(id: id, pinned: pinned) }
@@ -546,6 +554,58 @@ final class VLMSnapperApplicationModel: ObservableObject {
         publish()
     }
 
+    private func openHistoryRecord(_ id: UUID) async {
+        let generation = UUID()
+        historyOpenGeneration = generation
+        guard let record = try? await historyStore.historyRecord(id: id) else {
+            if historyOpenGeneration == generation {
+                historyOpenGeneration = nil
+            }
+            return
+        }
+        let originalPNG = try? await screenshotStore.loadIfOwned(
+            record.operation.screenshot
+        )
+        let operation: WorkspaceOperationKind = record.operation.kind == .extract
+            ? .extract
+            : .translate
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: historyStore,
+            provider: providerStreamer
+        )
+        let session = OperationWorkspaceSession(
+            originalPNG: originalPNG ?? Data(),
+            runner: runner,
+            activeGate: operationGate
+        )
+        await session.select(operation)
+        guard historyOpenGeneration == generation else { return }
+        if let workspaceSession,
+           await !workspaceSession.reserveReplacementWithSavedHistory() {
+            historyOpenGeneration = nil
+            resultController.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        historyOpenGeneration = nil
+        workspaceSession = session
+        selectedOperation = operation
+        workspaceSnapshot = OperationWorkspaceSnapshot(restoring: record.operation)
+        originalImage = originalPNG.flatMap(NSImage.init(data:))
+        workspaceProviderSummary = providerSummary(for: record.operation.selection)
+        workspaceTargetLanguageCode = record.operation.targetLanguage
+        workspaceAllowsOperationStart = originalPNG != nil
+        let present: @MainActor @Sendable () -> Void = { [weak self] in
+            self?.showResultWorkspace(bringToFront: true)
+        }
+        if let onRetireManagementCenter {
+            onRetireManagementCenter(present)
+        } else {
+            present()
+        }
+    }
+
     private func setHistoryPinned(id: UUID, pinned: Bool) async {
         try? await historyStore.setPinned(pinned, operationID: id)
         await refreshHistory()
@@ -738,10 +798,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func captureWithoutWorkspace() {
-        if captureSelectionSession != nil || captureGeneration != nil {
-            requestCapture(replacingCurrent: true)
-            return
-        }
         guard permission == .ready else {
             onShowOnboarding?()
             return
@@ -750,7 +806,16 @@ final class VLMSnapperApplicationModel: ObservableObject {
             onShowOnboarding?()
             return
         }
-        requestCapture(replacingCurrent: false)
+        let replacingCurrent = captureSelectionSession != nil || captureGeneration != nil
+        let begin: @MainActor @Sendable () -> Void = { [weak self] in
+            guard let self else { return }
+            self.requestCapture(replacingCurrent: replacingCurrent)
+        }
+        if let onRetireManagementCenter {
+            onRetireManagementCenter(begin)
+        } else {
+            begin()
+        }
     }
 
     private func requestCapture(replacingCurrent: Bool) {
@@ -904,6 +969,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
         )
         workspaceSession = session
         selectedOperation = operation
+        workspaceProviderSummary = providerSummary
+        workspaceTargetLanguageCode = selectedTargetLanguageCode
+        workspaceAllowsOperationStart = true
         Task {
             await session.select(operation)
             workspaceSnapshot = await session.snapshot()
@@ -947,8 +1015,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
             operation: binding(\.selectedOperation),
             snapshot: workspaceSnapshot,
             originalImage: originalImage,
-            providerSummary: providerSummary,
-            targetLanguage: targetLanguageName,
+            providerSummary: workspaceProviderSummary ?? providerSummary,
+            targetLanguage: workspaceTargetLanguageName,
+            allowsOperationStart: workspaceAllowsOperationStart,
             onStart: { [weak self] operation in
                 Task { await self?.rerunWorkspace(operation) }
             },
@@ -969,7 +1038,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func rerunWorkspace(_ operation: WorkspaceOperationKind) async {
-        guard let workspaceSession, let providerSelection else { return }
+        guard workspaceAllowsOperationStart,
+              let workspaceSession,
+              let providerSelection else { return }
+        workspaceProviderSummary = providerSummary
+        workspaceTargetLanguageCode = selectedTargetLanguageCode
         await workspaceSession.select(operation)
         selectedOperation = operation
         workspaceSnapshot = await workspaceSession.snapshot()
@@ -1021,6 +1094,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         if disposition != .confirmDiscardUnsavedResult {
             self.workspaceSession = nil
             originalImage = nil
+            resetWorkspacePresentation()
         }
         return disposition
     }
@@ -1029,6 +1103,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         await workspaceSession?.discardUnsavedResults()
         workspaceSession = nil
         originalImage = nil
+        resetWorkspacePresentation()
     }
 
     private func cancelCapture() async {
@@ -1067,6 +1142,17 @@ final class VLMSnapperApplicationModel: ObservableObject {
         return "\(providerName) · \(modelID)"
     }
 
+    private func providerSummary(for selection: ProviderSelection) -> String {
+        let providerName = ProviderID(rawValue: selection.providerID).map {
+            switch $0 {
+            case .deepSeek: "DeepSeek"
+            case .openAI: "OpenAI"
+            case .gemini: "Gemini"
+            }
+        } ?? selection.providerID
+        return "\(providerName) · \(selection.modelID)"
+    }
+
     private var targetLanguageBinding: Binding<String> {
         Binding(
             get: { self.selectedTargetLanguageCode },
@@ -1091,6 +1177,18 @@ final class VLMSnapperApplicationModel: ObservableObject {
         VLMSnapperLocalization.localizedLanguageName(
             for: selectedTargetLanguageCode
         )
+    }
+
+    private var workspaceTargetLanguageName: String {
+        VLMSnapperLocalization.localizedLanguageName(
+            for: workspaceTargetLanguageCode ?? selectedTargetLanguageCode
+        )
+    }
+
+    private func resetWorkspacePresentation() {
+        workspaceProviderSummary = nil
+        workspaceTargetLanguageCode = nil
+        workspaceAllowsOperationStart = true
     }
 
     private func defaultTargetLanguage(

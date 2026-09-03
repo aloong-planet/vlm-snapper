@@ -56,6 +56,22 @@ public final class ManagementCenterWindowController: NSWindowController {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    public func performAfterHiding(
+        _ action: @escaping @MainActor () -> Void
+    ) {
+        window?.orderOut(nil)
+        Task { @MainActor in
+            await Task.yield()
+            action()
+        }
+    }
+
+    public func performAfterHidingForCapture(
+        _ action: @escaping @MainActor () -> Void
+    ) {
+        performAfterHiding(action)
+    }
+
     private func render(destination: ManagementCenterDestination) {
         let view = ManagementCenterView(
             destination: destination,

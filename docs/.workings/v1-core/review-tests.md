@@ -788,3 +788,38 @@
 ## Review result
 
 新增测试能分别打红根因、保护边界和调度顺序。唯一保留缺口是新签名安装版的真实快捷键端到端验收，已明确补测条件，没有用合成事件或旧构建冒充。
+
+---
+
+# VLMSnapper v1 — Management Center capture and history-open test review (2026-09-03)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| 已保存翻译恢复 | `restoresSavedTranslationWithoutStartingWork` | 操作槽、原文、译文、metadata 和成功状态均从历史快照恢复 |
+| 失败提取恢复 | `restoresFailedExtractionWithoutStartingWork` | 保存的失败原因和提取操作被保留，不伪造成功内容 |
+| 工作区替换竞态 | `historyReplacementReservationOnlySucceedsOnce` | actor 内 reservation 只允许一次，旧工作区不再接纳并发操作 |
+| 截图前管理中心退让 | `managementCenterHidesBeforeDeferredCaptureAction` | 真实 `NSWindow` 先不可见，同步调用栈不执行截图动作，下一调度点只执行一次 |
+| 单击与双击职责分离 | `managementCenterSelectionAndOpenCallbacksRemainSeparate` | selection 与 open callback 独立触发，没有隐式 Provider 工作 |
+| 全量回归 | `swift test` | 264 tests / 67 suites 通过；warnings-as-errors 构建通过 |
+
+## 维度 2：case 设计是否合理
+
+- 恢复测试只通过公开 `OperationWorkspaceSnapshot(restoring:)` 输入持久化模型，不直写会话私有状态，也不 mock 项目内部模块。
+- replacement 测试连续调用公开 actor seam，第二次必须失败；它直接覆盖用户双击和旧窗口 Try Again 的竞争边界。
+- 窗口测试使用真实 AppKit `NSWindow`，同时检查隐藏状态、同步时序和 exactly-once，不以控制器内部字段替代用户可见结果。
+- 回调测试证明两种手势的业务职责可分离；真实 SwiftUI `List` 的鼠标双击投递与缺图禁用外观仍保留为安装版人工验收项。
+
+## 维度 3：有没有假通过
+
+- 初始有效红由缺失的历史恢复 initializer、管理中心退让方法和打开回调产生；修复前测试不能编译，补齐最小公开 seam 后转绿。
+- 把翻译恢复错误改成提取恢复时，四项快照断言失败；恢复正确映射后转绿。
+- 移除 reservation 的状态消费时，第二次准入断言失败；恢复原子消费后转绿。
+- 把截图 action 提前到窗口隐藏之前时，时序测试失败；恢复隐藏后调度后转绿。
+- 吞掉打开回调时，独立回调测试失败；恢复传递后转绿。所有变异均用补丁恢复，并重新运行完整套件。
+- 最终一次受限环境内运行在 SwiftPM manifest 的嵌套 `sandbox-exec` 阶段失败，尚未编译产品代码；按同一命令在获准的系统沙箱外重跑后 264 tests / 67 suites 通过，因此没有把基础设施失败写成产品红灯，也没有拿旧结果代替重跑。
+
+## Review result
+
+测试能打红恢复映射、并发准入、窗口顺序和回调分离四类核心错误。安装版真实双击与缺图视觉状态没有被单元测试冒充，已作为合并安装后的明确验收项保留。

@@ -168,10 +168,10 @@
             </header>
             <section class="page page-history">
             <div class="history-list" id="history-list">
-              <article class="history-item is-selected" data-type="translate" data-search="designing calm software 优秀的工具软件"><div class="thumb">Calm<br>Software</div><div class="history-copy"><strong>Designing Calm Software</strong><p>优秀的工具软件始终贴近任务本身，减少不必要的步骤。</p><div class="item-footer"><span class="badge">翻译</span><span class="meta">2 分钟前</span></div></div></article>
-              <article class="history-item" data-type="extract" data-search="vision api integration guide multimodal input"><div class="thumb">API<br>Guide</div><div class="history-copy"><strong>Vision API integration guide</strong><p>Send the original PNG as multimodal input and stream the response.</p><div class="item-footer"><span class="badge">提取文字</span><span class="meta">18 分钟前</span></div></div></article>
-              <article class="history-item" data-type="translate" data-search="provider request failed 请求被限流"><div class="thumb">429</div><div class="history-copy"><strong>Provider request failed</strong><p>请求被限流，请等待一分钟后手动重试。</p><div class="item-footer"><span class="badge error">翻译失败</span><span class="meta">1 小时前</span></div></div></article>
-              <article class="history-item" data-type="extract" data-search="quarterly model latency 首个文本耗时"><div class="thumb">Table</div><div class="history-copy"><strong>Quarterly model latency</strong><p>首个文本耗时与总耗时对比表。</p><div class="item-footer"><span class="badge warning">提取文字</span><span class="meta">昨天</span></div></div></article>
+              <article class="history-item is-selected" data-type="translate" data-search="designing calm software 优秀的工具软件" data-open-result><div class="thumb">Calm<br>Software</div><div class="history-copy"><strong>Designing Calm Software</strong><p>优秀的工具软件始终贴近任务本身，减少不必要的步骤。</p><div class="item-footer"><span class="badge">翻译</span><span class="meta">2 分钟前</span></div></div></article>
+              <article class="history-item" data-type="extract" data-search="vision api integration guide multimodal input" data-open-result><div class="thumb">API<br>Guide</div><div class="history-copy"><strong>Vision API integration guide</strong><p>Send the original PNG as multimodal input and stream the response.</p><div class="item-footer"><span class="badge">提取文字</span><span class="meta">18 分钟前</span></div></div></article>
+              <article class="history-item" data-type="translate" data-search="provider request failed 请求被限流" data-open-result><div class="thumb">429</div><div class="history-copy"><strong>Provider request failed</strong><p>请求被限流，请等待一分钟后手动重试。</p><div class="item-footer"><span class="badge error">翻译失败</span><span class="meta">1 小时前</span></div></div></article>
+              <article class="history-item" data-type="extract" data-search="quarterly model latency 首个文本耗时" data-open-result><div class="thumb">Table</div><div class="history-copy"><strong>Quarterly model latency</strong><p>首个文本耗时与总耗时对比表。</p><div class="item-footer"><span class="badge warning">提取文字</span><span class="meta">昨天</span></div></div></article>
               <div class="history-empty"><strong>没有匹配的记录</strong><p>尝试修改类型过滤或搜索关键词。</p></div>
             </div>
             <section class="detail"><article class="detail-card"><header class="detail-head"><div><strong>Designing Calm Software</strong><div class="meta">DeepSeek · deepseek-v4-flash-vision-exp</div></div><button class="icon-button" aria-label="复制"><svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button></header><div class="detail-body"><div class="capture-strip"><div class="capture-paper"><strong>Designing Calm Software</strong><span></span><span></span><span></span></div></div><section class="text-section"><h3>原文</h3><p>Good utility software stays close to the task. It reduces ceremony, preserves context, and makes the next action obvious.</p></section><section class="text-section"><h3>译文</h3><p>优秀的工具软件始终贴近任务本身。它减少不必要的步骤，保留上下文，并让下一步操作清晰可见。</p></section></div></article></section>
@@ -288,6 +288,16 @@
     document.querySelectorAll('[data-demo-state]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = control.dataset.demoState; setPage('general'); }); });
     document.querySelectorAll('[data-check-updates]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = 'checking'; window.setTimeout(() => { updateStatus.dataset.state = 'current'; }, 1200); }); });
     document.querySelectorAll('[data-download-update]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = 'downloading'; window.setTimeout(() => { updateStatus.dataset.state = 'ready'; }, 1600); }); });
+    document.querySelectorAll('[data-open-result]').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('[data-open-result]').forEach((candidate) => candidate.classList.toggle('is-selected', candidate === item));
+      });
+      item.addEventListener('dblclick', () => {
+        const target = 'core-result/hybrid-card-workbench';
+        if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target }, '*');
+        else location.href = '../core-result/prototype-layout-directions.html#a';
+      });
+    });
     searchInput.addEventListener('input', applyHistoryFilter);
     document.querySelector('#theme-control').addEventListener('click', () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; });
     document.addEventListener('click', (event) => {
