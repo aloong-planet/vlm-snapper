@@ -228,9 +228,13 @@ for architecture in arm64 x64 universal; do
     enclosure_signature="$(/usr/bin/xmllint --xpath \
         'string(//*[local-name()="enclosure"]/@*[local-name()="edSignature"])' \
         "$appcast")"
+    minimum_system_version="$(/usr/bin/xmllint --xpath \
+        'string(//*[local-name()="minimumSystemVersion"])' "$appcast")"
     expected_url="$download_base_url/$(basename "$dmg")"
-    if [[ "$enclosure_url" != "$expected_url" || -z "$enclosure_signature" ]]; then
-        echo "Invalid appcast enclosure for $architecture." >&2
+    if [[ "$enclosure_url" != "$expected_url" \
+        || -z "$enclosure_signature" \
+        || "$minimum_system_version" != "14.4" ]]; then
+        echo "Invalid appcast metadata for $architecture." >&2
         exit 1
     fi
     "$sparkle_tools/sign_update" \

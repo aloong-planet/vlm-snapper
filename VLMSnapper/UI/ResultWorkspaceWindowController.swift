@@ -45,14 +45,8 @@ public final class ResultWorkspaceWindowController: NSWindowController,
         window?.contentViewController = NSHostingController(rootView: content)
     }
 
-    public func performAfterHidingForCapture(
-        _ action: @escaping @MainActor () -> Void
-    ) {
+    public func hideForCapture() {
         window?.orderOut(nil)
-        Task { @MainActor in
-            await Task.yield()
-            action()
-        }
     }
 
     public func windowShouldClose(_ sender: NSWindow) -> Bool {

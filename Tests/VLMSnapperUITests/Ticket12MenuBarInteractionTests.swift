@@ -4,8 +4,8 @@ import Testing
 import VLMSnapperCore
 @testable import VLMSnapperUI
 
-// Signed-app acceptance still verifies that AppKit activation makes onboarding
-// the frontmost key window after the real status-item popover closes.
+// Signed-app acceptance verifies that capture excludes the open status-item
+// popover before the controller retires it behind the frozen overlay.
 @Suite("Ticket 12 menu bar interactions", .serialized)
 @MainActor
 struct Ticket12MenuBarInteractionTests {
@@ -55,77 +55,25 @@ struct Ticket12MenuBarInteractionTests {
         #expect(chineseItem.title == "\u{9000}\u{51FA} VLMSnapper")
     }
 
-    @Test("a visible panel defers capture until the turn after the close callback")
-    func visiblePanelDefersActionUntilAfterCloseCallback() async {
-        var isPanelShown = true
-        var closeCount = 0
-        var events: [String] = []
-        let coordinator = MenuBarPanelDismissalCoordinator(
-            isPanelShown: { isPanelShown },
-            requestClose: { closeCount += 1 }
-        )
-
-        coordinator.performAfterDismissing {
-            events.append("capture")
-        }
-
-        #expect(closeCount == 1)
-        #expect(events.isEmpty)
-
-        isPanelShown = false
-        coordinator.panelDidClose()
-
-        #expect(events.isEmpty)
-        for _ in 0..<10 where events.isEmpty {
-            await Task.yield()
-        }
-        #expect(events == ["capture"])
-    }
-
-    @Test("a hidden panel performs capture immediately and close callbacks are idempotent")
-    func hiddenPanelPerformsActionImmediately() {
-        var closeCount = 0
-        var captureCount = 0
-        let coordinator = MenuBarPanelDismissalCoordinator(
-            isPanelShown: { false },
-            requestClose: { closeCount += 1 }
-        )
-
-        coordinator.performAfterDismissing {
-            captureCount += 1
-        }
-        coordinator.panelDidClose()
-        coordinator.panelDidClose()
-
-        #expect(closeCount == 0)
-        #expect(captureCount == 1)
-    }
-
-    @Test("every capture route dismisses the panel before application readiness handling")
+    @Test("every capture route enters application readiness handling immediately")
     func captureRouteActions() {
         var events: [String] = []
-        let captureAfterDismissal = { events.append("capture-after-dismissal") }
+        let capture = { events.append("capture") }
 
         MenuCaptureActionHandler.perform(
             route: .configureProvider,
-            captureAfterPanelDismissal: captureAfterDismissal
+            performCapture: capture
         )
         MenuCaptureActionHandler.perform(
             route: .recoverPermission,
-            captureAfterPanelDismissal: captureAfterDismissal
+            performCapture: capture
         )
         MenuCaptureActionHandler.perform(
             route: .capture,
-            captureAfterPanelDismissal: captureAfterDismissal
+            performCapture: capture
         )
 
-        #expect(
-            events == [
-                "capture-after-dismissal",
-                "capture-after-dismissal",
-                "capture-after-dismissal",
-            ]
-        )
+        #expect(events == ["capture", "capture", "capture"])
     }
 
 }

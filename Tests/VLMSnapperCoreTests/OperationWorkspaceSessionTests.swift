@@ -319,6 +319,32 @@ struct OperationWorkspaceSessionTests {
         #expect(second == .alreadyPrepared)
     }
 
+    @Test("a failed capture restores the prepared workspace")
+    func failedCaptureRestoresPreparedWorkspace() async throws {
+        let runner = WorkspaceRunnerProbe(events: [
+            .succeeded(
+                WorkspaceCommittedResult(
+                    sourceMarkdown: "Replacement run",
+                    translationMarkdown: nil
+                )
+            ),
+        ])
+        let session = OperationWorkspaceSession(
+            originalPNG: Data([1]),
+            runner: runner,
+            activeGate: ActiveOperationGate()
+        )
+
+        #expect(await session.prepareForCapture() == .beginCapture)
+        await session.restoreAfterCaptureFailure()
+        try await session.startSelectedOperation(
+            selection: ProviderSelection(providerID: "openai", modelID: "vision"),
+            targetLanguage: "en"
+        )
+
+        #expect((await session.snapshot()).extract.attempt == .succeeded)
+    }
+
     @Test("a retired workspace cannot start another model request")
     func retiredWorkspaceRejectsAnotherOperation() async {
         let session = OperationWorkspaceSession(

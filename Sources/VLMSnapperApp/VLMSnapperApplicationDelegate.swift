@@ -96,6 +96,11 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
             }
             controller.performAfterHiding(action)
         }
+        model.onRetireCaptureSources = { [weak self] in
+            self?.menuController?.hideForCapture()
+            self?.managementController?.hideForCapture()
+            self?.onboardingController?.window?.orderOut(nil)
+        }
 
         let menuController = MenuBarPanelController(
             content: model.menuView(),

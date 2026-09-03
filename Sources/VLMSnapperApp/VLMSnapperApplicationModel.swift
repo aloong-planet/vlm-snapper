@@ -7,6 +7,11 @@ import VLMSnapperUI
 
 @MainActor
 final class VLMSnapperApplicationModel: ObservableObject {
+    private struct CaptureRequest {
+        let generation: UUID
+        let workspaceToRetire: OperationWorkspaceSession?
+    }
+
     @Published var apiKey = ""
     @Published var pendingModelID: String?
     @Published var selectedOperation: WorkspaceOperationKind = .extract
@@ -36,6 +41,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     var onNavigate: (@MainActor (ManagementCenterDestination) -> Void)?
     var onShowOnboarding: (@MainActor () -> Void)?
     var onRetireManagementCenter: (@MainActor (@escaping @MainActor () -> Void) -> Void)?
+    var onRetireCaptureSources: (@MainActor () -> Void)?
 
     private let defaults: UserDefaults
     private let shortcutStore: UserDefaultsGlobalShortcutStore
@@ -57,7 +63,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private let captureOverlayController = FrozenCaptureOverlayController()
     private let captureToolbarController = CaptureToolbarPanelController()
     private var captureSelectionSession: CaptureSelectionSession?
-    private var captureGeneration: UUID?
+    private var captureRequest: CaptureRequest?
+    private var activeCaptureGeneration: UUID?
     private var workspaceSession: OperationWorkspaceSession?
     private var workspaceSnapshot = OperationWorkspaceSnapshot(
         selectedOperation: .extract,
@@ -489,8 +496,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     func prepareForTermination() async -> Bool {
-        if captureSelectionSession != nil {
-            await cancelCapture()
+        if let request = captureRequest {
+            captureRequest = nil
+            await request.workspaceToRetire?.restoreAfterCaptureFailure()
+        }
+        if let activeCaptureGeneration {
+            await cancelCapture(generation: activeCaptureGeneration)
         }
         guard workspaceSession != nil else { return true }
         let disposition = await closeWorkspace()
@@ -768,13 +779,22 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func capture() {
+        guard permission == .ready else {
+            onShowOnboarding?()
+            return
+        }
+        guard case .ready = providerReadiness else {
+            onShowOnboarding?()
+            return
+        }
+        guard captureRequest == nil else { return }
         if let workspaceSession {
             Task {
                 await handleCaptureRequest(from: workspaceSession)
             }
             return
         }
-        captureWithoutWorkspace()
+        requestCapture(workspaceToRetire: nil)
     }
 
     private func handleCaptureRequest(
@@ -784,11 +804,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         guard self.workspaceSession === workspaceSession else { return }
         switch preparation {
         case .beginCapture:
-            self.workspaceSession = nil
-            originalImage = nil
-            resultController.performAfterHidingForCapture { [weak self] in
-                self?.captureWithoutWorkspace()
-            }
+            requestCapture(workspaceToRetire: workspaceSession)
         case .alreadyPrepared:
             break
         case .presentWorkspace:
@@ -797,73 +813,98 @@ final class VLMSnapperApplicationModel: ObservableObject {
         }
     }
 
-    private func captureWithoutWorkspace() {
-        guard permission == .ready else {
-            onShowOnboarding?()
-            return
-        }
-        guard case .ready = providerReadiness else {
-            onShowOnboarding?()
-            return
-        }
-        let replacingCurrent = captureSelectionSession != nil || captureGeneration != nil
-        let begin: @MainActor @Sendable () -> Void = { [weak self] in
-            guard let self else { return }
-            self.requestCapture(replacingCurrent: replacingCurrent)
-        }
-        if let onRetireManagementCenter {
-            onRetireManagementCenter(begin)
-        } else {
-            begin()
-        }
-    }
-
-    private func requestCapture(replacingCurrent: Bool) {
-        let generation = UUID()
-        captureGeneration = generation
+    private func requestCapture(
+        workspaceToRetire: OperationWorkspaceSession?
+    ) {
+        guard captureRequest == nil else { return }
+        let request = CaptureRequest(
+            generation: UUID(),
+            workspaceToRetire: workspaceToRetire
+        )
+        captureRequest = request
         Task {
-            if replacingCurrent {
-                await captureSelectionSession?.cancel()
-                guard captureGeneration == generation else { return }
-                cancelCaptureSurfaces()
-            }
-            await beginCapture(generation: generation)
+            await beginCapture(request: request)
         }
     }
 
-    private func beginCapture(generation: UUID) async {
+    private func beginCapture(request: CaptureRequest) async {
         let result = await captureCoordinator.startCapture()
-        guard captureGeneration == generation else {
+        guard captureRequest?.generation == request.generation else {
             if case let .ready(session, _, _) = result {
                 await session.cancel()
             }
             return
         }
-        captureGeneration = nil
         switch result {
         case let .ready(session, frozenDisplays, _):
-            captureSelectionSession = session
-            captureOverlayController.show(
+            guard captureRequestCanCommit(request) else {
+                captureRequest = nil
+                await session.cancel()
+                await request.workspaceToRetire?.restoreAfterCaptureFailure()
+                return
+            }
+            let replacementPresented = captureOverlayController.replace(
                 displays: frozenDisplays,
                 onSelection: { [weak self] selection in
-                    Task { await self?.finishSelection(selection) }
+                    Task {
+                        await self?.finishSelection(
+                            selection,
+                            generation: request.generation
+                        )
+                    }
                 },
                 onCancel: { [weak self] in
-                    Task { await self?.cancelCapture() }
+                    Task {
+                        await self?.cancelCapture(
+                            generation: request.generation
+                        )
+                    }
                 }
             )
+            guard replacementPresented else {
+                captureRequest = nil
+                await session.cancel()
+                await request.workspaceToRetire?.restoreAfterCaptureFailure()
+                showCaptureFailure()
+                return
+            }
+            let retiredSelectionSession = captureSelectionSession
+            captureSelectionSession = session
+            activeCaptureGeneration = request.generation
+            captureRequest = nil
+            captureToolbarController.hide()
+            if let workspaceToRetire = request.workspaceToRetire,
+               workspaceSession === workspaceToRetire {
+                workspaceSession = nil
+                originalImage = nil
+                resetWorkspacePresentation()
+                resultController.hideForCapture()
+            }
+            onRetireCaptureSources?()
+            await retiredSelectionSession?.cancel()
         case .permissionRequired:
+            captureRequest = nil
+            await request.workspaceToRetire?.restoreAfterCaptureFailure()
             permission = .unavailable
             publish()
             onShowOnboarding?()
         case .allDisplaysFailed:
-            cancelCaptureSurfaces()
+            captureRequest = nil
+            await request.workspaceToRetire?.restoreAfterCaptureFailure()
             showCaptureFailure()
         }
     }
 
+    private func captureRequestCanCommit(_ request: CaptureRequest) -> Bool {
+        if let workspaceToRetire = request.workspaceToRetire {
+            return workspaceSession === workspaceToRetire
+        }
+        return workspaceSession == nil
+    }
+
     private func showCaptureFailure() {
         let alert = NSAlert()
+        captureOverlayController.prepareFailurePresentation(alert)
         alert.alertStyle = .warning
         alert.messageText = VLMSnapperLocalization.localizedString(
             forKey: "capture.failed.title"
@@ -882,14 +923,16 @@ final class VLMSnapperApplicationModel: ObservableObject {
             )
         )
         if alert.runModal() == .alertFirstButtonReturn {
-            requestCapture(replacingCurrent: false)
+            capture()
         }
     }
 
     private func finishSelection(
-        _ selection: FrozenCaptureOverlayController.Selection
+        _ selection: FrozenCaptureOverlayController.Selection,
+        generation: UUID
     ) async {
-        guard let captureSelectionSession,
+        guard activeCaptureGeneration == generation,
+              let captureSelectionSession,
               let currentScreen = NSScreen.screens.first(where: { screen in
                   guard let number = screen.deviceDescription[
                       NSDeviceDescriptionKey("NSScreenNumber")
@@ -903,7 +946,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                   pointPixelScale: Float(currentScreen.backingScaleFactor)
               )
         else {
-            await cancelCapture()
+            await cancelCapture(generation: generation)
             return
         }
         do {
@@ -924,7 +967,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         } catch CaptureSelectionError.selectionTooSmall {
             return
         } catch {
-            await cancelCapture()
+            await cancelCapture(generation: generation)
         }
     }
 
@@ -943,7 +986,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     self?.openWorkspace(originalPNG: originalPNG, operation: operation)
                 },
                 onCancel: { [weak self] in
-                    Task { await self?.cancelCapture() }
+                    Task {
+                        guard let generation = self?.activeCaptureGeneration else {
+                            return
+                        }
+                        await self?.cancelCapture(generation: generation)
+                    }
                 }
             ),
             below: selectionFrame,
@@ -1106,16 +1154,18 @@ final class VLMSnapperApplicationModel: ObservableObject {
         resetWorkspacePresentation()
     }
 
-    private func cancelCapture() async {
-        captureGeneration = nil
-        await captureSelectionSession?.cancel()
+    private func cancelCapture(generation: UUID) async {
+        guard activeCaptureGeneration == generation else { return }
+        let session = captureSelectionSession
         cancelCaptureSurfaces()
+        await session?.cancel()
     }
 
     private func cancelCaptureSurfaces() {
         captureOverlayController.close()
         captureToolbarController.hide()
         captureSelectionSession = nil
+        activeCaptureGeneration = nil
     }
 
     private func refreshHistory() async {

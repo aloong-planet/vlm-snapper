@@ -32,12 +32,9 @@ public struct ScreenCaptureKitFrozenDisplayCapturer: FrozenDisplayCapturing {
     public func captureFrozenDisplays() async throws(CaptureDiscoveryError)
         -> FrozenDisplayBatch
     {
-        let content: SCShareableContent
+        let snapshot: CurrentProcessCaptureSnapshot
         do {
-            content = try await SCShareableContent.excludingDesktopWindows(
-                false,
-                onScreenWindowsOnly: true
-            )
+            snapshot = try await currentProcessCaptureSnapshot()
         } catch {
             if isPermissionDenied(error) {
                 throw .permissionDenied
@@ -49,9 +46,12 @@ public struct ScreenCaptureKitFrozenDisplayCapturer: FrozenDisplayCapturing {
             of: NativeDisplayCaptureAttempt.self,
             returning: [NativeDisplayCaptureAttempt].self
         ) { group in
-            for display in content.displays {
+            for display in snapshot.displays {
                 group.addTask {
-                    await capture(display: display)
+                    await capture(
+                        display: display,
+                        excluding: snapshot.currentApplication
+                    )
                 }
             }
             var results: [NativeDisplayCaptureAttempt] = []
@@ -72,6 +72,40 @@ public struct ScreenCaptureKitFrozenDisplayCapturer: FrozenDisplayCapturing {
         }
         return FrozenDisplayBatch(displays: displays, failures: failures)
     }
+}
+
+private struct CurrentProcessCaptureSnapshot {
+    let displays: [SCDisplay]
+    let currentApplication: SCRunningApplication
+}
+
+private func currentProcessCaptureSnapshot() async throws
+    -> CurrentProcessCaptureSnapshot
+{
+    let processID = ProcessInfo.processInfo.processIdentifier
+    if let content = try? await SCShareableContent.currentProcess,
+       let application = content.applications.first(where: {
+           $0.processID == processID
+       }), !content.displays.isEmpty {
+        return CurrentProcessCaptureSnapshot(
+            displays: content.displays,
+            currentApplication: application
+        )
+    }
+
+    let content = try await SCShareableContent.excludingDesktopWindows(
+        false,
+        onScreenWindowsOnly: true
+    )
+    guard let application = content.applications.first(where: {
+        $0.processID == processID
+    }), !content.displays.isEmpty else {
+        throw CaptureDiscoveryError.discoveryFailed
+    }
+    return CurrentProcessCaptureSnapshot(
+        displays: content.displays,
+        currentApplication: application
+    )
 }
 
 private struct NativeDisplayCaptureAttempt: Sendable {
@@ -113,9 +147,16 @@ func captureRasterSize(
     )
 }
 
-private func capture(display: SCDisplay) async -> NativeDisplayCaptureAttempt {
+private func capture(
+    display: SCDisplay,
+    excluding currentApplication: SCRunningApplication
+) async -> NativeDisplayCaptureAttempt {
     let displayID = display.displayID
-    let filter = SCContentFilter(display: display, excludingWindows: [])
+    let filter = SCContentFilter(
+        display: display,
+        excludingApplications: [currentApplication],
+        exceptingWindows: []
+    )
     guard let captureSize = captureRasterSize(
         contentRect: filter.contentRect,
         pointPixelScale: filter.pointPixelScale

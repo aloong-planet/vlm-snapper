@@ -66,10 +66,8 @@ public final class ManagementCenterWindowController: NSWindowController {
         }
     }
 
-    public func performAfterHidingForCapture(
-        _ action: @escaping @MainActor () -> Void
-    ) {
-        performAfterHiding(action)
+    public func hideForCapture() {
+        window?.orderOut(nil)
     }
 
     private func render(destination: ManagementCenterDestination) {

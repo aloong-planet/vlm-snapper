@@ -38,7 +38,7 @@ assert_plist_value() {
 assert_plist_value CFBundleIdentifier com.loong.vlmsnapper
 assert_plist_value CFBundleShortVersionString "$version"
 assert_plist_value CFBundleVersion "$build_version"
-assert_plist_value LSMinimumSystemVersion 14.0
+assert_plist_value LSMinimumSystemVersion 14.4
 assert_plist_value LSUIElement true
 assert_plist_value \
     NSScreenCaptureUsageDescription \
