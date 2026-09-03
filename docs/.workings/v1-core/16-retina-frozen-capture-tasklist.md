@@ -8,4 +8,4 @@
 - [x] Complete test review and record it in `review-tests.md`.
 - [x] Reconcile the spec, feature catalog, ADR, and implementation.
 - [x] Complete the three-stage feature-catalog regression.
-- [ ] Commit, push, and open a pull request.
+- [x] Commit, push, and open pull request #18.
