@@ -12,9 +12,6 @@ struct ConfirmedSurfaceContractTests {
         #expect(OnboardingMetrics.width == 760)
         #expect(OnboardingMetrics.minimumHeight == 540)
         #expect(OnboardingMetrics.rowCornerRadius == 9)
-        #expect(ProviderSetupMetrics.width == 720)
-        #expect(ProviderSetupMetrics.bodyHeight == 410)
-        #expect(ProviderSetupMetrics.cornerRadius == 8)
         #expect(PermissionRecoveryMetrics.width == 520)
         #expect(PermissionRecoveryMetrics.cornerRadius == 8)
     }
@@ -43,7 +40,7 @@ struct ConfirmedSurfaceContractTests {
             fetchedAt: Date(timeIntervalSince1970: 1),
             selectedModelID: "gpt-vision"
         )
-        let presentation = ProviderSidebarPresentation(
+        let presentation = ProviderSettingsDetailPresentation(
             provider: .openAI,
             snapshot: snapshot,
             configurations: [.openAI: openAI]

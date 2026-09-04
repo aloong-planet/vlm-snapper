@@ -43,23 +43,18 @@ enum VLMSnapperStrings {
     static var close: String { localized("action.close") }
     static var openSettings: String { localized("action.openSettings") }
     static var restart: String { localized("action.restart") }
-    static var providerSetupTitle: String { localized("providerSetup.title") }
     static var providerSetupSubtitle: String { localized("providerSetup.subtitle") }
     static var apiKey: String { localized("providerSetup.apiKey") }
     static var currentModel: String { localized("providerSetup.currentModel") }
     static var chooseModel: String { localized("providerSetup.chooseModel") }
-    static var modelListHint: String { localized("providerSetup.modelListHint") }
     static var visionValidationHint: String { localized("providerSetup.visionValidationHint") }
     static var modelPending: String { localized("providerSetup.pendingModel") }
-    static var providerSection: String { localized("providerSetup.providerSection") }
-    static var officialEndpoint: String { localized("providerSetup.officialEndpoint") }
     static var notConfigured: String { localized("providerSetup.notConfigured") }
     static var validating: String { localized("providerSetup.validating") }
     static var configured: String { localized("providerSetup.configured") }
     static var providerAvailable: String { localized("providerSetup.available") }
     static var providerSetupRequired: String { localized("providerSetup.setupRequired") }
     static var providerReadOnly: String { localized("providerSetup.readOnly") }
-    static var providerSetupFooterNote: String { localized("providerSetup.footerNote") }
     static var apiKeyPlaceholder: String { localized("providerSetup.apiKeyPlaceholder") }
     static var clearAPIKey: String { localized("providerSetup.clearAPIKey") }
     static var showAPIKey: String { localized("providerSetup.showAPIKey") }

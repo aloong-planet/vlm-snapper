@@ -19,8 +19,6 @@ struct VLMSnapperUIHarness: App {
 private struct HarnessRoot: View {
     let mode: HarnessMode
     @State private var operation: WorkspaceOperationKind = .translate
-    @State private var apiKey = ""
-    @State private var modelID: String? = "deepseek-v4-flash-vision-exp"
     @State private var targetLanguageCode = "zh-Hans"
 
     @ViewBuilder
@@ -79,28 +77,6 @@ private struct HarnessRoot: View {
                 onFinishLater: {}
             )
             .frame(width: 680, height: 620)
-        case .provider:
-            ProviderSetupView(
-                snapshot: ProviderSetupSnapshot(
-                    selectedProvider: .deepSeek,
-                    availableModelIDs: [
-                        "deepseek-v4-flash-vision-exp",
-                        "deepseek-vl2",
-                    ],
-                    selectedModelID: "deepseek-v4-flash-vision-exp",
-                    phase: .ready,
-                    failure: nil
-                ),
-                apiKey: $apiKey,
-                pendingModelID: $modelID,
-                onSelectProvider: { _ in },
-                onValidate: {},
-                onRefresh: {},
-                onSelectModel: { _ in },
-                onCancel: {},
-                onDone: {}
-            )
-            .frame(width: 820, height: 640)
         case .permission:
             ZStack {
                 Color(nsColor: .underPageBackgroundColor)
@@ -170,7 +146,6 @@ private enum HarnessMode {
     case result
     case toolbar
     case onboarding
-    case provider
     case permission
     case menu
     case privacy
@@ -180,8 +155,6 @@ private enum HarnessMode {
             self = .toolbar
         } else if arguments.contains("--onboarding") {
             self = .onboarding
-        } else if arguments.contains("--provider") {
-            self = .provider
         } else if arguments.contains("--permission") {
             self = .permission
         } else if arguments.contains("--menu") {

@@ -54,12 +54,10 @@
 "action.close" = "Close";
 "action.openSettings" = "Open System Settings";
 "action.restart" = "Restart VLMSnapper";
-"providerSetup.title" = "Configure Online Provider";
 "providerSetup.subtitle" = "Validate an API key, choose a model, and decide which Provider to use. Models come from the corresponding account and cannot be entered manually.";
 "providerSetup.apiKey" = "API Key";
 "providerSetup.currentModel" = "Current Model";
 "providerSetup.chooseModel" = "Choose a model";
-"providerSetup.modelListHint" = "Models come from the complete list returned for this account. Manual input is not available.";
 "providerSetup.visionValidationHint" = "Choosing a model does not send a test image. The first real operation verifies image input support.";
 "providerSetup.pendingModel" = "Choose a model";
 "providerSetup.notConfigured" = "Not Configured";
@@ -68,9 +66,6 @@
 "providerSetup.available" = "Available";
 "providerSetup.setupRequired" = "Set Up";
 "providerSetup.readOnly" = "Provider configuration is read-only while a model operation is active.";
-"providerSetup.footerNote" = "You can change this later in Settings Center.";
-"providerSetup.providerSection" = "PROVIDER";
-"providerSetup.officialEndpoint" = "Official API Endpoint";
 "providerSetup.apiKeyPlaceholder" = "Enter API Key";
 "providerSetup.clearAPIKey" = "Clear API Key";
 "providerSetup.showAPIKey" = "Show API Key";

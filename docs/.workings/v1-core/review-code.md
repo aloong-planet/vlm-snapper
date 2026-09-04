@@ -983,3 +983,35 @@ review 发现并删除 1 个本次引入的 orphan enum case；事实层重扫�
 ## 结论
 
 四层审查未发现剩余阻断项。改动覆盖完整用户序列，同时保持 Provider 持久状态、页面状态和首次引导来源三类职责分离；没有新增未经原型确认的界面或越界重构。
+
+---
+
+# VLMSnapper v1 — Retired Provider component removal review (2026-09-04)
+
+## 【① 底层前提】
+
+- 对当前源码树执行全量符号与参数检索后，`ProviderSetupView` 只由 UI harness、Ticket 07 渲染和 sheet 终止回归引用；生产 App 已无构造路径。该结论不依赖抽样。
+- SwiftPM 的 `VLMSnapperUI` target 按整个 `UI` 目录收集源码，没有需要同步删除的显式文件清单。
+- `git log -S'ProviderSetupView' --all` 证明它是历史界面类型；没有数据库字段、settings 值、IPC 字符串或其他持久化兼容值与该类型绑定。
+
+## 【② 可运行性】
+
+- 管理中心仍需的 Provider 详情映射已迁入 `ProviderSettingsPresentation.swift` 并改名为 `ProviderSettingsDetailPresentation`，两个生产调用点与现行测试同步更新。
+- 删除旧 View 后，harness 不再接受 `--provider`，Ticket 07 不再生成旧页面，sheet 终止回归只枚举仍存在的权限与隐私 sheet。
+- 旧 `ProviderSetupMetrics`、五个专用字符串 accessor 和两语种资源键一并删除；完整编译能枚举所有 Swift 静态引用并已通过。
+
+## 【③ 安全正确性】
+
+- 本轮不改 Keychain、Provider 请求、模型配置、窗口路由或用户数据。被删除对象只包含不可达 UI、开发预览入口和相应测试 fixture。
+- 现行内联页面的 Key 显隐、清空、验证资格、模型选择、当前 Provider 与移除确认均未删除；敏感信息边界不变。
+- 删除不涉及动态反射或字符串构造的类型发现路径；当前树对旧类型、旧 metrics、旧输入状态和 `--provider` 的全量检索均为空。
+
+## 【④ 一致性】
+
+- 源文件、测试名、测试 suite、harness 参数、几何常量和本地化键全部从“Provider setup”旧组件语义收敛到现行“Provider settings”语义。
+- 既有 spec、feature catalog、原型 manifest 和权威 README 已只描述管理中心内联流程；本轮删除不可达组件没有改变用户可见行为。
+- 审查发现 Ticket 07 渲染目录未在运行前清空，旧 Provider PNG 会污染文件数量断言。已补上目录清理并由原始失败后重跑通过验证。
+
+## 结论
+
+四层审查未发现剩余阻断项。旧独立 Provider 组件及其专属依赖已完整删除，现行管理中心内联实现与覆盖未受损。

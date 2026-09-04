@@ -862,3 +862,30 @@
 ## Review result
 
 新增测试能分别打红凭据替换、状态映射、只读浏览和首次引导返回的主要错误。剩余系统集成缺口已明确限定为合并安装后的人工验收，不影响本地自动化门禁的真实性。
+
+---
+
+# VLMSnapper v1 — Retired Provider component removal test review (2026-09-04)
+
+## 维度 1：覆盖是否完整
+
+- 删除的两项测试只驱动已删除的 `ProviderSetupInputState`：粘贴后启用验证、切换 Provider 清空旧 draft。现行 `ProviderInlineCredentialPresentation`、卡片状态、初始展开与引导返回测试全部保留。
+- Ticket 07 从旧页面截图清单中移除 Provider，预期文件数从 10 降至 8；Ticket 13 继续渲染双语言、明暗外观及最小尺寸的现行管理中心 Provider 页面。
+- sheet 终止回归从三个样本改为两个，继续覆盖仍以 sheet 呈现的权限恢复和存储隐私；Provider 设置现在是普通管理中心窗口，不属于该测试的枚举集合。
+- 完整回归实际执行 271 tests / 68 suites 并通过；warnings-as-errors 构建通过。
+
+## 维度 2：case 设计是否合理
+
+- 保留的 Provider tests 均面向现行 presentation 与 coordinator/session 公开 seam，不引用被删除类型或通过旧页面 fixture 间接证明新页面。
+- Ticket 07 在每次运行前删除并重建自己的临时输出目录，文件数量现在只反映本次渲染，不受历史 PNG 影响。
+- 源码全量引用检索与编译分别覆盖字符串/符号残留和类型链接残留，两者用途不同，没有用单一 grep 冒充构建验证。
+
+## 维度 3：有没有假通过
+
+- 第一次删除后 Ticket 07 准确失败于 `renderedFiles.count == 8`，实际为 10。检查输出目录确认多出的正是上轮遗留 Provider PNG；修复测试隔离后限定名测试执行 1 test 并通过。
+- 一次用人类可读测试标题过滤得到 0 tests，该结果已作废；随后使用 `Ticket07RenderingTests.confirmedSurfacesRender`，实际执行 1 test。
+- 完整测试日志明确报告 271 tests / 68 suites、退出码 0；没有把 0-test 过滤、旧截图产物或单纯编译成功计作行为通过。
+
+## Review result
+
+测试删除范围与组件删除范围一致，现行 Provider 行为覆盖没有被削弱。渲染测试的历史产物污染已转化为可重复的目录隔离防线。

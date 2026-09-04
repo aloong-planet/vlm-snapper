@@ -988,3 +988,39 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。用户可见流程、持久凭据语义、原型、spec、feature catalog、ADR、术语、实现和测试已统一为设置中心内联 Provider 配置。自动化门禁不冒充签名安装版的 Keychain 与窗口层级人工验收；该验收保留到 PR 合并并更新本地 App 后执行。
+
+---
+
+# 2026-09-04 — Retired Provider component removal
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| tasklist 的旧组件清理 | 源码、harness、tests 与本地化 diff | View、预览参数、专属状态、几何、文案和旧测试均已删除 |
+| review 记录的生产表面 | 当前生产路由与 Ticket 13 渲染 | 管理中心 Provider 页面仍是唯一生产配置表面 |
+| spec/features 的用户行为 | 本轮生产代码 diff | 用户可见行为未改变；没有任何现行声明因删除不可达组件变成谎话 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Swift target ↔ 源文件收集 | `Package.swift` 的 `sources: ["UI"]` | 目录自动收集，无显式 source manifest 残项 |
+| 旧类型 ↔ 当前引用 | 排除 `.build` 和施工记录的全量符号检索 | `ProviderSetupView`、旧 metrics/input/presentation 名和 `--provider` 当前引用为零 |
+| 本地化 accessor ↔ 两语种资源 | 五个旧 accessor 与对应键的全量检索 | accessor 和英文/简中键成对删除；现行键继续由本地化回归覆盖 |
+| 旧页面 ↔ 原型目录 | prototype manifest、management/onboarding/application-menu | 原型早已收敛到管理中心，删除源码不需要新的原型变更 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| SwiftUI 类型成员数减少 | 当前类型引用与 SwiftPM 全编译 | 只移除无生产路由的旧 View；所需详情映射迁入现行 presentation |
+| harness 模式减少 | `HarnessMode` 全枚举与参数分支 | `--provider` 同步删除，无未穷尽 switch 或帮助文本残留 |
+| 测试数量从 273 降至 271 | 删除的两项用例与完整测试日志 | 仅旧输入状态用例消失；现行 Provider tests 和全部 suite 保留 |
+| Ticket 07 产物数减少 | 清空输出目录后的限定测试 | 本轮稳定生成 8 张，旧 Provider PNG 不再污染结果 |
+| 用户可见行为变化判定 | features 当前 Provider 段与生产路由 | 原有哪句话变成谎：无；缺少哪句现行行为：无，因此无需改写 feature catalog |
+| 范围内 `Pending:` 与新通则 | v1 spec 与 ADR/CONTEXT 门槛 | 没有 Pending 到期，也没有形成新的跨功能决策或术语 |
+
+## 收敛结论
+
+三阶段队列已清空。旧组件与相关开发/测试表面已完整移除，权威产品声明无需变化；现行管理中心内联 Provider 流程继续由 271 项完整回归和严格构建守护。

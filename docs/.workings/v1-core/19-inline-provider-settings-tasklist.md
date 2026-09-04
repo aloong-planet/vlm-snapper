@@ -13,4 +13,5 @@
 - [x] Run the independent test review and append findings to `review-tests.md`.
 - [x] Reconcile the final implementation against the v1 spec.
 - [x] Update the feature catalog and append all three final-regression tables.
+- [x] Remove the retired standalone Provider component, its harness mode, geometry, copy, and component-only tests while retaining inline settings coverage.
 - [ ] Commit, push, and open a pull request; stop before merge.

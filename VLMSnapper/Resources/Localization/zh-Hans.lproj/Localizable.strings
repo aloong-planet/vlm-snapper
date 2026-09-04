@@ -54,12 +54,10 @@
 "action.close" = "关闭";
 "action.openSettings" = "打开系统设置";
 "action.restart" = "重新启动 VLMSnapper";
-"providerSetup.title" = "配置在线 Provider";
 "providerSetup.subtitle" = "直接验证 API Key、选择模型并决定当前使用的 Provider。模型列表来自对应账户，不支持手动输入。";
 "providerSetup.apiKey" = "API Key";
 "providerSetup.currentModel" = "当前模型";
 "providerSetup.chooseModel" = "请选择模型";
-"providerSetup.modelListHint" = "模型来自当前账户返回的完整列表，不支持手动输入。";
 "providerSetup.visionValidationHint" = "选择模型时不会发送测试图片；首次真实操作会验证图片输入能力。";
 "providerSetup.pendingModel" = "待选择模型";
 "providerSetup.notConfigured" = "尚未配置";
@@ -68,9 +66,6 @@
 "providerSetup.available" = "可用";
 "providerSetup.setupRequired" = "待配置";
 "providerSetup.readOnly" = "模型操作进行中，Provider 配置暂时只读。";
-"providerSetup.footerNote" = "以后可在设置中心修改相同配置。";
-"providerSetup.providerSection" = "PROVIDER";
-"providerSetup.officialEndpoint" = "官方 API Endpoint";
 "providerSetup.apiKeyPlaceholder" = "输入 API Key";
 "providerSetup.clearAPIKey" = "清空 API Key";
 "providerSetup.showAPIKey" = "显示 API Key";

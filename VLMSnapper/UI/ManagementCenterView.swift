@@ -761,7 +761,7 @@ public struct ManagementCenterView: View {
 
     private func providerIsReady(_ provider: ProviderID) -> Bool {
         guard let providerSettings else { return false }
-        return ProviderSidebarPresentation(
+        return ProviderSettingsDetailPresentation(
             provider: provider,
             snapshot: providerSettings.snapshot,
             configurations: providerSettings.configurations
@@ -840,7 +840,7 @@ public struct ManagementCenterView: View {
 
     private func providerStatusDetail(_ provider: ProviderID) -> String {
         guard let providerSettings else { return VLMSnapperStrings.notConfigured }
-        return ProviderSidebarPresentation(
+        return ProviderSettingsDetailPresentation(
             provider: provider,
             snapshot: providerSettings.snapshot,
             configurations: providerSettings.configurations

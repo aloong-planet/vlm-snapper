@@ -1,5 +1,47 @@
 import VLMSnapperCore
 
+public struct ProviderSettingsDetailPresentation: Equatable, Sendable {
+    public let detail: String
+    public let isConfigured: Bool
+
+    public init(
+        provider: ProviderID,
+        snapshot: ProviderSetupSnapshot,
+        configurations: [ProviderID: ProviderConfiguration]
+    ) {
+        if provider == snapshot.selectedProvider {
+            switch snapshot.phase {
+            case .validating:
+                detail = VLMSnapperStrings.validating
+                isConfigured = false
+                return
+            case .selectingModel:
+                detail = VLMSnapperStrings.modelPending
+                isConfigured = false
+                return
+            case .ready:
+                detail = snapshot.selectedModelID ?? VLMSnapperStrings.modelPending
+                isConfigured = snapshot.selectedModelID != nil
+                return
+            case .failed:
+                detail = VLMSnapperStrings.failed
+                isConfigured = false
+                return
+            case .awaitingValidation:
+                break
+            }
+        }
+
+        if let configuration = configurations[provider] {
+            detail = configuration.selectedModelID ?? VLMSnapperStrings.modelPending
+            isConfigured = configuration.isUsable
+        } else {
+            detail = VLMSnapperStrings.notConfigured
+            isConfigured = false
+        }
+    }
+}
+
 public enum ProviderInlineCredentialStatus: Equatable, Sendable {
     case notConfigured
     case pending
