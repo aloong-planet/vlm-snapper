@@ -4,6 +4,8 @@ This prototype compares three requested first-run onboarding structures while ke
 
 Direction A is the selected structure. Its first two readiness items are required before the primary “开始使用” action is enabled. The inline notice names whichever blocking item is still missing, while “稍后完成” remains available. The storage/privacy item never gates entry.
 
+The Provider action now opens the Provider destination in the shared Management Center instead of presenting a setup sheet. After API Key validation and a successful model selection, the Management Center returns automatically to this checklist and refreshes its readiness state. Closing Provider settings early also returns here with the incomplete state unchanged.
+
 The storage/privacy detail action opens an attached, non-consent sheet using one continuous surface with flat sections, matching the onboarding window without wrapping each topic in a card. It explains when screenshots are uploaded, where local records live, how retention works, and the boundary of system or third-party backups. The sheet only provides close actions and can also be dismissed with the backdrop or Escape.
 
 - A: a single-page readiness checklist.

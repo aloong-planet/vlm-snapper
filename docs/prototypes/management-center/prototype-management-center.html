@@ -23,6 +23,10 @@
     body[data-page="general"] .search { display: none; }
     body[data-page="settings"] .settings-title,
     body[data-page="general"] .settings-title { display: block; }
+    body:not([data-page="settings"]) [data-provider-harness],
+    body:not([data-page="settings"]) [data-provider-demo-state],
+    body:not([data-page="general"]) [data-update-harness],
+    body:not([data-page="general"]) [data-demo-state] { display: none; }
 
     .type-filter { display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--surface-strong); }
     .filter-button { min-width: 78px; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--text-secondary); background: transparent; }
@@ -80,16 +84,57 @@
     .settings-header p { margin: 0; color: var(--text-secondary); line-height: 1.5; }
     .provider-grid { max-width: 850px; margin: auto; display: grid; gap: 12px; }
     .provider-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
-    .provider-card-head { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; }
+    .provider-card-head { width: 100%; min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; border: 0; color: var(--text); background: var(--surface); text-align: left; }
+    .provider-card-head:hover { background: var(--surface-hover); }
+    .provider-card.is-expanded .provider-card-head, .provider-card.is-expanded .provider-card-head:hover { background: var(--surface); }
     .provider-name { display: flex; align-items: center; gap: 10px; }
     .provider-logo { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 8px; color: var(--accent-text); background: var(--accent-soft); font-size: 11px; font-weight: 800; }
     .provider-name strong { display: block; }
     .provider-name span { color: var(--text-tertiary); font-size: 10px; }
-    .provider-body { display: grid; grid-template-columns: 1fr 1.25fr; gap: 14px; padding: 13px 14px 15px; border-top: 1px solid var(--line); background: var(--surface-subtle); }
-    .field label { display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 10px; font-weight: 650; }
-    .field-value { height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
-    .field-value strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-    .provider-card.is-collapsed .provider-body { display: none; }
+    .provider-card-status { display: flex; align-items: center; gap: 9px; }
+    .provider-chevron { width: 15px; height: 15px; color: var(--text-tertiary); transition: transform .15s ease; }
+    .provider-card.is-expanded .provider-chevron { transform: rotate(180deg); }
+    .provider-body { padding: 15px 16px 13px; border-top: 1px solid var(--line); background: var(--surface-subtle); }
+    .provider-form { display: grid; gap: 12px; }
+    .provider-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; }
+    .provider-field-heading { min-height: 18px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    .provider-field-heading label { color: var(--text-secondary); font-size: 10px; font-weight: 650; }
+    .credential-status { display: flex; align-items: center; gap: 4px; color: var(--success); font-size: 10px; font-weight: 650; white-space: nowrap; }
+    .credential-status.warning { color: var(--warning); }
+    .credential-status.error { color: var(--danger); }
+    .credential-status .icon { width: 13px; height: 13px; }
+    .credential-status.warning .icon, .credential-status.error .icon { display: none; }
+    .key-field-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+    .key-field-shell { min-width: 0; height: 32px; display: grid; grid-template-columns: minmax(0, 1fr) 28px 28px; align-items: center; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); }
+    .key-field-shell:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .key-field-shell input { min-width: 0; width: 100%; height: 30px; padding: 0 9px; border: 0; outline: 0; color: var(--text); background: transparent; }
+    .key-field-action { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; color: var(--text-tertiary); background: transparent; }
+    .key-field-action:hover { color: var(--text-secondary); background: var(--surface-hover); }
+    .key-field-action[aria-pressed="true"] { color: var(--accent-text); background: var(--accent-soft); }
+    .key-field-action .icon { width: 15px; height: 15px; }
+    .credential-commit { min-height: 28px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+    .credential-commit span { margin-right: auto; color: var(--warning); font-size: 10px; }
+    .model-control { display: flex; align-items: center; gap: 8px; }
+    .model-control select { min-width: 0; height: 32px; flex: 1; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--text); background: var(--surface); }
+    .model-control select { padding: 0 28px 0 9px; }
+    .provider-help { margin: 6px 0 0; color: var(--text-tertiary); font-size: 10px; line-height: 1.4; }
+    .provider-error { display: none; margin: 7px 0 0; color: var(--danger); font-size: 10px; line-height: 1.4; }
+    .provider-card[data-state="failed"] .provider-error { display: block; }
+    .provider-lock { display: none; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; color: var(--text-secondary); background: var(--surface); font-size: 10px; }
+    body[data-provider-demo="locked"] .provider-lock { display: flex; }
+    .provider-card-footer { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 2px; }
+    .provider-footer-actions { display: flex; align-items: center; gap: 8px; }
+    .provider-current-note { color: var(--success); font-size: 10px; font-weight: 650; }
+    .provider-card:not([data-current="true"]) .provider-current-note { display: none; }
+    .provider-card[data-current="true"] [data-set-current] { display: none; }
+    .danger-button { height: 28px; padding: 0 8px; border: 0; border-radius: 6px; color: var(--danger); background: transparent; font-weight: 600; }
+    .danger-button:hover { background: var(--danger-soft); }
+    .provider-card:not([data-configured="true"]) [data-remove-provider], .provider-card:not([data-configured="true"]) [data-set-current] { display: none; }
+    .provider-card:not(.is-expanded) .provider-body { display: none; }
+    body[data-provider-demo="locked"] .provider-body button,
+    body[data-provider-demo="locked"] .provider-body input,
+    body[data-provider-demo="locked"] .provider-body select { pointer-events: none; opacity: .5; }
+    [hidden] { display: none !important; }
 
     .page-general { overflow: auto; padding: 22px; background: var(--surface-subtle); }
     .general-wrap { max-width: 850px; margin: auto; }
@@ -133,10 +178,11 @@
       .page-history { grid-template-columns: 290px minmax(410px, 1fr); }
       .filter-button { min-width: 68px; padding-inline: 9px; }
       .content-toolbar { grid-template-columns: auto minmax(260px, 1fr); }
+      .provider-form-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
-<body data-page="history" data-filter="all" data-shared-block="vlmsnapper-shell">
+<body data-page="history" data-filter="all" data-provider-demo="ready" data-shared-block="vlmsnapper-shell">
   <main class="desktop">
     <header class="mac-menubar" aria-label="macOS menu bar mock">
       <div class="menubar-group"><strong>VLMSnapper</strong><span class="menubar-muted">文件</span><span class="menubar-muted">编辑</span></div>
@@ -178,11 +224,68 @@
             </section>
 
             <section class="page page-settings">
-            <header class="settings-header"><div><h2>Provider</h2><p>配置在线视觉模型。API Key 保存在 Apple Keychain，模型列表来自对应 Provider。</p></div><button class="secondary-button">刷新全部模型</button></header>
+            <header class="settings-header"><div><h2>Provider</h2><p>直接验证 API Key、选择模型并决定当前使用的 Provider。模型列表来自对应账户，不支持手动输入。</p></div></header>
             <div class="provider-grid">
-              <article class="provider-card"><header class="provider-card-head"><div class="provider-name"><span class="provider-logo">DS</span><div><strong>DeepSeek</strong><span>当前 Provider</span></div></div><span class="badge">可用</span></header><div class="provider-body"><div class="field"><label>API Key</label><div class="field-value"><strong>••••••••••••••••4Kp9</strong><button class="icon-button" aria-label="修改 API Key"><svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/></svg></button></div></div><div class="field"><label>视觉模型</label><div class="field-value"><strong>deepseek-v4-flash-vision-exp</strong><svg class="icon" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></div></div></div></article>
-              <article class="provider-card is-collapsed"><header class="provider-card-head"><div class="provider-name"><span class="provider-logo">OA</span><div><strong>OpenAI</strong><span>已配置</span></div></div><span class="badge">可用</span></header><div class="provider-body"></div></article>
-              <article class="provider-card is-collapsed"><header class="provider-card-head"><div class="provider-name"><span class="provider-logo">G</span><div><strong>Gemini</strong><span>尚未配置</span></div></div><button class="secondary-button">配置</button></header><div class="provider-body"></div></article>
+              <article class="provider-card is-expanded" data-provider-card="deepseek" data-state="ready" data-configured="true" data-key-valid="true" data-current="true">
+                <button class="provider-card-head" data-provider-toggle="deepseek" aria-expanded="true">
+                  <span class="provider-name"><span class="provider-logo">DS</span><span><strong>DeepSeek</strong><span data-provider-subtitle>当前 Provider · 已配置</span></span></span>
+                  <span class="provider-card-status"><span class="badge" data-provider-badge>可用</span><svg class="icon provider-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></span>
+                </button>
+                <div class="provider-body">
+                  <div class="provider-form">
+                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>模型操作进行中，Provider 配置暂时只读。</span></div>
+                    <div class="provider-form-grid">
+                      <div class="provider-field">
+                        <div class="provider-field-heading"><label for="deepseek-key">API Key</label><span class="credential-status" data-key-status><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span>已配置</span></span></div>
+                        <div class="key-field-row"><div class="key-field-shell"><input id="deepseek-key" type="password" autocomplete="off" value="demo-deepseek-api-key" data-key-input data-saved-value="demo-deepseek-api-key" aria-label="DeepSeek API Key"><button class="key-field-action" data-clear-key aria-label="清空 DeepSeek API Key"><svg class="icon" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button><button class="key-field-action" data-toggle-key-visibility aria-label="显示 DeepSeek API Key" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div>
+                        <div class="credential-commit" data-key-commit hidden><span>新 Key 尚未验证</span><button class="primary-button" data-validate-key disabled>验证</button></div>
+                        <p class="provider-error">API Key 无效或已失效，请检查后重新验证。</p>
+                        <p class="provider-help">提交新 Key 后会直接替换旧 Key，不保留回退副本。</p>
+                      </div>
+                      <div class="provider-field">
+                        <label>当前模型</label>
+                        <div class="model-control"><select data-model-select aria-label="DeepSeek 当前模型"><option selected>deepseek-v4-flash-vision-exp</option><option>deepseek-vl2</option></select><button class="secondary-button" data-refresh-models>刷新</button></div>
+                        <p class="provider-help">选择模型不会发送测试图片；首次真实操作会验证图片输入能力。</p>
+                      </div>
+                    </div>
+                    <footer class="provider-card-footer"><button class="danger-button" data-remove-provider>移除配置</button><div class="provider-footer-actions"><span class="provider-current-note">当前使用</span><button class="secondary-button" data-set-current>设为当前</button></div></footer>
+                  </div>
+                </div>
+              </article>
+
+              <article class="provider-card" data-provider-card="openai" data-state="ready" data-configured="true" data-key-valid="true" data-current="false">
+                <button class="provider-card-head" data-provider-toggle="openai" aria-expanded="false">
+                  <span class="provider-name"><span class="provider-logo">OA</span><span><strong>OpenAI</strong><span data-provider-subtitle>已配置</span></span></span>
+                  <span class="provider-card-status"><span class="badge" data-provider-badge>可用</span><svg class="icon provider-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></span>
+                </button>
+                <div class="provider-body">
+                  <div class="provider-form">
+                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>模型操作进行中，Provider 配置暂时只读。</span></div>
+                    <div class="provider-form-grid">
+                      <div class="provider-field"><div class="provider-field-heading"><label for="openai-key">API Key</label><span class="credential-status" data-key-status><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span>已配置</span></span></div><div class="key-field-row"><div class="key-field-shell"><input id="openai-key" type="password" autocomplete="off" value="demo-openai-api-key" data-key-input data-saved-value="demo-openai-api-key" aria-label="OpenAI API Key"><button class="key-field-action" data-clear-key aria-label="清空 OpenAI API Key"><svg class="icon" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button><button class="key-field-action" data-toggle-key-visibility aria-label="显示 OpenAI API Key" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div><div class="credential-commit" data-key-commit hidden><span>新 Key 尚未验证</span><button class="primary-button" data-validate-key disabled>验证</button></div><p class="provider-error">API Key 无效或已失效，请检查后重新验证。</p><p class="provider-help">提交新 Key 后会直接替换旧 Key，不保留回退副本。</p></div>
+                      <div class="provider-field"><label>当前模型</label><div class="model-control"><select data-model-select aria-label="OpenAI 当前模型"><option selected>gpt-5.2-vision</option><option>gpt-5.1</option></select><button class="secondary-button" data-refresh-models>刷新</button></div><p class="provider-help">选择模型不会发送测试图片；首次真实操作会验证图片输入能力。</p></div>
+                    </div>
+                    <footer class="provider-card-footer"><button class="danger-button" data-remove-provider>移除配置</button><div class="provider-footer-actions"><span class="provider-current-note">当前使用</span><button class="secondary-button" data-set-current>设为当前</button></div></footer>
+                  </div>
+                </div>
+              </article>
+
+              <article class="provider-card" data-provider-card="gemini" data-state="unconfigured" data-configured="false" data-key-valid="false" data-current="false">
+                <button class="provider-card-head" data-provider-toggle="gemini" aria-expanded="false">
+                  <span class="provider-name"><span class="provider-logo">G</span><span><strong>Gemini</strong><span data-provider-subtitle>尚未配置</span></span></span>
+                  <span class="provider-card-status"><span class="badge warning" data-provider-badge>待配置</span><svg class="icon provider-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></span>
+                </button>
+                <div class="provider-body">
+                  <div class="provider-form">
+                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>模型操作进行中，Provider 配置暂时只读。</span></div>
+                    <div class="provider-form-grid">
+                      <div class="provider-field"><div class="provider-field-heading"><label for="gemini-key">API Key</label><span class="credential-status warning" data-key-status><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span>未配置</span></span></div><div class="key-field-row"><div class="key-field-shell"><input id="gemini-key" type="password" autocomplete="off" placeholder="输入 API Key" data-key-input data-saved-value="" aria-label="Gemini API Key"><button class="key-field-action" data-clear-key aria-label="清空 Gemini API Key"><svg class="icon" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button><button class="key-field-action" data-toggle-key-visibility aria-label="显示 Gemini API Key" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div><div class="credential-commit" data-key-commit><span>输入 Key 后进行验证</span><button class="primary-button" data-validate-key disabled>验证</button></div><p class="provider-error">API Key 无效或已失效，请检查后重新验证。</p><p class="provider-help">验证只检查凭据并获取完整模型列表，不会发送测试图片。</p></div>
+                      <div class="provider-field"><label>当前模型</label><div class="model-control"><select data-model-select aria-label="Gemini 当前模型" disabled><option selected>验证后选择模型</option></select><button class="secondary-button" data-refresh-models disabled>刷新</button></div><p class="provider-help">模型只能从当前账户返回的列表中选择。</p></div>
+                    </div>
+                    <footer class="provider-card-footer"><button class="danger-button" data-remove-provider>移除配置</button><div class="provider-footer-actions"><span class="provider-current-note">当前使用</span><button class="secondary-button" data-set-current>设为当前</button></div></footer>
+                  </div>
+                </div>
+              </article>
             </div>
             </section>
 
@@ -243,13 +346,15 @@
       </article>
     </div>
   </main>
-  <div class="harness" data-demo-harness aria-label="演示控制，非产品界面"><span class="harness-label">演示·更新状态</span><button data-demo-state="current">最新版本</button><button data-demo-state="checking">正在检查</button><button data-demo-state="available">发现新版本</button><button data-demo-state="downloading">正在下载</button><button data-demo-state="ready">已下载</button><button data-demo-state="failed">检查失败</button><span class="harness-label">演示·外观</span><button id="theme-control">切换深浅色</button></div>
+  <div class="harness" data-demo-harness aria-label="演示控制，非产品界面"><span class="harness-label" data-provider-harness>演示·Provider</span><button data-provider-demo-state="ready">常规</button><button data-provider-demo-state="failed">验证失败</button><button data-provider-demo-state="locked">操作中只读</button><span class="harness-label" data-update-harness>演示·更新状态</span><button data-demo-state="current">最新版本</button><button data-demo-state="checking">正在检查</button><button data-demo-state="available">发现新版本</button><button data-demo-state="downloading">正在下载</button><button data-demo-state="ready">已下载</button><button data-demo-state="failed">检查失败</button><span class="harness-label">演示·外观</span><button id="theme-control">切换深浅色</button></div>
   <script>
     const body = document.body;
     const searchInput = document.querySelector('#history-search');
     const historyList = document.querySelector('#history-list');
     const settingsTitle = document.querySelector('#settings-title');
     const updateStatus = document.querySelector('#update-status');
+    const providerCards = [...document.querySelectorAll('[data-provider-card]')];
+    const openedFromOnboarding = new URLSearchParams(location.search).get('origin') === 'onboarding';
 
     function setPage(page) {
       body.dataset.page = page;
@@ -282,10 +387,221 @@
       applyHistoryFilter();
     }
 
+    function openProvider(providerID) {
+      providerCards.forEach((card) => {
+        const expanded = card.dataset.providerCard === providerID;
+        card.classList.toggle('is-expanded', expanded);
+        card.querySelector('[data-provider-toggle]').setAttribute('aria-expanded', String(expanded));
+      });
+    }
+
+    function syncProviderCard(card) {
+      const configured = card.dataset.configured === 'true';
+      const current = card.dataset.current === 'true';
+      const state = card.dataset.state;
+      const subtitle = card.querySelector('[data-provider-subtitle]');
+      const badge = card.querySelector('[data-provider-badge]');
+      const keyStatus = card.querySelector('[data-key-status]');
+      const keyStatusText = keyStatus.querySelector('span');
+
+      subtitle.textContent = current
+        ? state === 'editing' ? '当前 Provider · Key 待验证' : configured ? '当前 Provider · 已配置' : state === 'failed' ? '当前 Provider · 验证失败' : state === 'pending-model' ? '当前 Provider · 待选择模型' : '当前 Provider · 尚未配置'
+        : state === 'editing' ? 'Key 待验证' : configured ? '已配置' : state === 'pending-model' ? '待选择模型' : state === 'failed' ? '验证失败' : '尚未配置';
+      badge.className = 'badge';
+      if (state === 'failed') {
+        badge.classList.add('error');
+        badge.textContent = '验证失败';
+      } else if (state === 'editing') {
+        badge.classList.add('warning');
+        badge.textContent = '待验证';
+      } else if (configured) {
+        badge.textContent = '可用';
+      } else {
+        badge.classList.add('warning');
+        badge.textContent = state === 'validating' ? '正在验证' : state === 'pending-model' ? '待选模型' : '待配置';
+      }
+
+      keyStatus.className = 'credential-status';
+      if (state === 'failed') {
+        keyStatus.classList.add('error');
+        keyStatusText.textContent = '验证失败';
+      } else if (state === 'validating') {
+        keyStatus.classList.add('warning');
+        keyStatusText.textContent = '正在验证';
+      } else if (state === 'editing') {
+        keyStatus.classList.add('warning');
+        keyStatusText.textContent = '待验证';
+      } else if (card.dataset.keyValid === 'true') {
+        keyStatusText.textContent = '已配置';
+      } else {
+        keyStatus.classList.add('warning');
+        keyStatusText.textContent = '未配置';
+      }
+    }
+
+    function markKeyDirty(input) {
+      const card = input.closest('[data-provider-card]');
+      card.dataset.state = 'editing';
+      input.dataset.dirty = 'true';
+      card.querySelector('[data-key-commit]').hidden = false;
+      card.querySelector('[data-key-commit] span').textContent = input.value.trim() ? '新 Key 尚未验证' : '请输入新的 API Key';
+      card.querySelector('[data-validate-key]').disabled = input.value.trim().length === 0;
+      syncProviderCard(card);
+    }
+
+    function completeModelSelection(card) {
+      card.dataset.configured = 'true';
+      card.dataset.state = 'ready';
+      if (!providerCards.some((candidate) => candidate.dataset.current === 'true')) {
+        card.dataset.current = 'true';
+      }
+      providerCards.forEach(syncProviderCard);
+      if (openedFromOnboarding) {
+        location.href = '../onboarding/prototype-structure-directions.html?provider=ready#a';
+      }
+    }
+
+    function validateKey(card) {
+      const input = card.querySelector('[data-key-input]');
+      const modelSelect = card.querySelector('[data-model-select]');
+      const hadSelectedModel = card.dataset.configured === 'true' && modelSelect.value;
+
+      card.dataset.configured = 'false';
+      card.dataset.keyValid = 'false';
+      card.dataset.state = 'validating';
+      input.disabled = true;
+      card.querySelectorAll('.key-field-action').forEach((control) => { control.disabled = true; });
+      card.querySelector('[data-validate-key]').disabled = true;
+      syncProviderCard(card);
+
+      window.setTimeout(() => {
+        input.disabled = false;
+        card.querySelectorAll('.key-field-action').forEach((control) => { control.disabled = false; });
+        if (body.dataset.providerDemo === 'failed') {
+          card.dataset.state = 'failed';
+          card.querySelector('[data-key-commit]').hidden = false;
+          card.querySelector('[data-validate-key]').disabled = input.value.trim().length === 0;
+          syncProviderCard(card);
+          return;
+        }
+
+        card.dataset.keyValid = 'true';
+        input.dataset.savedValue = input.value;
+        input.dataset.dirty = 'false';
+        card.querySelector('[data-key-commit]').hidden = true;
+        modelSelect.disabled = false;
+        card.querySelector('[data-refresh-models]').disabled = false;
+        if (!hadSelectedModel) {
+          modelSelect.innerHTML = '<option value="" selected>请选择模型</option><option value="gemini-3.1-flash">gemini-3.1-flash</option><option value="gemini-3-pro-vision">gemini-3-pro-vision</option>';
+          card.dataset.state = 'pending-model';
+          card.dataset.configured = 'false';
+        } else {
+          card.dataset.state = 'ready';
+          card.dataset.configured = 'true';
+        }
+        syncProviderCard(card);
+      }, 650);
+    }
+
+    function setCurrentProvider(card) {
+      providerCards.forEach((candidate) => { candidate.dataset.current = String(candidate === card); });
+      providerCards.forEach(syncProviderCard);
+    }
+
+    function removeProvider(card) {
+      if (!window.confirm('移除该 Provider 的 API Key、模型列表和当前选择？')) return;
+      card.dataset.configured = 'false';
+      card.dataset.keyValid = 'false';
+      card.dataset.current = 'false';
+      card.dataset.state = 'unconfigured';
+      const input = card.querySelector('[data-key-input]');
+      input.value = '';
+      input.dataset.savedValue = '';
+      input.dataset.dirty = 'false';
+      input.type = 'password';
+      card.querySelector('[data-toggle-key-visibility]').setAttribute('aria-pressed', 'false');
+      card.querySelector('[data-key-commit]').hidden = false;
+      card.querySelector('[data-key-commit] span').textContent = '输入 Key 后进行验证';
+      card.querySelector('[data-validate-key]').disabled = true;
+      card.querySelector('[data-model-select]').innerHTML = '<option value="" selected>验证后选择模型</option>';
+      card.querySelector('[data-model-select]').disabled = true;
+      card.querySelector('[data-refresh-models]').disabled = true;
+      syncProviderCard(card);
+    }
+
+    function prepareOnboardingEntry() {
+      if (!openedFromOnboarding) return;
+      providerCards.forEach((card) => {
+        card.dataset.configured = 'false';
+        card.dataset.keyValid = 'false';
+        card.dataset.current = 'false';
+        card.dataset.state = 'unconfigured';
+        const input = card.querySelector('[data-key-input]');
+        input.value = '';
+        input.dataset.savedValue = '';
+        input.dataset.dirty = 'false';
+        card.querySelector('[data-key-commit]').hidden = false;
+        card.querySelector('[data-key-commit] span').textContent = '输入 Key 后进行验证';
+        card.querySelector('[data-validate-key]').disabled = true;
+        card.querySelector('[data-model-select]').innerHTML = '<option value="" selected>验证后选择模型</option>';
+        card.querySelector('[data-model-select]').disabled = true;
+        card.querySelector('[data-refresh-models]').disabled = true;
+        syncProviderCard(card);
+      });
+      openProvider('deepseek');
+    }
+
+    function setProviderDemo(state) {
+      body.dataset.providerDemo = state;
+      const card = providerCards.find((candidate) => candidate.dataset.providerCard === 'deepseek');
+      openProvider('deepseek');
+      if (state === 'failed') {
+        card.dataset.configured = 'false';
+        card.dataset.keyValid = 'false';
+        card.dataset.current = 'true';
+        card.dataset.state = 'failed';
+        const input = card.querySelector('[data-key-input]');
+        input.value = 'demo-invalid-api-key';
+        input.dataset.dirty = 'true';
+        card.querySelector('[data-key-commit]').hidden = false;
+        card.querySelector('[data-validate-key]').disabled = false;
+      } else {
+        card.dataset.configured = 'true';
+        card.dataset.keyValid = 'true';
+        card.dataset.current = 'true';
+        card.dataset.state = 'ready';
+        const input = card.querySelector('[data-key-input]');
+        input.value = input.dataset.savedValue || 'demo-deepseek-api-key';
+        input.dataset.savedValue = input.value;
+        input.dataset.dirty = 'false';
+        card.querySelector('[data-key-commit]').hidden = true;
+      }
+      syncProviderCard(card);
+    }
+
+    function clearKey(control) {
+      const card = control.closest('[data-provider-card]');
+      const input = card.querySelector('[data-key-input]');
+      input.value = '';
+      markKeyDirty(input);
+      input.focus();
+    }
+
+    function toggleKeyVisibility(control) {
+      const card = control.closest('[data-provider-card]');
+      const input = card.querySelector('[data-key-input]');
+      const revealing = input.type === 'password';
+      input.type = revealing ? 'text' : 'password';
+      control.setAttribute('aria-pressed', String(revealing));
+      control.setAttribute('aria-label', `${revealing ? '隐藏' : '显示'} ${input.getAttribute('aria-label')}`);
+      input.focus();
+    }
+
     document.querySelectorAll('[data-page-button]').forEach((button) => { button.addEventListener('click', () => setPage(button.dataset.pageButton)); });
     document.querySelectorAll('[data-filter-button]').forEach((button) => { button.addEventListener('click', () => setFilter(button.dataset.filterButton)); });
     document.querySelectorAll('.switch').forEach((control) => { control.addEventListener('click', () => control.setAttribute('aria-checked', control.getAttribute('aria-checked') === 'true' ? 'false' : 'true')); });
     document.querySelectorAll('[data-demo-state]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = control.dataset.demoState; setPage('general'); }); });
+    document.querySelectorAll('[data-provider-demo-state]').forEach((control) => { control.addEventListener('click', () => setProviderDemo(control.dataset.providerDemoState)); });
     document.querySelectorAll('[data-check-updates]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = 'checking'; window.setTimeout(() => { updateStatus.dataset.state = 'current'; }, 1200); }); });
     document.querySelectorAll('[data-download-update]').forEach((control) => { control.addEventListener('click', () => { updateStatus.dataset.state = 'downloading'; window.setTimeout(() => { updateStatus.dataset.state = 'ready'; }, 1600); }); });
     document.querySelectorAll('[data-open-result]').forEach((item) => {
@@ -299,6 +615,20 @@
       });
     });
     searchInput.addEventListener('input', applyHistoryFilter);
+    document.querySelectorAll('[data-provider-toggle]').forEach((control) => { control.addEventListener('click', () => openProvider(control.dataset.providerToggle)); });
+    document.querySelectorAll('[data-key-input]').forEach((input) => {
+      input.addEventListener('input', () => markKeyDirty(input));
+      input.addEventListener('keydown', (event) => {
+        const validate = input.closest('[data-provider-card]').querySelector('[data-validate-key]');
+        if (event.key === 'Enter' && !validate.disabled) validate.click();
+      });
+    });
+    document.querySelectorAll('[data-clear-key]').forEach((control) => { control.addEventListener('click', () => clearKey(control)); });
+    document.querySelectorAll('[data-toggle-key-visibility]').forEach((control) => { control.addEventListener('click', () => toggleKeyVisibility(control)); });
+    document.querySelectorAll('[data-validate-key]').forEach((control) => { control.addEventListener('click', () => validateKey(control.closest('[data-provider-card]'))); });
+    document.querySelectorAll('[data-model-select]').forEach((control) => { control.addEventListener('change', () => { if (control.value) completeModelSelection(control.closest('[data-provider-card]')); }); });
+    document.querySelectorAll('[data-set-current]').forEach((control) => { control.addEventListener('click', () => setCurrentProvider(control.closest('[data-provider-card]'))); });
+    document.querySelectorAll('[data-remove-provider]').forEach((control) => { control.addEventListener('click', () => removeProvider(control.closest('[data-provider-card]'))); });
     document.querySelector('#theme-control').addEventListener('click', () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; });
     document.addEventListener('click', (event) => {
       const target = event.target.closest('[data-goto]');
@@ -307,6 +637,8 @@
       else if (target.dataset.gotoHref) location.href = target.dataset.gotoHref;
     });
 
+    providerCards.forEach(syncProviderCard);
+    prepareOnboardingEntry();
     setFilter('all');
     const initialPage = location.hash === '#settings' ? 'settings' : location.hash === '#general' ? 'general' : 'history';
     setPage(initialPage);

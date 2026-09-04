@@ -49,13 +49,6 @@ window.PROTOTYPES = [
     path: "onboarding/prototype-structure-directions.html"
   },
   {
-    module: "provider-setup",
-    type: "ui",
-    id: "sheet-directions",
-    name: "Provider setup sheet directions",
-    path: "provider-setup/prototype-sheet-directions.html"
-  },
-  {
     module: "permission-recovery",
     type: "ui",
     id: "screen-capture",

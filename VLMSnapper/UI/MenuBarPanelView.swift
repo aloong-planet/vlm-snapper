@@ -4,6 +4,7 @@ import VLMSnapperCore
 
 public enum ManagementCenterDestination: Equatable, Sendable {
     case history
+    case providerSettings
     case settings
 }
 

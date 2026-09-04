@@ -104,9 +104,6 @@ public actor ProviderSetupSession {
     }
 
     public func selectProvider(_ provider: ProviderID) async {
-        guard !isReadOnly else {
-            return
-        }
         generation += 1
         selectedProvider = provider
         configuration = nil

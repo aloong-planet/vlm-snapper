@@ -219,7 +219,7 @@
           <section class="checklist-intro"><div class="app-mark"><svg viewBox="0 0 24 24"><path d="M5 7h14v10H5zM8 4v3m8-3v3M8 17v3m8-3v3"/></svg></div><div class="copy"><h1>完成使用前的准备</h1><p>你可以现在设置，也可以稍后从菜单栏面板继续。VLMSnapper 不会在你操作前弹出系统授权框。</p></div></section>
           <div class="readiness-list">
             <section class="readiness-card" data-status="permission"><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2m8-2v2M8 10h8"/></svg></div><div><h2>屏幕录制权限</h2><p>截图需要 macOS 屏幕录制权限。点击后才会触发系统授权。</p><span class="badge status-pending">尚未授权</span><span class="badge ready status-ready">已授权</span></div><button class="secondary-button permission-action">授予权限</button></section>
-            <section class="readiness-card" data-status="provider"><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg></div><div><h2>在线 Provider</h2><p>配置 API Key，并从 Provider 返回的列表中选择支持图片输入的模型。</p><span class="badge status-pending">尚未配置</span><span class="badge ready status-ready">DeepSeek 可用</span></div><button class="secondary-button provider-action">配置 Provider</button></section>
+            <section class="readiness-card" data-status="provider"><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg></div><div><h2>在线 Provider</h2><p>配置 API Key，并从 Provider 返回的列表中选择支持图片输入的模型。</p><span class="badge status-pending">尚未配置</span><span class="badge ready status-ready">DeepSeek 可用</span></div><button class="secondary-button provider-action" data-goto="management-center/settings" data-goto-href="../management-center/prototype-management-center.html?origin=onboarding#settings">前往 Provider 设置</button></section>
             <section class="readiness-card"><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M5 8h14v12H5zM8 8V5h8v3M9 13h6"/></svg></div><div><h2>存储与隐私</h2><p>模型操作时才会上传当前截图；截图和文字记录保存在这台 Mac 上，未钉住记录默认 30 天后永久删除。</p><span class="badge ready">重要说明</span></div><button class="secondary-button" id="privacy-details-action" aria-haspopup="dialog" aria-expanded="false">查看详情</button></section>
           </div>
           <section class="readiness-gate" data-gate-state="blocked" aria-live="polite">
@@ -250,7 +250,7 @@
           <section class="wizard-content">
             <div class="wizard-page" data-step-page="1"><div class="app-mark"><svg viewBox="0 0 24 24"><path d="M5 7h14v10H5zM8 4v3m8-3v3M8 17v3m8-3v3"/></svg></div><h1>快速理解屏幕上的文字</h1><p>截图后直接使用在线视觉模型提取文字或翻译。整个向导都可以跳过，之后从菜单栏继续设置。</p></div>
             <div class="wizard-page" data-step-page="2"><h1>允许 VLMSnapper 截取屏幕</h1><p>只有截图需要这项权限。我们不会在你点击按钮前请求系统授权。</p><div class="permission-preview" data-status="permission"><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2m8-2v2M8 10h8"/></svg></div><div><h2>屏幕录制权限</h2><p><span class="status-pending">当前状态：尚未授权</span><span class="status-ready">当前状态：已授权，重启后生效</span></p></div><button class="primary-button permission-action">授予权限</button></div></div>
-            <div class="wizard-page" data-step-page="3"><h1>连接在线 Provider</h1><p>API Key 保存在 Apple Keychain。模型列表由 Provider 返回，不支持手动输入模型名称。</p><div class="permission-preview" data-status="provider"><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg></div><div><h2>DeepSeek</h2><p><span class="status-pending">尚未配置</span><span class="status-ready">deepseek-v4-flash-vision-exp</span></p></div><button class="primary-button provider-action">配置 Provider</button></div></div>
+            <div class="wizard-page" data-step-page="3"><h1>连接在线 Provider</h1><p>API Key 保存在 Apple Keychain。模型列表由 Provider 返回，不支持手动输入模型名称。</p><div class="permission-preview" data-status="provider"><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg></div><div><h2>DeepSeek</h2><p><span class="status-pending">尚未配置</span><span class="status-ready">deepseek-v4-flash-vision-exp</span></p></div><button class="primary-button provider-action" data-goto="management-center/settings" data-goto-href="../management-center/prototype-management-center.html?origin=onboarding#settings">前往 Provider 设置</button></div></div>
             <div class="wizard-page" data-step-page="4"><h1>了解数据如何流动</h1><p>点击模型操作时，原始 PNG 会发送给当前在线 Provider。截图和文字记录保存在这台 Mac 上，并受 macOS 用户权限保护；未钉住记录默认保留 30 天。</p><div class="privacy-note"><strong>无需勾选确认。</strong> 这项说明不会在每次请求前重复弹出。</div></div>
             <footer class="wizard-footer"><button class="text-button">退出向导</button><div class="wizard-footer-right"><button class="secondary-button" id="wizard-back">上一步</button><button class="primary-button" id="wizard-next">下一步</button></div></footer>
           </section>
@@ -263,7 +263,7 @@
           <section class="minimal-hero"><div class="app-mark"><svg viewBox="0 0 24 24"><path d="M5 7h14v10H5zM8 4v3m8-3v3M8 17v3m8-3v3"/></svg></div><h1>两步开始使用</h1><p>完成截图权限和在线模型配置，之后即可从菜单栏快速截图。</p></section>
           <div class="essential-actions">
             <section class="essential-card" data-status="permission"><div><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2m8-2v2M8 10h8"/></svg></div><h2>屏幕录制权限</h2><p>只有点击后才会请求系统授权。</p></div><button class="secondary-button permission-action"><span class="status-pending">授予权限</span><span class="status-ready">已授权</span></button></section>
-            <section class="essential-card" data-status="provider"><div><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg></div><h2>在线 Provider</h2><p>配置 API Key 并选择视觉模型。</p></div><button class="secondary-button provider-action"><span class="status-pending">配置 Provider</span><span class="status-ready">DeepSeek 可用</span></button></section>
+            <section class="essential-card" data-status="provider"><div><div class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg></div><h2>在线 Provider</h2><p>配置 API Key 并选择视觉模型。</p></div><button class="secondary-button provider-action" data-goto="management-center/settings" data-goto-href="../management-center/prototype-management-center.html?origin=onboarding#settings"><span class="status-pending">前往 Provider 设置</span><span class="status-ready">DeepSeek 可用</span></button></section>
           </div>
           <details class="disclosure"><summary>存储、上传和自动清理说明</summary><p>模型操作时才会上传当前截图；截图和文字记录保存在这台 Mac 上，并受 macOS 用户权限保护。未钉住记录默认保留 30 天并永久删除。</p></details>
           <footer class="minimal-footer"><button class="text-button">稍后设置</button><button class="primary-button">开始使用</button></footer>
@@ -335,12 +335,17 @@
     document.querySelector('#wizard-back').addEventListener('click', () => setStep(Number(body.dataset.step) - 1));
     document.querySelector('#wizard-next').addEventListener('click', () => setStep(Number(body.dataset.step) + 1));
     document.querySelectorAll('.permission-action').forEach((button) => button.addEventListener('click', () => { body.dataset.permission = 'granted'; updateReadiness(); }));
-    document.querySelectorAll('.provider-action').forEach((button) => button.addEventListener('click', () => { body.dataset.provider = 'ready'; updateReadiness(); }));
     document.querySelector('#privacy-details-action').addEventListener('click', () => setPrivacySheet(true));
     document.querySelector('#privacy-sheet-close').addEventListener('click', () => setPrivacySheet(false));
     document.querySelector('#privacy-sheet-done').addEventListener('click', () => setPrivacySheet(false));
     document.querySelector('#privacy-sheet-backdrop').addEventListener('click', (event) => { if (event.target === event.currentTarget) setPrivacySheet(false); });
     document.querySelector('#theme-control').addEventListener('click', () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; });
+    document.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-goto]');
+      if (!target) return;
+      if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: target.dataset.goto }, '*');
+      else if (target.dataset.gotoHref) location.href = target.dataset.gotoHref;
+    });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !document.querySelector('#privacy-sheet-backdrop').hidden) { setPrivacySheet(false); return; }
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
@@ -349,6 +354,7 @@
       const delta = event.key === 'ArrowRight' ? 1 : -1;
       setVariant(variants[(current + delta + variants.length) % variants.length]);
     });
+    if (new URLSearchParams(location.search).get('provider') === 'ready') body.dataset.provider = 'ready';
     setVariant(variants.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'a');
     setStep(2);
     updateReadiness();

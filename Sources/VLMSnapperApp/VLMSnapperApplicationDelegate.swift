@@ -13,6 +13,7 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
     private var onboardingController: NSWindowController?
     private var onboardingHostingController: NSHostingController<OnboardingContainerView>?
     private var isPreparingForTermination = false
+    private var providerSettingsReturnContext = ProviderSettingsReturnContext()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -88,6 +89,12 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         }
         model.onShowOnboarding = { [weak self] in
             self?.showOnboarding()
+        }
+        model.onOpenProviderSettingsFromOnboarding = { [weak self] in
+            self?.openProviderSettingsFromOnboarding()
+        }
+        model.onProviderConfigurationCompleted = { [weak self] in
+            self?.completeProviderSettingsFromOnboardingIfNeeded()
         }
         model.onRetireManagementCenter = { [weak self] action in
             guard let controller = self?.managementController else {
@@ -173,10 +180,30 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
                 retention: model.retention,
                 settings: model.settings,
                 providerSettings: model.providerSettingsConfiguration(),
-                callbacks: model.managementCallbacks()
+                callbacks: model.managementCallbacks(),
+                onClose: { [weak self] in
+                    self?.returnToOnboardingIfNeeded()
+                }
             )
         }
         managementController?.show(destination: destination)
+    }
+
+    private func openProviderSettingsFromOnboarding() {
+        providerSettingsReturnContext.beginFromOnboarding()
+        onboardingController?.window?.orderOut(nil)
+        showManagementCenter(destination: .providerSettings)
+    }
+
+    private func completeProviderSettingsFromOnboardingIfNeeded() {
+        guard providerSettingsReturnContext.consumeAfterModelSelection() else { return }
+        managementController?.window?.orderOut(nil)
+        showOnboarding()
+    }
+
+    private func returnToOnboardingIfNeeded() {
+        guard providerSettingsReturnContext.consumeAfterWindowClose() else { return }
+        showOnboarding()
     }
 
     private func activatePrimarySurface() {

@@ -30,6 +30,10 @@ enum VLMSnapperIcon: String {
     case warningBadge = "exclamationmark.circle.fill"
     case downloaded = "checkmark.circle"
     case diagnostics = "doc.text.magnifyingglass"
+    case chevronDown = "chevron.down"
+    case lock = "lock.fill"
+    case eye = "eye"
+    case eyeSlash = "eye.slash"
 
     var image: Image {
         Image(systemName: rawValue)

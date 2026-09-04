@@ -823,3 +823,42 @@
 ## Review result
 
 测试能打红恢复映射、并发准入、窗口顺序和回调分离四类核心错误。安装版真实双击与缺图视觉状态没有被单元测试冒充，已作为合并安装后的明确验收项保留。
+
+---
+
+# VLMSnapper v1 — Inline Provider settings test review (2026-09-04)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| Key 直接替换且失败不回滚 | `credentialWriteFailureDoesNotRestorePreviousConfiguration`、`listFailureDoesNotRestorePreviousProviderConfiguration` | 旧凭据、配置和当前选择不会在新 Key 失败后复活 |
+| 旧模型保留与当前 Provider 恢复 | `replacementPreservesAvailableModelAndCurrentProvider` | 仅在新列表仍包含旧模型且新配置可用时恢复 |
+| 当前 Provider 移除 | coordinator removal tests | 清除配置和全局当前选择，不自动回退 |
+| 活动请求只读 | `readOnlyStateBlocksConfigurationMutations` 及 freeze tests | 卡片可浏览，验证、刷新和模型 mutation 均不执行 |
+| Key 行内状态 | `inlineCredentialStates`、`validationAndFailureOverrideStatus` | 验证可见性、Return 可用性、验证中和失败状态分离 |
+| 卡片状态 | `providerCardDistinguishesPendingModel` | 待选模型、可用与未配置不会混淆 |
+| 首次引导返回 | `onboardingReturnIsConsumedExactlyOnce`、窗口关闭回调测试 | 模型完成或提前关闭只消费一次来源 |
+| 生产界面渲染 | `confirmedSurfacesRender` | 管理中心 Provider 页面在双语言、明暗外观和最小尺寸下渲染；旧独立面板不再列为生产界面 |
+| 全量回归 | `swift test` | 273 tests / 68 suites 通过；warnings-as-errors 构建通过 |
+
+真实签名 App 的 Keychain 读写、管理中心与首次引导的窗口层级切换，以及鼠标对折叠卡片和确认菜单的投递仍属于安装版人工验收；SwiftPM 测试没有把内存存储或直接调用闭包冒充这些系统集成结果。
+
+## 维度 2：case 设计是否合理
+
+- coordinator 测试通过公开 API 和可控的凭据/metadata/model-list 边界构造成功与失败，不读取 actor 私有字段。
+- UI 状态测试输入明确的配置与会话快照，只断言用户可观察的状态映射和动作资格；没有复制 SwiftUI 条件常量来形成同义反复。
+- 返回来源使用独立值类型验证 exactly-once，再由真实 `NSWindow.close()` 验证控制器回调；应用代理的窗口编排保留安装版验收，不用伪窗口扩大结论。
+- 渲染测试实际生成管理中心 Provider 页面，不再用已退出生产路由的 `ProviderSetupView` 提供虚假的实现证据。
+
+## 维度 3：有没有假通过
+
+- 只读浏览测试在旧 guard 下准确红于仍选中 OpenAI；移除查看层 guard 后只读 mutation 断言继续为绿。
+- 已配置 Key 的 Return 资格断言在旧 `canValidate` 下准确红；要求验证操作可见后转绿。
+- 待选模型卡片测试在最初骨架统一返回未配置时准确红；拆分卡片状态后转绿。
+- 两次过滤器运行匹配 0 tests：一次使用 suite 展示名，一次使用不存在的 `readOnlyStateStillAllowsProviderNavigation`。两次均作废并未计入通过；随后使用实际函数名精确重跑，各执行 1 test 并通过。
+- 最终完整命令退出码为 0，日志明确报告 273 tests / 68 suites；严格 warnings-as-errors 构建退出码为 0。没有 skip、0-test 结果、陈旧构建或截图目测替代最终门禁。
+
+## Review result
+
+新增测试能分别打红凭据替换、状态映射、只读浏览和首次引导返回的主要错误。剩余系统集成缺口已明确限定为合并安装后的人工验收，不影响本地自动化门禁的真实性。

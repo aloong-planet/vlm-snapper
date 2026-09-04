@@ -93,4 +93,18 @@ struct ManagementCenterWindowContractTests {
         callbacks.onOpenRecord(id)
         #expect(openedID == id)
     }
+
+    @Test("closing the management center reports the user-initiated close")
+    func closingManagementCenterReportsClose() throws {
+        var didClose = false
+        let controller = ManagementCenterWindowController(
+            records: [],
+            onClose: { didClose = true }
+        )
+        let window = try #require(controller.window)
+
+        window.close()
+
+        #expect(didClose)
+    }
 }

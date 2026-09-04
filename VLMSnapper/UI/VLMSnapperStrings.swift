@@ -56,8 +56,24 @@ enum VLMSnapperStrings {
     static var notConfigured: String { localized("providerSetup.notConfigured") }
     static var validating: String { localized("providerSetup.validating") }
     static var configured: String { localized("providerSetup.configured") }
+    static var providerAvailable: String { localized("providerSetup.available") }
+    static var providerSetupRequired: String { localized("providerSetup.setupRequired") }
     static var providerReadOnly: String { localized("providerSetup.readOnly") }
     static var providerSetupFooterNote: String { localized("providerSetup.footerNote") }
+    static var apiKeyPlaceholder: String { localized("providerSetup.apiKeyPlaceholder") }
+    static var clearAPIKey: String { localized("providerSetup.clearAPIKey") }
+    static var showAPIKey: String { localized("providerSetup.showAPIKey") }
+    static var hideAPIKey: String { localized("providerSetup.hideAPIKey") }
+    static var providerPendingValidation: String { localized("providerSetup.pendingValidation") }
+    static var providerNewKeyPending: String { localized("providerSetup.newKeyPending") }
+    static var providerRetryValidation: String { localized("providerSetup.retryValidation") }
+    static var providerEnterKey: String { localized("providerSetup.enterKey") }
+    static var providerReplacementHint: String { localized("providerSetup.replacementHint") }
+    static var providerCurrent: String { localized("providerSetup.current") }
+    static var providerSetCurrent: String { localized("providerSetup.setCurrent") }
+    static var providerRemove: String { localized("providerSetup.remove") }
+    static var providerRemoveConfirmation: String { localized("providerSetup.removeConfirmation") }
+    static var providerCurrentDetailFormat: String { localized("providerSetup.currentDetailFormat") }
     static var permissionRecoveryTitle: String { localized("permissionRecovery.title") }
     static var permissionRecoveryDenied: String { localized("permissionRecovery.unavailable") }
     static var permissionRecoveryInitial: String { localized("permissionRecovery.initial") }

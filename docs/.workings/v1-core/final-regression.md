@@ -945,3 +945,46 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。管理中心截图退让和历史双击恢复已经在原型、spec、术语、feature catalog、实现与测试之间对齐。完整 SwiftPM 套件通过；真实安装版的双击投递与缺图按钮外观将在 PR 合并并更新本地 App 后验收。
+
+---
+
+# 2026-09-04 — Inline Provider settings
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的设置中心内联配置 | 管理中心 SwiftUI、Provider session/coordinator 与状态映射测试 | 配置、测试、模型选择、当前切换和移除都在一开式卡片完成，不再打开独立配置面板 |
+| spec 的首次引导返回 | 应用代理返回上下文、管理中心关闭回调与 exactly-once 测试 | 从引导进入后，显式模型选择自动返回；提前关闭也返回且不伪造完成 |
+| ADR-0012 的 Key 替换语义 | coordinator 与成功/失败回归 | 提交新 Key 先移除旧凭据和配置，失败不回滚；旧模型只在新列表仍含它时保留 |
+| feature catalog 的现行用户行为 | 最终 UI、应用协调器和本地化资源 | 卡片、Key 状态、验证资格、只读状态和当前 Provider 行为一致 |
+| `CONTEXT.md` 术语与不变量 | spec、features、ADR 与代码职责 | 页面暂态、Provider 持久状态和引导来源明确分离 |
+| 已确认原型 | 管理中心、首次引导与 Edit 菜单上下文原型 | 管理中心是唯一配置表面；Edit 原型只用其内联 Key 字段验证 responder chain |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| spec 文件 ↔ spec 索引 | `docs/specs/README.md` | v1 core 名称、状态和范围未变，索引无需改动 |
+| feature 文件 ↔ feature 索引 | `docs/features/` 全部顶层文件 | 目录仍只有 `v1-core.md`，不存在需同步的独立索引 |
+| ADR 文件 ↔ ADR 索引 | `docs/adr/0012-replace-provider-credential-without-rollback.md`、`docs/adr/README.md` | 新决策已入索引，编号、状态和日期一致 |
+| 原型目录 ↔ manifest/README | `docs/prototypes/manifest.js` 及三个相关 README | 旧 provider-setup 条目和文件已删除；management、onboarding、application-menu 均指向同一设置中心流程 |
+| 旧独立 Provider 表面 ↔ 权威文档 | 排除 `docs/.workings/` 的全量关键词检索 | 仅剩“不会打开独立面板/不呈现 setup sheet”的否定性现行描述，无旧页面声明 |
+| 项目 i18n 能力 ↔ 新 UI 文案 | 项目能力声明、两份 strings 字典、Swift 新增行扫描 | i18n 已启用；英文与简中各 251 个键且集合一致，Swift 新增行无中文硬编码 |
+| 规则 ↔ 自动化门禁 | Failure Modes 27–31、focused tests、完整测试与严格构建 | 精确聚焦测试实际执行；273 tests / 68 suites 和 warnings-as-errors 均通过 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| Provider 配置表面从两套变为一套 | 生产路由、Ticket 13 生产渲染与原型 manifest | 生产只进入管理中心 Provider 页；旧组件不再作为生产界面证据 |
+| Key 替换从回滚旧值改为直接替换 | ADR-0012、spec Failure Mode 28 与 coordinator tests | 用户确认的无回退语义已持久化并有失败测试 |
+| 新增卡片与凭据两层状态 | presentation 类型、UI copy 与状态测试 | “已配置凭据、待选模型”可同时准确表达，不再合并为未配置 |
+| 活动请求冻结配置 | 应用请求包装、coordinator lock 与 session readonly tests | 浏览不阻断，所有配置写操作阻断，终态后解锁 |
+| 首次引导来源状态 | 返回上下文和窗口关闭回调 | 两条返回路径只消费一次，不影响普通设置中心访问 |
+| 范围内 `Pending:` 注记 | spec 末尾 Provider 发布门槛 | 既有真实账户与发布门槛未因本轮到期；没有新增待决产品行为 |
+| 本轮是否形成新通则 | ADR 门槛与 `CONTEXT.md` | 无回退替换形成 ADR-0012；页面/持久状态分离与引导返回成为 v1 core 不变量 |
+
+## 收敛结论
+
+三阶段队列已清空。用户可见流程、持久凭据语义、原型、spec、feature catalog、ADR、术语、实现和测试已统一为设置中心内联 Provider 配置。自动化门禁不冒充签名安装版的 Keychain 与窗口层级人工验收；该验收保留到 PR 合并并更新本地 App 后执行。

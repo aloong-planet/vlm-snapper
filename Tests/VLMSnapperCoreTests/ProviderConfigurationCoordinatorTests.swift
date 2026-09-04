@@ -48,8 +48,25 @@ struct ProviderConfigurationCoordinatorTests {
         #expect(state.pendingReplacements[.openAI] == nil)
     }
 
-    @Test("a credential write failure preserves the previous provider configuration")
-    func credentialWriteFailurePreservesPreviousConfiguration() async throws {
+    @Test("the saved API key can be loaded for inline editing")
+    func savedAPIKeyCanBeLoadedForInlineEditing() async throws {
+        let credentialStore = MemoryCredentialStore(
+            credentials: [
+                .deepSeek: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
+            ]
+        )
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: StaticModelLister(models: []),
+            credentialStore: credentialStore,
+            metadataStore: MemoryMetadataStore()
+        )
+
+        #expect(try await coordinator.apiKey(for: .deepSeek) == "saved-secret")
+        #expect(try await coordinator.apiKey(for: .gemini) == nil)
+    }
+
+    @Test("a replacement credential write failure does not restore the previous configuration")
+    func credentialWriteFailureDoesNotRestorePreviousConfiguration() async throws {
         let previousCredential = ProviderCredential(
             generation: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             apiKey: "previous-secret"
@@ -60,7 +77,8 @@ struct ProviderConfigurationCoordinatorTests {
             selectedModelID: "gpt-4o"
         )
         let initialState = ProviderMetadataState(
-            configurations: [.openAI: previousConfiguration]
+            configurations: [.openAI: previousConfiguration],
+            currentProvider: .openAI
         )
         let credentialStore = MemoryCredentialStore(
             credentials: [.openAI: previousCredential],
@@ -83,8 +101,45 @@ struct ProviderConfigurationCoordinatorTests {
             #expect(error as? BoundaryError == .credentialWriteFailed)
         }
 
-        #expect(try await credentialStore.credential(for: .openAI) == previousCredential)
-        #expect(try await metadataStore.load() == initialState)
+        #expect(try await credentialStore.credential(for: .openAI) == nil)
+        let state = try await metadataStore.load()
+        #expect(state.configurations[.openAI] == nil)
+        #expect(state.currentProvider == nil)
+        #expect(state.pendingReplacements[.openAI] == nil)
+    }
+
+    @Test("replacing a current provider preserves an available model and current selection")
+    func replacementPreservesAvailableModelAndCurrentProvider() async throws {
+        let previousConfiguration = ProviderConfiguration(
+            models: [ProviderModelState(id: "gpt-4.1", visionCompatibility: .verified)],
+            fetchedAt: Date(timeIntervalSince1970: 1_787_600_000),
+            selectedModelID: "gpt-4.1"
+        )
+        let metadataStore = MemoryMetadataStore(
+            state: ProviderMetadataState(
+                configurations: [.openAI: previousConfiguration],
+                currentProvider: .openAI
+            )
+        )
+        let credentialStore = MemoryCredentialStore(
+            credentials: [
+                .openAI: ProviderCredential(generation: UUID(), apiKey: "previous-secret"),
+            ]
+        )
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: StaticModelLister(models: ["gpt-4.1", "gpt-4o"]),
+            credentialStore: credentialStore,
+            metadataStore: metadataStore
+        )
+
+        let replacement = try await coordinator.validateAndSaveKey(
+            "replacement-secret",
+            for: .openAI
+        )
+
+        #expect(replacement.selectedModelID == "gpt-4.1")
+        #expect(try await credentialStore.credential(for: .openAI)?.apiKey == "replacement-secret")
+        #expect(try await metadataStore.load().currentProvider == .openAI)
     }
 
     @Test("startup reconciliation commits metadata when the new credential is durable")
@@ -416,7 +471,7 @@ struct ProviderConfigurationCoordinatorTests {
         #expect(try await credentialStore.credential(for: .openAI) == nil)
         let state = try await metadataStore.load()
         #expect(state.configurations[.openAI] == nil)
-        #expect(state.currentProvider == .openAI)
+        #expect(state.currentProvider == nil)
     }
 
     @Test("a request cannot begin while provider configuration is being mutated")
@@ -445,10 +500,22 @@ struct ProviderConfigurationCoordinatorTests {
         await coordinator.endRequestConfigurationFreeze()
     }
 
-    @Test("model-list validation failure saves neither the candidate key nor metadata")
-    func listFailureDoesNotSaveCandidateKeyOrMetadata() async throws {
-        let initialState = ProviderMetadataState(currentProvider: .openAI)
-        let credentialStore = MemoryCredentialStore()
+    @Test("replacement model-list failure discards the previous provider configuration")
+    func listFailureDoesNotRestorePreviousProviderConfiguration() async throws {
+        let previousConfiguration = ProviderConfiguration(
+            models: [ProviderModelState(id: "gpt-4.1")],
+            fetchedAt: Date(),
+            selectedModelID: "gpt-4.1"
+        )
+        let initialState = ProviderMetadataState(
+            configurations: [.openAI: previousConfiguration],
+            currentProvider: .openAI
+        )
+        let credentialStore = MemoryCredentialStore(
+            credentials: [
+                .openAI: ProviderCredential(generation: UUID(), apiKey: "previous-secret"),
+            ]
+        )
         let metadataStore = MemoryMetadataStore(state: initialState)
         let coordinator = ProviderConfigurationCoordinator(
             modelLister: StaticModelLister(
@@ -466,7 +533,10 @@ struct ProviderConfigurationCoordinatorTests {
             #expect(error as? BoundaryError == .modelListFailed)
         }
         #expect(try await credentialStore.credential(for: .openAI) == nil)
-        #expect(try await metadataStore.load() == initialState)
+        let state = try await metadataStore.load()
+        #expect(state.configurations[.openAI] == nil)
+        #expect(state.currentProvider == nil)
+        #expect(state.pendingReplacements[.openAI] == nil)
     }
 
     @Test("refresh failure preserves the previous cache and selection")
