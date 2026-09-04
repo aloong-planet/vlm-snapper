@@ -54,7 +54,8 @@ struct MenuBarPresentationTests {
 
     @Test("confirmed menu panel geometry remains independent from toolbar geometry")
     func confirmedGeometry() {
-        #expect(MenuBarPanelMetrics.width == 370)
+        #expect(MenuBarPanelMetrics.width == 300)
+        #expect(MenuBarPanelMetrics.arrowSize == CGSize(width: 8, height: 4))
         #expect(MenuBarPanelMetrics.outerCornerRadius == 13)
         #expect(MenuBarPanelMetrics.captureButtonHeight == 36)
         #expect(MenuBarPanelMetrics.recentThumbnailSize == CGSize(width: 58, height: 42))

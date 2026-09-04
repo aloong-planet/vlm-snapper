@@ -45,9 +45,25 @@
     .capture-mark { width: 15px; height: 13px; border: 1.8px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--menubar); }
     .popover {
       position: absolute;
-      top: 4px;
+      top: 8px;
       right: 10px;
-      width: 370px;
+      width: 300px;
+    }
+    .popover::before {
+      content: "";
+      position: absolute;
+      z-index: 1;
+      top: -4px;
+      right: 20px;
+      width: 8px;
+      height: 8px;
+      border-top: 1px solid var(--line-strong);
+      border-left: 1px solid var(--line-strong);
+      background: var(--window);
+      transform: rotate(45deg);
+    }
+    .popover-surface {
+      position: relative;
       overflow: hidden;
       border: 1px solid var(--line-strong);
       border-radius: 13px;
@@ -91,8 +107,23 @@
     .popover-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 14px 10px; }
     .popover-head strong { font-size: 15px; }
     .quick-action { margin: 0 10px 10px; }
-    .quick-action .primary-button { width: 100%; height: 36px; }
-    .shortcut { margin-left: auto; color: var(--on-accent); opacity: .76; font-size: 10px; font-weight: 500; }
+    .quick-action .primary-button {
+      position: relative;
+      width: 100%;
+      height: 36px;
+      justify-content: center;
+      color: var(--text);
+      border-color: color-mix(in srgb, var(--line) 55%, transparent);
+      background: var(--surface);
+      box-shadow: 0 2px 7px var(--shadow-soft), inset 0 1px 0 color-mix(in srgb, var(--surface) 86%, transparent);
+      transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    }
+    .quick-action .primary-button:hover {
+      border-color: color-mix(in srgb, var(--accent) 18%, var(--line));
+      background: color-mix(in srgb, var(--surface-hover) 48%, var(--surface));
+      box-shadow: 0 4px 11px var(--shadow-soft), inset 0 1px 0 color-mix(in srgb, var(--surface) 94%, transparent);
+    }
+    .shortcut { position: absolute; right: 12px; color: var(--text-secondary); font-size: 12px; font-weight: 500; }
     .update-notice { display: none; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; margin: 0 10px 10px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--accent-soft); }
     .update-notice-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: var(--accent-text); background: var(--surface); }
     .update-notice-icon .icon { width: 14px; height: 14px; }
@@ -118,7 +149,8 @@
     .recent-item { display: grid; grid-template-columns: 58px 1fr auto; gap: 9px; align-items: center; padding: 8px; border-radius: 8px; }
     .recent-item:hover { background: var(--surface-hover); }
     .recent-item .thumb { height: 42px; }
-    .recent-item strong { display: block; max-width: 196px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    .recent-item > div:nth-child(2) { min-width: 0; }
+    .recent-item strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
     .recent-item p { margin: 4px 0 0; color: var(--text-secondary); font-size: 10px; }
     .popover-footer { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
     .popover-footer button { height: 40px; border: 0; background: transparent; color: var(--text-secondary); }
@@ -139,35 +171,37 @@
       </article>
       <div class="menu-anchor" role="button" tabindex="0" aria-label="VLMSnapper 菜单栏图标"><span class="capture-mark"></span><span class="update-dot"></span></div>
       <aside class="popover" aria-label="VLMSnapper 菜单栏面板">
-        <header class="popover-head"><strong>VLMSnapper</strong><span class="badge">DeepSeek 可用</span></header>
-        <div class="quick-action"><button class="primary-button">截取屏幕 <span class="shortcut">⌥⇧S</span></button></div>
-        <div class="update-notice" aria-live="polite">
-          <div class="menu-update-view menu-update-available">
-            <div class="update-notice-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></div>
-            <div class="update-notice-copy"><strong>发现 VLMSnapper 1.1.0</strong><span>有新版本可供下载。</span></div>
-            <button class="update-notice-action" data-menu-download>下载</button>
+        <div class="popover-surface">
+          <header class="popover-head"><strong>VLMSnapper</strong><span class="badge">DeepSeek 可用</span></header>
+          <div class="quick-action"><button class="primary-button">截取屏幕 <span class="shortcut">⌥⇧S</span></button></div>
+          <div class="update-notice" aria-live="polite">
+            <div class="menu-update-view menu-update-available">
+              <div class="update-notice-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></div>
+              <div class="update-notice-copy"><strong>发现 VLMSnapper 1.1.0</strong><span>有新版本可供下载。</span></div>
+              <button class="update-notice-action" data-menu-download>下载</button>
+            </div>
+            <div class="menu-update-view menu-update-downloading">
+              <div class="update-notice-icon"><span class="spinner" aria-hidden="true"></span></div>
+              <div class="update-notice-copy"><strong>正在下载 VLMSnapper 1.1.0…</strong><span>完成后会自动更新此状态。</span></div>
+              <div></div>
+            </div>
+            <div class="menu-update-view menu-update-ready">
+              <div class="update-notice-icon"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></div>
+              <div class="update-notice-copy"><strong>VLMSnapper 1.1.0 已下载</strong><span>将在退出时安装，不会中断当前任务。</span></div>
+              <button class="update-notice-action" data-goto="management-center/general-settings" data-goto-href="../management-center/prototype-management-center.html#general">查看</button>
+            </div>
           </div>
-          <div class="menu-update-view menu-update-downloading">
-            <div class="update-notice-icon"><span class="spinner" aria-hidden="true"></span></div>
-            <div class="update-notice-copy"><strong>正在下载 VLMSnapper 1.1.0…</strong><span>完成后会自动更新此状态。</span></div>
-            <div></div>
+          <div class="recent-title">最近截图</div>
+          <div class="recent-list">
+            <div class="recent-item"><div class="thumb">Calm<br>Software</div><div><strong>Designing Calm Software</strong><p>翻译 · 2 分钟前</p></div><span class="badge">完成</span></div>
+            <div class="recent-item"><div class="thumb">API<br>Guide</div><div><strong>Vision API integration guide</strong><p>提取文字 · 18 分钟前</p></div><span class="badge">完成</span></div>
+            <div class="recent-item"><div class="thumb">429</div><div><strong>Provider request failed</strong><p>翻译 · 1 小时前</p></div><span class="badge error">失败</span></div>
           </div>
-          <div class="menu-update-view menu-update-ready">
-            <div class="update-notice-icon"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></div>
-            <div class="update-notice-copy"><strong>VLMSnapper 1.1.0 已下载</strong><span>将在退出时安装，不会中断当前任务。</span></div>
-            <button class="update-notice-action" data-goto="management-center/general-settings" data-goto-href="../management-center/prototype-management-center.html#general">查看</button>
-          </div>
+          <footer class="popover-footer">
+            <button data-goto="management-center/history" data-goto-href="../management-center/prototype-management-center.html#history">查看全部历史</button>
+            <button data-goto="management-center/settings" data-goto-href="../management-center/prototype-management-center.html#settings">设置中心</button>
+          </footer>
         </div>
-        <div class="recent-title">最近截图</div>
-        <div class="recent-list">
-          <div class="recent-item"><div class="thumb">Calm<br>Software</div><div><strong>Designing Calm Software</strong><p>翻译 · 2 分钟前</p></div><span class="badge">完成</span></div>
-          <div class="recent-item"><div class="thumb">API<br>Guide</div><div><strong>Vision API integration guide</strong><p>提取文字 · 18 分钟前</p></div><span class="badge">完成</span></div>
-          <div class="recent-item"><div class="thumb">429</div><div><strong>Provider request failed</strong><p>翻译 · 1 小时前</p></div><span class="badge error">失败</span></div>
-        </div>
-        <footer class="popover-footer">
-          <button data-goto="management-center/history" data-goto-href="../management-center/prototype-management-center.html#history">查看全部历史</button>
-          <button data-goto="management-center/settings" data-goto-href="../management-center/prototype-management-center.html#settings">设置中心</button>
-        </footer>
       </aside>
       <aside class="status-context-menu" role="menu" aria-label="VLMSnapper 右键菜单">
         <button role="menuitem" data-prototype-quit>退出 VLMSnapper</button>
@@ -207,6 +241,12 @@
       document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     });
     document.addEventListener('click', (event) => {
+      if (
+        document.body.dataset.entrySurface !== 'none'
+        && !event.target.closest('.popover, .status-context-menu, .menu-anchor, [data-demo-harness]')
+      ) {
+        document.body.dataset.entrySurface = 'none';
+      }
       const target = event.target.closest('[data-goto]');
       if (!target) return;
       if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target: target.dataset.goto }, '*');

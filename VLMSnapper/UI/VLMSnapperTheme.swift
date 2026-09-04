@@ -6,6 +6,7 @@ enum VLMSnapperTheme {
     static let subtleSurface = Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
         .opacity(0.35)
     static let border = Color(nsColor: .separatorColor)
+    static let shadow = Color(nsColor: .shadowColor)
     static let primaryText = Color(nsColor: .labelColor)
     static let secondaryText = Color(nsColor: .secondaryLabelColor)
     static let accent = Color.accentColor

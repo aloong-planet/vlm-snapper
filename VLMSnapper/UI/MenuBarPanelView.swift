@@ -120,7 +120,10 @@ public struct MenuProviderPresentation: Equatable, Sendable {
 }
 
 public enum MenuBarPanelMetrics {
-    public static let width: CGFloat = 370
+    public static let width: CGFloat = 300
+    public static let arrowSize = CGSize(width: 8, height: 4)
+    public static let arrowEdgeInset: CGFloat = 12
+    public static let screenEdgeInset: CGFloat = 4
     public static let outerCornerRadius: CGFloat = 13
     public static let captureButtonHeight: CGFloat = 36
     public static let recentThumbnailSize = CGSize(width: 58, height: 42)
@@ -134,7 +137,7 @@ enum MenuBarPanelActionRole: CaseIterable {
     func backgroundOpacity(isHovering: Bool) -> Double {
         switch self {
         case .primary:
-            isHovering ? 0.84 : 1
+            isHovering ? 0.46 : 0
         case .row, .footer:
             isHovering ? 1 : 0
         }
@@ -173,7 +176,7 @@ struct MenuBarPanelActionButton<Label: View>: View {
     private var background: some View {
         switch role {
         case .primary:
-            VLMSnapperTheme.accent.opacity(
+            VLMSnapperTheme.subtleSurface.opacity(
                 role.backgroundOpacity(isHovering: isHovering)
             )
         case .row, .footer:
@@ -232,19 +235,27 @@ public struct MenuBarPanelView: View {
             .frame(height: 50)
 
             MenuBarPanelActionButton(role: .primary, action: onCapture) {
-                HStack {
+                ZStack {
                     Label(VLMSnapperStrings.menuCapture, systemImage: VLMSnapperIcon.capture.rawValue)
-                    Spacer()
-                    Text(captureShortcut)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                        .font(.headline)
+                        .foregroundStyle(VLMSnapperTheme.primaryText)
+                    HStack {
+                        Spacer()
+                        Text(captureShortcut)
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    }
+                    .padding(.horizontal, 12)
                 }
-                .font(.headline)
-                .foregroundStyle(Color.white)
-                .padding(.horizontal, 14)
             }
             .frame(height: MenuBarPanelMetrics.captureButtonHeight)
+            .background(VLMSnapperTheme.surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(VLMSnapperTheme.border.opacity(0.55), lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .shadow(color: VLMSnapperTheme.shadow.opacity(0.10), radius: 3.5, y: 2)
             .padding(.horizontal, 10)
             if updateState.showsMenuNotice {
                 updateNotice
