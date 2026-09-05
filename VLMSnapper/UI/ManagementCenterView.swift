@@ -156,6 +156,9 @@ public struct ManagementCenterView: View {
     private let callbacks: ManagementCenterCallbacks
     private let settings: GeneralSettingsSnapshot
     private let providerSettings: ProviderSettingsConfiguration?
+    // The external binding is closure-backed and does not invalidate this view.
+    // Keep the displayed draft in State so every edit also refreshes its controls.
+    @State private var apiKey: String
     @State private var destination: ManagementCenterDestination
     @State private var kind: HistoryOperationKindFilter = .all
     @State private var searchText: String
@@ -189,6 +192,7 @@ public struct ManagementCenterView: View {
         self.callbacks = callbacks
         self.settings = settings
         self.providerSettings = providerSettings
+        _apiKey = State(initialValue: providerSettings?.apiKey.wrappedValue ?? "")
         _destination = State(initialValue: destination)
         _selectedRecordID = State(initialValue: selectedRecordID ?? records.first?.id)
         _searchText = State(initialValue: searchText)
@@ -276,8 +280,12 @@ public struct ManagementCenterView: View {
             }
         }
         .onChange(of: providerSettings?.snapshot.selectedProvider) { _, _ in
+            apiKey = providerSettings?.apiKey.wrappedValue ?? ""
             apiKeyIsDirty = false
             showsAPIKey = false
+        }
+        .onChange(of: providerSettings?.apiKey.wrappedValue) { _, value in
+            apiKey = value ?? ""
         }
         .onChange(of: providerSettings?.snapshot.phase) { _, phase in
             if phase == .selectingModel || phase == .ready {
@@ -677,7 +685,7 @@ public struct ManagementCenterView: View {
                 Group {
                     if showsAPIKey {
                         TextField(
-                            providerSettings.apiKey.wrappedValue.isEmpty
+                            apiKey.isEmpty
                                 ? VLMSnapperStrings.apiKeyPlaceholder
                                 : "",
                             text: providerAPIKeyBinding
@@ -687,7 +695,7 @@ public struct ManagementCenterView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         SecureField(
-                            providerSettings.apiKey.wrappedValue.isEmpty
+                            apiKey.isEmpty
                                 ? VLMSnapperStrings.apiKeyPlaceholder
                                 : "",
                             text: providerAPIKeyBinding
@@ -705,14 +713,13 @@ public struct ManagementCenterView: View {
                 }
                 .padding(.trailing, 8)
                 Button {
-                    providerSettings.apiKey.wrappedValue = ""
-                    apiKeyIsDirty = true
+                    providerAPIKeyBinding.wrappedValue = ""
                 } label: {
                     VLMSnapperIcon.close.image.frame(width: 22, height: 22)
                 }
                 .buttonStyle(.plain)
                 .disabled(
-                    providerSettings.apiKey.wrappedValue.isEmpty
+                    apiKey.isEmpty
                         || providerSettings.snapshot.isReadOnly
                 )
                 .accessibilityLabel(VLMSnapperStrings.clearAPIKey)
@@ -792,8 +799,9 @@ public struct ManagementCenterView: View {
 
     private var providerAPIKeyBinding: Binding<String> {
         Binding(
-            get: { providerSettings?.apiKey.wrappedValue ?? "" },
+            get: { apiKey },
             set: { value in
+                apiKey = value
                 providerSettings?.apiKey.wrappedValue = value
                 apiKeyIsDirty = true
             }
@@ -838,7 +846,7 @@ public struct ManagementCenterView: View {
             isDirty: providerSettings.snapshot.selectedProvider == provider
                 && apiKeyIsDirty,
             phase: providerSettings.snapshot.phase,
-            hasAPIKey: !providerSettings.apiKey.wrappedValue
+            hasAPIKey: !apiKey
                 .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             isReadOnly: providerSettings.snapshot.isReadOnly
         )
