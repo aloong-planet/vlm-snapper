@@ -12,13 +12,12 @@ struct ApplicationTerminationSheetTests {
     @Test("All application-owned sheets permit coordinated application termination")
     func applicationOwnedSheetsPermitTermination() throws {
         let contents = [
-            AnyView(providerSetup),
             AnyView(permissionRecovery),
             AnyView(StoragePrivacyDetailView(onClose: {})),
         ]
         let presentations = try contents.map(presentedSheet)
 
-        #expect(presentations.count == 3)
+        #expect(presentations.count == 2)
         for presentation in presentations {
             #expect(presentation.sheet.preventsApplicationTerminationWhenModal == false)
         }
@@ -31,26 +30,6 @@ struct ApplicationTerminationSheetTests {
             Self.retainedParentWindows.append(presentation.parent)
         }
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-
-    private var providerSetup: ProviderSetupView {
-        ProviderSetupView(
-            snapshot: ProviderSetupSnapshot(
-                selectedProvider: .deepSeek,
-                availableModelIDs: [],
-                selectedModelID: nil,
-                phase: .awaitingValidation,
-                failure: nil
-            ),
-            apiKey: .constant(""),
-            pendingModelID: .constant(nil),
-            onSelectProvider: { _ in },
-            onValidate: {},
-            onRefresh: {},
-            onSelectModel: { _ in },
-            onCancel: {},
-            onDone: {}
-        )
     }
 
     private var permissionRecovery: ScreenCapturePermissionRecoveryView {

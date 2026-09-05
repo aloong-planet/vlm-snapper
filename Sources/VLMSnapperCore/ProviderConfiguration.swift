@@ -80,15 +80,18 @@ public struct PendingProviderReplacement: Codable, Equatable, Sendable {
     public let previousGeneration: UUID?
     public let nextGeneration: UUID
     public let configuration: ProviderConfiguration
+    public let restoreCurrentProvider: Bool?
 
     public init(
         previousGeneration: UUID?,
         nextGeneration: UUID,
-        configuration: ProviderConfiguration
+        configuration: ProviderConfiguration,
+        restoreCurrentProvider: Bool? = nil
     ) {
         self.previousGeneration = previousGeneration
         self.nextGeneration = nextGeneration
         self.configuration = configuration
+        self.restoreCurrentProvider = restoreCurrentProvider
     }
 }
 
@@ -164,6 +167,17 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
     ) async throws -> ProviderConfiguration {
         try beginConfigurationMutation()
         defer { endConfigurationMutation() }
+        var state = try await metadataStore.load()
+        let previousSelection = state.configurations[provider]?.selectedModelID
+        let restoreCurrentProvider = state.currentProvider == provider
+        state.configurations[provider] = nil
+        state.pendingReplacements[provider] = nil
+        if restoreCurrentProvider {
+            state.currentProvider = nil
+        }
+        try await metadataStore.save(state)
+        try await credentialStore.deleteCredential(for: provider)
+
         let modelIDs = try await modelLister.listModels(provider: provider, apiKey: apiKey)
         var seenModelIDs = Set<String>()
         let models = modelIDs.compactMap { modelID -> ProviderModelState? in
@@ -172,9 +186,6 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
             }
             return ProviderModelState(id: modelID)
         }
-        var state = try await metadataStore.load()
-        let previousCredential = try await credentialStore.credential(for: provider)
-        let previousSelection = state.configurations[provider]?.selectedModelID
         let configuration = ProviderConfiguration(
             models: models,
             fetchedAt: now(),
@@ -187,9 +198,10 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
             apiKey: apiKey
         )
         state.pendingReplacements[provider] = PendingProviderReplacement(
-            previousGeneration: previousCredential?.generation,
+            previousGeneration: nil,
             nextGeneration: nextCredential.generation,
-            configuration: configuration
+            configuration: configuration,
+            restoreCurrentProvider: restoreCurrentProvider
         )
         try await metadataStore.save(state)
         do {
@@ -204,6 +216,9 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
             throw error
         }
         state.configurations[provider] = configuration
+        if restoreCurrentProvider, configuration.isUsable {
+            state.currentProvider = provider
+        }
         state.pendingReplacements[provider] = nil
         try await metadataStore.save(state)
         return configuration
@@ -211,6 +226,10 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
 
     public func configurationState() async throws -> ProviderMetadataState {
         try await metadataStore.load()
+    }
+
+    public func apiKey(for provider: ProviderID) async throws -> String? {
+        try await credentialStore.credential(for: provider)?.apiKey
     }
 
     public func reconcilePendingReplacements() async throws -> ProviderMetadataState {
@@ -224,6 +243,10 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
             let durableGeneration = try await credentialStore.credential(for: provider)?.generation
             if durableGeneration == pending.nextGeneration {
                 state.configurations[provider] = pending.configuration
+                if pending.restoreCurrentProvider == true,
+                   pending.configuration.isUsable {
+                    state.currentProvider = provider
+                }
             } else if durableGeneration != pending.previousGeneration {
                 throw ProviderConfigurationError.inconsistentCredentialState
             }
@@ -338,6 +361,9 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
         var state = try await metadataStore.load()
         state.configurations[provider] = nil
         state.pendingReplacements[provider] = nil
+        if state.currentProvider == provider {
+            state.currentProvider = nil
+        }
         try await metadataStore.save(state)
     }
 

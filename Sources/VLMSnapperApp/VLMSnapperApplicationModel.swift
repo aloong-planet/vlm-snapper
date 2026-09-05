@@ -20,6 +20,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private(set) var permission: ScreenCapturePermissionReadiness = .notRequested
     private(set) var providerReadiness: ProviderReadiness = .missing
     private(set) var providerConfigurations: [ProviderID: ProviderConfiguration] = [:]
+    private(set) var currentProvider: ProviderID?
     private(set) var providerSnapshot = ProviderSetupSnapshot(
         selectedProvider: .deepSeek,
         availableModelIDs: [],
@@ -40,6 +41,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     var onSnapshotChange: (@MainActor () -> Void)?
     var onNavigate: (@MainActor (ManagementCenterDestination) -> Void)?
     var onShowOnboarding: (@MainActor () -> Void)?
+    var onOpenProviderSettingsFromOnboarding: (@MainActor () -> Void)?
+    var onProviderConfigurationCompleted: (@MainActor () -> Void)?
     var onRetireManagementCenter: (@MainActor (@escaping @MainActor () -> Void) -> Void)?
     var onRetireCaptureSources: (@MainActor () -> Void)?
 
@@ -179,6 +182,10 @@ final class VLMSnapperApplicationModel: ObservableObject {
         permission = try await permissionCoordinator.refreshStatus()
         await providerSession.load()
         providerSnapshot = await providerSession.snapshot()
+        apiKey = (try? await providerCoordinator.apiKey(
+            for: providerSnapshot.selectedProvider
+        )) ?? ""
+        pendingModelID = providerSnapshot.selectedModelID
         try await refreshProviderReadiness()
         let loginState = try await loginCoordinator.configureAtPrimaryLaunch()
         let language = await languageStore.load()
@@ -245,10 +252,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 permission: permission,
                 provider: providerReadiness
             ).snapshot,
-            providerSnapshot: providerSnapshot,
-            providerConfigurations: providerConfigurations,
-            apiKey: binding(\.apiKey),
-            pendingModelID: binding(\.pendingModelID),
             callbacks: onboardingCallbacks()
         )
     }
@@ -314,6 +317,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         ProviderSettingsConfiguration(
             snapshot: providerSnapshot,
             configurations: providerConfigurations,
+            currentProvider: currentProvider,
             apiKey: binding(\.apiKey),
             pendingModelID: binding(\.pendingModelID),
             onSelectProvider: { [weak self] provider in
@@ -328,7 +332,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
             onSelectModel: { [weak self] modelID in
                 Task { await self?.selectModel(modelID) }
             },
-            onDone: { [weak self] in self?.apiKey = "" }
+            onSetCurrentProvider: { [weak self] provider in
+                Task { await self?.setCurrentProvider(provider) }
+            },
+            onRemoveProvider: { [weak self] provider in
+                Task { await self?.removeProvider(provider) }
+            }
         )
     }
 
@@ -350,13 +359,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
             onPermissionPrimaryAction: { [weak self] in
                 Task { await self?.performPermissionAction() }
             },
-            onSelectProvider: { [weak self] provider in
-                Task { await self?.selectProvider(provider) }
+            onOpenProviderSettings: { [weak self] in
+                self?.onOpenProviderSettingsFromOnboarding?()
             },
-            onValidateProvider: { [weak self] in Task { await self?.validateProvider() } },
-            onRefreshModels: { [weak self] in Task { await self?.refreshModels() } },
-            onSelectModel: { [weak self] modelID in Task { await self?.selectModel(modelID) } },
-            onProviderDone: {},
             onStart: { [weak self] in self?.finishOnboarding() },
             onFinishLater: { [weak self] in self?.finishOnboarding() }
         )
@@ -373,12 +378,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private func selectProvider(_ provider: ProviderID) async {
         await providerSession.selectProvider(provider)
+        guard await providerSession.snapshot().selectedProvider == provider else { return }
+        let loadedAPIKey = (try? await providerCoordinator.apiKey(for: provider)) ?? ""
+        guard await providerSession.snapshot().selectedProvider == provider else { return }
+        apiKey = loadedAPIKey
         await refreshProviderPresentation()
     }
 
     private func validateProvider() async {
         await providerSession.validate(apiKey: apiKey)
-        apiKey = ""
         await refreshProviderPresentation()
     }
 
@@ -391,10 +399,30 @@ final class VLMSnapperApplicationModel: ObservableObject {
         await providerSession.selectModel(modelID)
         pendingModelID = modelID
         await refreshProviderPresentation()
+        if providerSnapshot.phase == .ready,
+           providerSnapshot.selectedModelID == modelID {
+            onProviderConfigurationCompleted?()
+        }
+    }
+
+    private func setCurrentProvider(_ provider: ProviderID) async {
+        try? await providerCoordinator.setCurrentProvider(provider)
+        await refreshProviderPresentation()
+    }
+
+    private func removeProvider(_ provider: ProviderID) async {
+        try? await providerCoordinator.clearProvider(provider)
+        if providerSnapshot.selectedProvider == provider {
+            apiKey = ""
+            pendingModelID = nil
+            await providerSession.load()
+        }
+        await refreshProviderPresentation()
     }
 
     private func refreshProviderPresentation() async {
         providerSnapshot = await providerSession.snapshot()
+        pendingModelID = providerSnapshot.selectedModelID
         try? await refreshProviderReadiness()
         publish()
     }
@@ -402,6 +430,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private func refreshProviderReadiness() async throws {
         let state = try await providerCoordinator.configurationState()
         providerConfigurations = state.configurations
+        currentProvider = state.currentProvider
         if let provider = state.currentProvider,
            let configuration = state.configurations[provider],
            let modelID = configuration.selectedModelID,
@@ -1025,11 +1054,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
             workspaceSnapshot = await session.snapshot()
             showResultWorkspace(bringToFront: true)
             let previousAttempt = selectedAttempt
-            let run = Task {
-                try await session.startSelectedOperation(
-                    selection: providerSelection,
-                    targetLanguage: selectedTargetLanguageCode
-                )
+            let run = Task { [weak self] in
+                guard let self else { return }
+                try await withProviderConfigurationReadOnly {
+                    try await session.startSelectedOperation(
+                        selection: providerSelection,
+                        targetLanguage: selectedTargetLanguageCode
+                    )
+                }
             }
             var observedTransition = false
             let transitionDeadline = Date().addingTimeInterval(1)
@@ -1095,11 +1127,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
         selectedOperation = operation
         workspaceSnapshot = await workspaceSession.snapshot()
         let previousAttempt = selectedAttempt
-        let run = Task {
-            try await workspaceSession.startSelectedOperation(
-                selection: providerSelection,
-                targetLanguage: selectedTargetLanguageCode
-            )
+        let run = Task { [weak self] in
+            guard let self else { return }
+            try await withProviderConfigurationReadOnly {
+                try await workspaceSession.startSelectedOperation(
+                    selection: providerSelection,
+                    targetLanguage: selectedTargetLanguageCode
+                )
+            }
         }
         var observedTransition = false
         let transitionDeadline = Date().addingTimeInterval(1)
@@ -1125,6 +1160,25 @@ final class VLMSnapperApplicationModel: ObservableObject {
         showResultWorkspace()
         await recordSelectedOperationDiagnostic()
         await refreshHistory()
+    }
+
+    private func withProviderConfigurationReadOnly(
+        _ operation: () async throws -> Void
+    ) async throws {
+        try await providerCoordinator.beginRequestConfigurationFreeze()
+        await providerSession.setReadOnly(true)
+        await refreshProviderPresentation()
+        do {
+            try await operation()
+        } catch {
+            await providerCoordinator.endRequestConfigurationFreeze()
+            await providerSession.setReadOnly(false)
+            await refreshProviderPresentation()
+            throw error
+        }
+        await providerCoordinator.endRequestConfigurationFreeze()
+        await providerSession.setReadOnly(false)
+        await refreshProviderPresentation()
     }
 
     private func retrySavingWorkspace() async {

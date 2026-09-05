@@ -20,6 +20,7 @@
 | 14 | 未就绪截图回到前台引导、Provider 输入与居中恢复、管理侧栏和历史详情原型回归 | 已完成 |
 | 15 | 菜单截图恢复置前、Provider 鉴权失败原因和管理窗口最小内容区回归 | 已实现，待安装版验收 |
 | 17 | DeepSeek 推理流活动重置 10 秒无活动计时，且不展示推理内容 | 已完成 |
+| 19 | 设置中心内联 Provider 管理、首次引导自动返回、旧独立表面退役与确认响应式几何 | 已实现，待 PR |
 
 ## Ticket 01 evidence
 
@@ -118,3 +119,9 @@
 - Gate: strict Swift/C warnings-as-errors build, full Swift Testing 246/246 in 65 suites, 44 bilingual light/dark production renders, `git diff --check`, and three targeted behavior mutations.
 - Tests: real AppKit window level and hidden refresh, runner history identity/replacement and failed-rerun preservation, SQLite identity/pin/metadata replacement, full-width AppKit edge click, and all menu roles' hover response.
 - Evidence: `ResultWorkspaceWindowController.swift`, application presentation wiring, `PersistedOperationWorkspaceRunner.swift`, `SQLiteHistoryStore.swift`, the shared menu action component, Ticket 18 design/reviews, and the three-stage final regression. Physical pointer hover and cross-application ordering remain installed-App acceptance checks.
+
+## Ticket 19 evidence
+
+- Gate: warnings-as-errors 严格构建、271 tests / 68 suites、246/246 本地化键集合、9 个 prototype HTML/9 个 inline scripts、生产渲染与 `git diff --check` 全部通过。
+- Tests: `ProviderSettingsPresentationTests`、`OnboardingSessionTests`、`ProviderConfigurationCoordinatorTests`、`ProviderSetupSessionTests` 的 Ticket 19 行为用例，以及 `ConfirmedSurfaceContractTests.workspaceGeometry` 和 `Ticket13RenderingTests.confirmedSurfacesRender`。
+- Evidence: 正常与最小管理中心生产渲染验证双列/纵排；退役 UI 符号与 `--provider` 在生产源码、harness、测试、本地化、原型和 manifest 中全量检索为零；四个确认几何值均通过 1 pt 受控变异验证。

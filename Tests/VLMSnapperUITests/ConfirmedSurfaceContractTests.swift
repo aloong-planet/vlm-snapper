@@ -12,9 +12,6 @@ struct ConfirmedSurfaceContractTests {
         #expect(OnboardingMetrics.width == 760)
         #expect(OnboardingMetrics.minimumHeight == 540)
         #expect(OnboardingMetrics.rowCornerRadius == 9)
-        #expect(ProviderSetupMetrics.width == 720)
-        #expect(ProviderSetupMetrics.bodyHeight == 410)
-        #expect(ProviderSetupMetrics.cornerRadius == 8)
         #expect(PermissionRecoveryMetrics.width == 520)
         #expect(PermissionRecoveryMetrics.cornerRadius == 8)
     }
@@ -27,6 +24,10 @@ struct ConfirmedSurfaceContractTests {
         #expect(ManagementCenterMetrics.defaultSize == CGSize(width: 1_200, height: 720))
         #expect(ManagementCenterMetrics.sidebarWidth == 218)
         #expect(ManagementCenterMetrics.titlebarHeight == 46)
+        #expect(ManagementCenterMetrics.providerContentWidth == 850)
+        #expect(ManagementCenterMetrics.providerHeaderHeight == 54)
+        #expect(ManagementCenterMetrics.providerMarkSize == 29)
+        #expect(ManagementCenterMetrics.providerCredentialFieldHeight == 32)
     }
 
     @Test("provider rows preserve configuration state for non-selected providers")
@@ -43,7 +44,7 @@ struct ConfirmedSurfaceContractTests {
             fetchedAt: Date(timeIntervalSince1970: 1),
             selectedModelID: "gpt-vision"
         )
-        let presentation = ProviderSidebarPresentation(
+        let presentation = ProviderSettingsDetailPresentation(
             provider: .openAI,
             snapshot: snapshot,
             configurations: [.openAI: openAI]
@@ -92,5 +93,19 @@ struct ManagementCenterWindowContractTests {
 
         callbacks.onOpenRecord(id)
         #expect(openedID == id)
+    }
+
+    @Test("closing the management center reports the user-initiated close")
+    func closingManagementCenterReportsClose() throws {
+        var didClose = false
+        let controller = ManagementCenterWindowController(
+            records: [],
+            onClose: { didClose = true }
+        )
+        let window = try #require(controller.window)
+
+        window.close()
+
+        #expect(didClose)
     }
 }

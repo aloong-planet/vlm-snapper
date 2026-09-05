@@ -945,3 +945,153 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。管理中心截图退让和历史双击恢复已经在原型、spec、术语、feature catalog、实现与测试之间对齐。完整 SwiftPM 套件通过；真实安装版的双击投递与缺图按钮外观将在 PR 合并并更新本地 App 后验收。
+
+---
+
+# 2026-09-04 — Inline Provider settings
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec 的设置中心内联配置 | 管理中心 SwiftUI、Provider session/coordinator 与状态映射测试 | 配置、测试、模型选择、当前切换和移除都在一开式卡片完成，不再打开独立配置面板 |
+| spec 的首次引导返回 | 应用代理返回上下文、管理中心关闭回调与 exactly-once 测试 | 从引导进入后，显式模型选择自动返回；提前关闭也返回且不伪造完成 |
+| ADR-0012 的 Key 替换语义 | coordinator 与成功/失败回归 | 提交新 Key 先移除旧凭据和配置，失败不回滚；旧模型只在新列表仍含它时保留 |
+| feature catalog 的现行用户行为 | 最终 UI、应用协调器和本地化资源 | 卡片、Key 状态、验证资格、只读状态和当前 Provider 行为一致 |
+| `CONTEXT.md` 术语与不变量 | spec、features、ADR 与代码职责 | 页面暂态、Provider 持久状态和引导来源明确分离 |
+| 已确认原型 | 管理中心、首次引导与 Edit 菜单上下文原型 | 管理中心是唯一配置表面；Edit 原型只用其内联 Key 字段验证 responder chain |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| spec 文件 ↔ spec 索引 | `docs/specs/README.md` | v1 core 名称、状态和范围未变，索引无需改动 |
+| feature 文件 ↔ feature 索引 | `docs/features/` 全部顶层文件 | 目录仍只有 `v1-core.md`，不存在需同步的独立索引 |
+| ADR 文件 ↔ ADR 索引 | `docs/adr/0012-replace-provider-credential-without-rollback.md`、`docs/adr/README.md` | 新决策已入索引，编号、状态和日期一致 |
+| 原型目录 ↔ manifest/README | `docs/prototypes/manifest.js` 及三个相关 README | 旧 provider-setup 条目和文件已删除；management、onboarding、application-menu 均指向同一设置中心流程 |
+| 旧独立 Provider 表面 ↔ 权威文档 | 排除 `docs/.workings/` 的全量关键词检索 | 仅剩“不会打开独立面板/不呈现 setup sheet”的否定性现行描述，无旧页面声明 |
+| 项目 i18n 能力 ↔ 新 UI 文案 | 项目能力声明、两份 strings 字典、Swift 新增行扫描 | i18n 已启用；英文与简中各 251 个键且集合一致，Swift 新增行无中文硬编码 |
+| 规则 ↔ 自动化门禁 | Failure Modes 27–31、focused tests、完整测试与严格构建 | 精确聚焦测试实际执行；273 tests / 68 suites 和 warnings-as-errors 均通过 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| Provider 配置表面从两套变为一套 | 生产路由、Ticket 13 生产渲染与原型 manifest | 生产只进入管理中心 Provider 页；旧组件不再作为生产界面证据 |
+| Key 替换从回滚旧值改为直接替换 | ADR-0012、spec Failure Mode 28 与 coordinator tests | 用户确认的无回退语义已持久化并有失败测试 |
+| 新增卡片与凭据两层状态 | presentation 类型、UI copy 与状态测试 | “已配置凭据、待选模型”可同时准确表达，不再合并为未配置 |
+| 活动请求冻结配置 | 应用请求包装、coordinator lock 与 session readonly tests | 浏览不阻断，所有配置写操作阻断，终态后解锁 |
+| 首次引导来源状态 | 返回上下文和窗口关闭回调 | 两条返回路径只消费一次，不影响普通设置中心访问 |
+| 范围内 `Pending:` 注记 | spec 末尾 Provider 发布门槛 | 既有真实账户与发布门槛未因本轮到期；没有新增待决产品行为 |
+| 本轮是否形成新通则 | ADR 门槛与 `CONTEXT.md` | 无回退替换形成 ADR-0012；页面/持久状态分离与引导返回成为 v1 core 不变量 |
+
+## 收敛结论
+
+三阶段队列已清空。用户可见流程、持久凭据语义、原型、spec、feature catalog、ADR、术语、实现和测试已统一为设置中心内联 Provider 配置。自动化门禁不冒充签名安装版的 Keychain 与窗口层级人工验收；该验收保留到 PR 合并并更新本地 App 后执行。
+
+---
+
+# 2026-09-04 — Retired Provider component removal
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| tasklist 的旧组件清理 | 源码、harness、tests 与本地化 diff | View、预览参数、专属状态、几何、文案和旧测试均已删除 |
+| review 记录的生产表面 | 当前生产路由与 Ticket 13 渲染 | 管理中心 Provider 页面仍是唯一生产配置表面 |
+| spec/features 的用户行为 | 本轮生产代码 diff | 用户可见行为未改变；没有任何现行声明因删除不可达组件变成谎话 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| Swift target ↔ 源文件收集 | `Package.swift` 的 `sources: ["UI"]` | 目录自动收集，无显式 source manifest 残项 |
+| 旧类型 ↔ 当前引用 | 排除 `.build` 和施工记录的全量符号检索 | `ProviderSetupView`、旧 metrics/input/presentation 名和 `--provider` 当前引用为零 |
+| 本地化 accessor ↔ 两语种资源 | 五个旧 accessor 与对应键的全量检索 | accessor 和英文/简中键成对删除；现行键继续由本地化回归覆盖 |
+| 旧页面 ↔ 原型目录 | prototype manifest、management/onboarding/application-menu | 原型早已收敛到管理中心，删除源码不需要新的原型变更 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| SwiftUI 类型成员数减少 | 当前类型引用与 SwiftPM 全编译 | 只移除无生产路由的旧 View；所需详情映射迁入现行 presentation |
+| harness 模式减少 | `HarnessMode` 全枚举与参数分支 | `--provider` 同步删除，无未穷尽 switch 或帮助文本残留 |
+| 测试数量从 273 降至 271 | 删除的两项用例与完整测试日志 | 仅旧输入状态用例消失；现行 Provider tests 和全部 suite 保留 |
+| Ticket 07 产物数减少 | 清空输出目录后的限定测试 | 本轮稳定生成 8 张，旧 Provider PNG 不再污染结果 |
+| 用户可见行为变化判定 | features 当前 Provider 段与生产路由 | 原有哪句话变成谎：无；缺少哪句现行行为：无，因此无需改写 feature catalog |
+| 范围内 `Pending:` 与新通则 | v1 spec 与 ADR/CONTEXT 门槛 | 没有 Pending 到期，也没有形成新的跨功能决策或术语 |
+
+## 收敛结论
+
+三阶段队列已清空。旧组件与相关开发/测试表面已完整移除，权威产品声明无需变化；现行管理中心内联 Provider 流程继续由 271 项完整回归和严格构建守护。
+
+---
+
+# 2026-09-05 — Ticket 19 inline Provider management geometry
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 19 的六条验收标准 | production View、presentation/coordinator/session/onboarding tests、清理检索与门禁日志 | 六条均有可复查证据；Ticket 状态仍保留为实施中，待交付动作完成后关闭 |
+| spec 的 Provider 页面几何 | `ManagementCenterMetrics`、`ManagementCenterView` 与正常/最小生产渲染 | 已补明 850 pt 内容上限、54 pt 卡片头、29 pt 标记、32 pt 控件，以及宽屏双列/窄屏纵排 |
+| feature catalog 的当前 Provider 体验 | spec、生产渲染与已确认原型 | 已就地补充“居中可读宽度、宽时并列、窄时无裁切堆叠”；没有实现细节或未来行为 |
+| management-center prototype README | HTML 的 850/54/29/32 px 契约与生产常量 | README 现在显式复述确认几何；HTML 与生产 View 未出现两套布局方向 |
+| review-code 与 review-tests 本轮结论 | 当前 diff、四值变异日志、完整门禁日志 | 代码审查四层和测试审查三维均有逐项结论；编译型初红未被冒充为断言有效性 |
+| i18n 声明面 | 项目能力声明与两份 `Localizable.strings` | i18n 已启用；本轮无新增 UI 文案，两份字典各 246 键且集合一致 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| spec 文件 ↔ spec 索引 | `docs/specs/README.md` | slug、名称、状态和范围均未变化，索引无需改动 |
+| feature 文件 ↔ feature 索引 | `docs/features/` 顶层文件枚举 | 目录只有 `v1-core.md` 且没有独立 README 索引，不存在待同步索引行 |
+| ADR ↔ spec/features | ADR-0012 与 Provider 替换段落 | 本轮只补布局几何，不改变凭据替换决策；三处仍一致 |
+| CONTEXT ↔ spec/features/prototype | Provider、当前模型、首次引导与管理中心关键词对读 | 术语继续统一；布局数值不形成新的跨功能领域不变量，无需改写 `CONTEXT.md` |
+| 原型规则 ↔ 自动化门禁 | 原型 literal、四条 metrics assertions 与受控 1 pt 变异 | 四条错误值分别在对应断言行失败，门禁确实覆盖每个确认值而非恒真 |
+| 旧独立 Provider 表面 ↔ 当前载体 | 全量固定字符串检索 `Sources`、`VLMSnapper`、`Tests`、`docs`、`Package.swift` | 旧 View、metrics/input/presentation、harness 参数及专属 accessor 均为零；非 UI session 明确保留 |
+| prototype manifest/HTML ↔ parser gate | manifest 语法与非 vendor HTML 全量枚举 | 9 个 HTML、9 个 inline scripts 均实际进入解析范围并通过 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| Provider 页面从系统 grouped Form 几何改为确认的居中响应式布局 | spec、features、prototype README、production renders | 用户可见变化已在同一改动中同步，没有 master 行为与目录描述错位窗口 |
+| 管理中心 metrics 增加四个确认成员 | literal test、生产调用点与变异验证 | 四个成员均有生产消费者和独立 oracle；没有未使用或只为测试存在的常量 |
+| 支持的 Provider、语言、渠道成员数 | 现有枚举与本轮 diff | 均未改变，不触发枚举式文案重写 |
+| 范围内 `Pending:` 注记 | v1 spec 发布前 Provider 门槛 | 本轮布局修复未使任何发布前真实账户/请求限制门槛到期 |
+| 本轮是否形成新通则 | ADR 与 `CONTEXT.md` 门槛 | 没有新的跨功能决策或领域不变量；确认几何留在同 slug spec、prototype 和 feature catalog 即可 |
+
+## 收敛结论
+
+三阶段队列已清空。Ticket 19 的现行内联 Provider 行为、首次引导返回、退役旧表面和确认响应式几何已经在 spec、feature catalog、prototype、实现、测试与审查记录之间一致；后续原生凭据编辑、Keychain 对账和跨工作流互斥仍分别由 Tickets 20–22 承兑。
+
+## 2026-09-05 — API Key validation regression
+
+### 阶段一：逐句核真
+
+| 声明 | 对照端 | 结论 |
+| --- | --- | --- |
+| spec API Key 即时可验证、清空禁用 | State 更新和真实窗口四组交互 | 通过；无需先移开焦点 |
+| features 当前值与验证控件一致 | 输入、清空、Return、重渲染、外部加载断言 | 通过 |
+| 复盘中的缺陷及旧测试缺口 | 真实红、预填对照、旧读值路径变异 | 已坐实；没有将工具 setup 错误算成缺陷红 |
+
+### 阶段二：关系对读
+
+| 关系 | 核对 | 结论 |
+| --- | --- | --- |
+| 原型 ↔ 实现 | 管理中心 README 和非空输入验证操作 | 行为符合既定原型；无视觉设计变更 |
+| CONTEXT / ADR-0012 ↔ 修改 | 窗口编辑态与应用凭据边界、提交才替换旧 Key | 不冲突 |
+| 本地化文案 ↔ 实际状态 | 已启用 i18n；既有待验证、清空、验证文案 | 未新增文案；状态现在跟随当前值 |
+| 规则 ↔ 测试 | 状态公式测试与生产窗口交互测试 | 后者补上前者不能覆盖的传播链路 |
+| 新复盘 ↔ 索引 | 当前仓库无 postmortems README 索引 | 独立复盘文件由本记录引用，无既有索引行待更新 |
+
+### 阶段三：事件核销
+
+| 事件 | 结论 |
+| --- | --- |
+| 输入更新缺陷修复 | spec/features 同次更新，复盘落 `docs/postmortems/inline-credential-validation-state.md` |
+| Provider、语言、渠道枚举变化 | 无 |
+| 发布前 Pending 门槛 | 未发生真实账户发布验收，不使门槛到期 |
+| 新通则或领域决策 | 无；局部 SwiftUI 状态传播修复，不改变 ADR |
+| Ticket 状态 | 本次为已安装候选的窄回归修复，不把 Ticket 20–22 标为完成 |

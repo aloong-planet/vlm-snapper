@@ -823,3 +823,112 @@
 ## Review result
 
 测试能打红恢复映射、并发准入、窗口顺序和回调分离四类核心错误。安装版真实双击与缺图视觉状态没有被单元测试冒充，已作为合并安装后的明确验收项保留。
+
+---
+
+# VLMSnapper v1 — Inline Provider settings test review (2026-09-04)
+
+## 维度 1：覆盖是否完整
+
+| 边界/回归点 | Test / evidence | 结论 |
+| --- | --- | --- |
+| Key 直接替换且失败不回滚 | `credentialWriteFailureDoesNotRestorePreviousConfiguration`、`listFailureDoesNotRestorePreviousProviderConfiguration` | 旧凭据、配置和当前选择不会在新 Key 失败后复活 |
+| 旧模型保留与当前 Provider 恢复 | `replacementPreservesAvailableModelAndCurrentProvider` | 仅在新列表仍包含旧模型且新配置可用时恢复 |
+| 当前 Provider 移除 | coordinator removal tests | 清除配置和全局当前选择，不自动回退 |
+| 活动请求只读 | `readOnlyStateBlocksConfigurationMutations` 及 freeze tests | 卡片可浏览，验证、刷新和模型 mutation 均不执行 |
+| Key 行内状态 | `inlineCredentialStates`、`validationAndFailureOverrideStatus` | 验证可见性、Return 可用性、验证中和失败状态分离 |
+| 卡片状态 | `providerCardDistinguishesPendingModel` | 待选模型、可用与未配置不会混淆 |
+| 首次引导返回 | `onboardingReturnIsConsumedExactlyOnce`、窗口关闭回调测试 | 模型完成或提前关闭只消费一次来源 |
+| 生产界面渲染 | `confirmedSurfacesRender` | 管理中心 Provider 页面在双语言、明暗外观和最小尺寸下渲染；旧独立面板不再列为生产界面 |
+| 全量回归 | `swift test` | 273 tests / 68 suites 通过；warnings-as-errors 构建通过 |
+
+真实签名 App 的 Keychain 读写、管理中心与首次引导的窗口层级切换，以及鼠标对折叠卡片和确认菜单的投递仍属于安装版人工验收；SwiftPM 测试没有把内存存储或直接调用闭包冒充这些系统集成结果。
+
+## 维度 2：case 设计是否合理
+
+- coordinator 测试通过公开 API 和可控的凭据/metadata/model-list 边界构造成功与失败，不读取 actor 私有字段。
+- UI 状态测试输入明确的配置与会话快照，只断言用户可观察的状态映射和动作资格；没有复制 SwiftUI 条件常量来形成同义反复。
+- 返回来源使用独立值类型验证 exactly-once，再由真实 `NSWindow.close()` 验证控制器回调；应用代理的窗口编排保留安装版验收，不用伪窗口扩大结论。
+- 渲染测试实际生成管理中心 Provider 页面，不再用已退出生产路由的 `ProviderSetupView` 提供虚假的实现证据。
+
+## 维度 3：有没有假通过
+
+- 只读浏览测试在旧 guard 下准确红于仍选中 OpenAI；移除查看层 guard 后只读 mutation 断言继续为绿。
+- 已配置 Key 的 Return 资格断言在旧 `canValidate` 下准确红；要求验证操作可见后转绿。
+- 待选模型卡片测试在最初骨架统一返回未配置时准确红；拆分卡片状态后转绿。
+- 两次过滤器运行匹配 0 tests：一次使用 suite 展示名，一次使用不存在的 `readOnlyStateStillAllowsProviderNavigation`。两次均作废并未计入通过；随后使用实际函数名精确重跑，各执行 1 test 并通过。
+- 最终完整命令退出码为 0，日志明确报告 273 tests / 68 suites；严格 warnings-as-errors 构建退出码为 0。没有 skip、0-test 结果、陈旧构建或截图目测替代最终门禁。
+
+## Review result
+
+新增测试能分别打红凭据替换、状态映射、只读浏览和首次引导返回的主要错误。剩余系统集成缺口已明确限定为合并安装后的人工验收，不影响本地自动化门禁的真实性。
+
+---
+
+# VLMSnapper v1 — Retired Provider component removal test review (2026-09-04)
+
+## 维度 1：覆盖是否完整
+
+- 删除的两项测试只驱动已删除的 `ProviderSetupInputState`：粘贴后启用验证、切换 Provider 清空旧 draft。现行 `ProviderInlineCredentialPresentation`、卡片状态、初始展开与引导返回测试全部保留。
+- Ticket 07 从旧页面截图清单中移除 Provider，预期文件数从 10 降至 8；Ticket 13 继续渲染双语言、明暗外观及最小尺寸的现行管理中心 Provider 页面。
+- sheet 终止回归从三个样本改为两个，继续覆盖仍以 sheet 呈现的权限恢复和存储隐私；Provider 设置现在是普通管理中心窗口，不属于该测试的枚举集合。
+- 完整回归实际执行 271 tests / 68 suites 并通过；warnings-as-errors 构建通过。
+
+## 维度 2：case 设计是否合理
+
+- 保留的 Provider tests 均面向现行 presentation 与 coordinator/session 公开 seam，不引用被删除类型或通过旧页面 fixture 间接证明新页面。
+- Ticket 07 在每次运行前删除并重建自己的临时输出目录，文件数量现在只反映本次渲染，不受历史 PNG 影响。
+- 源码全量引用检索与编译分别覆盖字符串/符号残留和类型链接残留，两者用途不同，没有用单一 grep 冒充构建验证。
+
+## 维度 3：有没有假通过
+
+- 第一次删除后 Ticket 07 准确失败于 `renderedFiles.count == 8`，实际为 10。检查输出目录确认多出的正是上轮遗留 Provider PNG；修复测试隔离后限定名测试执行 1 test 并通过。
+- 一次用人类可读测试标题过滤得到 0 tests，该结果已作废；随后使用 `Ticket07RenderingTests.confirmedSurfacesRender`，实际执行 1 test。
+- 完整测试日志明确报告 271 tests / 68 suites、退出码 0；没有把 0-test 过滤、旧截图产物或单纯编译成功计作行为通过。
+
+## Review result
+
+测试删除范围与组件删除范围一致，现行 Provider 行为覆盖没有被削弱。渲染测试的历史产物污染已转化为可重复的目录隔离防线。
+
+---
+
+# VLMSnapper v1 — Ticket 19 inline Provider geometry test review (2026-09-05)
+
+## 维度 1：覆盖是否完整
+
+- Ticket 19 的配置、验证后只揭示模型、当前 Provider 保持、移除、首次引导定向进入与 exactly-once 返回均由现有 presentation、coordinator、session 和 onboarding 用例覆盖。
+- 新增四条 literal assertions 覆盖原型确认的内容宽度、卡片头高度、Provider 标记和凭据字段高度；Ticket 13 生产渲染同时覆盖正常/最小窗口、中英文和明暗外观，并验证双列/纵向切换结果。
+- 旧独立页面的负向要求由跨生产源码、harness、测试、本地化、原型和 manifest 的全量固定字符串检索承兑；Swift 全编译补充类型链接层验证。
+- 真实签名安装后的输入焦点、Command-V 和 Keychain 行为不属于本票，分别由 Tickets 20–21 承兑；本轮没有用渲染或纯 SwiftUI 测试冒充这些宿主行为。
+
+## 维度 2：case 设计是否合理
+
+- 四条新增断言使用原型 literal 作为独立 oracle，不 import 或重算生产值；每条明确对应一个设计约束。
+- 断言落在既有公开 `ManagementCenterMetrics` seam，不 cast 私有成员、不 mock 项目模块、不旁路生产布局常量。
+- 渲染用例调用生产 `ManagementCenterView`，并实际生成 44 张图；检查的四张 Provider 图来自本轮清空后的输出目录，不是 HTML fixture 或陈旧截图。
+- 现有行为测试均从公开 coordinator/session/presentation 路径驱动目标状态；没有以空集合循环、条件提前 return 或零测试过滤计入通过。
+
+## 维度 3：有没有假通过
+
+- 最初新增常量前的红是 missing-member 编译失败，只证明接线尚不存在，不能证明几何断言会捕获错误值；该红没有被作为最终有效性证据。
+- 随后把四个正式值分别改为 849、53、28、31，并先用源码检索确认变异到达 `ManagementCenterMetrics`。限定测试在四条对应断言行分别报告实际值与期望值不等，证明每条都能捕获 1 pt 漂移。
+- 变异仅通过反向 patch 恢复四个值；恢复后同一限定测试执行 1 test / 1 suite 并通过。最终严格构建和完整测试另行执行，日志报告 271 tests / 68 suites、退出码 0。
+- 原型脚本门禁先枚举 9 个非 vendor HTML，再实际解析其中 9 个 inline scripts；本地化检查先确认两份字典各有 246 个键，再比较排序后的完整键集合，避免空集合假绿。
+
+## Review result
+
+本轮新增的四条几何断言经过针对目标失效形态的变异验证，能真实阻止确认值漂移。行为、渲染、语法、本地化和清理证明各自检查不同风险，没有用单一绿灯替代其他验收面。
+
+## 2026-09-05 — API Key validation regression test review
+
+### 维度 1：覆盖
+
+本轮新增一个参数化生产窗口场景，枚举初始空/非空 × 键入/粘贴四组，逐组检查当前内容提交、清空后阻止提交、再次输入后 Return、窗口刷新和外部加载/清除。覆盖本次状态传播回归。真实账号、物理键盘 Command-V、后续 Ticket 20 的原生字段行为不在本测试覆盖内，文件头和复盘明确边界。
+
+### 维度 2：设计
+
+使用公开 ManagementCenterWindowController、真实 AppKit field editor 和窗口鼠标事件，没有调用私有实现或直接调用 onValidate 凑成功。回调只作为网络/存储前的公开提交边界，断言独立虚拟文本字面量。命中坐标以已确认最小窗口布局为基准，有预填正对照并已核对实际截图；以后布局变化需同步该 UI 测试，不将它解释为任意布局测试。
+
+### 维度 3：假通过
+
+最初编译环境和无障碍对象定位失败只视为测试工具未就绪，不计红绿证据。真正的红是底层收到 test-key 后，真实点击却没有提交；预填正对照能提交。仅改 @Binding 后的清空测试又检出空文本误提交。最终将 hasAPIKey 暂改回配置 Binding，重编译后空值起始和清空反向断言按预测失败；只撤回这一变异后，严格构建和完整 272 tests / 69 suites 通过，退出码 0。原型静态渲染不再作为输入行为证据。

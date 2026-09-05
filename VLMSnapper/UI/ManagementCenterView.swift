@@ -5,34 +5,40 @@ import VLMSnapperCore
 public struct ProviderSettingsConfiguration {
     public let snapshot: ProviderSetupSnapshot
     public let configurations: [ProviderID: ProviderConfiguration]
+    public let currentProvider: ProviderID?
     public let apiKey: Binding<String>
     public let pendingModelID: Binding<String?>
     public let onSelectProvider: (ProviderID) -> Void
     public let onValidate: () -> Void
     public let onRefresh: () -> Void
     public let onSelectModel: (String) -> Void
-    public let onDone: () -> Void
+    public let onSetCurrentProvider: (ProviderID) -> Void
+    public let onRemoveProvider: (ProviderID) -> Void
 
     public init(
         snapshot: ProviderSetupSnapshot,
         configurations: [ProviderID: ProviderConfiguration] = [:],
+        currentProvider: ProviderID? = nil,
         apiKey: Binding<String>,
         pendingModelID: Binding<String?>,
         onSelectProvider: @escaping (ProviderID) -> Void,
         onValidate: @escaping () -> Void,
         onRefresh: @escaping () -> Void,
         onSelectModel: @escaping (String) -> Void,
-        onDone: @escaping () -> Void = {}
+        onSetCurrentProvider: @escaping (ProviderID) -> Void = { _ in },
+        onRemoveProvider: @escaping (ProviderID) -> Void = { _ in }
     ) {
         self.snapshot = snapshot
         self.configurations = configurations
+        self.currentProvider = currentProvider
         self.apiKey = apiKey
         self.pendingModelID = pendingModelID
         self.onSelectProvider = onSelectProvider
         self.onValidate = onValidate
         self.onRefresh = onRefresh
         self.onSelectModel = onSelectModel
-        self.onDone = onDone
+        self.onSetCurrentProvider = onSetCurrentProvider
+        self.onRemoveProvider = onRemoveProvider
     }
 }
 
@@ -150,6 +156,9 @@ public struct ManagementCenterView: View {
     private let callbacks: ManagementCenterCallbacks
     private let settings: GeneralSettingsSnapshot
     private let providerSettings: ProviderSettingsConfiguration?
+    // The external binding is closure-backed and does not invalidate this view.
+    // Keep the displayed draft in State so every edit also refreshes its controls.
+    @State private var apiKey: String
     @State private var destination: ManagementCenterDestination
     @State private var kind: HistoryOperationKindFilter = .all
     @State private var searchText: String
@@ -159,7 +168,10 @@ public struct ManagementCenterView: View {
     @State private var showGeneralSettings = false
     @State private var pendingDeletion: HistoryRecord?
     @State private var showingClearConfirmation = false
-    @State private var showingProviderSetup = false
+    @State private var expandedProvider: ProviderID?
+    @State private var showsAPIKey = false
+    @State private var apiKeyIsDirty = false
+    @State private var providerPendingRemoval: ProviderID?
 
     public init(
         destination: ManagementCenterDestination,
@@ -180,12 +192,23 @@ public struct ManagementCenterView: View {
         self.callbacks = callbacks
         self.settings = settings
         self.providerSettings = providerSettings
+        _apiKey = State(initialValue: providerSettings?.apiKey.wrappedValue ?? "")
         _destination = State(initialValue: destination)
         _selectedRecordID = State(initialValue: selectedRecordID ?? records.first?.id)
         _searchText = State(initialValue: searchText)
         _retention = State(initialValue: retention)
         _showGeneralSettings = State(
             initialValue: showsGeneralSettings ?? (destination == .settings)
+        )
+        _expandedProvider = State(
+            initialValue: providerSettings.map {
+                ProviderSettingsInitialSelection.resolve(
+                    explicitTarget: destination == .providerSettings
+                        ? $0.snapshot.selectedProvider
+                        : nil,
+                    currentProvider: $0.currentProvider
+                )
+            }
         )
     }
 
@@ -241,24 +264,42 @@ public struct ManagementCenterView: View {
                 action: callbacks.onConfirmRetentionShortening
             )
         }
-        .sheet(isPresented: $showingProviderSetup) {
-            if let providerSettings {
-                ProviderSetupView(
-                    snapshot: providerSettings.snapshot,
-                    configurations: providerSettings.configurations,
-                    apiKey: providerSettings.apiKey,
-                    pendingModelID: providerSettings.pendingModelID,
-                    onSelectProvider: providerSettings.onSelectProvider,
-                    onValidate: providerSettings.onValidate,
-                    onRefresh: providerSettings.onRefresh,
-                    onSelectModel: providerSettings.onSelectModel,
-                    onCancel: { showingProviderSetup = false },
-                    onDone: {
-                        providerSettings.onDone()
-                        showingProviderSetup = false
-                    }
-                )
+        .confirmationDialog(
+            VLMSnapperStrings.providerRemoveConfirmation,
+            isPresented: Binding(
+                get: { providerPendingRemoval != nil },
+                set: { if !$0 { providerPendingRemoval = nil } }
+            ),
+            presenting: providerPendingRemoval
+        ) { provider in
+            Button(VLMSnapperStrings.providerRemove, role: .destructive) {
+                providerSettings?.onRemoveProvider(provider)
+                apiKeyIsDirty = false
+                showsAPIKey = false
+                providerPendingRemoval = nil
             }
+        }
+        .onChange(of: providerSettings?.snapshot.selectedProvider) { _, _ in
+            apiKey = providerSettings?.apiKey.wrappedValue ?? ""
+            apiKeyIsDirty = false
+            showsAPIKey = false
+        }
+        .onChange(of: providerSettings?.apiKey.wrappedValue) { _, value in
+            apiKey = value ?? ""
+        }
+        .onChange(of: providerSettings?.snapshot.phase) { _, phase in
+            if phase == .selectingModel || phase == .ready {
+                apiKeyIsDirty = false
+            }
+        }
+        .onAppear {
+            guard destination != .history,
+                  !showGeneralSettings,
+                  let expandedProvider,
+                  providerSettings?.snapshot.selectedProvider != expandedProvider else {
+                return
+            }
+            providerSettings?.onSelectProvider(expandedProvider)
         }
     }
 
@@ -274,11 +315,12 @@ public struct ManagementCenterView: View {
                 pinnedOnly = true
             }
             Divider().padding(.vertical, 6)
-            navButton(VLMSnapperStrings.historyProviderSettings, icon: .providerList, selected: destination == .settings && !showGeneralSettings) {
-                destination = .settings
+            navButton(VLMSnapperStrings.historyProviderSettings, icon: .providerList, selected: destination == .providerSettings) {
+                destination = .providerSettings
                 showGeneralSettings = false
+                openInitialProviderIfNeeded()
             }
-            navButton(VLMSnapperStrings.historyGeneralSettings, icon: .general, selected: destination == .settings && showGeneralSettings) {
+            navButton(VLMSnapperStrings.historyGeneralSettings, icon: .general, selected: destination == .settings) {
                 destination = .settings
                 showGeneralSettings = true
             }
@@ -363,9 +405,10 @@ public struct ManagementCenterView: View {
         }
     }
 
+    @ViewBuilder
     private var settingsContent: some View {
-        Form {
-            if showGeneralSettings {
+        if showGeneralSettings {
+            Form {
                 Section {
                     settingsRow(
                         title: VLMSnapperStrings.languageTitle,
@@ -459,82 +502,494 @@ public struct ManagementCenterView: View {
                         )
                     }
                 }
-            } else {
-                Section {
+            }
+            .formStyle(.grouped)
+            .padding(18)
+        } else {
+            providerSettingsContent
+        }
+    }
+
+    private var providerSettingsContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(VLMSnapperStrings.historyProviderSettings)
+                        .font(.title3.weight(.semibold))
+                    Text(VLMSnapperStrings.providerSetupSubtitle)
+                        .font(.callout)
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                }
+                VStack(spacing: 12) {
                     ForEach([ProviderID.deepSeek, .openAI, .gemini], id: \.self) { provider in
-                        providerSettingsRow(provider)
-                    }
-                } header: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(VLMSnapperStrings.historyProviderSettings)
-                        Text(VLMSnapperStrings.providerSetupSubtitle)
-                            .font(.caption)
-                            .foregroundStyle(VLMSnapperTheme.secondaryText)
+                        providerSettingsCard(provider)
                     }
                 }
             }
+            .frame(maxWidth: ManagementCenterMetrics.providerContentWidth)
+            .frame(maxWidth: .infinity)
+            .padding(22)
         }
-        .formStyle(.grouped)
-        .padding(18)
+        .background(VLMSnapperTheme.subtleSurface)
     }
 
-    private func providerSettingsRow(_ provider: ProviderID) -> some View {
-        HStack(spacing: 14) {
-            VLMSnapperIcon.provider.image
-                .foregroundStyle(VLMSnapperTheme.accent)
-                .frame(width: 34, height: 34)
-                .background(VLMSnapperTheme.subtleSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(VLMSnapperStrings.providerName(provider)).fontWeight(.semibold)
-                Text(providerStatusDetail(provider))
-                    .font(.caption)
-                    .foregroundStyle(VLMSnapperTheme.secondaryText)
-                    .lineLimit(1)
+    private func providerSettingsCard(_ provider: ProviderID) -> some View {
+        let isExpanded = expandedProvider == provider
+        return VStack(spacing: 0) {
+            Button {
+                if isExpanded {
+                    expandedProvider = nil
+                } else {
+                    expandedProvider = provider
+                    apiKeyIsDirty = false
+                    showsAPIKey = false
+                    providerSettings?.onSelectProvider(provider)
+                }
+            } label: {
+                HStack(spacing: 14) {
+                    VLMSnapperIcon.provider.image
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(VLMSnapperTheme.accent)
+                        .frame(
+                            width: ManagementCenterMetrics.providerMarkSize,
+                            height: ManagementCenterMetrics.providerMarkSize
+                        )
+                        .background(VLMSnapperTheme.accent.opacity(0.09))
+                        .clipShape(RoundedRectangle(cornerRadius: 9))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(VLMSnapperStrings.providerName(provider))
+                            .font(.headline)
+                        Text(providerCardSubtitle(provider))
+                            .font(.caption)
+                            .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    }
+                    Spacer()
+                    providerStatusBadge(provider)
+                    VLMSnapperIcon.chevronDown.image
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: ManagementCenterMetrics.providerHeaderHeight)
+                .contentShape(Rectangle())
             }
-            Spacer()
-            Text(providerStatusTitle(provider))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(
-                    providerIsReady(provider)
-                        ? VLMSnapperTheme.success
-                        : VLMSnapperTheme.warning
-                )
-            Button(
-                providerIsReady(provider)
-                    ? VLMSnapperStrings.modify
-                    : VLMSnapperStrings.configure
-            ) {
-                providerSettings?.onSelectProvider(provider)
-                showingProviderSetup = true
-            }
+            .buttonStyle(.plain)
             .disabled(providerSettings == nil)
+
+            if isExpanded {
+                Divider()
+                providerEditor(provider)
+            }
         }
-        .padding(.vertical, 8)
+        .background(VLMSnapperTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(VLMSnapperTheme.border.opacity(0.8))
+        }
+    }
+
+    @ViewBuilder
+    private func providerEditor(_ provider: ProviderID) -> some View {
+        if let providerSettings,
+           providerSettings.snapshot.selectedProvider == provider {
+            let presentation = providerCredentialPresentation(provider)
+            VStack(alignment: .leading, spacing: 18) {
+                if providerSettings.snapshot.isReadOnly {
+                    Label(
+                        VLMSnapperStrings.providerReadOnly,
+                        systemImage: VLMSnapperIcon.lock.rawValue
+                    )
+                    .font(.callout)
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VLMSnapperTheme.subtleSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                providerConfigurationFields(
+                    providerSettings,
+                    presentation: presentation
+                )
+
+                HStack {
+                    if providerSettings.configurations[provider] != nil {
+                        Button(VLMSnapperStrings.providerRemove, role: .destructive) {
+                            providerPendingRemoval = provider
+                        }
+                        .disabled(providerSettings.snapshot.isReadOnly)
+                    }
+                    Spacer()
+                    if providerSettings.currentProvider == provider {
+                        Text(VLMSnapperStrings.providerCurrent)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    } else if providerIsReady(provider) {
+                        Button(VLMSnapperStrings.providerSetCurrent) {
+                            providerSettings.onSetCurrentProvider(provider)
+                        }
+                        .disabled(providerSettings.snapshot.isReadOnly)
+                    }
+                }
+            }
+            .padding(16)
+            .background(VLMSnapperTheme.subtleSurface)
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(24)
+        }
+    }
+
+    @ViewBuilder
+    private func providerConfigurationFields(
+        _ providerSettings: ProviderSettingsConfiguration,
+        presentation: ProviderInlineCredentialPresentation
+    ) -> some View {
+        if providerSettings.snapshot.availableModelIDs.isEmpty {
+            providerCredentialField(providerSettings, presentation: presentation)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 14) {
+                    providerCredentialField(providerSettings, presentation: presentation)
+                        .frame(width: 400, alignment: .top)
+                    providerModelField(providerSettings)
+                        .frame(width: 400, alignment: .top)
+                }
+                VStack(alignment: .leading, spacing: 14) {
+                    providerCredentialField(providerSettings, presentation: presentation)
+                    providerModelField(providerSettings)
+                }
+            }
+        }
+    }
+
+    private func providerCredentialField(
+        _ providerSettings: ProviderSettingsConfiguration,
+        presentation: ProviderInlineCredentialPresentation
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(VLMSnapperStrings.apiKey).font(.headline)
+                Spacer()
+                Label(
+                    providerCredentialStatusText(presentation.status),
+                    systemImage: providerCredentialStatusIcon(presentation.status)
+                )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(providerCredentialStatusColor(presentation.status))
+            }
+            HStack(spacing: 0) {
+                Group {
+                    if showsAPIKey {
+                        TextField(
+                            apiKey.isEmpty
+                                ? VLMSnapperStrings.apiKeyPlaceholder
+                                : "",
+                            text: providerAPIKeyBinding
+                        )
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        SecureField(
+                            apiKey.isEmpty
+                                ? VLMSnapperStrings.apiKeyPlaceholder
+                                : "",
+                            text: providerAPIKeyBinding
+                        )
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .disabled(providerSettings.snapshot.isReadOnly)
+                .onSubmit {
+                    if presentation.canValidate {
+                        providerSettings.onValidate()
+                    }
+                }
+                .padding(.trailing, 8)
+                Button {
+                    providerAPIKeyBinding.wrappedValue = ""
+                } label: {
+                    VLMSnapperIcon.close.image.frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .disabled(
+                    apiKey.isEmpty
+                        || providerSettings.snapshot.isReadOnly
+                )
+                .accessibilityLabel(VLMSnapperStrings.clearAPIKey)
+                Button {
+                    showsAPIKey.toggle()
+                } label: {
+                    (showsAPIKey ? VLMSnapperIcon.eyeSlash : VLMSnapperIcon.eye)
+                        .image.frame(width: 28, height: 22)
+                }
+                .buttonStyle(.plain)
+                .disabled(providerSettings.snapshot.isReadOnly)
+                .accessibilityLabel(
+                    showsAPIKey
+                        ? VLMSnapperStrings.hideAPIKey
+                        : VLMSnapperStrings.showAPIKey
+                )
+            }
+            .padding(.horizontal, 11)
+            .frame(height: ManagementCenterMetrics.providerCredentialFieldHeight)
+            .background(VLMSnapperTheme.window)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(VLMSnapperTheme.border)
+            }
+
+            if presentation.showsValidation {
+                HStack {
+                    Text(providerValidationHint(presentation.status))
+                        .font(.caption)
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    Spacer()
+                    Button(VLMSnapperStrings.validate, action: providerSettings.onValidate)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!presentation.canValidate)
+                }
+            }
+            if let failure = providerSettings.snapshot.failure {
+                Label(
+                    providerFailureText(failure),
+                    systemImage: VLMSnapperIcon.warning.rawValue
+                )
+                .font(.callout)
+                .foregroundStyle(VLMSnapperTheme.destructive)
+            }
+            Text(VLMSnapperStrings.providerReplacementHint)
+                .font(.caption)
+                .foregroundStyle(VLMSnapperTheme.secondaryText)
+        }
+    }
+
+    private func providerModelField(
+        _ providerSettings: ProviderSettingsConfiguration
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(VLMSnapperStrings.currentModel).font(.headline)
+            HStack(spacing: 10) {
+                Picker(
+                    VLMSnapperStrings.currentModel,
+                    selection: providerModelBinding
+                ) {
+                    Text(VLMSnapperStrings.chooseModel).tag(String?.none)
+                    ForEach(providerSettings.snapshot.availableModelIDs, id: \.self) {
+                        Text($0).tag(Optional($0))
+                    }
+                }
+                .labelsHidden()
+                .disabled(providerSettings.snapshot.isReadOnly)
+                Button(VLMSnapperStrings.refresh, action: providerSettings.onRefresh)
+                    .disabled(providerSettings.snapshot.isReadOnly)
+            }
+            Text(VLMSnapperStrings.visionValidationHint)
+                .font(.caption)
+                .foregroundStyle(VLMSnapperTheme.secondaryText)
+        }
+    }
+
+    private var providerAPIKeyBinding: Binding<String> {
+        Binding(
+            get: { apiKey },
+            set: { value in
+                apiKey = value
+                providerSettings?.apiKey.wrappedValue = value
+                apiKeyIsDirty = true
+            }
+        )
+    }
+
+    private var providerModelBinding: Binding<String?> {
+        Binding(
+            get: { providerSettings?.pendingModelID.wrappedValue },
+            set: { value in
+                providerSettings?.pendingModelID.wrappedValue = value
+                if let value { providerSettings?.onSelectModel(value) }
+            }
+        )
     }
 
     private func providerIsReady(_ provider: ProviderID) -> Bool {
         guard let providerSettings else { return false }
-        return ProviderSidebarPresentation(
+        return ProviderSettingsDetailPresentation(
             provider: provider,
             snapshot: providerSettings.snapshot,
             configurations: providerSettings.configurations
         ).isConfigured
     }
 
-    private func providerStatusTitle(_ provider: ProviderID) -> String {
-        providerIsReady(provider) ? VLMSnapperStrings.configured : VLMSnapperStrings.notConfigured
+    private func providerCredentialPresentation(
+        _ provider: ProviderID
+    ) -> ProviderInlineCredentialPresentation {
+        guard let providerSettings else {
+            return ProviderInlineCredentialPresentation(
+                isConfigured: false,
+                isSelected: false,
+                isDirty: false,
+                phase: .awaitingValidation,
+                hasAPIKey: false,
+                isReadOnly: false
+            )
+        }
+        return ProviderInlineCredentialPresentation(
+            isConfigured: providerSettings.configurations[provider] != nil,
+            isSelected: providerSettings.snapshot.selectedProvider == provider,
+            isDirty: providerSettings.snapshot.selectedProvider == provider
+                && apiKeyIsDirty,
+            phase: providerSettings.snapshot.phase,
+            hasAPIKey: !apiKey
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            isReadOnly: providerSettings.snapshot.isReadOnly
+        )
+    }
+
+    private func providerStatusBadge(_ provider: ProviderID) -> some View {
+        let status = providerCardPresentation(provider).status
+        return Text(providerCardStatusText(status))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(providerCardStatusColor(status))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(providerCardStatusColor(status).opacity(0.1))
+            .clipShape(Capsule())
+    }
+
+    private func providerCardPresentation(
+        _ provider: ProviderID
+    ) -> ProviderInlineCardPresentation {
+        guard let providerSettings else {
+            return ProviderInlineCardPresentation(
+                provider: provider,
+                snapshot: ProviderSetupSnapshot(
+                    selectedProvider: .deepSeek,
+                    availableModelIDs: [],
+                    selectedModelID: nil,
+                    phase: .awaitingValidation,
+                    failure: nil
+                ),
+                configuration: nil,
+                isDirty: false
+            )
+        }
+        return ProviderInlineCardPresentation(
+            provider: provider,
+            snapshot: providerSettings.snapshot,
+            configuration: providerSettings.configurations[provider],
+            isDirty: providerSettings.snapshot.selectedProvider == provider
+                && apiKeyIsDirty
+        )
+    }
+
+    private func providerCardSubtitle(_ provider: ProviderID) -> String {
+        let state = providerStatusDetail(provider)
+        if providerSettings?.currentProvider == provider {
+            return String(format: VLMSnapperStrings.providerCurrentDetailFormat, state)
+        }
+        return state
     }
 
     private func providerStatusDetail(_ provider: ProviderID) -> String {
-        guard let providerSettings else {
-            return VLMSnapperStrings.officialEndpoint
-        }
-        return ProviderSidebarPresentation(
+        guard let providerSettings else { return VLMSnapperStrings.notConfigured }
+        return ProviderSettingsDetailPresentation(
             provider: provider,
             snapshot: providerSettings.snapshot,
             configurations: providerSettings.configurations
         ).detail
+    }
+
+    private func providerCredentialStatusText(
+        _ status: ProviderInlineCredentialStatus
+    ) -> String {
+        switch status {
+        case .notConfigured: VLMSnapperStrings.notConfigured
+        case .pending: VLMSnapperStrings.providerPendingValidation
+        case .validating: VLMSnapperStrings.validating
+        case .configured: VLMSnapperStrings.configured
+        case .failed: VLMSnapperStrings.failed
+        }
+    }
+
+    private func providerCardStatusText(_ status: ProviderInlineCardStatus) -> String {
+        switch status {
+        case .notConfigured: VLMSnapperStrings.providerSetupRequired
+        case .pendingValidation: VLMSnapperStrings.providerPendingValidation
+        case .validating: VLMSnapperStrings.validating
+        case .pendingModel: VLMSnapperStrings.modelPending
+        case .ready: VLMSnapperStrings.providerAvailable
+        case .failed: VLMSnapperStrings.failed
+        }
+    }
+
+    private func providerCredentialStatusIcon(
+        _ status: ProviderInlineCredentialStatus
+    ) -> String {
+        switch status {
+        case .configured: VLMSnapperIcon.complete.rawValue
+        case .validating: VLMSnapperIcon.retry.rawValue
+        case .notConfigured, .pending, .failed: VLMSnapperIcon.warningBadge.rawValue
+        }
+    }
+
+    private func providerCredentialStatusColor(
+        _ status: ProviderInlineCredentialStatus
+    ) -> Color {
+        switch status {
+        case .configured: VLMSnapperTheme.success
+        case .failed: VLMSnapperTheme.destructive
+        case .notConfigured, .pending, .validating: VLMSnapperTheme.warning
+        }
+    }
+
+    private func providerCardStatusColor(_ status: ProviderInlineCardStatus) -> Color {
+        switch status {
+        case .ready: VLMSnapperTheme.success
+        case .failed: VLMSnapperTheme.destructive
+        case .notConfigured, .pendingValidation, .validating, .pendingModel:
+            VLMSnapperTheme.warning
+        }
+    }
+
+    private func providerValidationHint(
+        _ status: ProviderInlineCredentialStatus
+    ) -> String {
+        switch status {
+        case .pending: VLMSnapperStrings.providerNewKeyPending
+        case .validating: VLMSnapperStrings.validating
+        case .failed: VLMSnapperStrings.providerRetryValidation
+        case .notConfigured: VLMSnapperStrings.providerEnterKey
+        case .configured: ""
+        }
+    }
+
+    private func providerFailureText(_ failure: ProviderSetupFailure) -> String {
+        switch failure {
+        case .configurationLocked: VLMSnapperStrings.providerReadOnly
+        case .invalidConfiguration:
+            VLMSnapperStrings.failureMessage(code: "invalid_credential")
+        case .secureStorage:
+            VLMSnapperStrings.failureMessage(code: "local_storage")
+        case .unavailable:
+            VLMSnapperStrings.failureMessage(code: "provider_unavailable")
+        }
+    }
+
+    private func openInitialProviderIfNeeded() {
+        guard expandedProvider == nil, let providerSettings else { return }
+        let provider = ProviderSettingsInitialSelection.resolve(
+            explicitTarget: nil,
+            currentProvider: providerSettings.currentProvider
+        )
+        expandedProvider = provider
+        providerSettings.onSelectProvider(provider)
     }
 
     private var languageBinding: Binding<ApplicationLanguagePreference> {

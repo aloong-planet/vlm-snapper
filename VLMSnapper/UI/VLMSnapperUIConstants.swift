@@ -18,14 +18,6 @@ public enum OnboardingMetrics {
     public static let rowMinimumHeight: CGFloat = 94
 }
 
-public enum ProviderSetupMetrics {
-    public static let width: CGFloat = 720
-    public static let bodyHeight: CGFloat = 410
-    public static let cornerRadius: CGFloat = 8
-    public static let headerHeight: CGFloat = 63
-    public static let footerHeight: CGFloat = 57
-}
-
 public enum PermissionRecoveryMetrics {
     public static let width: CGFloat = 520
     public static let cornerRadius: CGFloat = 8
@@ -41,4 +33,8 @@ public enum ManagementCenterMetrics {
     public static let defaultSize = CGSize(width: 1_200, height: 720)
     public static let sidebarWidth: CGFloat = 218
     public static let titlebarHeight: CGFloat = 46
+    public static let providerContentWidth: CGFloat = 850
+    public static let providerHeaderHeight: CGFloat = 54
+    public static let providerMarkSize: CGFloat = 29
+    public static let providerCredentialFieldHeight: CGFloat = 32
 }

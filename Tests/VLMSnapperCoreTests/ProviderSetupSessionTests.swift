@@ -98,8 +98,8 @@ struct ProviderSetupSessionTests {
         #expect(await session.snapshot().selectedProvider == .gemini)
     }
 
-    @Test("read-only activity state blocks every Provider mutation")
-    func readOnlyStateBlocksMutations() async {
+    @Test("read-only activity state permits viewing another Provider but blocks configuration mutations")
+    func readOnlyStateBlocksConfigurationMutations() async {
         let boundary = ProviderConfigurationBoundaryProbe(
             validationResult: ProviderConfiguration(
                 models: [ProviderModelState(id: "gpt-4.1")],
@@ -119,7 +119,7 @@ struct ProviderSetupSessionTests {
         await session.selectProvider(.gemini)
 
         #expect(await session.snapshot().isReadOnly)
-        #expect(await session.snapshot().selectedProvider == .openAI)
+        #expect(await session.snapshot().selectedProvider == .gemini)
         #expect(await boundary.validatedKeys.isEmpty)
         #expect(await boundary.selectedModels.isEmpty)
     }

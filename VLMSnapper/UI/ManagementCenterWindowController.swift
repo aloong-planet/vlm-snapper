@@ -3,7 +3,7 @@ import SwiftUI
 import VLMSnapperCore
 
 @MainActor
-public final class ManagementCenterWindowController: NSWindowController {
+public final class ManagementCenterWindowController: NSWindowController, NSWindowDelegate {
     private var records: [HistoryRecord]
     private var selectedRecordID: UUID?
     private var selectedImage: NSImage?
@@ -12,6 +12,7 @@ public final class ManagementCenterWindowController: NSWindowController {
     private var settings: GeneralSettingsSnapshot
     private var providerSettings: ProviderSettingsConfiguration?
     private let callbacks: ManagementCenterCallbacks
+    private let onClose: () -> Void
     private var currentDestination: ManagementCenterDestination = .history
     private var hostingController: NSHostingController<ManagementCenterView>?
 
@@ -23,7 +24,8 @@ public final class ManagementCenterWindowController: NSWindowController {
         retention: HistoryRetentionPeriod = .thirtyDays,
         settings: GeneralSettingsSnapshot = GeneralSettingsSnapshot(),
         providerSettings: ProviderSettingsConfiguration? = nil,
-        callbacks: ManagementCenterCallbacks = ManagementCenterCallbacks()
+        callbacks: ManagementCenterCallbacks = ManagementCenterCallbacks(),
+        onClose: @escaping () -> Void = {}
     ) {
         self.records = records
         self.selectedRecordID = selectedRecordID
@@ -33,6 +35,7 @@ public final class ManagementCenterWindowController: NSWindowController {
         self.settings = settings
         self.providerSettings = providerSettings
         self.callbacks = callbacks
+        self.onClose = onClose
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: ManagementCenterMetrics.defaultSize),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -42,10 +45,15 @@ public final class ManagementCenterWindowController: NSWindowController {
         window.title = "VLMSnapper"
         window.contentMinSize = NSSize(width: 920, height: 620)
         super.init(window: window)
+        window.delegate = self
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
+
+    public func windowWillClose(_ notification: Notification) {
+        onClose()
+    }
 
     public func show(destination: ManagementCenterDestination) {
         currentDestination = destination

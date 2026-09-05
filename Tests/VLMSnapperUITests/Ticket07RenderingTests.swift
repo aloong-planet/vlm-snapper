@@ -11,6 +11,9 @@ struct Ticket07RenderingTests {
     func confirmedSurfacesRender() throws {
         let outputDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("vlmsnapper-ticket07-renders", isDirectory: true)
+        if FileManager.default.fileExists(atPath: outputDirectory.path) {
+            try FileManager.default.removeItem(at: outputDirectory)
+        }
         try FileManager.default.createDirectory(
             at: outputDirectory,
             withIntermediateDirectories: true
@@ -33,31 +36,6 @@ struct Ticket07RenderingTests {
                 size: CGSize(width: 680, height: 620),
                 appearance: appearance,
                 outputURL: outputDirectory.appendingPathComponent("onboarding-\(suffix).png")
-            )
-            try render(
-                ProviderSetupView(
-                    snapshot: ProviderSetupSnapshot(
-                        selectedProvider: .deepSeek,
-                        availableModelIDs: [
-                            "deepseek-v4-flash-vision-exp",
-                            "deepseek-vl2",
-                        ],
-                        selectedModelID: "deepseek-v4-flash-vision-exp",
-                        phase: .ready,
-                        failure: nil
-                    ),
-                    apiKey: .constant(""),
-                    pendingModelID: .constant("deepseek-v4-flash-vision-exp"),
-                    onSelectProvider: { _ in },
-                    onValidate: {},
-                    onRefresh: {},
-                    onSelectModel: { _ in },
-                    onCancel: {},
-                    onDone: {}
-                ),
-                size: CGSize(width: 820, height: 640),
-                appearance: appearance,
-                outputURL: outputDirectory.appendingPathComponent("provider-\(suffix).png")
             )
             try render(
                 ScreenCapturePermissionRecoveryView(
@@ -106,7 +84,7 @@ struct Ticket07RenderingTests {
             at: outputDirectory,
             includingPropertiesForKeys: nil
         ).filter { $0.pathExtension == "png" }
-        #expect(renderedFiles.count == 10)
+        #expect(renderedFiles.count == 8)
     }
 
     private func render<Content: View>(

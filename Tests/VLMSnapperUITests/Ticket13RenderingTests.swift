@@ -40,12 +40,6 @@ struct Ticket13RenderingTests {
                     outputURL: outputDirectory.appendingPathComponent("onboarding-\(suffix).png")
                 )
                 try render(
-                    providerView,
-                    size: CGSize(width: 720, height: 532),
-                    appearance: appearance,
-                    outputURL: outputDirectory.appendingPathComponent("provider-\(suffix).png")
-                )
-                try render(
                     permissionView,
                     size: CGSize(width: 620, height: 390),
                     appearance: appearance,
@@ -105,7 +99,7 @@ struct Ticket13RenderingTests {
                 )
                 try render(
                     ManagementCenterView(
-                        destination: .settings,
+                        destination: .providerSettings,
                         records: records,
                         showsGeneralSettings: false,
                         providerSettings: providerSettingsConfiguration
@@ -114,6 +108,19 @@ struct Ticket13RenderingTests {
                     appearance: appearance,
                     outputURL: outputDirectory.appendingPathComponent(
                         "management-provider-\(suffix).png"
+                    )
+                )
+                try render(
+                    ManagementCenterView(
+                        destination: .providerSettings,
+                        records: records,
+                        showsGeneralSettings: false,
+                        providerSettings: providerSettingsConfiguration
+                    ),
+                    size: CGSize(width: 920, height: 620),
+                    appearance: appearance,
+                    outputURL: outputDirectory.appendingPathComponent(
+                        "management-provider-minimum-\(suffix).png"
                     )
                 )
                 try render(
@@ -135,7 +142,6 @@ struct Ticket13RenderingTests {
                 return [
                     "menu-\(suffix).png",
                     "onboarding-\(suffix).png",
-                    "provider-\(suffix).png",
                     "permission-\(suffix).png",
                     "privacy-\(suffix).png",
                     "result-\(suffix).png",
@@ -143,6 +149,7 @@ struct Ticket13RenderingTests {
                     "management-minimum-\(suffix).png",
                     "management-general-\(suffix).png",
                     "management-provider-\(suffix).png",
+                    "management-provider-minimum-\(suffix).png",
                     "toolbar-\(suffix).png",
                 ]
             }
@@ -197,27 +204,6 @@ struct Ticket13RenderingTests {
         )
     }
 
-    private var providerView: some View {
-        ProviderSetupView(
-            snapshot: ProviderSetupSnapshot(
-                selectedProvider: .deepSeek,
-                availableModelIDs: ["deepseek-v4-flash-vision-exp", "deepseek-vl2"],
-                selectedModelID: "deepseek-v4-flash-vision-exp",
-                phase: .ready,
-                failure: nil
-            ),
-            configurations: [.deepSeek: configuredDeepSeek],
-            apiKey: .constant(""),
-            pendingModelID: .constant("deepseek-v4-flash-vision-exp"),
-            onSelectProvider: { _ in },
-            onValidate: {},
-            onRefresh: {},
-            onSelectModel: { _ in },
-            onCancel: {},
-            onDone: {}
-        )
-    }
-
     private var providerSettingsConfiguration: ProviderSettingsConfiguration {
         ProviderSettingsConfiguration(
             snapshot: ProviderSetupSnapshot(
@@ -228,7 +214,8 @@ struct Ticket13RenderingTests {
                 failure: nil
             ),
             configurations: [.deepSeek: configuredDeepSeek],
-            apiKey: .constant(""),
+            currentProvider: .deepSeek,
+            apiKey: .constant("demo-deepseek-api-key"),
             pendingModelID: .constant("deepseek-v4-flash-vision-exp"),
             onSelectProvider: { _ in },
             onValidate: {},

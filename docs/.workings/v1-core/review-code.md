@@ -939,3 +939,130 @@ review 发现并删除 1 个本次引入的 orphan enum case；事实层重扫�
 ## 结论
 
 四层审查未发现剩余阻断项。审查中识别并修复了结果工作区替换与 Try Again 的竞态、无控制器时的展示回退，以及历史保存失败状态不能安全 Retry Save 三个问题。
+
+---
+
+# VLMSnapper v1 — Inline Provider settings review (2026-09-04)
+
+审查范围：设置中心内联 Provider 配置、首次引导跳转与自动返回、凭据直接替换、当前 Provider 切换/移除，以及活动请求期间的只读边界。
+
+## 【① 底层前提】
+
+- API Key、模型缓存、每 Provider 当前模型和全局当前 Provider 继续由应用级 `ProviderConfigurationCoordinator` 持有；SwiftUI 只持有展开项、Key 显隐和待验证编辑态，不复制持久状态。
+- 首次引导只传递一次性的返回来源。Provider 配置仍在同一个管理中心窗口完成，模型选择与窗口关闭通过可消费一次的返回上下文收口，没有第二套 Provider 配置状态机。
+- 新 Key 提交遵循 ADR-0012：旧 Key 与配置先失去资格，再获取模型和写入新凭据；失败不回滚。旧模型只在新列表仍包含它时保留。
+
+## 【② 可运行性】
+
+- 管理中心按显式目标、当前 Provider、DeepSeek 的顺序确定初始展开项；同一时刻只展开一张卡片，切换卡片只改变查看目标。
+- Key 有非空改动时才显示并启用验证；未改动的已配置 Key 不会因 Return 被再次提交。验证成功后模型选择原位出现，显式选择模型才触发从首次引导来源自动返回。
+- 活动模型请求通过协调器冻结 Provider 配置写入；卡片仍可展开和切换查看，Key、验证、刷新、模型、设为当前和移除操作保持只读，终态后恢复。
+- 快速切换 Provider 时，异步 Keychain 读取前后都核对当前选择，较慢的旧读取不能覆盖新卡片的 Key。
+
+## 【③ 安全正确性】
+
+- API Key 仍只持久化到 Apple Keychain；本轮没有把 Key 写入 metadata、历史、日志、诊断、原型 fixture 或仓库。显示/隐藏只改变当前进程内输入控件呈现。
+- 替换当前 Provider 时先清除全局当前选择；只有新配置最终可用且旧模型仍有效时才恢复。失败保持未配置，不会让请求继续引用已删除凭据。
+- 移除当前 Provider 同时清空全局当前选择，且不自动切换其他 Provider。非当前 Provider 的验证和模型选择不会抢占既有当前 Provider。
+- 并发配置变更与活动请求继续由 actor 内互斥状态拒绝；没有依赖多个异步 UI 快照推断锁状态。
+
+## 【④ 一致性】
+
+- 已确认管理中心与首次引导原型、v1 spec Failure Modes 27–31、feature catalog、`CONTEXT.md` 和 ADR-0012 对同一流程给出一致描述。
+- 按项目能力声明，i18n 已启用；新增可见文案全部通过 `VLMSnapperStrings` 读取，英文与简体中文资源各 251 个键且集合一致。Swift 源码新增行未发现中文硬编码。
+- 生产路由不再构造 `ProviderSetupView`；“所有生产界面渲染”测试也已移除旧独立页面。该类型仍被历史 Ticket 07 测试、终止 sheet 回归与 UI harness 引用，本轮按既有 dead-code 规则保留，不扩大为跨文件清理任务。
+
+## 审查中发现并修复
+
+| 问题 | 影响 | 修复 |
+| --- | --- | --- |
+| 只读状态同时阻止卡片切换 | 活动请求时无法查看其他 Provider，违背只读而非不可浏览的约定 | 只限制配置 mutation，允许 `selectProvider` 更新查看目标 |
+| 已配置且未编辑的 Key 仍可由 Return 验证 | 隐藏的重复提交路径会无意替换凭据 | `canValidate` 同时要求验证操作可见，未编辑状态不能提交 |
+| 卡片状态把“凭据已验证、待选模型”当作未配置 | 卡片徽标与 Key 状态混淆，用户无法判断下一步 | 拆分卡片状态与凭据状态，分别表达“待选模型”和“已配置” |
+
+## 结论
+
+四层审查未发现剩余阻断项。改动覆盖完整用户序列，同时保持 Provider 持久状态、页面状态和首次引导来源三类职责分离；没有新增未经原型确认的界面或越界重构。
+
+---
+
+# VLMSnapper v1 — Retired Provider component removal review (2026-09-04)
+
+## 【① 底层前提】
+
+- 对当前源码树执行全量符号与参数检索后，`ProviderSetupView` 只由 UI harness、Ticket 07 渲染和 sheet 终止回归引用；生产 App 已无构造路径。该结论不依赖抽样。
+- SwiftPM 的 `VLMSnapperUI` target 按整个 `UI` 目录收集源码，没有需要同步删除的显式文件清单。
+- `git log -S'ProviderSetupView' --all` 证明它是历史界面类型；没有数据库字段、settings 值、IPC 字符串或其他持久化兼容值与该类型绑定。
+
+## 【② 可运行性】
+
+- 管理中心仍需的 Provider 详情映射已迁入 `ProviderSettingsPresentation.swift` 并改名为 `ProviderSettingsDetailPresentation`，两个生产调用点与现行测试同步更新。
+- 删除旧 View 后，harness 不再接受 `--provider`，Ticket 07 不再生成旧页面，sheet 终止回归只枚举仍存在的权限与隐私 sheet。
+- 旧 `ProviderSetupMetrics`、五个专用字符串 accessor 和两语种资源键一并删除；完整编译能枚举所有 Swift 静态引用并已通过。
+
+## 【③ 安全正确性】
+
+- 本轮不改 Keychain、Provider 请求、模型配置、窗口路由或用户数据。被删除对象只包含不可达 UI、开发预览入口和相应测试 fixture。
+- 现行内联页面的 Key 显隐、清空、验证资格、模型选择、当前 Provider 与移除确认均未删除；敏感信息边界不变。
+- 删除不涉及动态反射或字符串构造的类型发现路径；当前树对旧类型、旧 metrics、旧输入状态和 `--provider` 的全量检索均为空。
+
+## 【④ 一致性】
+
+- 源文件、测试名、测试 suite、harness 参数、几何常量和本地化键全部从“Provider setup”旧组件语义收敛到现行“Provider settings”语义。
+- 既有 spec、feature catalog、原型 manifest 和权威 README 已只描述管理中心内联流程；本轮删除不可达组件没有改变用户可见行为。
+- 审查发现 Ticket 07 渲染目录未在运行前清空，旧 Provider PNG 会污染文件数量断言。已补上目录清理并由原始失败后重跑通过验证。
+
+## 结论
+
+四层审查未发现剩余阻断项。旧独立 Provider 组件及其专属依赖已完整删除，现行管理中心内联实现与覆盖未受损。
+
+---
+
+# VLMSnapper v1 — Ticket 19 inline Provider geometry review (2026-09-05)
+
+## 【① 底层前提】
+
+- 850 pt 内容上限、54 pt 卡片头、29 pt Provider 标记和 32 pt 凭据字段均可在已确认的管理中心原型中复现，不以实现常量或旧测试作为设计依据。
+- `a97bd73` 的现行内联行为测试与严格构建虽为绿，但当时没有这四个几何约束；本轮把它识别为证据缺口，没有将旧绿误报为视觉验收。
+- 全量固定字符串检索实际覆盖 `Sources`、`VLMSnapper`、`Tests`、`docs` 和 `Package.swift`；旧 UI 类型、harness 参数、专属 accessor 均为零结果，保留的 `ProviderSetupSession` 是现行领域会话而非退役页面。
+
+## 【② 可运行性】
+
+- Provider 页与 General Settings 分成两个同级内容分支；Provider 使用独立 `ScrollView`，因此 850 pt 内容可以居中而不再受 grouped `Form` 的系统 inset 和行背景支配。
+- 模型列表为空时只展示凭据列；列表可用后，`ViewThatFits` 先尝试 400 + 14 + 400 pt 的双列布局，卡片正文可用宽度不足时确定性回退为 14 pt 间距的纵向布局。
+- 正常与最小窗口的中英文、明暗生产渲染均已检查：正常宽度为双列，最小宽度为纵向堆叠，标题、徽标、输入和卡片边界无裁切或越界。
+- 故障逃逸面：本轮只改变布局。尺寸回归最多自伤当前 Provider 页，不会污染其他 Provider 状态、请求或持久化；没有错误路径跨条目或上层逃逸。
+
+## 【③ 安全正确性】
+
+- 本轮不改变 API Key 值、验证提交、Keychain、模型列表或当前 Provider 语义；拆分出的字段方法继续使用原有 binding 和 action。
+- 安全/明文字段、清空和验证按钮仍受同一只读状态约束；没有新增 secret 日志、持久化或跨 Provider 访问。
+- 固定 400 pt 列宽只在父容器确认可容纳时生效；较窄容器走纵向分支，不存在通过裁切隐藏溢出的假安全路径。
+
+## 【④ 一致性】
+
+- 新尺寸集中在 `ManagementCenterMetrics`，并由生产 View 和独立 literal assertions 共同使用；测试期望没有从生产常量反算。
+- Provider 页保持现有主题、圆角、边框、状态徽标和本地化入口，只修复原型已确认的信息层级与响应式几何，没有引入新的视觉方向。
+- 坏味道复查未命中需要处理的新增项。字段方法拆分减少原函数长度，职责仍局限于同一 Provider 卡片，没有新增 speculative abstraction 或跨文件霰弹修改。
+
+## 结论
+
+四层审查未发现剩余阻断项。Ticket 19 的行为、退役表面和确认几何现在都有独立证据；Ticket 20 的原生 AppKit 凭据编辑器仍保持为后续票，没有被本轮顺带实现。
+
+## 2026-09-05 — API Key validation regression review
+
+### 【① 底层前提】
+
+发现：普通配置中嵌套闭包 Binding 不足以使生产窗口的派生控件读取当前值。已用真实窗口、空/预填正对照和旧读值路径变异坐实。第一次仅提升 `@Binding` 的方案又被清空反向测试推翻，最终使用窗口 State 驱动所有字段控件。
+
+### 【② 可运行性】
+
+复查输入、粘贴、清空、Return、外部加载、清除和窗口 rootView 更新，公开交互测试全部通过。外部同步只改显示值，不触发网络或标记编辑。故障逃逸面为当前 Provider 卡片自伤；测试观察的提交内容与用户输入一致。同类实例全量检索 `Binding<`：同配置内另一条 pendingModelID 写入会调用模型选择并刷新配置；ResultWorkspaceView 和 CaptureOperationToolbar 的输入本身为动态属性。此次修复覆盖 API Key 所有读取点，未调整模型选择流程。
+
+### 【③ 安全正确性】
+
+只读判断、Keychain、网络提交和替换旧 Key 的时机未改。测试使用虚拟凭据和私有临时 pasteboard，不读取或输出真实密钥。临时调试输出已移除。既有异步加载/提交生命周期属于后续票，本轮不声称其已验收。
+
+### 【④ 一致性】
+
+字段、占位、清空和 Validate 共用窗口当前值；外部加载通过 onChange 同步。没有更改视觉层级、主题、图标、本地化文案或 API。测试的 AppKit 编辑路径与生产字段一致，不引入仅测试使用的产品抽象。spec/features 补充即时启用和清空禁用要求。范围外图标未做全仓穷举；本轮触及的字段图标仍复用既有 SF Symbols 锚点。

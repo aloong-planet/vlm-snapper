@@ -95,24 +95,33 @@
     }
     .traffic { display: flex; gap: 7px; }
     .traffic span { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
-    .provider-layout { height: calc(100% - 46px); display: grid; grid-template-columns: 250px 1fr; }
+    .provider-layout { height: calc(100% - 46px); display: grid; grid-template-columns: 210px 1fr; }
     .providers { padding: 24px 18px; border-right: 1px solid var(--line); background: var(--surface-muted); }
     .section-label { color: var(--tertiary); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
     .provider-row { margin-top: 14px; padding: 14px; border-radius: 8px; background: var(--accent-soft); font-weight: 650; }
-    .provider-detail { padding: 48px 54px; }
+    .provider-detail { padding: 38px 44px; }
     .provider-detail h1 { margin: 0; font-size: 24px; }
-    .provider-detail p { margin: 6px 0 34px; color: var(--secondary); }
-    .field-label { display: block; margin-bottom: 8px; font-weight: 650; }
+    .provider-detail > p { margin: 6px 0 24px; color: var(--secondary); }
+    .provider-card { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .card-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .card-heading strong { font-size: 17px; }
+    .card-state { color: #2fa85b; font-weight: 650; }
+    .field-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .field-label { font-weight: 650; }
+    .credential-state { color: #2fa85b; font-weight: 650; }
+    .field-shell { position: relative; }
     .api-field {
       width: 100%;
       height: 38px;
-      padding: 0 12px;
+      padding: 0 70px 0 12px;
       border: 2px solid var(--accent);
       border-radius: 7px;
       color: var(--text);
       background: var(--surface);
       outline: 3px solid color-mix(in srgb, var(--accent) 22%, transparent);
     }
+    .field-actions { position: absolute; inset: 0 8px 0 auto; display: flex; align-items: center; gap: 8px; color: var(--secondary); }
+    .field-action { width: 22px; padding: 0; border: 0; color: inherit; background: transparent; font-size: 18px; }
     .context-note { margin-top: 18px; color: var(--secondary); line-height: 1.55; }
     .edit-menu {
       position: absolute;
@@ -217,16 +226,22 @@
   </header>
 
   <main class="scene">
-    <article class="window" aria-label="Provider configuration context">
+    <article class="window" aria-label="Settings Center Provider context">
       <header class="titlebar"><div class="traffic"><span></span><span></span><span></span></div><strong>VLMSnapper</strong><div></div></header>
       <div class="provider-layout">
-        <aside class="providers"><div class="section-label">PROVIDER</div><div class="provider-row">DeepSeek</div></aside>
+        <aside class="providers"><div class="section-label">SETTINGS</div><div class="provider-row">Provider</div></aside>
         <section class="provider-detail">
-          <h1 data-i18n="providerTitle">配置在线 Provider</h1>
-          <p data-i18n="providerSubtitle">输入 API Key，然后验证并选择模型。</p>
-          <label class="field-label" for="api-key">API Key</label>
-          <input class="api-field" id="api-key" type="password" value="" placeholder="API Key" autofocus>
-          <div class="context-note" data-i18n="contextNote">Edit 菜单通过当前焦点自动决定可用项。此状态模拟空的 API Key 输入框，剪贴板中已有文字。</div>
+          <h1 data-i18n="providerTitle">Provider</h1>
+          <p data-i18n="providerSubtitle">选择 Provider，然后在当前页面完成连接与模型选择。</p>
+          <div class="provider-card">
+            <div class="card-heading"><strong>DeepSeek</strong><span class="card-state" data-i18n="available">可用</span></div>
+            <div class="field-heading"><label class="field-label" for="api-key">API Key</label><span class="credential-state" data-i18n="configured">● 已配置</span></div>
+            <div class="field-shell">
+              <input class="api-field" id="api-key" type="password" value="" placeholder="API Key" autofocus>
+              <div class="field-actions" aria-hidden="true"><button class="field-action" tabindex="-1">×</button><button class="field-action" tabindex="-1">◉</button></div>
+            </div>
+            <div class="context-note" data-i18n="contextNote">Edit 菜单通过当前焦点自动决定可用项。此状态模拟设置中心内联 API Key 输入框，剪贴板中已有文字。</div>
+          </div>
         </section>
       </div>
     </article>
@@ -272,8 +287,9 @@
     const copy = {
       "zh-Hans": {
         file: "文件", edit: "编辑", window: "窗口", help: "帮助",
-        providerTitle: "配置在线 Provider", providerSubtitle: "输入 API Key，然后验证并选择模型。",
-        contextNote: "Edit 菜单通过当前焦点自动决定可用项。此状态模拟空的 API Key 输入框，剪贴板中已有文字。",
+        providerTitle: "Provider", providerSubtitle: "选择 Provider，然后在当前页面完成连接与模型选择。",
+        available: "可用", configured: "● 已配置",
+        contextNote: "Edit 菜单通过当前焦点自动决定可用项。此状态模拟设置中心内联 API Key 输入框，剪贴板中已有文字。",
         undo: "撤销", redo: "重做", cut: "剪切", copy: "拷贝", paste: "粘贴",
         pasteStyle: "粘贴并匹配样式", delete: "删除", selectAll: "全选", find: "查找",
         spelling: "拼写与语法", substitutions: "替换", transformations: "转换", speech: "语音",
@@ -288,8 +304,9 @@
       },
       en: {
         file: "File", edit: "Edit", window: "Window", help: "Help",
-        providerTitle: "Configure Online Provider", providerSubtitle: "Enter an API key, then validate and select a model.",
-        contextNote: "The Edit menu derives availability from the focused responder. This state simulates an empty API key field with text on the clipboard.",
+        providerTitle: "Provider", providerSubtitle: "Choose a Provider, then connect and select a model on this page.",
+        available: "Available", configured: "● Configured",
+        contextNote: "The Edit menu derives availability from the focused responder. This state simulates the inline API key field in Settings Center with text on the clipboard.",
         undo: "Undo", redo: "Redo", cut: "Cut", copy: "Copy", paste: "Paste",
         pasteStyle: "Paste and Match Style", delete: "Delete", selectAll: "Select All", find: "Find",
         spelling: "Spelling and Grammar", substitutions: "Substitutions", transformations: "Transformations", speech: "Speech",
