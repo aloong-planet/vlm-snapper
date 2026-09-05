@@ -33,4 +33,8 @@ public enum ManagementCenterMetrics {
     public static let defaultSize = CGSize(width: 1_200, height: 720)
     public static let sidebarWidth: CGFloat = 218
     public static let titlebarHeight: CGFloat = 46
+    public static let providerContentWidth: CGFloat = 850
+    public static let providerHeaderHeight: CGFloat = 54
+    public static let providerMarkSize: CGFloat = 29
+    public static let providerCredentialFieldHeight: CGFloat = 32
 }

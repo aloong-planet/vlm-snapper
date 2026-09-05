@@ -24,6 +24,10 @@ struct ConfirmedSurfaceContractTests {
         #expect(ManagementCenterMetrics.defaultSize == CGSize(width: 1_200, height: 720))
         #expect(ManagementCenterMetrics.sidebarWidth == 218)
         #expect(ManagementCenterMetrics.titlebarHeight == 46)
+        #expect(ManagementCenterMetrics.providerContentWidth == 850)
+        #expect(ManagementCenterMetrics.providerHeaderHeight == 54)
+        #expect(ManagementCenterMetrics.providerMarkSize == 29)
+        #expect(ManagementCenterMetrics.providerCredentialFieldHeight == 32)
     }
 
     @Test("provider rows preserve configuration state for non-selected providers")

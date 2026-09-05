@@ -1015,3 +1015,36 @@ review 发现并删除 1 个本次引入的 orphan enum case；事实层重扫�
 ## 结论
 
 四层审查未发现剩余阻断项。旧独立 Provider 组件及其专属依赖已完整删除，现行管理中心内联实现与覆盖未受损。
+
+---
+
+# VLMSnapper v1 — Ticket 19 inline Provider geometry review (2026-09-05)
+
+## 【① 底层前提】
+
+- 850 pt 内容上限、54 pt 卡片头、29 pt Provider 标记和 32 pt 凭据字段均可在已确认的管理中心原型中复现，不以实现常量或旧测试作为设计依据。
+- `a97bd73` 的现行内联行为测试与严格构建虽为绿，但当时没有这四个几何约束；本轮把它识别为证据缺口，没有将旧绿误报为视觉验收。
+- 全量固定字符串检索实际覆盖 `Sources`、`VLMSnapper`、`Tests`、`docs` 和 `Package.swift`；旧 UI 类型、harness 参数、专属 accessor 均为零结果，保留的 `ProviderSetupSession` 是现行领域会话而非退役页面。
+
+## 【② 可运行性】
+
+- Provider 页与 General Settings 分成两个同级内容分支；Provider 使用独立 `ScrollView`，因此 850 pt 内容可以居中而不再受 grouped `Form` 的系统 inset 和行背景支配。
+- 模型列表为空时只展示凭据列；列表可用后，`ViewThatFits` 先尝试 400 + 14 + 400 pt 的双列布局，卡片正文可用宽度不足时确定性回退为 14 pt 间距的纵向布局。
+- 正常与最小窗口的中英文、明暗生产渲染均已检查：正常宽度为双列，最小宽度为纵向堆叠，标题、徽标、输入和卡片边界无裁切或越界。
+- 故障逃逸面：本轮只改变布局。尺寸回归最多自伤当前 Provider 页，不会污染其他 Provider 状态、请求或持久化；没有错误路径跨条目或上层逃逸。
+
+## 【③ 安全正确性】
+
+- 本轮不改变 API Key 值、验证提交、Keychain、模型列表或当前 Provider 语义；拆分出的字段方法继续使用原有 binding 和 action。
+- 安全/明文字段、清空和验证按钮仍受同一只读状态约束；没有新增 secret 日志、持久化或跨 Provider 访问。
+- 固定 400 pt 列宽只在父容器确认可容纳时生效；较窄容器走纵向分支，不存在通过裁切隐藏溢出的假安全路径。
+
+## 【④ 一致性】
+
+- 新尺寸集中在 `ManagementCenterMetrics`，并由生产 View 和独立 literal assertions 共同使用；测试期望没有从生产常量反算。
+- Provider 页保持现有主题、圆角、边框、状态徽标和本地化入口，只修复原型已确认的信息层级与响应式几何，没有引入新的视觉方向。
+- 坏味道复查未命中需要处理的新增项。字段方法拆分减少原函数长度，职责仍局限于同一 Provider 卡片，没有新增 speculative abstraction 或跨文件霰弹修改。
+
+## 结论
+
+四层审查未发现剩余阻断项。Ticket 19 的行为、退役表面和确认几何现在都有独立证据；Ticket 20 的原生 AppKit 凭据编辑器仍保持为后续票，没有被本轮顺带实现。

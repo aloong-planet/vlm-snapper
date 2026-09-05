@@ -1024,3 +1024,44 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 ## 收敛结论
 
 三阶段队列已清空。旧组件与相关开发/测试表面已完整移除，权威产品声明无需变化；现行管理中心内联 Provider 流程继续由 271 项完整回归和严格构建守护。
+
+---
+
+# 2026-09-05 — Ticket 19 inline Provider management geometry
+
+## 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+| --- | --- | --- |
+| Ticket 19 的六条验收标准 | production View、presentation/coordinator/session/onboarding tests、清理检索与门禁日志 | 六条均有可复查证据；Ticket 状态仍保留为实施中，待交付动作完成后关闭 |
+| spec 的 Provider 页面几何 | `ManagementCenterMetrics`、`ManagementCenterView` 与正常/最小生产渲染 | 已补明 850 pt 内容上限、54 pt 卡片头、29 pt 标记、32 pt 控件，以及宽屏双列/窄屏纵排 |
+| feature catalog 的当前 Provider 体验 | spec、生产渲染与已确认原型 | 已就地补充“居中可读宽度、宽时并列、窄时无裁切堆叠”；没有实现细节或未来行为 |
+| management-center prototype README | HTML 的 850/54/29/32 px 契约与生产常量 | README 现在显式复述确认几何；HTML 与生产 View 未出现两套布局方向 |
+| review-code 与 review-tests 本轮结论 | 当前 diff、四值变异日志、完整门禁日志 | 代码审查四层和测试审查三维均有逐项结论；编译型初红未被冒充为断言有效性 |
+| i18n 声明面 | 项目能力声明与两份 `Localizable.strings` | i18n 已启用；本轮无新增 UI 文案，两份字典各 246 键且集合一致 |
+
+## 阶段二：关系对读
+
+| 关系 | 检索/核对 | 结论 |
+| --- | --- | --- |
+| spec 文件 ↔ spec 索引 | `docs/specs/README.md` | slug、名称、状态和范围均未变化，索引无需改动 |
+| feature 文件 ↔ feature 索引 | `docs/features/` 顶层文件枚举 | 目录只有 `v1-core.md` 且没有独立 README 索引，不存在待同步索引行 |
+| ADR ↔ spec/features | ADR-0012 与 Provider 替换段落 | 本轮只补布局几何，不改变凭据替换决策；三处仍一致 |
+| CONTEXT ↔ spec/features/prototype | Provider、当前模型、首次引导与管理中心关键词对读 | 术语继续统一；布局数值不形成新的跨功能领域不变量，无需改写 `CONTEXT.md` |
+| 原型规则 ↔ 自动化门禁 | 原型 literal、四条 metrics assertions 与受控 1 pt 变异 | 四条错误值分别在对应断言行失败，门禁确实覆盖每个确认值而非恒真 |
+| 旧独立 Provider 表面 ↔ 当前载体 | 全量固定字符串检索 `Sources`、`VLMSnapper`、`Tests`、`docs`、`Package.swift` | 旧 View、metrics/input/presentation、harness 参数及专属 accessor 均为零；非 UI session 明确保留 |
+| prototype manifest/HTML ↔ parser gate | manifest 语法与非 vendor HTML 全量枚举 | 9 个 HTML、9 个 inline scripts 均实际进入解析范围并通过 |
+
+## 阶段三：事件核销
+
+| 事件 | 核对 | 结论 |
+| --- | --- | --- |
+| Provider 页面从系统 grouped Form 几何改为确认的居中响应式布局 | spec、features、prototype README、production renders | 用户可见变化已在同一改动中同步，没有 master 行为与目录描述错位窗口 |
+| 管理中心 metrics 增加四个确认成员 | literal test、生产调用点与变异验证 | 四个成员均有生产消费者和独立 oracle；没有未使用或只为测试存在的常量 |
+| 支持的 Provider、语言、渠道成员数 | 现有枚举与本轮 diff | 均未改变，不触发枚举式文案重写 |
+| 范围内 `Pending:` 注记 | v1 spec 发布前 Provider 门槛 | 本轮布局修复未使任何发布前真实账户/请求限制门槛到期 |
+| 本轮是否形成新通则 | ADR 与 `CONTEXT.md` 门槛 | 没有新的跨功能决策或领域不变量；确认几何留在同 slug spec、prototype 和 feature catalog 即可 |
+
+## 收敛结论
+
+三阶段队列已清空。Ticket 19 的现行内联 Provider 行为、首次引导返回、退役旧表面和确认响应式几何已经在 spec、feature catalog、prototype、实现、测试与审查记录之间一致；后续原生凭据编辑、Keychain 对账和跨工作流互斥仍分别由 Tickets 20–22 承兑。

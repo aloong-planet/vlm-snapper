@@ -397,9 +397,10 @@ public struct ManagementCenterView: View {
         }
     }
 
+    @ViewBuilder
     private var settingsContent: some View {
-        Form {
-            if showGeneralSettings {
+        if showGeneralSettings {
+            Form {
                 Section {
                     settingsRow(
                         title: VLMSnapperStrings.languageTitle,
@@ -493,27 +494,35 @@ public struct ManagementCenterView: View {
                         )
                     }
                 }
-            } else {
-                Section {
-                    VStack(spacing: 12) {
-                        ForEach([ProviderID.deepSeek, .openAI, .gemini], id: \.self) { provider in
-                            providerSettingsCard(provider)
-                        }
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                } header: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(VLMSnapperStrings.historyProviderSettings)
-                        Text(VLMSnapperStrings.providerSetupSubtitle)
-                            .font(.caption)
-                            .foregroundStyle(VLMSnapperTheme.secondaryText)
+            }
+            .formStyle(.grouped)
+            .padding(18)
+        } else {
+            providerSettingsContent
+        }
+    }
+
+    private var providerSettingsContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(VLMSnapperStrings.historyProviderSettings)
+                        .font(.title3.weight(.semibold))
+                    Text(VLMSnapperStrings.providerSetupSubtitle)
+                        .font(.callout)
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                }
+                VStack(spacing: 12) {
+                    ForEach([ProviderID.deepSeek, .openAI, .gemini], id: \.self) { provider in
+                        providerSettingsCard(provider)
                     }
                 }
             }
+            .frame(maxWidth: ManagementCenterMetrics.providerContentWidth)
+            .frame(maxWidth: .infinity)
+            .padding(22)
         }
-        .formStyle(.grouped)
-        .padding(18)
+        .background(VLMSnapperTheme.subtleSurface)
     }
 
     private func providerSettingsCard(_ provider: ProviderID) -> some View {
@@ -533,7 +542,10 @@ public struct ManagementCenterView: View {
                     VLMSnapperIcon.provider.image
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(VLMSnapperTheme.accent)
-                        .frame(width: 38, height: 38)
+                        .frame(
+                            width: ManagementCenterMetrics.providerMarkSize,
+                            height: ManagementCenterMetrics.providerMarkSize
+                        )
                         .background(VLMSnapperTheme.accent.opacity(0.09))
                         .clipShape(RoundedRectangle(cornerRadius: 9))
                     VStack(alignment: .leading, spacing: 3) {
@@ -551,7 +563,7 @@ public struct ManagementCenterView: View {
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(.horizontal, 16)
-                .frame(minHeight: 68)
+                .frame(minHeight: ManagementCenterMetrics.providerHeaderHeight)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -589,127 +601,10 @@ public struct ManagementCenterView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(VLMSnapperStrings.apiKey).font(.headline)
-                        Spacer()
-                        Label(
-                            providerCredentialStatusText(presentation.status),
-                            systemImage: providerCredentialStatusIcon(presentation.status)
-                        )
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(providerCredentialStatusColor(presentation.status))
-                    }
-                    HStack(spacing: 0) {
-                        Group {
-                            if showsAPIKey {
-                                TextField(
-                                    providerSettings.apiKey.wrappedValue.isEmpty
-                                        ? VLMSnapperStrings.apiKeyPlaceholder
-                                        : "",
-                                    text: providerAPIKeyBinding
-                                )
-                                .textFieldStyle(.plain)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            } else {
-                                SecureField(
-                                    providerSettings.apiKey.wrappedValue.isEmpty
-                                        ? VLMSnapperStrings.apiKeyPlaceholder
-                                        : "",
-                                    text: providerAPIKeyBinding
-                                )
-                                .textFieldStyle(.plain)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .disabled(providerSettings.snapshot.isReadOnly)
-                        .onSubmit {
-                            if presentation.canValidate {
-                                providerSettings.onValidate()
-                            }
-                        }
-                        .padding(.trailing, 8)
-                        Button {
-                            providerSettings.apiKey.wrappedValue = ""
-                            apiKeyIsDirty = true
-                        } label: {
-                            VLMSnapperIcon.close.image.frame(width: 22, height: 22)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(providerSettings.apiKey.wrappedValue.isEmpty || providerSettings.snapshot.isReadOnly)
-                        .accessibilityLabel(VLMSnapperStrings.clearAPIKey)
-                        Button {
-                            showsAPIKey.toggle()
-                        } label: {
-                            (showsAPIKey ? VLMSnapperIcon.eyeSlash : VLMSnapperIcon.eye)
-                                .image.frame(width: 28, height: 22)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(providerSettings.snapshot.isReadOnly)
-                        .accessibilityLabel(
-                            showsAPIKey
-                                ? VLMSnapperStrings.hideAPIKey
-                                : VLMSnapperStrings.showAPIKey
-                        )
-                    }
-                    .padding(.horizontal, 11)
-                    .frame(height: 36)
-                    .background(VLMSnapperTheme.window)
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 7)
-                            .stroke(VLMSnapperTheme.border)
-                    }
-
-                    if presentation.showsValidation {
-                        HStack {
-                            Text(providerValidationHint(presentation.status))
-                                .font(.caption)
-                                .foregroundStyle(VLMSnapperTheme.secondaryText)
-                            Spacer()
-                            Button(VLMSnapperStrings.validate, action: providerSettings.onValidate)
-                                .buttonStyle(.borderedProminent)
-                                .disabled(!presentation.canValidate)
-                        }
-                    }
-                    if let failure = providerSettings.snapshot.failure {
-                        Label(
-                            providerFailureText(failure),
-                            systemImage: VLMSnapperIcon.warning.rawValue
-                        )
-                        .font(.callout)
-                        .foregroundStyle(VLMSnapperTheme.destructive)
-                    }
-                    Text(VLMSnapperStrings.providerReplacementHint)
-                        .font(.caption)
-                        .foregroundStyle(VLMSnapperTheme.secondaryText)
-                }
-
-                if !providerSettings.snapshot.availableModelIDs.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(VLMSnapperStrings.currentModel).font(.headline)
-                        HStack(spacing: 10) {
-                            Picker(
-                                VLMSnapperStrings.currentModel,
-                                selection: providerModelBinding
-                            ) {
-                                Text(VLMSnapperStrings.chooseModel).tag(String?.none)
-                                ForEach(providerSettings.snapshot.availableModelIDs, id: \.self) {
-                                    Text($0).tag(Optional($0))
-                                }
-                            }
-                            .labelsHidden()
-                            .disabled(providerSettings.snapshot.isReadOnly)
-                            Button(VLMSnapperStrings.refresh, action: providerSettings.onRefresh)
-                                .disabled(providerSettings.snapshot.isReadOnly)
-                        }
-                        Text(VLMSnapperStrings.visionValidationHint)
-                            .font(.caption)
-                            .foregroundStyle(VLMSnapperTheme.secondaryText)
-                    }
-                }
+                providerConfigurationFields(
+                    providerSettings,
+                    presentation: presentation
+                )
 
                 HStack {
                     if providerSettings.configurations[provider] != nil {
@@ -732,10 +627,166 @@ public struct ManagementCenterView: View {
                 }
             }
             .padding(16)
+            .background(VLMSnapperTheme.subtleSurface)
         } else {
             ProgressView()
                 .frame(maxWidth: .infinity)
                 .padding(24)
+        }
+    }
+
+    @ViewBuilder
+    private func providerConfigurationFields(
+        _ providerSettings: ProviderSettingsConfiguration,
+        presentation: ProviderInlineCredentialPresentation
+    ) -> some View {
+        if providerSettings.snapshot.availableModelIDs.isEmpty {
+            providerCredentialField(providerSettings, presentation: presentation)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 14) {
+                    providerCredentialField(providerSettings, presentation: presentation)
+                        .frame(width: 400, alignment: .top)
+                    providerModelField(providerSettings)
+                        .frame(width: 400, alignment: .top)
+                }
+                VStack(alignment: .leading, spacing: 14) {
+                    providerCredentialField(providerSettings, presentation: presentation)
+                    providerModelField(providerSettings)
+                }
+            }
+        }
+    }
+
+    private func providerCredentialField(
+        _ providerSettings: ProviderSettingsConfiguration,
+        presentation: ProviderInlineCredentialPresentation
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(VLMSnapperStrings.apiKey).font(.headline)
+                Spacer()
+                Label(
+                    providerCredentialStatusText(presentation.status),
+                    systemImage: providerCredentialStatusIcon(presentation.status)
+                )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(providerCredentialStatusColor(presentation.status))
+            }
+            HStack(spacing: 0) {
+                Group {
+                    if showsAPIKey {
+                        TextField(
+                            providerSettings.apiKey.wrappedValue.isEmpty
+                                ? VLMSnapperStrings.apiKeyPlaceholder
+                                : "",
+                            text: providerAPIKeyBinding
+                        )
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        SecureField(
+                            providerSettings.apiKey.wrappedValue.isEmpty
+                                ? VLMSnapperStrings.apiKeyPlaceholder
+                                : "",
+                            text: providerAPIKeyBinding
+                        )
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .disabled(providerSettings.snapshot.isReadOnly)
+                .onSubmit {
+                    if presentation.canValidate {
+                        providerSettings.onValidate()
+                    }
+                }
+                .padding(.trailing, 8)
+                Button {
+                    providerSettings.apiKey.wrappedValue = ""
+                    apiKeyIsDirty = true
+                } label: {
+                    VLMSnapperIcon.close.image.frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .disabled(
+                    providerSettings.apiKey.wrappedValue.isEmpty
+                        || providerSettings.snapshot.isReadOnly
+                )
+                .accessibilityLabel(VLMSnapperStrings.clearAPIKey)
+                Button {
+                    showsAPIKey.toggle()
+                } label: {
+                    (showsAPIKey ? VLMSnapperIcon.eyeSlash : VLMSnapperIcon.eye)
+                        .image.frame(width: 28, height: 22)
+                }
+                .buttonStyle(.plain)
+                .disabled(providerSettings.snapshot.isReadOnly)
+                .accessibilityLabel(
+                    showsAPIKey
+                        ? VLMSnapperStrings.hideAPIKey
+                        : VLMSnapperStrings.showAPIKey
+                )
+            }
+            .padding(.horizontal, 11)
+            .frame(height: ManagementCenterMetrics.providerCredentialFieldHeight)
+            .background(VLMSnapperTheme.window)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(VLMSnapperTheme.border)
+            }
+
+            if presentation.showsValidation {
+                HStack {
+                    Text(providerValidationHint(presentation.status))
+                        .font(.caption)
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    Spacer()
+                    Button(VLMSnapperStrings.validate, action: providerSettings.onValidate)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!presentation.canValidate)
+                }
+            }
+            if let failure = providerSettings.snapshot.failure {
+                Label(
+                    providerFailureText(failure),
+                    systemImage: VLMSnapperIcon.warning.rawValue
+                )
+                .font(.callout)
+                .foregroundStyle(VLMSnapperTheme.destructive)
+            }
+            Text(VLMSnapperStrings.providerReplacementHint)
+                .font(.caption)
+                .foregroundStyle(VLMSnapperTheme.secondaryText)
+        }
+    }
+
+    private func providerModelField(
+        _ providerSettings: ProviderSettingsConfiguration
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(VLMSnapperStrings.currentModel).font(.headline)
+            HStack(spacing: 10) {
+                Picker(
+                    VLMSnapperStrings.currentModel,
+                    selection: providerModelBinding
+                ) {
+                    Text(VLMSnapperStrings.chooseModel).tag(String?.none)
+                    ForEach(providerSettings.snapshot.availableModelIDs, id: \.self) {
+                        Text($0).tag(Optional($0))
+                    }
+                }
+                .labelsHidden()
+                .disabled(providerSettings.snapshot.isReadOnly)
+                Button(VLMSnapperStrings.refresh, action: providerSettings.onRefresh)
+                    .disabled(providerSettings.snapshot.isReadOnly)
+            }
+            Text(VLMSnapperStrings.visionValidationHint)
+                .font(.caption)
+                .foregroundStyle(VLMSnapperTheme.secondaryText)
         }
     }
 

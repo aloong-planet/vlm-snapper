@@ -889,3 +889,32 @@
 ## Review result
 
 测试删除范围与组件删除范围一致，现行 Provider 行为覆盖没有被削弱。渲染测试的历史产物污染已转化为可重复的目录隔离防线。
+
+---
+
+# VLMSnapper v1 — Ticket 19 inline Provider geometry test review (2026-09-05)
+
+## 维度 1：覆盖是否完整
+
+- Ticket 19 的配置、验证后只揭示模型、当前 Provider 保持、移除、首次引导定向进入与 exactly-once 返回均由现有 presentation、coordinator、session 和 onboarding 用例覆盖。
+- 新增四条 literal assertions 覆盖原型确认的内容宽度、卡片头高度、Provider 标记和凭据字段高度；Ticket 13 生产渲染同时覆盖正常/最小窗口、中英文和明暗外观，并验证双列/纵向切换结果。
+- 旧独立页面的负向要求由跨生产源码、harness、测试、本地化、原型和 manifest 的全量固定字符串检索承兑；Swift 全编译补充类型链接层验证。
+- 真实签名安装后的输入焦点、Command-V 和 Keychain 行为不属于本票，分别由 Tickets 20–21 承兑；本轮没有用渲染或纯 SwiftUI 测试冒充这些宿主行为。
+
+## 维度 2：case 设计是否合理
+
+- 四条新增断言使用原型 literal 作为独立 oracle，不 import 或重算生产值；每条明确对应一个设计约束。
+- 断言落在既有公开 `ManagementCenterMetrics` seam，不 cast 私有成员、不 mock 项目模块、不旁路生产布局常量。
+- 渲染用例调用生产 `ManagementCenterView`，并实际生成 44 张图；检查的四张 Provider 图来自本轮清空后的输出目录，不是 HTML fixture 或陈旧截图。
+- 现有行为测试均从公开 coordinator/session/presentation 路径驱动目标状态；没有以空集合循环、条件提前 return 或零测试过滤计入通过。
+
+## 维度 3：有没有假通过
+
+- 最初新增常量前的红是 missing-member 编译失败，只证明接线尚不存在，不能证明几何断言会捕获错误值；该红没有被作为最终有效性证据。
+- 随后把四个正式值分别改为 849、53、28、31，并先用源码检索确认变异到达 `ManagementCenterMetrics`。限定测试在四条对应断言行分别报告实际值与期望值不等，证明每条都能捕获 1 pt 漂移。
+- 变异仅通过反向 patch 恢复四个值；恢复后同一限定测试执行 1 test / 1 suite 并通过。最终严格构建和完整测试另行执行，日志报告 271 tests / 68 suites、退出码 0。
+- 原型脚本门禁先枚举 9 个非 vendor HTML，再实际解析其中 9 个 inline scripts；本地化检查先确认两份字典各有 246 个键，再比较排序后的完整键集合，避免空集合假绿。
+
+## Review result
+
+本轮新增的四条几何断言经过针对目标失效形态的变异验证，能真实阻止确认值漂移。行为、渲染、语法、本地化和清理证明各自检查不同风险，没有用单一绿灯替代其他验收面。
