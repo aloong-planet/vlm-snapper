@@ -5,6 +5,52 @@ import Testing
 
 @Suite("Provider setup session")
 struct ProviderSetupSessionTests {
+    @Test("returning after validation failure shows its original failure")
+    func returningAfterValidationFailure() async {
+        let boundary = SuspendedValidationModelLister(failFirst: true)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: boundary))
+        let validation = Task { await session.validate(apiKey: "candidate") }
+        await boundary.waitUntilStarted()
+        await session.selectProvider(.openAI)
+        await boundary.finish()
+        await validation.value
+        await session.selectProvider(.deepSeek)
+        #expect(await session.snapshot().phase == .failed)
+        #expect(await session.snapshot().failure == .invalidConfiguration)
+    }
+
+    @Test("a submitted key keeps its original Provider when dispatch occurs after a card switch")
+    func submittedValidationUsesExplicitProvider() async {
+        let boundary = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: boundary))
+        await session.selectProvider(.openAI)
+        await session.validate(apiKey: " exact-key\t", for: .deepSeek)
+        #expect(await boundary.providers == [.deepSeek])
+        #expect(await boundary.keys == [" exact-key\t"])
+        #expect(await session.snapshot().selectedProvider == .openAI)
+        #expect(await session.snapshot().availableModelIDs.isEmpty)
+        #expect(await session.snapshot().phase == .awaitingValidation)
+    }
+
+    @Test("a pending validation ignores duplicates and releases its slot after success or failure", arguments: [false, true])
+    func pendingValidationSuppressesDuplicates(failFirst: Bool) async {
+        let boundary = SuspendedValidationModelLister(failFirst: failFirst)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: boundary))
+        let first = Task { await session.validate(apiKey: "first-key") }
+        await boundary.waitUntilStarted()
+        await session.validate(apiKey: "duplicate-key")
+        await session.selectProvider(.openAI)
+        await session.selectProvider(.deepSeek)
+        #expect(await session.snapshot().phase == .validating)
+        await session.validate(apiKey: "another-duplicate")
+        #expect(await boundary.keys == ["first-key"])
+        await boundary.finish()
+        await first.value
+        #expect(await session.snapshot().phase == (failFirst ? .failed : .selectingModel))
+        await session.validate(apiKey: "next-key")
+        #expect(await boundary.keys == ["first-key", "next-key"])
+    }
+
     @Test("validation reveals the complete model list without choosing a model")
     func validationRevealsModelsWithoutSelection() async {
         let boundary = ProviderConfigurationBoundaryProbe(
@@ -173,6 +219,41 @@ struct ProviderSetupSessionTests {
     }
 }
 
+private actor SuspendedValidationModelLister: ProviderModelListing {
+    private let failFirst: Bool
+    private let suspendFirst: Bool
+    private(set) var keys: [String] = []
+    private(set) var providers: [ProviderID] = []
+    private var pending: CheckedContinuation<Void, Never>?
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+
+    init(failFirst: Bool, suspendFirst: Bool = true) {
+        self.failFirst = failFirst
+        self.suspendFirst = suspendFirst
+    }
+
+    func listModels(provider: ProviderID, apiKey: String) async throws -> [String] {
+        keys.append(apiKey)
+        providers.append(provider)
+        if keys.count == 1 && suspendFirst {
+            await withCheckedContinuation { continuation in
+                pending = continuation
+                for waiter in startWaiters { waiter.resume() }
+                startWaiters.removeAll()
+            }
+            if failFirst { throw ProviderModelListError.authenticationRejected }
+        }
+        return ["model"]
+    }
+
+    func waitUntilStarted() async {
+        if pending != nil { return }
+        await withCheckedContinuation { startWaiters.append($0) }
+    }
+
+    func finish() { pending?.resume(); pending = nil }
+}
+
 private actor FailingProviderBoundary: ProviderSetupConfiguring {
     let error: any Error
 
@@ -295,4 +376,25 @@ private actor SuspendedProviderConfigurationBoundaryProbe: ProviderSetupConfigur
         selectionContinuation?.resume()
         selectionContinuation = nil
     }
+}
+
+private func makeCoordinator(modelLister: any ProviderModelListing) -> ProviderConfigurationCoordinator {
+    let storage = SessionTestStorage()
+    return ProviderConfigurationCoordinator(
+        modelLister: modelLister, credentialStore: storage, metadataStore: storage
+    )
+}
+
+// In-memory substitutes for external Keychain and metadata persistence only.
+private actor SessionTestStorage: ProviderCredentialStoring, ProviderMetadataStoring {
+    private var credentials: [ProviderID: ProviderCredential] = [:]
+    private var state = ProviderMetadataState()
+
+    func credential(for provider: ProviderID) -> ProviderCredential? { credentials[provider] }
+    func replaceCredential(_ credential: ProviderCredential, for provider: ProviderID) {
+        credentials[provider] = credential
+    }
+    func deleteCredential(for provider: ProviderID) { credentials[provider] = nil }
+    func load() -> ProviderMetadataState { state }
+    func save(_ state: ProviderMetadataState) { self.state = state }
 }

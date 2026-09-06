@@ -215,10 +215,10 @@ struct Ticket13RenderingTests {
             ),
             configurations: [.deepSeek: configuredDeepSeek],
             currentProvider: .deepSeek,
-            apiKey: .constant("demo-deepseek-api-key"),
+            credentialEditor: ProviderCredentialEditor(loadedValue: "demo-deepseek-api-key"),
             pendingModelID: .constant("deepseek-v4-flash-vision-exp"),
             onSelectProvider: { _ in },
-            onValidate: {},
+            onValidate: { _ in },
             onRefresh: {},
             onSelectModel: { _ in }
         )

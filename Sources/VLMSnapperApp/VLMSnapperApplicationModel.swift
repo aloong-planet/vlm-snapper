@@ -12,7 +12,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         let workspaceToRetire: OperationWorkspaceSession?
     }
 
-    @Published var apiKey = ""
+    let credentialEditor = ProviderCredentialEditor()
     @Published var pendingModelID: String?
     @Published var selectedOperation: WorkspaceOperationKind = .extract
     @Published var selectedTargetLanguageCode = "zh-Hans"
@@ -182,9 +182,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
         permission = try await permissionCoordinator.refreshStatus()
         await providerSession.load()
         providerSnapshot = await providerSession.snapshot()
-        apiKey = (try? await providerCoordinator.apiKey(
+        credentialEditor.load((try? await providerCoordinator.apiKey(
             for: providerSnapshot.selectedProvider
-        )) ?? ""
+        )) ?? "")
         pendingModelID = providerSnapshot.selectedModelID
         try await refreshProviderReadiness()
         let loginState = try await loginCoordinator.configureAtPrimaryLaunch()
@@ -318,13 +318,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
             snapshot: providerSnapshot,
             configurations: providerConfigurations,
             currentProvider: currentProvider,
-            apiKey: binding(\.apiKey),
+            credentialEditor: credentialEditor,
             pendingModelID: binding(\.pendingModelID),
             onSelectProvider: { [weak self] provider in
-                Task { await self?.selectProvider(provider) }
+                guard let self else { return }
+                let request = credentialEditor.beginLoading(for: provider)
+                Task { await self.selectProvider(request) }
             },
-            onValidate: { [weak self] in
-                Task { await self?.validateProvider() }
+            onValidate: { [weak self] submission in
+                Task { await self?.validateProvider(submission) }
             },
             onRefresh: { [weak self] in
                 Task { await self?.refreshModels() }
@@ -376,17 +378,21 @@ final class VLMSnapperApplicationModel: ObservableObject {
         )
     }
 
-    private func selectProvider(_ provider: ProviderID) async {
-        await providerSession.selectProvider(provider)
-        guard await providerSession.snapshot().selectedProvider == provider else { return }
-        let loadedAPIKey = (try? await providerCoordinator.apiKey(for: provider)) ?? ""
-        guard await providerSession.snapshot().selectedProvider == provider else { return }
-        apiKey = loadedAPIKey
+    private func selectProvider(_ request: ProviderCredentialLoad) async {
+        guard credentialEditor.accepts(request) else { return }
+        await providerSession.selectProvider(request.provider)
+        guard credentialEditor.accepts(request) else { return }
+        if credentialEditor.isLoading {
+            let loadedAPIKey = (try? await providerCoordinator.apiKey(for: request.provider)) ?? ""
+            guard credentialEditor.accepts(request) else { return }
+            credentialEditor.completeLoad(request, value: loadedAPIKey)
+        }
         await refreshProviderPresentation()
     }
 
-    private func validateProvider() async {
-        await providerSession.validate(apiKey: apiKey)
+    private func validateProvider(_ submission: ProviderCredentialSubmission) async {
+        let succeeded = await providerSession.validate(apiKey: submission.value, for: submission.provider)
+        credentialEditor.complete(submission, succeeded: succeeded)
         await refreshProviderPresentation()
     }
 
@@ -411,9 +417,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func removeProvider(_ provider: ProviderID) async {
-        try? await providerCoordinator.clearProvider(provider)
+        do {
+            try await providerCoordinator.clearProvider(provider)
+        } catch {
+            await refreshProviderPresentation()
+            return
+        }
+        await providerSession.clearValidationFailure(for: provider)
+        credentialEditor.configurationWasRemoved(for: provider)
         if providerSnapshot.selectedProvider == provider {
-            apiKey = ""
             pendingModelID = nil
             await providerSession.load()
         }

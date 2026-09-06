@@ -1095,3 +1095,43 @@ Ticket 15 的 issue、design、design review、spec、feature catalog、生产�
 | 发布前 Pending 门槛 | 未发生真实账户发布验收，不使门槛到期 |
 | 新通则或领域决策 | 无；局部 SwiftUI 状态传播修复，不改变 ADR |
 | Ticket 状态 | 本次为已安装候选的窄回归修复，不把 Ticket 20–22 标为完成 |
+
+## Ticket 20 — 2026-09-06 scoped final regression
+
+Not the full feature closeout ticket. The local verification gates and review findings are recorded in Ticket 20's checklist section.
+
+### Stage 1 — changed statements and their counterparts
+
+| Changed statement surface | Counterpart / result |
+| --- | --- |
+| Spec US-1/US-7, FM-32–40/42 | Native Paste exception, exact baseline, immutable submission and unique read identity match production editor/session. The approved missing FM-32–46 text was restored from the existing draft; FM-41/43–46 remain assigned to 21–23, not implementation claims. |
+| Feature catalog input paragraphs | Replaced the obsolete no-field-specific-handling claim; added local safety, exact revert, clear, loading, visibility and submitted-versus-unsubmitted close behavior. Describes only currently implemented behavior; no recovery/exclusivity claim imported from future tickets. |
+| CONTEXT invariants | Opaque credential and window draft/application submission ownership match the spec and implementation. No new separate term for a second credential truth. |
+| Both localization dictionaries and accessor | Two specific local safety hints; 248/248 unique keys, no missing or extra key. No key content interpolation. i18n is enabled by project AGENTS, so dictionary checks were performed. |
+| Ticket 20 / ownership checklist / review reports | Former nonexistent case references replaced with actual declarations; 58 unique requirement rows match spec. Ticket 19 is merged; 20 is locally verified pending PR/merge, 21–23 remain unaccepted. |
+| Provider prototype / README | Confirmed layout retained. Old trim/dirty/lifetime demo is explicitly invalidated only for Provider editing, with current spec as authority. Notice rendered and center-hit verified. Stale capture-retirement prose corrected to match the already-confirmed current behavior. |
+| Native input rendering and fixture declarations | Current production-window PNG shows left-aligned text and no simultaneous placeholder. Synthetic click/key assertions are not described as physical input acceptance. |
+| ADR | No new architectural choice: ADR-0012's no-rollback decision is implemented at dispatch; no competing credential persistence introduced. |
+
+### Stage 2 — relationships outside the diff
+
+| Relationship | Result |
+| --- | --- |
+| Features/spec/ADR index entries | Existing v1-core feature name and summary remain valid; no feature/file rename or new ADR entry. Ticket files use the existing local tracker conventions. |
+| Shared rule ↔ templates | No shared skill/template rule changed. |
+| Paste/opaque-input claim mirrors | Searched CONTEXT, specs, features, ADR and management-center prototype for Paste, clipboard, CRLF and field-specific wording. Obsolete feature text corrected; prototype behavior marked scoped-stale. Historical workings/postmortems remain historical, not rewritten as current truth. |
+| Scope rules ↔ gates | Full suite, strict build, native marker/deadline gate, exact-value tests and bilingual-key comparison cover their named seams. Native runner is not wired as unattended remote GUI CI acceptance and does not certify signed Keychain or real keyboard events. |
+| Dependency definitions | Existing approved Ticket 21–23 definitions restored alongside the ownership map so unresolved requirements have explicit owners. Their status is not promoted by Ticket 20 tests. |
+| Current ADR-0012 ↔ replacement inputs | The new local safety boundary prevents invalid local data from beginning destructive replacement; accepted nonempty candidate replacement still has no rollback copy. |
+
+### Stage 3 — event accounting
+
+| Event | Result |
+| --- | --- |
+| Provider / language / platform membership | No membership change: existing three Providers, two interface languages and macOS 14.4+ remain. Only two dictionary keys added; parity checked. |
+| Pending release claims | Spec's two Pending live-account/image-limit gates remain pending; this turn used no real credentials and published no release. |
+| New lifecycle/opaque-input invariants | Canonical in CONTEXT and spec Implementation/Testing Decisions, not only comments or workings. |
+| Existing prototype letter marks discovered | DS/OA/G marks belong to the prior Provider visual demo. Not replaced without selection approval; follow-up assigned to existing Ticket 23 visual consistency closeout, not Ticket 20's native editing behavior. |
+| Installation / merge | Neither occurred. Local candidate behavior is not presented as installed-app testing. |
+
+Queue recheck: changed spec text re-compared to checklist and features; feature Paste mirror removed; prototype notice inspected in an isolated browser. No remaining contradiction within Ticket 20's owned behavioral scope. Full product visual parity and signed/live acceptance remain bounded separately.

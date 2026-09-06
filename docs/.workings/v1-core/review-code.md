@@ -1066,3 +1066,37 @@ review 发现并删除 1 个本次引入的 orphan enum case；事实层重扫�
 ### 【④ 一致性】
 
 字段、占位、清空和 Validate 共用窗口当前值；外部加载通过 onChange 同步。没有更改视觉层级、主题、图标、本地化文案或 API。测试的 AppKit 编辑路径与生产字段一致，不引入仅测试使用的产品抽象。spec/features 补充即时启用和清空禁用要求。范围外图标未做全仓穷举；本轮触及的字段图标仍复用既有 SF Symbols 锚点。
+
+## Ticket 20 — 2026-09-06 whole-ticket review
+
+Admission: Ticket 20 criteria are mapped to named cases in checklist.md before this review. Scope is the native credential field, standard Paste adapter, observable editor, submission/load identity, production dispatch and the native acceptance runner. Review is self-review, not an independent agent review.
+
+### 【① 底层前提】
+
+- The native secure editor must not be replaced. The earlier ordinary NSTextView substitution crashed while AppKit configured secure storage; no such substitution remains. Existing Paste actions are adapted only for the active Provider field, with public menu-tracking notification. Native context-menu tracking and selection replacement passed 10 fresh processes.
+- Swift String equality is canonically equivalent, not byte equality. Credential dirty checks and field updates use UTF-8 equality; NFC/NFD is covered by baselineUsesExactBytes.
+- The suspected shorter-value/visibility selection issue did not reproduce: AppKit clamps to the new end. The added real-field assertion passed without changing production code. No speculative clamp or causal claim was added.
+- The previous 97-minute desktop automation stall is not diagnosed by this work. The bounded runner limits its own child and requires an explicit completion marker; it is not a claim that CUA is fixed.
+
+### 【② 可运行性】
+
+Lifecycle paths enumerated: loaded → edited/reverted/cleared; unloaded → loading → loaded; load → switch A/B/A or close; draft → submit → success/failure; pending → switch/return/close/reopen; closed failure → reopen/edit/remove; secure ↔ plain. Editor tests and real-window tests cover these public transitions.
+
+The implementation slices found and fixed actual errors: reverted loaded values could resubmit; post-success Return could duplicate; provider-only read checks admitted stale A/B/A results; global pending state blocked another card's draft and let the first result overwrite it; returning to a pending Provider lost pending/terminal presentation; failures finishing while closed lost their candidate. Their deliberate red/green logs are indexed in the tasklist. After these fact-layer corrections, the safety and consistency layers were rechecked.
+
+Failure escape surfaces: invalid input is local to its candidate and cannot delete a saved credential; network/storage validation failure is scoped to the submitted Provider; stale read/completion is ignored rather than polluting another card; UI-harness timeout fails the batch and kills only its spawned child. Startup Keychain errors currently collapse to missing in existing application reads: this is an acknowledged Ticket 21 requirement (FM-45), not fixed or certified by Ticket 20. Cross-Provider/capture admission remains Ticket 22 (FM-43/44), not inferred from same-Provider suppression.
+
+### 【③ 安全正确性】
+
+- Validate/Return share a synchronous claim with an immutable Provider/value. Actor-level duplicate suppression survives card changes; unique load tokens reject closed/obsolete visits. New session tests run the real configuration coordinator with only external model/storage boundaries controlled.
+- Old baseline is dropped before replacement dispatch. Failed candidates are memory-only and released on edit/removal; window close does not cancel submitted work. Successful completion uses the coordinator result after storage publication. Process-exit/crash recovery is explicitly owned by Ticket 21.
+- Empty/newline/over-4096-byte input is rejected in both presentation and coordinator before destructive replacement. Opaque whitespace and Unicode remain intact; no key format heuristics.
+- All native test values are dummy data, pasteboards are private, no user key is read or logged. Production no-op mutations were restored exactly, not by resetting tracked files.
+
+### 【④ 一致性】
+
+All four ProviderSettingsConfiguration constructor consumers were enumerated: application model, native interaction tests, rendering tests and smoke harness. They now supply the same observable editor interface; no stale external apiKey binding remains in that surface. Native field, status, placeholder and actions derive from one editor. The fixed input owns no alternate Keychain store or network client.
+
+The Paste exception intentionally replaces the former blanket statement that no field-specific adaptation exists; spec/features are updated together. Public native symbols, theme and approved geometry remain unchanged. Removal does not falsely clear the local editor when the coordinator rejects deletion. Keychain error wording/recovery is still 21.
+
+Bad-smell review: the load/submission value types are narrow immutable identities, not speculative generality; per-Provider job/candidate maps are required by switch/close behavior. Shared native paste routing avoids separate keyboard/context implementations. No additional refactor or unrelated dead-code removal is proposed.

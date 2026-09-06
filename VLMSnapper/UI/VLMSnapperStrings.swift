@@ -63,6 +63,8 @@ enum VLMSnapperStrings {
     static var providerNewKeyPending: String { localized("providerSetup.newKeyPending") }
     static var providerRetryValidation: String { localized("providerSetup.retryValidation") }
     static var providerEnterKey: String { localized("providerSetup.enterKey") }
+    static var providerKeyContainsNewline: String { localized("providerSetup.keyContainsNewline") }
+    static var providerKeyTooLong: String { localized("providerSetup.keyTooLong") }
     static var providerReplacementHint: String { localized("providerSetup.replacementHint") }
     static var providerCurrent: String { localized("providerSetup.current") }
     static var providerSetCurrent: String { localized("providerSetup.setCurrent") }

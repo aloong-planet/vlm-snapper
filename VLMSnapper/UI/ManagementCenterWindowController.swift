@@ -52,10 +52,14 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
     required init?(coder: NSCoder) { nil }
 
     public func windowWillClose(_ notification: Notification) {
+        providerSettings?.credentialEditor.close()
         onClose()
     }
 
     public func show(destination: ManagementCenterDestination) {
+        if let providerSettings, !providerSettings.credentialEditor.isOpen {
+            providerSettings.onSelectProvider(providerSettings.snapshot.selectedProvider)
+        }
         currentDestination = destination
         render(destination: destination)
         showWindow(nil)
