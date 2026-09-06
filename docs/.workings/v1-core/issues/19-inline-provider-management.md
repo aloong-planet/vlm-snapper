@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-pr
+**Status:** completed (merged)
 
 - [x] Settings Center presents one expanded Provider card at a time, preferring an explicit target, then the current Provider, then DeepSeek; all configuration, model, current-Provider, and removal actions stay in that page — **test**: `ProviderSettingsPresentationTests.expandedProviderPreference`, `ProviderConfigurationCoordinatorTests.selectingFirstUsableProviderMakesItCurrent`, `ProviderConfigurationCoordinatorTests.configuringAnotherProviderDoesNotReplaceRememberedCurrentProvider`, and `ProviderConfigurationCoordinatorTests.clearingProviderRemovesKeyAndMetadataWithoutFallback`.
 - [x] Onboarding opens Settings Center at the requested Provider without starting capture or permission recovery; selecting a valid model or closing early returns to onboarding exactly once with the real completion state — **test**: `ProviderSettingsPresentationTests.onboardingReturnIsConsumedExactlyOnce` plus the onboarding navigation cases in `OnboardingSessionTests`.
@@ -14,5 +14,7 @@
 - [x] Strict build, full tests, localization-key parity, prototype syntax, render-contract tests, and `git diff --check` all pass — **gate**: 271 tests in 68 suites pass with warnings-as-errors; both 246-key localization dictionaries match; 9 HTML prototypes and 9 inline scripts parse.
 
 ## Comments
+
+- 2026-09-06: Status synchronized after PR #23 was merged as `eba012fa929e34d0bc3e744eaa7ff2715b15d3e0`. Follow-up native editing and lifecycle requirements remain in Ticket 20; this status update does not accept them retroactively.
 
 - 2026-09-05: This ticket was published after draft implementation had already begun because a tasklist was incorrectly used in place of a formal ticket. Existing behavior was re-verified from the isolated `a97bd73` tree; a missing geometry contract was then added through a deliberate red-green cycle and mutation-checked.

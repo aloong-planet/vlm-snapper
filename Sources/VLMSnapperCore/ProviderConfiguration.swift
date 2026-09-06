@@ -165,6 +165,7 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
         _ apiKey: String,
         for provider: ProviderID
     ) async throws -> ProviderConfiguration {
+        if let issue = ProviderAPIKeyInput.issue(in: apiKey) { throw issue }
         try beginConfigurationMutation()
         defer { endConfigurationMutation() }
         var state = try await metadataStore.load()

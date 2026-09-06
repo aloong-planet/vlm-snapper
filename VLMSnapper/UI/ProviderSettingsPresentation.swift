@@ -106,6 +106,7 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
     public let status: ProviderInlineCredentialStatus
     public let showsValidation: Bool
     public let canValidate: Bool
+    public let localInputHint: String?
 
     public init(
         isConfigured: Bool,
@@ -113,8 +114,15 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
         isDirty: Bool,
         phase: ProviderSetupPhase,
         hasAPIKey: Bool,
-        isReadOnly: Bool
+        isReadOnly: Bool,
+        inputIssue: ProviderAPIKeyInputIssue? = nil
     ) {
+        localInputHint = switch inputIssue {
+        case .empty: VLMSnapperStrings.providerEnterKey
+        case .containsNewline: VLMSnapperStrings.providerKeyContainsNewline
+        case .tooLong: VLMSnapperStrings.providerKeyTooLong
+        case nil: nil
+        }
         let selectedKeyIsDirty = isSelected && isDirty
         if isSelected, phase == .validating {
             status = .validating
@@ -131,7 +139,7 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
         showsValidation = !isConfigured || selectedKeyIsDirty
             || status == .validating || status == .failed
         canValidate = showsValidation && hasAPIKey
-            && status != .validating && !isReadOnly
+            && status != .validating && !isReadOnly && inputIssue == nil
     }
 }
 

@@ -92,7 +92,10 @@ struct ApplicationMenuTests {
         )
 
         for item in edit.items where !item.isSeparatorItem && !item.hasSubmenu {
-            #expect(item.target == nil)
+            if item.action != #selector(NSText.paste(_:))
+                && item.action != #selector(NSTextView.pasteAsPlainText(_:)) {
+                #expect(item.target == nil)
+            }
         }
     }
 
@@ -101,16 +104,18 @@ struct ApplicationMenuTests {
         LocalizationTestCoordinator.acquire()
         defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        board.setString("ordinary text\r\n", forType: .string)
+        let responder = PasteRecordingTextView(pasteboard: board)
         let menu = VLMSnapperApplicationMenuBuilder.makeMainMenu(
-            applicationName: "VLMSnapper"
+            applicationName: "VLMSnapper", activeResponder: { responder }
         )
         let edit = try #require(menu.item(withTitle: "Edit")?.submenu)
         let paste = try #require(edit.item(withTitle: "Paste"))
-        let responder = PasteRecordingTextView(frame: .init(x: 0, y: 0, width: 200, height: 40))
-        let action = try #require(paste.action)
-        #expect(paste.target == nil)
-        #expect(responder.tryToPerform(action, with: paste))
+        edit.performActionForItem(at: edit.index(of: paste))
         #expect(responder.pasteCount == 1)
+        #expect(responder.receivedText.map { Array($0.utf8) } == Array("ordinary text\r\n".utf8))
     }
 
     @Test("the complete Edit menu is localized in Simplified Chinese")
@@ -159,8 +164,19 @@ struct ApplicationMenuTests {
 @MainActor
 private final class PasteRecordingTextView: NSTextView {
     private(set) var pasteCount = 0
+    private(set) var receivedText: String?
+    private let pasteboard: NSPasteboard
+
+    init(pasteboard: NSPasteboard) {
+        self.pasteboard = pasteboard
+        super.init(frame: .init(x: 0, y: 0, width: 200, height: 40), textContainer: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
 
     override func paste(_ sender: Any?) {
         pasteCount += 1
+        receivedText = pasteboard.string(forType: .string)
     }
 }

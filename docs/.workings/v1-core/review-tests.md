@@ -932,3 +932,32 @@
 ### 维度 3：假通过
 
 最初编译环境和无障碍对象定位失败只视为测试工具未就绪，不计红绿证据。真正的红是底层收到 test-key 后，真实点击却没有提交；预填正对照能提交。仅改 @Binding 后的清空测试又检出空文本误提交。最终将 hasAPIKey 暂改回配置 Binding，重编译后空值起始和清空反向断言按预测失败；只撤回这一变异后，严格构建和完整 272 tests / 69 suites 通过，退出码 0。原型静态渲染不再作为输入行为证据。
+
+## Ticket 20 — 2026-09-06 whole-ticket test review
+
+### 维度 1：覆盖
+
+Inventory: ProviderAPIKeyInputTests (1 declaration); ProviderAPIKeyFieldTests (3, including parameterized paste and secure/plain routes); ProviderCredentialEditorTests (8 declarations with lifecycle parameters); ProviderCredentialInteractionTests (5 with empty/prefilled × input-source cases); new ProviderSetupSessionTests cases (3, one success/failure parameter); coordinator unsafe-input regression; local-hint presentation case; changed ApplicationMenu fallback case; existing rendering fixture rewiring; executable native menu runner.
+
+The checklist maps US-07/US-11 and FM-32–40/42 to these cases. UTF-8 boundary uses 1024 four-byte symbols (4096 bytes) and one extra byte, not a character-count approximation. Clipboard cases include CRLF, separate CR/LF, repeated newline, spaces, tab, decomposed Unicode and embedded newline. State cases cover A/B/A, closed reads, pending/terminal close/reopen, exact reversion and immutable original-provider completion.
+
+User-reported live failures (visible entered text with disabled Validate, prefilled-versus-empty difference and selection replacement) supplied the native fixture shapes; dummy secret values preserve those shapes. No external account response parsing was changed, and synthetic model listing is only a controlled delay/error boundary, not real Provider compatibility evidence.
+
+Gap: tests use actual AppKit windows/editors but programmatic events/actions. Physical keyboard/mouse, installed signed application, real Keychain permission and network acceptance remain distinct. The runner's ten passes prove repeatability at the described native boundary, not those missing layers. File-header comments state the supplementary acceptance conditions.
+
+### 维度 2：case 设计
+
+- Found an over-isolated new session seam: tests substituted our own configuration coordinator. Replaced those three new tests with the real ProviderConfigurationCoordinator; only model listing and external persistence use controlled substitutes. Existing unrelated session probes are not represented as integration evidence for this ticket.
+- Editor tests use public transitions and immutable tickets, not private dictionaries or casts. Native tests inspect real public AppKit fields and assert submitted payloads, selection, visible clear/Validate behavior and loaded text.
+- Submission counts are externally visible dispatch obligations (exactly once), not assertions on private implementation calls. The ordinary NSTextView fallback spy checks responder forwarding only; it does not certify full ordinary-editor rendering.
+- Fixed-coordinate native hits are limited to the confirmed minimum layout and have positive controls with the same hit target. Broader layout acceptance is not claimed. Run-loop settling is a test synchronization aid, not a production sleep-based fix.
+- Scope contains no new dynamic/static private-member access or production mocks. The new test helper controls the external model completion through continuations so ordering is explicit.
+
+### 维度 3：假通过
+
+- Deliberate red causes are indexed in the tasklist. Compiler/setup failures and the earlier popup run with exit 0 but no completed test report were rejected, not counted as red/green.
+- Strengthened real-coordinator test mutation: remove same-Provider admission suppression, rebuild current source, run pendingValidationSuppressesDuplicates. Both cases fail at ProviderSetupSessionTests.swift:44 (lost validating phase). Compilation log confirms the changed session source was rebuilt. Restore only the guard, then strict/full/native gates pass.
+- Native Paste no-op mutation previously reached the insertion assertion and failed; missing marker (/usr/bin/true) and timeout negative controls separately fail the runner. Its normal invocation always rebuilds source. Ten loops of a stale prebuilt binary are not the default gate.
+- The new shorter-value selection assertion was green immediately because AppKit already handles it; no fake product fix was made to manufacture a red.
+- No conditional success-return silently skips the added native cases. Required fields, editor, events and indices use #require; async session tasks are awaited; external callbacks have explicit payload-count assertions.
+- Final verified gate: 293 tests / 72 suites, 15.460 seconds; strict build and native 10/10 (0.893–1.477 seconds), plus identical 248-key localization sets and git diff --check. These are scoped evidence, not full feature or signed-app acceptance.

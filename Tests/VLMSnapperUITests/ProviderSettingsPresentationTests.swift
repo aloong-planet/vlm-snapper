@@ -5,6 +5,26 @@ import VLMSnapperCore
 
 @Suite("Provider settings presentation")
 struct ProviderSettingsPresentationTests {
+    @Test("local input errors have specific localized hints")
+    @MainActor
+    func localAPIKeyErrorsHaveSpecificHints() {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        for (issue, hint) in [
+            (ProviderAPIKeyInputIssue.empty, "Enter a key to validate"),
+            (.containsNewline, "Remove the remaining line breaks from the API key before validating."),
+            (.tooLong, "The API key is too long. Check for extra pasted content."),
+        ] {
+            let presentation = ProviderInlineCredentialPresentation(
+                isConfigured: true, isSelected: true, isDirty: true, phase: .ready,
+                hasAPIKey: issue != .empty, isReadOnly: false, inputIssue: issue
+            )
+            #expect(!presentation.canValidate)
+            #expect(presentation.localInputHint == hint)
+        }
+    }
+
     @Test("inline credential states expose validation only when needed")
     func inlineCredentialStates() {
         let configured = ProviderInlineCredentialPresentation(

@@ -2,11 +2,17 @@ import AppKit
 
 @MainActor
 public enum VLMSnapperApplicationMenuBuilder {
-    public static func makeMainMenu(applicationName: String) -> NSMenu {
-        let mainMenu = NSMenu(title: applicationName)
+    public static func makeMainMenu(
+        applicationName: String,
+        pasteboard: NSPasteboard = .general,
+        activeResponder: @escaping @MainActor () -> NSResponder? = { NSApp.keyWindow?.firstResponder }
+    ) -> NSMenu {
+        let mainMenu = ProviderPasteMenu(title: applicationName, pasteboard: pasteboard, activeResponder: activeResponder)
         mainMenu.addItem(topLevelItem(title: applicationName, submenu: applicationMenu(applicationName)))
         mainMenu.addItem(topLevelItem(title: VLMSnapperStrings.menuFile, submenu: fileMenu()))
-        mainMenu.addItem(topLevelItem(title: VLMSnapperStrings.menuEdit, submenu: editMenu()))
+        let edit = editMenu()
+        mainMenu.routePaste(in: edit)
+        mainMenu.addItem(topLevelItem(title: VLMSnapperStrings.menuEdit, submenu: edit))
         mainMenu.addItem(topLevelItem(title: VLMSnapperStrings.menuWindow, submenu: windowMenu()))
         mainMenu.addItem(topLevelItem(title: VLMSnapperStrings.menuHelp, submenu: helpMenu()))
         return mainMenu

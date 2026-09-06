@@ -6,10 +6,10 @@ public struct ProviderSettingsConfiguration {
     public let snapshot: ProviderSetupSnapshot
     public let configurations: [ProviderID: ProviderConfiguration]
     public let currentProvider: ProviderID?
-    public let apiKey: Binding<String>
+    public let credentialEditor: ProviderCredentialEditor
     public let pendingModelID: Binding<String?>
     public let onSelectProvider: (ProviderID) -> Void
-    public let onValidate: () -> Void
+    public let onValidate: (ProviderCredentialSubmission) -> Void
     public let onRefresh: () -> Void
     public let onSelectModel: (String) -> Void
     public let onSetCurrentProvider: (ProviderID) -> Void
@@ -19,10 +19,10 @@ public struct ProviderSettingsConfiguration {
         snapshot: ProviderSetupSnapshot,
         configurations: [ProviderID: ProviderConfiguration] = [:],
         currentProvider: ProviderID? = nil,
-        apiKey: Binding<String>,
+        credentialEditor: ProviderCredentialEditor,
         pendingModelID: Binding<String?>,
         onSelectProvider: @escaping (ProviderID) -> Void,
-        onValidate: @escaping () -> Void,
+        onValidate: @escaping (ProviderCredentialSubmission) -> Void,
         onRefresh: @escaping () -> Void,
         onSelectModel: @escaping (String) -> Void,
         onSetCurrentProvider: @escaping (ProviderID) -> Void = { _ in },
@@ -31,7 +31,7 @@ public struct ProviderSettingsConfiguration {
         self.snapshot = snapshot
         self.configurations = configurations
         self.currentProvider = currentProvider
-        self.apiKey = apiKey
+        self.credentialEditor = credentialEditor
         self.pendingModelID = pendingModelID
         self.onSelectProvider = onSelectProvider
         self.onValidate = onValidate
@@ -156,9 +156,7 @@ public struct ManagementCenterView: View {
     private let callbacks: ManagementCenterCallbacks
     private let settings: GeneralSettingsSnapshot
     private let providerSettings: ProviderSettingsConfiguration?
-    // The external binding is closure-backed and does not invalidate this view.
-    // Keep the displayed draft in State so every edit also refreshes its controls.
-    @State private var apiKey: String
+    @ObservedObject private var credentialEditor: ProviderCredentialEditor
     @State private var destination: ManagementCenterDestination
     @State private var kind: HistoryOperationKindFilter = .all
     @State private var searchText: String
@@ -170,7 +168,6 @@ public struct ManagementCenterView: View {
     @State private var showingClearConfirmation = false
     @State private var expandedProvider: ProviderID?
     @State private var showsAPIKey = false
-    @State private var apiKeyIsDirty = false
     @State private var providerPendingRemoval: ProviderID?
 
     public init(
@@ -192,7 +189,7 @@ public struct ManagementCenterView: View {
         self.callbacks = callbacks
         self.settings = settings
         self.providerSettings = providerSettings
-        _apiKey = State(initialValue: providerSettings?.apiKey.wrappedValue ?? "")
+        _credentialEditor = ObservedObject(wrappedValue: providerSettings?.credentialEditor ?? ProviderCredentialEditor())
         _destination = State(initialValue: destination)
         _selectedRecordID = State(initialValue: selectedRecordID ?? records.first?.id)
         _searchText = State(initialValue: searchText)
@@ -274,23 +271,12 @@ public struct ManagementCenterView: View {
         ) { provider in
             Button(VLMSnapperStrings.providerRemove, role: .destructive) {
                 providerSettings?.onRemoveProvider(provider)
-                apiKeyIsDirty = false
                 showsAPIKey = false
                 providerPendingRemoval = nil
             }
         }
-        .onChange(of: providerSettings?.snapshot.selectedProvider) { _, _ in
-            apiKey = providerSettings?.apiKey.wrappedValue ?? ""
-            apiKeyIsDirty = false
+        .onChange(of: credentialEditor.provider) { _, _ in
             showsAPIKey = false
-        }
-        .onChange(of: providerSettings?.apiKey.wrappedValue) { _, value in
-            apiKey = value ?? ""
-        }
-        .onChange(of: providerSettings?.snapshot.phase) { _, phase in
-            if phase == .selectingModel || phase == .ready {
-                apiKeyIsDirty = false
-            }
         }
         .onAppear {
             guard destination != .history,
@@ -539,9 +525,9 @@ public struct ManagementCenterView: View {
             Button {
                 if isExpanded {
                     expandedProvider = nil
+                    credentialEditor.close()
                 } else {
                     expandedProvider = provider
-                    apiKeyIsDirty = false
                     showsAPIKey = false
                     providerSettings?.onSelectProvider(provider)
                 }
@@ -619,7 +605,8 @@ public struct ManagementCenterView: View {
                         Button(VLMSnapperStrings.providerRemove, role: .destructive) {
                             providerPendingRemoval = provider
                         }
-                        .disabled(providerSettings.snapshot.isReadOnly)
+                        .disabled(providerSettings.snapshot.isReadOnly
+                                  || credentialEditor.isSubmitting || credentialEditor.isLoading)
                     }
                     Spacer()
                     if providerSettings.currentProvider == provider {
@@ -630,7 +617,8 @@ public struct ManagementCenterView: View {
                         Button(VLMSnapperStrings.providerSetCurrent) {
                             providerSettings.onSetCurrentProvider(provider)
                         }
-                        .disabled(providerSettings.snapshot.isReadOnly)
+                        .disabled(providerSettings.snapshot.isReadOnly
+                                  || credentialEditor.isSubmitting || credentialEditor.isLoading)
                     }
                 }
             }
@@ -682,35 +670,21 @@ public struct ManagementCenterView: View {
                 .foregroundStyle(providerCredentialStatusColor(presentation.status))
             }
             HStack(spacing: 0) {
-                Group {
-                    if showsAPIKey {
-                        TextField(
-                            apiKey.isEmpty
-                                ? VLMSnapperStrings.apiKeyPlaceholder
-                                : "",
-                            text: providerAPIKeyBinding
-                        )
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        SecureField(
-                            apiKey.isEmpty
-                                ? VLMSnapperStrings.apiKeyPlaceholder
-                                : "",
-                            text: providerAPIKeyBinding
-                        )
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                ProviderAPIKeyField(
+                    text: providerAPIKeyBinding,
+                    placeholder: VLMSnapperStrings.apiKeyPlaceholder,
+                    isRevealed: showsAPIKey,
+                    isEnabled: !providerSettings.snapshot.isReadOnly
+                        && !credentialEditor.isSubmitting && !credentialEditor.isLoading,
+                    onSubmit: {
+                        if presentation.canValidate {
+                            credentialEditor.submit(for: providerSettings.snapshot.selectedProvider,
+                                                    isReadOnly: providerSettings.snapshot.isReadOnly,
+                                                    operation: providerSettings.onValidate)
+                        }
                     }
-                }
-                .disabled(providerSettings.snapshot.isReadOnly)
-                .onSubmit {
-                    if presentation.canValidate {
-                        providerSettings.onValidate()
-                    }
-                }
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.trailing, 8)
                 Button {
                     providerAPIKeyBinding.wrappedValue = ""
@@ -719,8 +693,9 @@ public struct ManagementCenterView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(
-                    apiKey.isEmpty
-                        || providerSettings.snapshot.isReadOnly
+                    credentialEditor.value.isEmpty
+                        || providerSettings.snapshot.isReadOnly || credentialEditor.isSubmitting
+                        || credentialEditor.isLoading
                 )
                 .accessibilityLabel(VLMSnapperStrings.clearAPIKey)
                 Button {
@@ -730,7 +705,8 @@ public struct ManagementCenterView: View {
                         .image.frame(width: 28, height: 22)
                 }
                 .buttonStyle(.plain)
-                .disabled(providerSettings.snapshot.isReadOnly)
+                .disabled(providerSettings.snapshot.isReadOnly || credentialEditor.isSubmitting
+                          || credentialEditor.isLoading)
                 .accessibilityLabel(
                     showsAPIKey
                         ? VLMSnapperStrings.hideAPIKey
@@ -748,11 +724,15 @@ public struct ManagementCenterView: View {
 
             if presentation.showsValidation {
                 HStack {
-                    Text(providerValidationHint(presentation.status))
+                    Text(presentation.localInputHint ?? providerValidationHint(presentation.status))
                         .font(.caption)
                         .foregroundStyle(VLMSnapperTheme.secondaryText)
                     Spacer()
-                    Button(VLMSnapperStrings.validate, action: providerSettings.onValidate)
+                    Button(VLMSnapperStrings.validate) {
+                        credentialEditor.submit(for: providerSettings.snapshot.selectedProvider,
+                                                    isReadOnly: providerSettings.snapshot.isReadOnly,
+                                                    operation: providerSettings.onValidate)
+                    }
                         .buttonStyle(.borderedProminent)
                         .disabled(!presentation.canValidate)
                 }
@@ -787,9 +767,11 @@ public struct ManagementCenterView: View {
                     }
                 }
                 .labelsHidden()
-                .disabled(providerSettings.snapshot.isReadOnly)
+                .disabled(providerSettings.snapshot.isReadOnly
+                                  || credentialEditor.isSubmitting || credentialEditor.isLoading)
                 Button(VLMSnapperStrings.refresh, action: providerSettings.onRefresh)
-                    .disabled(providerSettings.snapshot.isReadOnly)
+                    .disabled(providerSettings.snapshot.isReadOnly
+                                  || credentialEditor.isSubmitting || credentialEditor.isLoading)
             }
             Text(VLMSnapperStrings.visionValidationHint)
                 .font(.caption)
@@ -799,12 +781,8 @@ public struct ManagementCenterView: View {
 
     private var providerAPIKeyBinding: Binding<String> {
         Binding(
-            get: { apiKey },
-            set: { value in
-                apiKey = value
-                providerSettings?.apiKey.wrappedValue = value
-                apiKeyIsDirty = true
-            }
+            get: { credentialEditor.value },
+            set: { credentialEditor.edit($0) }
         )
     }
 
@@ -844,11 +822,12 @@ public struct ManagementCenterView: View {
             isConfigured: providerSettings.configurations[provider] != nil,
             isSelected: providerSettings.snapshot.selectedProvider == provider,
             isDirty: providerSettings.snapshot.selectedProvider == provider
-                && apiKeyIsDirty,
-            phase: providerSettings.snapshot.phase,
-            hasAPIKey: !apiKey
-                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            isReadOnly: providerSettings.snapshot.isReadOnly
+                && credentialEditor.isDirty,
+            phase: credentialEditor.isSubmitting ? .validating : providerSettings.snapshot.phase,
+            hasAPIKey: !credentialEditor.value.isEmpty,
+            isReadOnly: providerSettings.snapshot.isReadOnly || !credentialEditor.isDirty
+                || credentialEditor.isLoading || credentialEditor.provider != provider,
+            inputIssue: ProviderAPIKeyInput.issue(in: credentialEditor.value)
         )
     }
 
@@ -885,7 +864,7 @@ public struct ManagementCenterView: View {
             snapshot: providerSettings.snapshot,
             configuration: providerSettings.configurations[provider],
             isDirty: providerSettings.snapshot.selectedProvider == provider
-                && apiKeyIsDirty
+                && credentialEditor.isDirty
         )
     }
 

@@ -5,6 +5,7 @@ import VLMSnapperUI
 
 @main
 struct VLMSnapperUIHarness: App {
+    @NSApplicationDelegateAdaptor(HarnessApplicationDelegate.self) private var delegate
     var body: some Scene {
         WindowGroup {
             HarnessRoot(mode: HarnessMode(arguments: CommandLine.arguments))
@@ -13,6 +14,19 @@ struct VLMSnapperUIHarness: App {
                 )
         }
         .windowStyle(.hiddenTitleBar)
+    }
+}
+
+@MainActor
+private final class HarnessApplicationDelegate: NSObject, NSApplicationDelegate {
+    private var editingSmoke: ProviderEditingSmoke?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--provider-editing-smoke") {
+            let smoke = ProviderEditingSmoke()
+            editingSmoke = smoke
+            DispatchQueue.main.async { smoke.run() }
+        }
     }
 }
 

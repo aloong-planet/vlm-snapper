@@ -63,6 +63,8 @@ public actor ProviderSetupSession {
     private var failure: ProviderSetupFailure?
     private var generation = 0
     private var isReadOnly = false
+    private var validatingProviders: Set<ProviderID> = []
+    private var validationFailures: [ProviderID: ProviderSetupFailure] = [:]
 
     public init(
         selectedProvider: ProviderID,
@@ -88,6 +90,18 @@ public actor ProviderSetupSession {
     }
 
     public func load() async {
+        if validatingProviders.contains(selectedProvider) {
+            configuration = nil
+            phase = .validating
+            failure = nil
+            return
+        }
+        if let storedFailure = validationFailures[selectedProvider] {
+            configuration = nil
+            failure = storedFailure
+            phase = .failed
+            return
+        }
         let requestGeneration = generation
         do {
             let state = try await boundary.configurationState()
@@ -113,30 +127,47 @@ public actor ProviderSetupSession {
     }
 
     public func validate(apiKey: String) async {
-        guard !isReadOnly else {
-            return
+        await validate(apiKey: apiKey, for: selectedProvider)
+    }
+
+    @discardableResult
+    public func validate(apiKey: String, for provider: ProviderID) async -> Bool {
+        guard !isReadOnly, validatingProviders.insert(provider).inserted else {
+            return false
         }
-        generation += 1
-        let requestGeneration = generation
-        let provider = selectedProvider
-        phase = .validating
-        failure = nil
+        defer { validatingProviders.remove(provider) }
+        validationFailures[provider] = nil
+        if provider == selectedProvider {
+            generation += 1
+            configuration = nil
+            phase = .validating
+            failure = nil
+        }
         do {
             let validated = try await boundary.validateAndSaveKey(apiKey, for: provider)
-            guard requestGeneration == generation, provider == selectedProvider else {
-                return
+            guard provider == selectedProvider else {
+                return true
             }
+            generation += 1
             apply(validated)
+            return true
         } catch {
-            guard requestGeneration == generation, provider == selectedProvider else {
-                return
+            validationFailures[provider] = classifyFailure(error)
+            guard provider == selectedProvider else {
+                return false
             }
+            generation += 1
             setFailure(error)
+            return false
         }
     }
 
+    public func clearValidationFailure(for provider: ProviderID) {
+        validationFailures[provider] = nil
+    }
+
     public func refreshModels() async {
-        guard !isReadOnly else {
+        guard !isReadOnly, !validatingProviders.contains(selectedProvider) else {
             return
         }
         generation += 1
@@ -159,7 +190,7 @@ public actor ProviderSetupSession {
     }
 
     public func selectModel(_ modelID: String) async {
-        guard !isReadOnly else {
+        guard !isReadOnly, !validatingProviders.contains(selectedProvider) else {
             return
         }
         generation += 1
@@ -191,8 +222,13 @@ public actor ProviderSetupSession {
     }
 
     private func setFailure(_ error: any Error) {
+        failure = classifyFailure(error)
+        phase = .failed
+    }
+
+    private func classifyFailure(_ error: any Error) -> ProviderSetupFailure {
         if let configurationError = error as? ProviderConfigurationError {
-            failure = switch configurationError {
+            return switch configurationError {
             case .configurationLocked, .configurationMutationInProgress:
                 .configurationLocked
             case .missingCredential, .providerNotUsable, .modelNotFound,
@@ -201,12 +237,11 @@ public actor ProviderSetupSession {
             }
         } else if let modelListError = error as? ProviderModelListError,
                   modelListError == .authenticationRejected {
-            failure = .invalidConfiguration
+            return .invalidConfiguration
         } else if error is AppleKeychainError {
-            failure = .secureStorage
+            return .secureStorage
         } else {
-            failure = .unavailable
+            return .unavailable
         }
-        phase = .failed
     }
 }

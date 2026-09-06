@@ -6,6 +6,24 @@ import Testing
 // pipeline is introduced; this suite owns the one-refresh decision primitive.
 @Suite("Provider configuration coordinator")
 struct ProviderConfigurationCoordinatorTests {
+    @Test("unsafe local API keys cannot replace a saved credential",
+          arguments: ["", "key\n", "key\rvalue", String(repeating: "x", count: 4097)])
+    func unsafeInputPreservesSavedConfiguration(key: String) async throws {
+        let credentialStore = MemoryCredentialStore()
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: StaticModelLister(models: ["model"]),
+            credentialStore: credentialStore, metadataStore: MemoryMetadataStore()
+        )
+        _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        do {
+            _ = try await coordinator.validateAndSaveKey(key, for: .deepSeek)
+            Issue.record("Unsafe input reached Provider validation")
+        } catch {}
+        #expect(try await coordinator.apiKey(for: .deepSeek) == "saved-key")
+        #expect(try await coordinator.configurationState().configurations[.deepSeek]?.selectedModelID == "model")
+    }
+
     @Test("one model-unavailable attempt can claim at most one list refresh")
     func modelUnavailableAttemptClaimsOneRefresh() {
         var gate = ModelUnavailableRefreshGate()
