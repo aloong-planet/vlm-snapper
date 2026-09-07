@@ -14,10 +14,11 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
     private var onboardingHostingController: NSHostingController<OnboardingContainerView>?
     private var isPreparingForTermination = false
     private var providerSettingsReturnContext = ProviderSettingsReturnContext()
+    private var startupTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        Task { await start() }
+        startupTask = Task { await start() }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -25,11 +26,15 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let model else { return .terminateNow }
+        guard let model else {
+            startupTask?.cancel()
+            return .terminateNow
+        }
         guard !isPreparingForTermination else { return .terminateLater }
         isPreparingForTermination = true
         Task {
             let canTerminate = await model.prepareForTermination()
+            if canTerminate { startupTask?.cancel() }
             isPreparingForTermination = false
             sender.reply(toApplicationShouldTerminate: canTerminate)
         }
@@ -58,6 +63,7 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         } catch {
+            guard !Task.isCancelled else { return }
             let message = "VLMSnapper startup failed: \(error)\n"
             try? FileHandle.standardError.write(contentsOf: Data(message.utf8))
             NSApp.terminate(nil)
@@ -115,6 +121,7 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         )
         self.menuController = menuController
         try await model.start()
+        try Task.checkCancellation()
         refreshPresentedSurfaces()
         if !model.hasFinishedOnboarding {
             showOnboarding()

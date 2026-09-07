@@ -11,6 +11,7 @@ public struct ProviderCredentialSubmission: Sendable {
 public struct ProviderCredentialLoad: Sendable {
     public let provider: ProviderID
     fileprivate let id = UUID()
+    fileprivate var predecessor: Task<Void, Never>?
 }
 
 /// The window's single source of truth for opaque credential text and its baseline.
@@ -22,6 +23,8 @@ public final class ProviderCredentialEditor: ObservableObject {
     @Published public private(set) var isLoading = false
     private var baseline: String?
     private var loadID: UUID?
+    private var loadTask: Task<Void, Never>?
+    private var canceledLoad: Task<Void, Never>?
     @Published public private(set) var provider: ProviderID? = .deepSeek
 
     public var isSubmitting: Bool {
@@ -30,11 +33,34 @@ public final class ProviderCredentialEditor: ObservableObject {
 
     public var isOpen: Bool { provider != nil }
 
+    public func performLoad(
+        _ request: ProviderCredentialLoad,
+        operation: @MainActor () async -> Void
+    ) async {
+        await request.predecessor?.value
+        guard accepts(request), !Task.isCancelled else { return }
+        await operation()
+    }
+
+    public func attachLoadTask(_ task: Task<Void, Never>, for request: ProviderCredentialLoad) {
+        guard accepts(request) else { task.cancel(); return }
+        loadTask = task
+    }
+
+    public func detachLoadTask(for request: ProviderCredentialLoad) {
+        guard accepts(request) else { return }
+        loadTask = nil
+    }
+
     public func beginLoading(for provider: ProviderID) -> ProviderCredentialLoad {
+        let predecessor = loadTask ?? canceledLoad
+        loadTask?.cancel()
+        loadTask = nil
+        canceledLoad = nil
         self.provider = provider
         baseline = nil
         value = submissions[provider]?.value ?? failedCandidates[provider] ?? ""
-        let request = ProviderCredentialLoad(provider: provider)
+        let request = ProviderCredentialLoad(provider: provider, predecessor: predecessor)
         loadID = request.id
         isLoading = submissions[provider] == nil && failedCandidates[provider] == nil
         return request
@@ -68,6 +94,7 @@ public final class ProviderCredentialEditor: ObservableObject {
     }
 
     public func load(_ value: String) {
+        loadTask = nil
         if let provider { failedCandidates[provider] = nil }
         loadID = nil
         isLoading = false
@@ -76,11 +103,20 @@ public final class ProviderCredentialEditor: ObservableObject {
     }
 
     public func close() {
+        loadTask?.cancel()
+        canceledLoad = loadTask ?? canceledLoad
+        loadTask = nil
         loadID = nil
         provider = nil
         baseline = nil
         value = ""
         isLoading = false
+    }
+
+    public func terminate() {
+        submissions.removeAll()
+        failedCandidates.removeAll()
+        close()
     }
 
     public func configurationWasRemoved(for provider: ProviderID) {
@@ -97,7 +133,7 @@ public final class ProviderCredentialEditor: ObservableObject {
         guard !isReadOnly, !isSubmitting, !isLoading, self.provider == provider, isDirty,
               ProviderAPIKeyInput.issue(in: value) == nil else { return false }
         let submission = ProviderCredentialSubmission(provider: provider, value: value)
-        // Replacement discards the old secret before dispatch, without a rollback copy.
+        // Discard the editor baseline; the coordinator owns durable replacement admission.
         baseline = nil
         failedCandidates[provider] = nil
         submissions[provider] = submission

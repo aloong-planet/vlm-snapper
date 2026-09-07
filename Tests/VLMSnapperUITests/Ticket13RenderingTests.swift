@@ -6,7 +6,43 @@ import VLMSnapperCore
 
 @Suite("Ticket 13 production UI rendering", .serialized)
 @MainActor
+// PNG generation is not interaction acceptance. Inspect the renders and separately
+// exercise the confirmed prototype and installed application controls.
 struct Ticket13RenderingTests {
+    @Test("a cleared candidate after a storage write failure renders the empty validation form")
+    func clearedFailedCandidateRenders() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let editor = ProviderCredentialEditor()
+        editor.edit("candidate-key")
+        var submission: ProviderCredentialSubmission?
+        #expect(editor.submit(for: .deepSeek, isReadOnly: false) { submission = $0 })
+        editor.complete(try #require(submission), succeeded: false)
+        editor.edit("")
+        #expect(!editor.isDirty)
+        try render(
+            ManagementCenterView(
+                destination: .providerSettings,
+                records: [],
+                providerSettings: ProviderSettingsConfiguration(
+                    snapshot: ProviderSetupSnapshot(
+                        selectedProvider: .deepSeek, availableModelIDs: [],
+                        selectedModelID: nil, phase: .failed,
+                        failure: .secureStorage, isReadOnly: false
+                    ),
+                    configurations: [:], currentProvider: nil,
+                    credentialEditor: editor, pendingModelID: .constant(nil),
+                    onSelectProvider: { _ in }, onValidate: { _ in },
+                    onRefresh: {}, onSelectModel: { _ in }
+                )
+            ),
+            size: CGSize(width: 920, height: 620), appearance: .light,
+            outputURL: FileManager.default.temporaryDirectory
+                .appendingPathComponent("ticket21-cleared-failed-candidate.png")
+        )
+    }
+
     @Test("every confirmed production surface renders in both languages and appearances")
     func confirmedSurfacesRender() throws {
         LocalizationTestCoordinator.acquire()
@@ -129,6 +165,39 @@ struct Ticket13RenderingTests {
                     appearance: appearance,
                     outputURL: outputDirectory.appendingPathComponent("toolbar-\(suffix).png")
                 )
+                for recovering in [true, false] {
+                    let credentialEditor = ProviderCredentialEditor()
+                    _ = credentialEditor.beginLoading(for: .deepSeek)
+                    try render(
+                        ManagementCenterView(
+                            destination: .providerSettings,
+                            records: [],
+                            providerSettings: ProviderSettingsConfiguration(
+                                snapshot: ProviderSetupSnapshot(
+                                    selectedProvider: .deepSeek,
+                                    availableModelIDs: [],
+                                    selectedModelID: nil,
+                                    phase: recovering ? .recovering : .failed,
+                                    failure: recovering ? nil : .secureStorage,
+                                    isReadOnly: true
+                                ),
+                                configurations: [:],
+                                currentProvider: nil,
+                                credentialEditor: credentialEditor,
+                                pendingModelID: .constant(nil),
+                                onSelectProvider: { _ in },
+                                onValidate: { _ in },
+                                onRefresh: {},
+                                onSelectModel: { _ in }
+                            )
+                        ),
+                        size: CGSize(width: 920, height: 620),
+                        appearance: appearance,
+                        outputURL: outputDirectory.appendingPathComponent(
+                            "provider-\(recovering ? "recovering" : "storage-error")-\(suffix).png"
+                        )
+                    )
+                }
             }
         }
 
@@ -151,6 +220,8 @@ struct Ticket13RenderingTests {
                     "management-provider-\(suffix).png",
                     "management-provider-minimum-\(suffix).png",
                     "toolbar-\(suffix).png",
+                    "provider-recovering-\(suffix).png",
+                    "provider-storage-error-\(suffix).png",
                 ]
             }
         })

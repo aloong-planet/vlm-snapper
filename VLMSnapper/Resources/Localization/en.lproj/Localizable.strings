@@ -246,3 +246,6 @@
 "diagnostics.export" = "Export Diagnostic Logs";
 "diagnostics.exportFailed.title" = "Could Not Export Diagnostics";
 "diagnostics.exportFailed.body" = "VLMSnapper could not write the diagnostics archive. Choose another folder and try again.";
+"providerSetup.recovering" = "Recovering";
+"providerSetup.storageFailure" = "Secure Storage Error";
+"providerSetup.storageReadFailure" = "The saved Provider configuration could not be read. Collapse and reopen this card to retry. If this persists, check the app installation and local storage permissions.";

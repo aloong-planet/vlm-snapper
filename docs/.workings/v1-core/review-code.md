@@ -1100,3 +1100,32 @@ All four ProviderSettingsConfiguration constructor consumers were enumerated: ap
 The Paste exception intentionally replaces the former blanket statement that no field-specific adaptation exists; spec/features are updated together. Public native symbols, theme and approved geometry remain unchanged. Removal does not falsely clear the local editor when the coordinator rejects deletion. Keychain error wording/recovery is still 21.
 
 Bad-smell review: the load/submission value types are narrow immutable identities, not speculative generality; per-Provider job/candidate maps are required by switch/close behavior. Shared native paste routing avoids separate keyboard/context implementations. No additional refactor or unrelated dead-code removal is proposed.
+
+## Ticket 21 — 2026-09-07
+
+Reviewed current coordinator/session, application lifecycle, editor/presentation and localization diffs after the scoped checklist reconciliation. This is code review, not installed-app or browser acceptance.
+
+### ① Bottom-level premises
+
+- Found and fixed: cancellation of an AsyncStream was not evidence of an uncancellable Keychain read finishing; the continuation-based public editor case reproduced the ordering fault. Only the canceled predecessor is awaited, not every credential job.
+- Found and fixed: generic storage errors had been treated like Provider outages. The actual coordinator/session now classifies credential and metadata boundary errors without preserving raw descriptions. Apple `errSecItemNotFound` alone means absence; inspected the actual Security adapter, not a comment.
+- Found and fixed: no-draft-change and read-only are not the same fact. The final production render showed the cleared write-error form losing Validate. Only one production presentation constructor supplies live editor state; the other is the no-settings fallback. Full Swift-root constructor search found no additional production instance of this conflation. The eligibility test genuinely failed before the two-line fix; before/after PNGs were visually inspected.
+
+### ② Runtime and failure propagation
+
+- Traced entry/exit for load, close, switch, A/B/A, submitted validation, detached recovery, explicit reopen, cancellation and application termination. Generation plus editor identity prevent stale read publication; recovery/validation belong to the app and reattach without resubmission. Physical Quit/crash acceptance remains a documented gap in the session test header.
+- Retirement-save failure rejects before request and preserves durable original state. Failed retired-key deletion cannot become orphan-key authentication. Post-key publication failure retains a recoverable new generation; orphan recovery fetches a fresh full list rather than trusting journal models.
+- Failure escape classification: per-provider credential errors mask only that provider's readiness and current reference; startup catches each provider's failure and continues the enumeration. A failure reading the shared metadata store prevents trustworthy aggregate readiness, so presentation fails closed without erasing durable metadata. The explicit all-provider reconciliation API propagates failure; production startup deliberately uses per-provider calls. Cross-workflow scheduling is Ticket 22, not silently accepted by these state tests.
+- Final current-source strict/full/native and signed CRUD gates passed (v4 logs in tasklist). Rendering is the native view, not the HTML prototype.
+
+### ③ Security correctness
+
+- Rechecked after facts above: opaque-key local checks precede retirement; durable retirement precedes external authentication; known retired generation is delete-only, unrelated generation fails closed. Cancellation checks after delayed reads and before listing prevent late authentication.
+- Secret-flow inventory: 117 matches / 13,027 bytes, hidden/ignored production Swift included. Followed metadata Codable types, atomic metadata encoder, Keychain encoder and application diagnostic construction. Metadata has generation/configuration, not candidate text. API keys reach their designated request headers and Keychain; new errors contain sanitized categories/status only. The diagnostic whitelist alone is not a secret detector; actual call-site values were checked. No secret values were read from the user's environment or logged during this review.
+- Authorized isolated mutation reached both retired-key cleanup branches and failed at the injected no-network lister; exact restoration and rebuild passed. No rollback secret persisted; memory String zeroization is not claimed.
+
+### ④ Consistency and bad smells
+
+- Restored empty-validation behavior without changing approved geometry, icons, theme or edit semantics. Recovery/read-error wording is paired in both dictionaries. Existing context invariants and ADR-0012's accepted admission addendum remain consistent.
+- The provider-indexed pending/failure maps and load identities have distinct lifetimes; they are required state, not speculative abstraction. Storage wrappers centralize error sanitization. Presentation switches distinguish card, credential and model-detail roles; no unrelated refactor or dead-code deletion is proposed.
+- The previously reported prototype DS/OA/G letter marks remain assigned to Ticket 23's visual closeout; no unapproved icon change. Browser-preview policy remains a delivery gap, not a reason to invent a passed UI gate.

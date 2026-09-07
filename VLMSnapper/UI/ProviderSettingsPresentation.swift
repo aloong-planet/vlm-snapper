@@ -11,8 +11,8 @@ public struct ProviderSettingsDetailPresentation: Equatable, Sendable {
     ) {
         if provider == snapshot.selectedProvider {
             switch snapshot.phase {
-            case .validating:
-                detail = VLMSnapperStrings.validating
+            case .validating, .recovering:
+                detail = snapshot.phase == .recovering ? VLMSnapperStrings.recovering : VLMSnapperStrings.validating
                 isConfigured = false
                 return
             case .selectingModel:
@@ -24,7 +24,8 @@ public struct ProviderSettingsDetailPresentation: Equatable, Sendable {
                 isConfigured = snapshot.selectedModelID != nil
                 return
             case .failed:
-                detail = VLMSnapperStrings.failed
+                detail = snapshot.failure == .secureStorage
+                    ? VLMSnapperStrings.providerStorageFailure : VLMSnapperStrings.failed
                 isConfigured = false
                 return
             case .awaitingValidation:
@@ -46,6 +47,8 @@ public enum ProviderInlineCredentialStatus: Equatable, Sendable {
     case notConfigured
     case pending
     case validating
+    case recovering
+    case storageFailure
     case configured
     case failed
 }
@@ -54,6 +57,8 @@ public enum ProviderInlineCardStatus: Equatable, Sendable {
     case notConfigured
     case pendingValidation
     case validating
+    case recovering
+    case storageFailure
     case pendingModel
     case ready
     case failed
@@ -69,12 +74,16 @@ public struct ProviderInlineCardPresentation: Equatable, Sendable {
         isDirty: Bool
     ) {
         if provider == snapshot.selectedProvider {
+            if snapshot.phase == .recovering {
+                status = .recovering
+                return
+            }
             if snapshot.phase == .validating {
                 status = .validating
                 return
             }
             if snapshot.phase == .failed {
-                status = .failed
+                status = snapshot.failure == .secureStorage ? .storageFailure : .failed
                 return
             }
             if isDirty {
@@ -115,7 +124,8 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
         phase: ProviderSetupPhase,
         hasAPIKey: Bool,
         isReadOnly: Bool,
-        inputIssue: ProviderAPIKeyInputIssue? = nil
+        inputIssue: ProviderAPIKeyInputIssue? = nil,
+        failure: ProviderSetupFailure? = nil
     ) {
         localInputHint = switch inputIssue {
         case .empty: VLMSnapperStrings.providerEnterKey
@@ -124,10 +134,12 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
         case nil: nil
         }
         let selectedKeyIsDirty = isSelected && isDirty
-        if isSelected, phase == .validating {
+        if isSelected, phase == .recovering {
+            status = .recovering
+        } else if isSelected, phase == .validating {
             status = .validating
         } else if isSelected, phase == .failed {
-            status = .failed
+            status = failure == .secureStorage ? .storageFailure : .failed
         } else if selectedKeyIsDirty {
             status = .pending
         } else if isConfigured {
@@ -136,10 +148,11 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
             status = .notConfigured
         }
 
-        showsValidation = !isConfigured || selectedKeyIsDirty
-            || status == .validating || status == .failed
-        canValidate = showsValidation && hasAPIKey
-            && status != .validating && !isReadOnly && inputIssue == nil
+        showsValidation = status != .recovering && !(status == .storageFailure && isReadOnly)
+            && (!isConfigured || selectedKeyIsDirty || status == .validating
+                || status == .failed || status == .storageFailure)
+        canValidate = showsValidation && selectedKeyIsDirty && hasAPIKey
+            && status != .validating && status != .recovering && !isReadOnly && inputIssue == nil
     }
 }
 

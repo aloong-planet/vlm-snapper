@@ -5,6 +5,79 @@ import VLMSnapperUI
 @Suite("Provider credential editor session")
 @MainActor
 struct ProviderCredentialEditorTests {
+    @Test("reopening waits for a canceled physical read to leave its boundary")
+    func reopenedLoadWaitsForCanceledRead() async {
+        let editor = ProviderCredentialEditor()
+        let entered = AsyncStream<Void>.makeStream()
+        var release: CheckedContinuation<Void, Never>?
+        var finished = false
+        let first = editor.beginLoading(for: .deepSeek)
+        let previous = Task {
+            // The operating-system call may finish after its caller was canceled.
+            await withCheckedContinuation { continuation in
+                release = continuation
+                entered.continuation.yield(())
+            }
+            finished = true
+        }
+        editor.attachLoadTask(previous, for: first)
+        var entering = entered.stream.makeAsyncIterator()
+        _ = await entering.next()
+        editor.close()
+        let latest = editor.beginLoading(for: .deepSeek)
+        let starting = AsyncStream<Void>.makeStream()
+        var invoked = false
+        let next = Task {
+            starting.continuation.yield(())
+            await editor.performLoad(latest) {
+                #expect(finished)
+                invoked = true
+                editor.completeLoad(latest, value: "saved-key")
+            }
+        }
+        editor.attachLoadTask(next, for: latest)
+        var start = starting.stream.makeAsyncIterator()
+        _ = await start.next()
+        release?.resume()
+        await previous.value
+        await next.value
+        #expect(invoked)
+        #expect(editor.value == "saved-key")
+    }
+
+    @Test("closing or switching cancels only the window-owned load", arguments: [false, true])
+    func closingCancelsLoad(switchCard: Bool) {
+        let editor = ProviderCredentialEditor()
+        let request = editor.beginLoading(for: .deepSeek)
+        let task = Task {}
+        editor.attachLoadTask(task, for: request)
+        if switchCard { _ = editor.beginLoading(for: .openAI) }
+        else { editor.close() }
+        #expect(task.isCancelled)
+
+        let recovery = editor.beginLoading(for: .deepSeek)
+        let recoveryTask = Task {}
+        editor.attachLoadTask(recoveryTask, for: recovery)
+        editor.detachLoadTask(for: recovery)
+        editor.close()
+        #expect(!recoveryTask.isCancelled)
+    }
+
+    @Test("termination discards both in-flight and failed memory candidates", arguments: [false, true])
+    func terminationDiscardsCandidates(failed: Bool) throws {
+        let editor = ProviderCredentialEditor()
+        editor.edit("candidate")
+        var submission: ProviderCredentialSubmission?
+        editor.submit(for: .deepSeek, isReadOnly: false) { submission = $0 }
+        let request = try #require(submission)
+        if failed { editor.complete(request, succeeded: false) }
+        editor.terminate()
+        editor.complete(request, succeeded: false)
+        _ = editor.beginLoading(for: .deepSeek)
+        #expect(editor.value.isEmpty)
+        #expect(!editor.isSubmitting)
+    }
+
     @Test("editing or removing a failed credential discards its retained candidate", arguments: [false, true])
     func failedCandidateCanBeDiscarded(remove: Bool) throws {
         let editor = ProviderCredentialEditor()
