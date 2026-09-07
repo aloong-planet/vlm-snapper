@@ -136,12 +136,23 @@ public enum ProviderConfigurationError: Error, Equatable {
     case inconsistentCredentialState
 }
 
+public enum ProviderWorkflowActivity: Equatable, Sendable {
+    case capture
+    case modelRequest
+    case credential(ProviderID)
+
+    public var provider: ProviderID? {
+        if case let .credential(provider) = self { return provider }
+        return nil
+    }
+}
+
 public enum ProviderPersistenceError: Error, Equatable, Sendable {
     case metadataUnavailable
     case credentialUnavailable
 }
 
-public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
+public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring, OperationActivityGating {
     private static let modelCacheLifetime: TimeInterval = 24 * 60 * 60
 
     private let modelLister: any ProviderModelListing
@@ -149,8 +160,9 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
     private let metadataStore: any ProviderMetadataStoring
     private let now: @Sendable () -> Date
     private let makeGeneration: @Sendable () -> UUID
-    private var configurationLocked = false
-    private var configurationMutationInProgress = false
+    private var activity: (owner: UUID, kind: ProviderWorkflowActivity)?
+    private var activityObservers: [UUID: AsyncStream<ProviderWorkflowActivity?>.Continuation] = [:]
+    private var recoveryWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
     private var unavailableProviders: Set<ProviderID> = []
 
     public init(
@@ -173,8 +185,8 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
     ) async throws -> ProviderConfiguration {
         if let issue = ProviderAPIKeyInput.issue(in: apiKey) { throw issue }
         try Task.checkCancellation()
-        try beginConfigurationMutation()
-        defer { endConfigurationMutation() }
+        let lease = try beginConfigurationMutation(for: provider)
+        defer { release(lease) }
         unavailableProviders.insert(provider)
         var state = try await loadMetadata()
         let previousSelection = state.configurations[provider]?.selectedModelID
@@ -287,11 +299,13 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
         onRecovery: @escaping @Sendable () async -> Void = {}
     ) async throws -> ProviderMetadataState {
         try Task.checkCancellation()
-        try beginConfigurationMutation()
-        defer { endConfigurationMutation() }
+        let lease = try await beginRecoveryMutation(for: providers.first ?? .deepSeek)
+        defer { release(lease) }
         var state = try await loadMetadata()
         let originalState = state
         for provider in providers {
+            activity = (lease, .credential(provider))
+            publishActivity()
             unavailableProviders.insert(provider)
             let storedCredential = try await readCredential(for: provider)
             try Task.checkCancellation()
@@ -346,8 +360,8 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
     }
 
     public func refreshModels(for provider: ProviderID) async throws -> ProviderConfiguration {
-        try beginConfigurationMutation()
-        defer { endConfigurationMutation() }
+        let lease = try beginConfigurationMutation(for: provider)
+        defer { release(lease) }
         guard let credential = try await readCredential(for: provider) else {
             throw ProviderConfigurationError.missingCredential
         }
@@ -380,8 +394,8 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
         _ modelID: String,
         for provider: ProviderID
     ) async throws -> ProviderConfiguration {
-        try beginConfigurationMutation()
-        defer { endConfigurationMutation() }
+        let lease = try beginConfigurationMutation(for: provider)
+        defer { release(lease) }
         guard try await readCredential(for: provider) != nil else {
             throw ProviderConfigurationError.missingCredential
         }
@@ -406,23 +420,75 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
         return selected
     }
 
-    public func beginRequestConfigurationFreeze() throws {
-        guard !configurationLocked else {
-            throw ProviderConfigurationError.configurationLocked
-        }
-        guard !configurationMutationInProgress else {
-            throw ProviderConfigurationError.configurationMutationInProgress
-        }
-        configurationLocked = true
+    @discardableResult
+    public func beginRequestConfigurationFreeze() throws -> UUID {
+        try beginActivity(.modelRequest)
     }
 
-    public func endRequestConfigurationFreeze() {
-        configurationLocked = false
+    public func endRequestConfigurationFreeze(_ lease: UUID) {
+        release(lease)
+    }
+
+    public func acquire() -> UUID? {
+        try? beginRequestConfigurationFreeze()
+    }
+
+    public func beginCaptureActivity(replacing owner: UUID? = nil) throws -> UUID {
+        if let owner, activity?.owner == owner, activity?.kind == .capture { return owner }
+        return try beginActivity(.capture)
+    }
+
+    public func transitionCaptureToModelRequest(_ owner: UUID) throws {
+        guard activity?.owner == owner, activity?.kind == .capture else {
+            throw ProviderConfigurationError.configurationLocked
+        }
+        activity = (owner, .modelRequest)
+        publishActivity()
+    }
+
+    public func currentActivity() -> ProviderWorkflowActivity? { activity?.kind }
+
+    public func activityChanges() -> AsyncStream<ProviderWorkflowActivity?> {
+        let id = UUID()
+        let channel = AsyncStream<ProviderWorkflowActivity?>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        activityObservers[id] = channel.continuation
+        channel.continuation.yield(activity?.kind)
+        channel.continuation.onTermination = { [weak self] _ in
+            Task { await self?.removeActivityObserver(id) }
+        }
+        return channel.stream
+    }
+
+    public func release(_ owner: UUID) {
+        guard activity?.owner == owner else { return }
+        activity = nil
+        publishActivity()
+        resumeRecoveryWaiters()
+    }
+
+    private func removeActivityObserver(_ id: UUID) {
+        activityObservers[id] = nil
+    }
+
+    private func publishActivity() {
+        for observer in activityObservers.values { observer.yield(activity?.kind) }
+    }
+
+    private func beginActivity(_ kind: ProviderWorkflowActivity) throws -> UUID {
+        if let activity {
+            throw activity.kind.provider == nil
+                ? ProviderConfigurationError.configurationLocked
+                : ProviderConfigurationError.configurationMutationInProgress
+        }
+        let owner = UUID()
+        activity = (owner, kind)
+        publishActivity()
+        return owner
     }
 
     public func setCurrentProvider(_ provider: ProviderID) async throws {
-        try beginConfigurationMutation()
-        defer { endConfigurationMutation() }
+        let lease = try beginConfigurationMutation(for: provider)
+        defer { release(lease) }
         guard try await readCredential(for: provider) != nil else {
             throw ProviderConfigurationError.missingCredential
         }
@@ -435,8 +501,8 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
     }
 
     public func clearProvider(_ provider: ProviderID) async throws {
-        try beginConfigurationMutation()
-        defer { endConfigurationMutation() }
+        let lease = try beginConfigurationMutation(for: provider)
+        defer { release(lease) }
         try await deleteCredential(for: provider)
         var state = try await loadMetadata()
         state.configurations[provider] = nil
@@ -497,14 +563,8 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
         try await saveMetadata(state)
     }
 
-    private func beginConfigurationMutation() throws {
-        guard !configurationLocked else {
-            throw ProviderConfigurationError.configurationLocked
-        }
-        guard !configurationMutationInProgress else {
-            throw ProviderConfigurationError.configurationMutationInProgress
-        }
-        configurationMutationInProgress = true
+    private func beginConfigurationMutation(for provider: ProviderID) throws -> UUID {
+        try beginActivity(.credential(provider))
     }
 
     private func loadMetadata() async throws -> ProviderMetadataState {
@@ -542,8 +602,33 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring {
         }
     }
 
-    private func endConfigurationMutation() {
-        configurationMutationInProgress = false
+    private func beginRecoveryMutation(for provider: ProviderID) async throws -> UUID {
+        while activity != nil {
+            let id = UUID()
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    if Task.isCancelled {
+                        continuation.resume(throwing: CancellationError())
+                    } else {
+                        recoveryWaiters[id] = continuation
+                    }
+                }
+            } onCancel: {
+                Task { await self.cancelRecoveryWaiter(id) }
+            }
+        }
+        try Task.checkCancellation()
+        return try beginConfigurationMutation(for: provider)
+    }
+
+    private func cancelRecoveryWaiter(_ id: UUID) {
+        recoveryWaiters.removeValue(forKey: id)?.resume(throwing: CancellationError())
+    }
+
+    private func resumeRecoveryWaiters() {
+        let waiters = recoveryWaiters.values
+        recoveryWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
     }
 
 }

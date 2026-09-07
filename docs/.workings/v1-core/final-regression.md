@@ -1209,3 +1209,42 @@ Documentation-only continuation after user acceptance. The prior three-stage sou
 | Delivery | Ready for PR only. No merge/install/release; signed v4 source is unchanged. |
 
 Queue is empty after re-reading the new acceptance statements against their counterparts. The ticket's declared gates are redeemed; later-ticket and physical/lifecycle limitations remain explicit. Commit/push/PR are the only remaining delivery actions.
+
+## Ticket 22 — 2026-09-07
+
+Scope derives from this ticket's diff, not the entire feature. Project AGENTS declares i18n enabled (zh-Hans/en), so both string dictionaries are included. Per the capability declaration, RTL UI mirroring is not enabled and that check is skipped. No new visual geometry or icon selection; the confirmed lock strip changes copy only under the declared pure-copy exception.
+
+### Phase 1 — changed declaration surfaces
+
+| Surface / counterpart | Conclusion |
+|---|---|
+| Spec US-07, FM-31/43/44/46 vs coordinator/session/ApplicationWorkflow | Capture/model/credential ownership is symmetric; only owner transitions/releases. All user mutation families check admission. Recovery waits rather than rejects; corrected FM-44 to match FM-46 and ticket. |
+| Spec vs features | Added capture/selection read-only, other-card editable draft but blocked submit, terminal restoration, capture-to-active-job navigation and zero-effect Try Again. Existing request/retention/release behavior unchanged. |
+| CONTEXT vs implementation/spec/features | One application activity owner and atomic capture-to-model handoff are now canonical invariants; drafts remain window-session scoped. |
+| Paired localization dictionaries vs native strip | Replaced model-specific read-only wording with active-operation wording in both languages; no key/placeholder changes. Full-suite dictionary parity remains the gate. |
+| Management prototype vs native controls | Same confirmed strip/control placement; synchronized all three strip copies. Native render at minimum content size shows editable other-card field and blocked Validate. Prototype's pre-existing scoped script invalidation still applies; no new pixel-perfect or browser-automation claim. |
+| Source/test comments and tasklist/review evidence | Describes actual owner, recovery and effect coverage; explicitly excludes physical key delivery, signed-app focus and gate-removal mutation. Initial preparation notes retained as historical checkpoints. |
+| Ticket 21/22 and checklist | Prerequisite merged status refreshed. FM-31/44 mirror corrections applied. Ticket 22 named evidence in tasklist; reviews independently recorded; PR review is not merge/install acceptance. |
+
+### Phase 2 — relationships outside the diff
+
+| Relationship | Conclusion |
+|---|---|
+| Spec file vs docs/specs/README.md | Existing v1 scope/index still accurate; no new file or renamed feature. Git-tracked docs/features has only v1-core.md and no README index to update. |
+| ADR-0010/0012 vs new admission | Freeze-before-hide/retain previous selection and durable retirement/no rollback remain intact. No architecture reversal or new ADR required. Unsaved result fronting omission found and restored during code review. |
+| Management prototype README vs strip | Layout remains confirmed; existing script invalidation points to US-07/FM-28–46 and still holds. Ticket 21 manual preview acceptance is not reused as Ticket 22 installed-app proof. |
+| Same-fact mirrors | Searched activity/read-only/recovery phrases in docs and CONTEXT; corrected live spec, checklist, CONTEXT, features and both dictionaries. Older workings remain time-bound history. No new configuration-in-progress capture toolbar surface was introduced. |
+| Rule vs tests | Owner/recovery reds, real cross-Provider coordinator tests, native terminal-restoration mutation, real SQLite rerun and production-used entry cover this ticket. Window focus and OS shortcut delivery remain manual/combined composition acceptance, not inferred from callbacks. |
+| Rules vs templates | No repository rule/template changed; no duplicate template text requires synchronization. |
+
+### Phase 3 — events
+
+| Event | Conclusion |
+|---|---|
+| Activity state dimension introduced | Exhaustive capture/modelRequest/credential switch in session and workflow; credential carries Provider ID. No Provider/language/architecture member changes, so their enumeration remains unchanged. |
+| Pending notes | Both live-account/release Pending statements remain open. Fixture tests, local rendering and strict compilation cannot fulfill them. |
+| General invariant agreed | Owner-only release, atomic handoff and event-driven recovery are recorded in CONTEXT and spec, not only comments/workings. |
+| PR25 merged before this ticket | Ticket 21 and status mirrors updated; no implication of a local install. Ticket 23 remains blocked by unmerged Ticket 22 and owns combined feature acceptance. |
+| Test mutation and native regression | Only stricter canValidate mutation was applied, observed to fail, then exactly restored and rebuilt. Unsaved native fronting fixed; physical window-focus evidence remains explicitly missing. |
+
+All changed conclusions were rechecked against the relation endpoints after correction. Remaining physical-input/installed-app acceptance is named, not reported green. Final build/test exit evidence is recorded in the tasklist before commit.

@@ -65,7 +65,7 @@
 "providerSetup.configured" = "Configured";
 "providerSetup.available" = "Available";
 "providerSetup.setupRequired" = "Set Up";
-"providerSetup.readOnly" = "Provider configuration is read-only while a model operation is active.";
+"providerSetup.readOnly" = "An operation is active. Submit configuration changes after it finishes.";
 "providerSetup.apiKeyPlaceholder" = "Enter API Key";
 "providerSetup.keyContainsNewline" = "Remove the remaining line breaks from the API key before validating.";
 "providerSetup.keyTooLong" = "The API key is too long. Check for extra pasted content.";

@@ -65,7 +65,7 @@
 "providerSetup.configured" = "配置完成";
 "providerSetup.available" = "可用";
 "providerSetup.setupRequired" = "待配置";
-"providerSetup.readOnly" = "模型操作进行中，Provider 配置暂时只读。";
+"providerSetup.readOnly" = "当前操作进行中，请稍后提交配置更改。";
 "providerSetup.apiKeyPlaceholder" = "输入 API Key";
 "providerSetup.keyContainsNewline" = "API Key 中仍有换行，请移除后再验证。";
 "providerSetup.keyTooLong" = "API Key 过长，请检查是否粘贴了多余内容。";

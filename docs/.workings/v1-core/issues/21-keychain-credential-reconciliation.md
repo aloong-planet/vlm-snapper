@@ -4,7 +4,7 @@
 
 **Blocked by:** 20 — Make Provider credential editing deterministic (satisfied by merged PR #24).
 
-**Status:** ready-for-review
+**Status:** completed (merged)
 
 - [x] Accepting a changed key requires a durable retirement record before any Provider request; failure to record retirement rejects replacement and preserves the original saved configuration. Once accepted, replacement removes the old credential's rollback eligibility, model configuration, and current-Provider eligibility; validation, listing, or subsequent storage failure never restores them — **test**: `ProviderConfigurationCoordinatorTests.retirementWriteFailurePreservesOriginalConfiguration`, `ProviderConfigurationCoordinatorTests.credentialWriteFailureDoesNotRestorePreviousConfiguration`, and `ProviderConfigurationCoordinatorTests.listFailureDoesNotRestorePreviousProviderConfiguration`.
 - [x] A successful replacement preserves the previous model only when it remains in the complete returned list and never steals the global current selection from another usable Provider — **test**: `ProviderConfigurationCoordinatorTests.replacementPreservesAvailableModelAndCurrentProvider` and `ProviderConfigurationCoordinatorTests.configuringAnotherProviderDoesNotReplaceRememberedCurrentProvider`.
@@ -17,6 +17,8 @@
 - [x] Strict build, focused reconciliation tests, full tests, localization-key parity, and `git diff --check` pass — **gate**: the repository's complete local verification commands fail non-zero on any regression.
 
 ## Comments
+
+- 2026-09-07: User authorized merge. PR #25 was squash-merged as `5999103679d208ac90543fa4ece46249801c679f` after `test-and-package` succeeded; its remote feature branch was deleted. Ticket 22 starts from this merge. No local app installation or release was performed.
 
 - 2026-09-07 delivery reconciliation: all nine declared ticket criteria are satisfied by their named tests, inspected source-flow evidence and final-source signed CRUD gate. The refreshed full suite passed 312 tests / 72 suites (16.015 seconds); native programmatic Paste passed 10/10 fresh processes (0.956–3.369 seconds), and 251 localization keys match. Use `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` for the local SwiftPM test command; default Command Line Tools failed before tests with `no such module 'Testing'`. The failure was not a red product test. See the final acceptance table in `../checklist.md`. User prototype acceptance is recorded separately from installed-app/process-lifecycle acceptance. Ready for PR review, not merged or installed; Ticket 22 exclusion and Ticket 23 combined acceptance remain open.
 

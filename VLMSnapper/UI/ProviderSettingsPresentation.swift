@@ -124,6 +124,7 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
         phase: ProviderSetupPhase,
         hasAPIKey: Bool,
         isReadOnly: Bool,
+        isValidationBlocked: Bool = false,
         inputIssue: ProviderAPIKeyInputIssue? = nil,
         failure: ProviderSetupFailure? = nil
     ) {
@@ -153,6 +154,7 @@ public struct ProviderInlineCredentialPresentation: Equatable, Sendable {
                 || status == .failed || status == .storageFailure)
         canValidate = showsValidation && selectedKeyIsDirty && hasAPIKey
             && status != .validating && status != .recovering && !isReadOnly && inputIssue == nil
+            && !isValidationBlocked
     }
 }
 

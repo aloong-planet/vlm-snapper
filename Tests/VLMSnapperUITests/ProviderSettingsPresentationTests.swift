@@ -5,6 +5,24 @@ import VLMSnapperCore
 
 @Suite("Provider settings presentation")
 struct ProviderSettingsPresentationTests {
+    @Test("an active credential job blocks validation without blocking another card's draft", arguments: ["new-key", "", "bad\nkey"])
+    @MainActor
+    func activeCredentialJobControlsEditingAndValidationSeparately(draft: String) {
+        let editor = ProviderCredentialEditor(loadedValue: "")
+        editor.edit(draft)
+        for blocked in [true, false] {
+            let presentation = ProviderInlineCredentialPresentation(
+                isConfigured: false, isSelected: true, isDirty: editor.isDirty,
+                phase: .awaitingValidation, hasAPIKey: !editor.value.isEmpty,
+                isReadOnly: false, isValidationBlocked: blocked,
+                inputIssue: ProviderAPIKeyInput.issue(in: editor.value)
+            )
+            #expect(presentation.showsValidation)
+            #expect(presentation.canValidate == (!blocked && draft == "new-key"))
+        }
+        #expect(editor.value == draft)
+    }
+
     @Test("an unchanged credential cannot be resubmitted after a model refresh failure")
     @MainActor
     func unchangedCredentialAfterFailure() {

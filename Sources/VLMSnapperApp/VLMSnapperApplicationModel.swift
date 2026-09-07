@@ -9,12 +9,15 @@ import VLMSnapperUI
 final class VLMSnapperApplicationModel: ObservableObject {
     private struct CaptureRequest {
         let generation: UUID
+        let lease: UUID
         let workspaceToRetire: OperationWorkspaceSession?
     }
 
     let credentialEditor = ProviderCredentialEditor()
     private var credentialTasks: [UUID: Task<Void, Never>] = [:]
     private var providerObservationTask: Task<Void, Never>?
+    private var activityObservationTask: Task<Void, Never>?
+    private var providerFocusRequest: ProviderSettingsFocusRequest?
     @Published var pendingModelID: String?
     @Published var selectedOperation: WorkspaceOperationKind = .extract
     @Published var selectedTargetLanguageCode = "zh-Hans"
@@ -52,6 +55,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private let shortcutStore: UserDefaultsGlobalShortcutStore
     private let languageStore: UserDefaultsApplicationLanguageStore
     private let providerCoordinator: ProviderConfigurationCoordinator
+    private lazy var workflow = ApplicationWorkflow(coordinator: providerCoordinator)
     private let providerSession: ProviderSetupSession
     private let permissionCoordinator: ScreenCapturePermissionCoordinator
     private let loginCoordinator: LoginItemCoordinator
@@ -70,6 +74,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private var captureSelectionSession: CaptureSelectionSession?
     private var captureRequest: CaptureRequest?
     private var activeCaptureGeneration: UUID?
+    private var captureLease: UUID?
     private var workspaceSession: OperationWorkspaceSession?
     private var workspaceSnapshot = OperationWorkspaceSnapshot(
         selectedOperation: .extract,
@@ -189,6 +194,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 await self.refreshProviderPresentation()
             }
         }
+        let activityChanges = await providerCoordinator.activityChanges()
+        activityObservationTask = Task { [weak self] in
+            for await _ in activityChanges {
+                guard !Task.isCancelled, let self else { return }
+                await self.refreshProviderPresentation()
+                if self.workspaceSession != nil { self.showResultWorkspace() }
+            }
+        }
         for provider in ProviderID.allCases {
             try Task.checkCancellation()
             do { _ = try await providerCoordinator.reconcileCredentialState(for: provider) }
@@ -224,7 +237,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         let shortcut = GlobalShortcutCoordinator(
             backend: try CarbonGlobalShortcutBackend()
         ) { [weak self] in
-            self?.capture()
+            self?.capture(from: .shortcut)
         }
         let preferredShortcut = shortcutStore.load()
         do {
@@ -330,6 +343,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     func providerSettingsConfiguration() -> ProviderSettingsConfiguration {
         ProviderSettingsConfiguration(
             snapshot: providerSnapshot,
+            focusRequest: providerFocusRequest,
             configurations: providerConfigurations,
             currentProvider: currentProvider,
             credentialEditor: credentialEditor,
@@ -364,7 +378,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private func menuCallbacks() -> MenuBarCallbacks {
         MenuBarCallbacks(
-            onCapture: { [weak self] in self?.capture() },
+            onCapture: { [weak self] in self?.capture(from: .menu) },
             onOpenRecent: { [weak self] id in
                 Task { await self?.openRecentHistoryItem(id) }
             },
@@ -606,6 +620,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         credentialTasks.removeAll()
         credentialEditor.terminate()
         providerObservationTask?.cancel()
+        activityObservationTask?.cancel()
         return true
     }
 
@@ -876,62 +891,74 @@ final class VLMSnapperApplicationModel: ObservableObject {
         } catch {}
     }
 
-    private func capture() {
-        guard permission == .ready else {
-            onShowOnboarding?()
-            return
-        }
-        guard case .ready = providerReadiness else {
-            onShowOnboarding?()
-            return
-        }
-        guard captureRequest == nil else { return }
-        if let workspaceSession {
-            Task {
-                await handleCaptureRequest(from: workspaceSession)
-            }
-            return
-        }
-        requestCapture(workspaceToRetire: nil)
-    }
-
-    private func handleCaptureRequest(
-        from workspaceSession: OperationWorkspaceSession
-    ) async {
-        let preparation = await workspaceSession.prepareForCapture()
-        guard self.workspaceSession === workspaceSession else { return }
-        switch preparation {
-        case .beginCapture:
-            requestCapture(workspaceToRetire: workspaceSession)
-        case .alreadyPrepared:
-            break
-        case .presentWorkspace:
-            resultController.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+    private func capture(from source: CaptureEntryPoint = .menu) {
+        Task {
+            await workflow.capture(
+                from: source,
+                replacing: captureLease,
+                presentProvider: { [weak self] provider in
+                    guard let self else { return }
+                    self.providerFocusRequest = ProviderSettingsFocusRequest(provider: provider)
+                    self.publish()
+                    self.onNavigate?(.providerSettings)
+                    self.providerSettingsConfiguration().onSelectProvider(provider)
+                },
+                presentOperation: { [weak self] in
+                    self?.resultController.window?.makeKeyAndOrderFront(nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                },
+                perform: { [self] lease in
+                    guard permission == .ready, case .ready = providerReadiness else {
+                        onShowOnboarding?()
+                        return false
+                    }
+                    guard captureRequest == nil else { return false }
+                    let previousLease = captureLease
+                    captureLease = lease
+                    let workspaceToRetire = workspaceSession
+                    if let workspaceToRetire {
+                        let preparation = await workspaceToRetire.prepareForCapture()
+                        guard workspaceSession === workspaceToRetire else {
+                            captureLease = previousLease
+                            return false
+                        }
+                        guard preparation == .beginCapture else {
+                            if preparation == .presentWorkspace {
+                                resultController.window?.makeKeyAndOrderFront(nil)
+                                NSApp.activate(ignoringOtherApps: true)
+                            }
+                            captureLease = previousLease
+                            return false
+                        }
+                    }
+                    let accepted = await requestCapture(workspaceToRetire: workspaceToRetire)
+                    if !accepted, captureLease == lease { captureLease = previousLease }
+                    return accepted
+                }
+            )
         }
     }
 
     private func requestCapture(
         workspaceToRetire: OperationWorkspaceSession?
-    ) {
-        guard captureRequest == nil else { return }
+    ) async -> Bool {
+        guard captureRequest == nil, let captureLease else { return false }
         let request = CaptureRequest(
             generation: UUID(),
+            lease: captureLease,
             workspaceToRetire: workspaceToRetire
         )
         captureRequest = request
-        Task {
-            await beginCapture(request: request)
-        }
+        return await beginCapture(request: request)
     }
 
-    private func beginCapture(request: CaptureRequest) async {
+    private func beginCapture(request: CaptureRequest) async -> Bool {
         let result = await captureCoordinator.startCapture()
         guard captureRequest?.generation == request.generation else {
             if case let .ready(session, _, _) = result {
                 await session.cancel()
             }
-            return
+            return false
         }
         switch result {
         case let .ready(session, frozenDisplays, _):
@@ -939,7 +966,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 captureRequest = nil
                 await session.cancel()
                 await request.workspaceToRetire?.restoreAfterCaptureFailure()
-                return
+                return false
             }
             let replacementPresented = captureOverlayController.replace(
                 displays: frozenDisplays,
@@ -963,8 +990,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 captureRequest = nil
                 await session.cancel()
                 await request.workspaceToRetire?.restoreAfterCaptureFailure()
+                await releaseFailedCaptureIfNeeded(request)
                 showCaptureFailure()
-                return
+                return false
             }
             let retiredSelectionSession = captureSelectionSession
             captureSelectionSession = session
@@ -980,6 +1008,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             }
             onRetireCaptureSources?()
             await retiredSelectionSession?.cancel()
+            return true
         case .permissionRequired:
             captureRequest = nil
             await request.workspaceToRetire?.restoreAfterCaptureFailure()
@@ -989,11 +1018,22 @@ final class VLMSnapperApplicationModel: ObservableObject {
         case .allDisplaysFailed:
             captureRequest = nil
             await request.workspaceToRetire?.restoreAfterCaptureFailure()
+            await releaseFailedCaptureIfNeeded(request)
             showCaptureFailure()
         }
+        return false
+    }
+
+    private func releaseFailedCaptureIfNeeded(_ request: CaptureRequest) async {
+        // A retry from the failure alert must not inherit a failed new attempt's
+        // lease. A replacement failure still belongs to the existing selection.
+        guard activeCaptureGeneration == nil, captureLease == request.lease else { return }
+        captureLease = nil
+        await providerCoordinator.release(request.lease)
     }
 
     private func captureRequestCanCommit(_ request: CaptureRequest) -> Bool {
+        guard captureLease == request.lease else { return false }
         if let workspaceToRetire = request.workspaceToRetire {
             return workspaceSession === workspaceToRetire
         }
@@ -1074,6 +1114,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         selectionFrame: CGRect,
         screen: NSScreen
     ) {
+        guard let generation = activeCaptureGeneration else { return }
         captureToolbarController.show(
             content: CaptureOperationToolbar(
                 operation: binding(\.selectedOperation),
@@ -1081,13 +1122,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 targetLanguages: targetLanguageOptions,
                 providerSummary: providerSummary,
                 onStart: { [weak self] operation in
+                    guard self?.activeCaptureGeneration == generation else { return }
                     self?.openWorkspace(originalPNG: originalPNG, operation: operation)
                 },
                 onCancel: { [weak self] in
                     Task {
-                        guard let generation = self?.activeCaptureGeneration else {
-                            return
-                        }
                         await self?.cancelCapture(generation: generation)
                     }
                 }
@@ -1101,6 +1140,19 @@ final class VLMSnapperApplicationModel: ObservableObject {
         originalPNG: Data,
         operation: WorkspaceOperationKind
     ) {
+        guard let owner = captureLease, providerSelection != nil else { return }
+        Task {
+            _ = try? await workflow.performOperation(continuingCapture: owner) {
+                captureLease = nil
+                await runCapturedWorkspace(originalPNG: originalPNG, operation: operation)
+            }
+        }
+    }
+
+    private func runCapturedWorkspace(
+        originalPNG: Data,
+        operation: WorkspaceOperationKind
+    ) async {
         guard let providerSelection else { return }
         cancelCaptureSurfaces()
         let runner = PersistedOperationWorkspaceRunner(
@@ -1118,45 +1170,42 @@ final class VLMSnapperApplicationModel: ObservableObject {
         workspaceProviderSummary = providerSummary
         workspaceTargetLanguageCode = selectedTargetLanguageCode
         workspaceAllowsOperationStart = true
-        Task {
-            await session.select(operation)
-            workspaceSnapshot = await session.snapshot()
-            showResultWorkspace(bringToFront: true)
-            let previousAttempt = selectedAttempt
-            let run = Task { [weak self] in
-                guard let self else { return }
-                try await withProviderConfigurationReadOnly {
-                    try await session.startSelectedOperation(
-                        selection: providerSelection,
-                        targetLanguage: selectedTargetLanguageCode
-                    )
-                }
+        await session.select(operation)
+        workspaceSnapshot = await session.snapshot()
+        showResultWorkspace(bringToFront: true)
+        let previousAttempt = selectedAttempt
+        let run = Task { [weak self] in
+            guard let self else { return }
+            try await session.startSelectedOperation(
+                selection: providerSelection,
+                targetLanguage: selectedTargetLanguageCode
+            )
+        }
+        var observedTransition = false
+        let transitionDeadline = Date().addingTimeInterval(1)
+        while !run.isCancelled {
+            guard workspaceSession === session else {
+                run.cancel()
+                _ = try? await run.value
+                return
             }
-            var observedTransition = false
-            let transitionDeadline = Date().addingTimeInterval(1)
-            while !run.isCancelled {
-                guard workspaceSession === session else {
-                    run.cancel()
-                    return
-                }
-                workspaceSnapshot = await session.snapshot()
-                showResultWorkspace()
-                if selectedAttempt != previousAttempt {
-                    observedTransition = true
-                }
-                if selectedSlotIsTerminal,
-                   observedTransition || Date() >= transitionDeadline {
-                    break
-                }
-                try? await Task.sleep(for: .milliseconds(50))
-            }
-            _ = try? await run.value
-            guard workspaceSession === session else { return }
             workspaceSnapshot = await session.snapshot()
             showResultWorkspace()
-            await recordSelectedOperationDiagnostic()
-            await refreshHistory()
+            if selectedAttempt != previousAttempt {
+                observedTransition = true
+            }
+            if selectedSlotIsTerminal,
+               observedTransition || Date() >= transitionDeadline {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(50))
         }
+        _ = try? await run.value
+        guard workspaceSession === session else { return }
+        workspaceSnapshot = await session.snapshot()
+        showResultWorkspace()
+        await recordSelectedOperationDiagnostic()
+        await refreshHistory()
     }
 
     private func showResultWorkspace(bringToFront: Bool = false) {
@@ -1166,7 +1215,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             originalImage: originalImage,
             providerSummary: workspaceProviderSummary ?? providerSummary,
             targetLanguage: workspaceTargetLanguageName,
-            allowsOperationStart: workspaceAllowsOperationStart,
+            allowsOperationStart: workspaceAllowsOperationStart && providerSnapshot.activity == nil,
             onStart: { [weak self] operation in
                 Task { await self?.rerunWorkspace(operation) }
             },
@@ -1187,6 +1236,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func rerunWorkspace(_ operation: WorkspaceOperationKind) async {
+        _ = try? await workflow.performOperation {
+            await runExistingWorkspace(operation)
+        }
+    }
+
+    private func runExistingWorkspace(_ operation: WorkspaceOperationKind) async {
         guard workspaceAllowsOperationStart,
               let workspaceSession,
               let providerSelection else { return }
@@ -1198,18 +1253,17 @@ final class VLMSnapperApplicationModel: ObservableObject {
         let previousAttempt = selectedAttempt
         let run = Task { [weak self] in
             guard let self else { return }
-            try await withProviderConfigurationReadOnly {
-                try await workspaceSession.startSelectedOperation(
-                    selection: providerSelection,
-                    targetLanguage: selectedTargetLanguageCode
-                )
-            }
+            try await workspaceSession.startSelectedOperation(
+                selection: providerSelection,
+                targetLanguage: selectedTargetLanguageCode
+            )
         }
         var observedTransition = false
         let transitionDeadline = Date().addingTimeInterval(1)
         while !run.isCancelled {
             guard self.workspaceSession === workspaceSession else {
                 run.cancel()
+                _ = try? await run.value
                 return
             }
             workspaceSnapshot = await workspaceSession.snapshot()
@@ -1229,25 +1283,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
         showResultWorkspace()
         await recordSelectedOperationDiagnostic()
         await refreshHistory()
-    }
-
-    private func withProviderConfigurationReadOnly(
-        _ operation: () async throws -> Void
-    ) async throws {
-        try await providerCoordinator.beginRequestConfigurationFreeze()
-        await providerSession.setReadOnly(true)
-        await refreshProviderPresentation()
-        do {
-            try await operation()
-        } catch {
-            await providerCoordinator.endRequestConfigurationFreeze()
-            await providerSession.setReadOnly(false)
-            await refreshProviderPresentation()
-            throw error
-        }
-        await providerCoordinator.endRequestConfigurationFreeze()
-        await providerSession.setReadOnly(false)
-        await refreshProviderPresentation()
     }
 
     private func retrySavingWorkspace() async {
@@ -1280,8 +1315,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private func cancelCapture(generation: UUID) async {
         guard activeCaptureGeneration == generation else { return }
         let session = captureSelectionSession
+        let lease = captureLease
+        captureLease = nil
         cancelCaptureSurfaces()
         await session?.cancel()
+        if let lease { await providerCoordinator.release(lease) }
     }
 
     private func cancelCaptureSurfaces() {
