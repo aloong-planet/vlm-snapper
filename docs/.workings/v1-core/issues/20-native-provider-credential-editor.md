@@ -4,7 +4,7 @@
 
 **Blocked by:** 19 — Manage Providers inline in Settings Center.
 
-**Status:** ready-for-review
+**Status:** completed
 
 - [x] Keyboard input preserves every character, while each paste removes at most one trailing CRLF, LF, or CR sequence and replaces the current selection without trimming or Unicode normalization — **test**: `ProviderAPIKeyFieldTests.pasteNormalizationIsNarrow`, `ProviderCredentialInteractionTests.pasteReplacesSelectionWithoutTrimming`, and `ProviderAPIKeyFieldTests.standardPasteRoutes`.
 - [x] Empty values, values containing a remaining newline, and values above 4096 UTF-8 bytes stay local and cannot start Provider validation; all other characters remain opaque — **test**: `ProviderAPIKeyInputTests.validationUsesTheDocumentedSafetyBoundary`, `ProviderConfigurationCoordinatorTests.unsafeInputPreservesSavedConfiguration`, `ProviderCredentialInteractionTests.unsafeDraftCannotValidate` and `ProviderSettingsPresentationTests.localAPIKeyErrorsHaveSpecificHints`.
@@ -15,6 +15,8 @@
 - [x] Strict build, focused AppKit/UI tests, full tests, localization-key parity, and `git diff --check` pass — **gate**: the repository's complete local verification commands fail non-zero on any regression.
 
 ## Comments
+
+- 2026-09-06: User authorized merge and continuation. PR #24 was squash-merged as `e955513d205d4f57e5be2c03146978706215021d` after its test-and-package check succeeded. Ticket 21 starts from this merge; no local application installation is implied.
 
 - 2026-09-06: All Ticket 20 criteria are now mapped and locally verified. Strict build, 293 tests / 72 suites, 248-key bilingual parity and rebuilt native menu 10/10 pass; whole-ticket code/test reviews and scoped final regression are recorded. Ready for PR review, not merged or installed. Signed/live and physical-input acceptance are not claimed; Ticket 21–23 requirements remain open.
 

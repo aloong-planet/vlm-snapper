@@ -5,6 +5,38 @@ import VLMSnapperCore
 
 @Suite("Provider settings presentation")
 struct ProviderSettingsPresentationTests {
+    @Test("an unchanged credential cannot be resubmitted after a model refresh failure")
+    @MainActor
+    func unchangedCredentialAfterFailure() {
+        let editor = ProviderCredentialEditor(loadedValue: "saved-key")
+        let presentation = ProviderInlineCredentialPresentation(
+            isConfigured: true, isSelected: true, isDirty: editor.isDirty,
+            phase: .failed, hasAPIKey: !editor.value.isEmpty, isReadOnly: false
+        )
+        #expect(presentation.showsValidation)
+        #expect(!presentation.canValidate)
+    }
+
+    @Test("recovery and read failures do not offer an unusable validation action")
+    func storageReadOnlyActions() {
+        for recovering in [true, false] {
+            let presentation = ProviderInlineCredentialPresentation(
+                isConfigured: false, isSelected: true, isDirty: false,
+                phase: recovering ? .recovering : .failed,
+                hasAPIKey: false, isReadOnly: true, inputIssue: .empty,
+                failure: recovering ? nil : .secureStorage
+            )
+            #expect(!presentation.showsValidation)
+            #expect(!presentation.canValidate)
+        }
+        let failedWrite = ProviderInlineCredentialPresentation(
+            isConfigured: false, isSelected: true, isDirty: true, phase: .failed,
+            hasAPIKey: true, isReadOnly: false, failure: .secureStorage
+        )
+        #expect(failedWrite.showsValidation)
+        #expect(failedWrite.canValidate)
+    }
+
     @Test("local input errors have specific localized hints")
     @MainActor
     func localAPIKeyErrorsHaveSpecificHints() {

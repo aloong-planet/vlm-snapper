@@ -582,7 +582,9 @@ public struct ManagementCenterView: View {
            providerSettings.snapshot.selectedProvider == provider {
             let presentation = providerCredentialPresentation(provider)
             VStack(alignment: .leading, spacing: 18) {
-                if providerSettings.snapshot.isReadOnly {
+                if providerSettings.snapshot.isReadOnly,
+                   providerSettings.snapshot.phase != .recovering,
+                   providerSettings.snapshot.failure != .secureStorage {
                     Label(
                         VLMSnapperStrings.providerReadOnly,
                         systemImage: VLMSnapperIcon.lock.rawValue
@@ -825,9 +827,10 @@ public struct ManagementCenterView: View {
                 && credentialEditor.isDirty,
             phase: credentialEditor.isSubmitting ? .validating : providerSettings.snapshot.phase,
             hasAPIKey: !credentialEditor.value.isEmpty,
-            isReadOnly: providerSettings.snapshot.isReadOnly || !credentialEditor.isDirty
+            isReadOnly: providerSettings.snapshot.isReadOnly
                 || credentialEditor.isLoading || credentialEditor.provider != provider,
-            inputIssue: ProviderAPIKeyInput.issue(in: credentialEditor.value)
+            inputIssue: ProviderAPIKeyInput.issue(in: credentialEditor.value),
+            failure: providerSettings.snapshot.failure
         )
     }
 
@@ -892,6 +895,8 @@ public struct ManagementCenterView: View {
         case .notConfigured: VLMSnapperStrings.notConfigured
         case .pending: VLMSnapperStrings.providerPendingValidation
         case .validating: VLMSnapperStrings.validating
+        case .recovering: VLMSnapperStrings.recovering
+        case .storageFailure: VLMSnapperStrings.providerStorageFailure
         case .configured: VLMSnapperStrings.configured
         case .failed: VLMSnapperStrings.failed
         }
@@ -902,6 +907,8 @@ public struct ManagementCenterView: View {
         case .notConfigured: VLMSnapperStrings.providerSetupRequired
         case .pendingValidation: VLMSnapperStrings.providerPendingValidation
         case .validating: VLMSnapperStrings.validating
+        case .recovering: VLMSnapperStrings.recovering
+        case .storageFailure: VLMSnapperStrings.providerStorageFailure
         case .pendingModel: VLMSnapperStrings.modelPending
         case .ready: VLMSnapperStrings.providerAvailable
         case .failed: VLMSnapperStrings.failed
@@ -913,8 +920,8 @@ public struct ManagementCenterView: View {
     ) -> String {
         switch status {
         case .configured: VLMSnapperIcon.complete.rawValue
-        case .validating: VLMSnapperIcon.retry.rawValue
-        case .notConfigured, .pending, .failed: VLMSnapperIcon.warningBadge.rawValue
+        case .validating, .recovering: VLMSnapperIcon.retry.rawValue
+        case .notConfigured, .pending, .failed, .storageFailure: VLMSnapperIcon.warningBadge.rawValue
         }
     }
 
@@ -923,16 +930,16 @@ public struct ManagementCenterView: View {
     ) -> Color {
         switch status {
         case .configured: VLMSnapperTheme.success
-        case .failed: VLMSnapperTheme.destructive
-        case .notConfigured, .pending, .validating: VLMSnapperTheme.warning
+        case .failed, .storageFailure: VLMSnapperTheme.destructive
+        case .notConfigured, .pending, .validating, .recovering: VLMSnapperTheme.warning
         }
     }
 
     private func providerCardStatusColor(_ status: ProviderInlineCardStatus) -> Color {
         switch status {
         case .ready: VLMSnapperTheme.success
-        case .failed: VLMSnapperTheme.destructive
-        case .notConfigured, .pendingValidation, .validating, .pendingModel:
+        case .failed, .storageFailure: VLMSnapperTheme.destructive
+        case .notConfigured, .pendingValidation, .validating, .recovering, .pendingModel:
             VLMSnapperTheme.warning
         }
     }
@@ -943,6 +950,8 @@ public struct ManagementCenterView: View {
         switch status {
         case .pending: VLMSnapperStrings.providerNewKeyPending
         case .validating: VLMSnapperStrings.validating
+        case .recovering: VLMSnapperStrings.recovering
+        case .storageFailure: VLMSnapperStrings.providerStorageFailure
         case .failed: VLMSnapperStrings.providerRetryValidation
         case .notConfigured: VLMSnapperStrings.providerEnterKey
         case .configured: ""
@@ -955,7 +964,9 @@ public struct ManagementCenterView: View {
         case .invalidConfiguration:
             VLMSnapperStrings.failureMessage(code: "invalid_credential")
         case .secureStorage:
-            VLMSnapperStrings.failureMessage(code: "local_storage")
+            providerSettings?.snapshot.isReadOnly == true
+                ? VLMSnapperStrings.providerStorageReadFailure
+                : VLMSnapperStrings.failureMessage(code: "local_storage")
         case .unavailable:
             VLMSnapperStrings.failureMessage(code: "provider_unavailable")
         }

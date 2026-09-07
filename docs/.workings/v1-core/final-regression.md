@@ -1135,3 +1135,77 @@ Not the full feature closeout ticket. The local verification gates and review fi
 | Installation / merge | Neither occurred. Local candidate behavior is not presented as installed-app testing. |
 
 Queue recheck: changed spec text re-compared to checklist and features; feature Paste mirror removed; prototype notice inspected in an isolated browser. No remaining contradiction within Ticket 20's owned behavioral scope. Full product visual parity and signed/live acceptance remain bounded separately.
+
+## Ticket 21 — 2026-09-07 — delivery remains gated
+
+Scope: credential truth/reconciliation and its existing inline recovery/read-error surface. Not Ticket 22's workflow exclusion or Ticket 23's full-feature acceptance. i18n is enabled by AGENTS.md: both dictionaries are in this review. No new geometry, icon choice, provider, language or distribution architecture.
+
+### Stage 1 — changed declaration surfaces
+
+| Surface | Counterpart and conclusion |
+|---|---|
+| v1-core spec US-07/FM-28/FM-41 | Durable retirement precedes admission/network; cancellation after a delayed read is checked. Existing ADR-0012 addendum defines pre-admission preservation, not post-admission rollback. Corrected both mirrors. |
+| Spec state/refresh wording | Added the missing recovery/storage-error states to the state description; ordinary cache refresh is distinguished from orphan recovery. Empty candidate retains the confirmed disabled action; genuine read-error/recovery hides it. Matches production presentation and inspected render. |
+| v1-core features | Removed unconditional immediate-retirement claim; added missing/read-error/orphan recovery and candidate-exit behavior. Existing clearing/unchanged-value descriptions remain accurate. No architecture/schema details added. |
+| ADR-0012 | Accepted addendum retained append-only; historical original decision is qualified by that explicit admission boundary. No new ADR decision introduced. |
+| English/Chinese dictionaries and string accessors | Three new paired keys; 251 unique identical keys. Error advice matches explicit collapse/reopen. Existing short replacement warning describes the no-rollback consequence, while failure text/spec cover rejection; it does not promise deletion despite storage failure. |
+| Management prototype HTML | Recovery/read-error controls synchronized and JavaScript statically parsed in prior checkpoint. URL policy blocked browser validation; no alternate surface attempted. Rendering/interaction approval is not inferred from syntax. This row remains open for user-side preview. |
+| Prototype README | Found stale unconditional retirement statement; replaced it with accepted-replacement wording and scoped the old script's invalidation. Re-read resulting text against spec/ADR. |
+
+### Stage 2 — relationship checks
+
+| Relation | Conclusion |
+|---|---|
+| Document/index | Specs and ADR index entries retain the same names/scope/status; no new canonical document. Filesystem enumeration found only v1-core.md in features; no features index existed to update. No directory restructuring added. |
+| CONTEXT invariants / implementation | Opaque input, window draft versus application job lifetime, no duplicate submission and no secret diagnostics remain the same terms and rules. No new term needs a CONTEXT entry. |
+| Same fact elsewhere | Searched current docs, CONTEXT and localization for retirement/recovery wording, excluding historical workings. Corrected prototype README mirror. ADR historical text remains explicitly qualified by accepted addendum. Prototype warning describes accepted replacement; older interaction logic remains scoped invalid, not implementation evidence. |
+| Rule / template | No template or workflow rule changed. Existing prototype harness notice is scoped to stale interaction rules; native view checks do not validate that script. |
+| Rule / gate | Owned rows map to public behavior tests and final signed CRUD. Mutation/red controls demonstrate failure sensitivity. Static PNG count is not a geometry gate; manual before/after inspection recorded. Physical Quit/crash/browser paths remain explicit gaps. |
+
+### Stage 3 — event checks
+
+| Event | Conclusion |
+|---|---|
+| Credential UI states added | New recovering/storageFailure cases handled by exhaustive Swift switches and paired dictionaries. Fixed spec's previously incomplete state enumeration. No Provider/language/architecture membership changed. |
+| Pending notes | Both spec Pending notes concern live Provider contract/release readiness; this local fake-credential/signing run does not expire them. Retained. |
+| Admission boundary clarified | Canonical decision is ADR-0012 addendum and spec US-07/FM-28/FM-41, not solely a tasklist/comment. |
+| Visual issue corrected | Manual production render reproduced the missing empty Validate row and showed its disabled replacement. Existing approved form restored; no new design. Previous DS/OA/G prototype marks remain assigned to Ticket 23, not silently replaced. |
+| Verification/installation | Current-source v4 strict/full/native and signed CRUD gates passed. No installation, notarization, release, merge, push or PR. Browser preview still blocked. |
+
+Queue recheck: changed spec state description, admission mirrors and prototype README re-compared to their counterpart. No further text changes required within this ticket's scope. The browser-preview row is still open; this report does not declare the final delivery gate complete. The code and test reviews have separate Ticket 21 sections rather than treating red/green work as a substitute.
+
+### User preview acceptance addendum — 2026-09-07
+
+The user subsequently completed the scoped manual prototype checklist and replied “验收通过”. The management-center recovery/read-error preview row above is now satisfied by user-reported acceptance, including disabled controls, absence of Validate, and light/dark readability/layout. The earlier blocked agent-browser observations remain valid historical evidence; no automated browser pass is claimed. Actual installed-app/Keychain recovery and physical lifecycle acceptance remain separate, and this addendum does not mark all ticket criteria complete or authorize merge/installation.
+
+## Ticket 21 — 2026-09-07 — delivery reconciliation
+
+Documentation-only continuation after user acceptance. The prior three-stage source review remains applicable; this queue covers the changed acceptance statements and their counterparts. Ticket 21 is not the feature-closeout ticket. i18n remains enabled; both dictionaries were checked again (251 identical unique keys).
+
+### Stage 1 — changed declaration surfaces
+
+| Surface | Counterpart and conclusion |
+|---|---|
+| Prototype README | Replaced stale unverified-preview wording with the user's scoped 2026-09-07 acceptance. Automated browser policy denial remains explicit; native and installed-app checks are separate. Matches the user message and acceptance addendum. |
+| Ticket/checklist/tasklist status | Nine ticket criteria mapped to named current tests or evidence in the final acceptance table; status is ready-for-review, not merged. Historical pending checkpoints remain historical. |
+| Spec/features/ADR | No product source changed in this continuation. Previous admission, orphan recovery, missing/read-error and cancellation checks still apply; no new requirement or scope expansion. |
+
+### Stage 2 — relationship checks
+
+| Relation | Conclusion |
+|---|---|
+| Prototype approval / review records | User-reported preview closes only the prior preview row. Earlier code/test reports explicitly name their physical/lifecycle limits; those remain, not converted to passes. |
+| Gate / commands | Strict build passed. Default Command Line Tools failed test compilation before execution; the exit guard stopped. Actual SwiftPM rerun with explicit full Xcode passed 312 tests / 72 suites (16.015 seconds), native 10/10 (0.956–3.369 seconds), shell syntax and diff. No product change was made to obtain green. |
+| Ticket 21 / successors | Ticket 22 still owns workflow exclusion; Ticket 23 explicitly owns combined application persistence/recovery and full visual acceptance. Neither is marked done by this delivery. |
+| Index / canonical vocabulary | No new canonical document, title, term or rule. Existing indices and CONTEXT need no edits. |
+
+### Stage 3 — event checks
+
+| Event | Conclusion |
+|---|---|
+| User accepted preview | README and current delivery status updated; no browser automation or installed-app result inferred. |
+| Verification environment mismatch | Recorded explicit `DEVELOPER_DIR` command in tasklist/acceptance to keep the local gate reproducible. Bare `swift -e` lacks test framework paths and cannot prove Testing absent. No global Xcode selection change. |
+| Pending notes and members | No language/Provider/architecture membership change. Existing live-contract/release Pending notes do not expire from local fixture tests. |
+| Delivery | Ready for PR only. No merge/install/release; signed v4 source is unchanged. |
+
+Queue is empty after re-reading the new acceptance statements against their counterparts. The ticket's declared gates are redeemed; later-ticket and physical/lifecycle limitations remain explicit. Commit/push/PR are the only remaining delivery actions.

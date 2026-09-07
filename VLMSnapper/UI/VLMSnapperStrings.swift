@@ -51,6 +51,9 @@ enum VLMSnapperStrings {
     static var modelPending: String { localized("providerSetup.pendingModel") }
     static var notConfigured: String { localized("providerSetup.notConfigured") }
     static var validating: String { localized("providerSetup.validating") }
+    static var recovering: String { localized("providerSetup.recovering") }
+    static var providerStorageFailure: String { localized("providerSetup.storageFailure") }
+    static var providerStorageReadFailure: String { localized("providerSetup.storageReadFailure") }
     static var configured: String { localized("providerSetup.configured") }
     static var providerAvailable: String { localized("providerSetup.available") }
     static var providerSetupRequired: String { localized("providerSetup.setupRequired") }

@@ -13,6 +13,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     let credentialEditor = ProviderCredentialEditor()
+    private var credentialTasks: [UUID: Task<Void, Never>] = [:]
+    private var providerObservationTask: Task<Void, Never>?
     @Published var pendingModelID: String?
     @Published var selectedOperation: WorkspaceOperationKind = .extract
     @Published var selectedTargetLanguageCode = "zh-Hans"
@@ -180,11 +182,23 @@ final class VLMSnapperApplicationModel: ObservableObject {
         await cleanupScheduler.runAtStartup(retention: retention, now: Date())
         historyRecords = try await historyStore.history(matching: HistoryQuery())
         permission = try await permissionCoordinator.refreshStatus()
+        let providerChanges = await providerSession.changes()
+        providerObservationTask = Task { [weak self] in
+            for await _ in providerChanges {
+                guard !Task.isCancelled, let self else { return }
+                await self.refreshProviderPresentation()
+            }
+        }
+        for provider in ProviderID.allCases {
+            try Task.checkCancellation()
+            do { _ = try await providerCoordinator.reconcileCredentialState(for: provider) }
+            catch { /* Opening the affected card exposes the classified storage or recovery failure. */ }
+        }
+        try Task.checkCancellation()
         await providerSession.load()
         providerSnapshot = await providerSession.snapshot()
-        credentialEditor.load((try? await providerCoordinator.apiKey(
-            for: providerSnapshot.selectedProvider
-        )) ?? "")
+        let initialRead = credentialEditor.beginLoading(for: providerSnapshot.selectedProvider)
+        await loadCredential(initialRead)
         pendingModelID = providerSnapshot.selectedModelID
         try await refreshProviderReadiness()
         let loginState = try await loginCoordinator.configureAtPrimaryLaunch()
@@ -323,10 +337,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
             onSelectProvider: { [weak self] provider in
                 guard let self else { return }
                 let request = credentialEditor.beginLoading(for: provider)
-                Task { await self.selectProvider(request) }
+                let task = startCredentialTask {
+                    await self.credentialEditor.performLoad(request) {
+                        await self.selectProvider(request)
+                    }
+                }
+                credentialEditor.attachLoadTask(task, for: request)
             },
             onValidate: { [weak self] submission in
-                Task { await self?.validateProvider(submission) }
+                self?.startCredentialTask { await self?.validateProvider(submission) }
             },
             onRefresh: { [weak self] in
                 Task { await self?.refreshModels() }
@@ -380,14 +399,41 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private func selectProvider(_ request: ProviderCredentialLoad) async {
         guard credentialEditor.accepts(request) else { return }
-        await providerSession.selectProvider(request.provider)
-        guard credentialEditor.accepts(request) else { return }
+        await providerSession.selectProvider(request.provider) { [weak self] in
+            await MainActor.run { self?.credentialEditor.detachLoadTask(for: request) }
+        }
+        guard credentialEditor.accepts(request), !Task.isCancelled else { return }
         if credentialEditor.isLoading {
-            let loadedAPIKey = (try? await providerCoordinator.apiKey(for: request.provider)) ?? ""
-            guard credentialEditor.accepts(request) else { return }
-            credentialEditor.completeLoad(request, value: loadedAPIKey)
+            await loadCredential(request)
         }
         await refreshProviderPresentation()
+    }
+
+    @discardableResult
+    private func startCredentialTask(_ operation: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+        let id = UUID()
+        let task = Task { [weak self] in
+            await operation()
+            self?.credentialTasks[id] = nil
+        }
+        credentialTasks[id] = task
+        return task
+    }
+
+    private func loadCredential(_ request: ProviderCredentialLoad) async {
+        guard credentialEditor.accepts(request) else { return }
+        let snapshot = await providerSession.snapshot()
+        guard snapshot.failure != .secureStorage else { return }
+        do {
+            let value = try await providerCoordinator.apiKey(for: request.provider)
+            guard credentialEditor.accepts(request), !Task.isCancelled else { return }
+            credentialEditor.completeLoad(request, value: value ?? "")
+        } catch {
+            guard credentialEditor.accepts(request), !Task.isCancelled else { return }
+            await providerSession.credentialReadDidFail(for: request.provider) { [weak self] in
+                await MainActor.run { self?.credentialEditor.accepts(request) == true }
+            }
+        }
     }
 
     private func validateProvider(_ submission: ProviderCredentialSubmission) async {
@@ -435,7 +481,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private func refreshProviderPresentation() async {
         providerSnapshot = await providerSession.snapshot()
         pendingModelID = providerSnapshot.selectedModelID
-        try? await refreshProviderReadiness()
+        do { try await refreshProviderReadiness() }
+        catch {
+            providerConfigurations = [:]
+            currentProvider = nil
+            providerReadiness = .missing
+        }
         publish()
     }
 
@@ -544,11 +595,17 @@ final class VLMSnapperApplicationModel: ObservableObject {
         if let activeCaptureGeneration {
             await cancelCapture(generation: activeCaptureGeneration)
         }
-        guard workspaceSession != nil else { return true }
-        let disposition = await closeWorkspace()
-        guard disposition == .confirmDiscardUnsavedResult else { return true }
-        guard UnsavedResultConfirmation.confirm() else { return false }
-        await discardUnsavedWorkspace()
+        if workspaceSession != nil {
+            let disposition = await closeWorkspace()
+            if disposition == .confirmDiscardUnsavedResult {
+                guard UnsavedResultConfirmation.confirm() else { return false }
+                await discardUnsavedWorkspace()
+            }
+        }
+        for task in credentialTasks.values { task.cancel() }
+        credentialTasks.removeAll()
+        credentialEditor.terminate()
+        providerObservationTask?.cancel()
         return true
     }
 

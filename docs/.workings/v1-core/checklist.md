@@ -47,7 +47,7 @@
 | FM-25 | 用户在菜单栏面板、管理中心或已有选区中触发截图且当前允许开始新截图：这些来源界面在冻结期间保持可用，但由 ScreenCaptureKit 排除在冻结帧外；新遮罩成功显示后才退下明确记录的来源界面。重复截图必须先显示新遮罩再释放旧遮罩和冻结帧，不能出现桌面闪烁或失败后丢失旧选区。 | 05、18 | Existing capture exclusion and atomic replacement acceptance — test/evidence |
 | FM-26 | 用户单击管理中心历史记录：只切换详情；用户双击整条记录：管理中心退到后台并打开该记录的结果工作区，已保存结果立即显示且不产生网络请求或新历史记录。只有用户随后明确点击 Try Again 时，才按历史操作重跑规则创建新记录。 | 18 | Ticket 18 history-open and rerun acceptance — test |
 | FM-27 | 用户从首次引导进入 Provider 设置后只验证 Key、尚未选择模型：停留在当前 Provider 卡片，不返回引导；选择有效模型后自动返回引导并显示完成状态。用户提前关闭设置中心时，直接返回引导并保留实际配置进度。 | 19、23 | Ticket 19 onboarding return criterion; Ticket 23 complete onboarding-to-Provider flow — test |
-| FM-28 | 用户在已配置 Provider 输入新 Key 并开始验证：旧 Key、旧模型缓存和该 Provider 的当前模型立即移除；验证、模型列表获取或安全存储任一步失败时不恢复旧配置，也不让全局当前选择继续指向该 Provider。 | 21 | Ticket 21 changed-key invalidation and no-rollback criterion — test |
+| FM-28 | 用户在已配置 Provider 输入新 Key 并点击验证：先持久记录旧凭据作废，再接受替换并移除旧 Key、旧模型缓存及该 Provider 的当前模型；验证、模型列表获取或后续安全存储失败不恢复旧配置。若作废记录无法持久化，则拒绝本次替换、不发请求、保留原配置并提示安全存储错误；存储恢复后重开可读取原配置。作废已经持久化但旧条目删除失败时，重开只允许清除明确已作废的旧条目，不能把它当作遗留凭据恢复。 | 21 | Ticket 21 changed-key invalidation and no-rollback criterion — test |
 | FM-29 | 用户验证新 Key 后，Provider 返回的完整模型列表仍含旧模型：保留旧模型选择；列表不含旧模型：进入待选择模型。两种情况都不因该 Provider 可用而抢占另一个全局当前 Provider。 | 21 | Ticket 21 model-preservation/current-Provider criterion — test |
 | FM-30 | 用户移除非当前 Provider：只清除该 Provider；用户移除全局当前 Provider：同时清空全局当前选择，不自动切换到其他可用 Provider，下一次截图按缺少当前 Provider 的流程进入引导。 | 19 | Ticket 19 Provider removal/current-selection criterion — test |
 | FM-31 | 用户在模型请求进行中进入 Provider 页面：所有卡片仍可查看，但 API Key、验证、清空、模型选择、刷新、设为当前和移除配置全部只读；请求进入终态后恢复。 | 22 | Ticket 22 read-only-during-model/capture criterion — test |
@@ -60,7 +60,7 @@
 | FM-38 | 管理中心因应用状态更新而重新呈现 Provider 页面：当前窗口会话中的字段文本、状态、占位文案以及清空/验证可用性仍来自同一编辑状态，不能出现文本已显示但操作仍按空值禁用的分裂状态。 | 20 | Ticket 20 single-source editor presentation criterion — test |
 | FM-39 | 已配置 Provider 的字段精确值与已载入凭据完全相同时：不显示待验证操作，按 Return 不发起验证，也不删除现有凭据；只有精确值实际发生非空变化后才能提交替换。 | 20 | Ticket 20 unchanged-key suppression criterion — test |
 | FM-40 | 用户在 Keychain 载入或尚未提交的编辑状态关闭管理中心：取消载入并清除窗口会话草稿，已保存凭据不变。用户在正在验证时关闭：验证继续执行；重新打开后显示同一验证或其终态。失败时保留提交 Key 供修正，成功时只在安全存储写入成功后清除内存候选。 | 20、21、23 | Ticket 20 draft lifecycle, Ticket 21 validation continuity, and Ticket 23 combined flow — test |
-| FM-41 | 应用在验证进行中正常退出、崩溃或被强制终止：取消仍可取消的请求并丢弃只存在内存中的候选 Key；提交时已经失去资格的旧配置不恢复。下次启动时不重新提交已经丢失的候选 Key；若新 Key 已经写入 Keychain，则按安全存储真相进入模型配置恢复，否则显示未配置。 | 21 | Ticket 21 termination, candidate-secret, and reconciliation criteria — test/evidence |
+| FM-41 | 应用在验证进行中正常退出、崩溃或被强制终止：取消仍可取消的请求并丢弃只存在内存中的候选 Key；已经接受替换并持久记录作废的旧配置不恢复。下次启动时不重新提交已经丢失的候选 Key；若新 Key 已经写入 Keychain，则按安全存储真相进入模型配置恢复，否则显示未配置。若退出前尚未接受替换，则保留原配置；迟到的凭据读取返回后不得再发验证请求。 | 21 | Ticket 21 termination, candidate-secret, and reconciliation criteria — test/evidence |
 | FM-42 | 用户键盘输入 Key：空格、制表符和其他非换行字符按原样保留。用户粘贴 Key：只移除该次粘贴内容末尾至多一个 `CRLF`、`LF` 或 `CR`，再插入当前选区；其他字符不修剪、不规范化。结果为空、仍含换行或超过应用明确的 4096 UTF-8 字节安全上限时，保持编辑状态并显示本地输入错误，不删除旧配置、不联网，也不截断内容后尝试验证。 | 20 | Ticket 20 exact paste and local-validation criteria — test |
 | FM-43 | 一个 Provider 正在验证时，用户切换到另一张卡片并输入新 Key：草稿正常保留在当前窗口会话，但验证操作保持禁用并显示现有只读提示条；前一项进入任一终态后，若草稿仍合法且非空，验证操作自动恢复。重复点击或按 Return 不产生第二个验证请求。 | 22 | Ticket 22 one-credential-job and cross-Provider draft criterion — test |
 | FM-44 | Provider 凭据作业已经开始后，用户触发截图快捷键或菜单栏截图入口：不冻结屏幕、不创建选区，把管理中心的 Provider 页面及当前作业带到前台；截图操作栏不会出现“配置处理中”状态。已有结果工作区的 Try Again 同样禁用，不启动模型请求、不新增或修改历史记录。反向地，截图冻结、选区或模型请求已经活动时提交 Provider 验证或开始恢复均被拒绝，原有截图或请求不受影响；双方进入终态后恢复相应入口。 | 22、23 | Ticket 22 production routing and symmetric-gate criteria; Ticket 23 combined integration — test/evidence |
@@ -89,7 +89,7 @@ The closeout gate must parse `US-01` through `US-12` and `FM-01` through `FM-46`
 | 17 | DeepSeek 推理流活动重置 10 秒无活动计时，且不展示推理内容 | 已完成 |
 | 19 | 设置中心内联 Provider 管理、首次引导自动返回、旧独立表面退役与确认响应式几何 | 已完成（PR #23 已合并） |
 | 20 | 原生 API Key 编辑、精确粘贴、光标/选区保持与提交身份隔离 | 本票核销完成，ready-for-review；未合并 |
-| 21 | Keychain 真相对账、凭据替换、失败恢复与启动修复 | blocked by 20 |
+| 21 | Keychain 真相对账、凭据替换、失败恢复与启动修复 | in-progress; prerequisite 20 merged in PR #24; acceptance pending |
 | 22 | Provider 凭据作业与截图、选区、模型请求及重跑互斥 | blocked by 21 |
 | 23 | 内联 Provider 配置全 feature 验收与文档回归收口 | blocked by 19–22 |
 
@@ -217,3 +217,51 @@ This is Ticket 20's scoped acceptance, not acceptance of Keychain reconciliation
 Mutation: removing same-Provider admission suppression and rebuilding makes the real-coordinator session test fail at the required validating phase in both success/failure cases. Exact guard restored; final full/native gates above ran after restoration. Log: /private/tmp/ticket20-coordinator-mutation.log. Earlier native Paste no-op, missing completion marker and timeout controls are recorded in 20-native-acceptance-review.md.
 
 Coverage bookkeeping repaired: 12 user stories + 46 failure modes = 58 unique ownership rows. Ticket 20's former nonexistent test references have been replaced by actual declarations. Other ticket definitions copied from the approved draft preserve their unresolved dependencies; this does not mark them implemented.
+
+## Ticket 21 evidence inventory — acceptance pending
+
+This is a pre-review inventory, not a completed checklist. Names below refer to current test declarations; previous nonexistent names in the ticket have been corrected. The final v2 verification logs are recorded in `21-keychain-reconciliation-tasklist.md`.
+
+| Owned rows | Current evidence | Limit or remaining gate |
+|---|---|---|
+| US-07, FM-28 | ProviderConfigurationCoordinatorTests.retirementWriteFailurePreservesOriginalConfiguration, credentialWriteFailureDoesNotRestorePreviousConfiguration, listFailureDoesNotRestorePreviousProviderConfiguration, failedDeletionCannotRecoverRetiredCredential | Retirement and cleanup cases pass. After specific user authorization, the forbidden-request mutation reached both deletion-permission branches and both failed at the injected boundary; exact restoration made both pass. Tests used only memory-store literals and an outer deny-network sandbox. |
+| FM-29 | ProviderConfigurationCoordinatorTests.replacementPreservesAvailableModelAndCurrentProvider, configuringAnotherProviderDoesNotReplaceRememberedCurrentProvider | Both Providers are configured through public operations in the remembered-current case. No live Provider request is claimed. |
+| US-08, FM-20 | ProviderConfigurationCoordinatorTests.genericCredentialWriteFailureIsSecureStorage, metadataPublicationFailureIsSecureStorage; ProviderSetupSessionTests.keychainReadFailureIsNotMissingCredential | Injected OS/filesystem faults drive the actual coordinator and session. |
+| FM-32, FM-35 | ProviderSetupSessionTests.lateReadFailureIsIgnored, submittedValidationUsesExplicitProvider; ProviderCredentialEditorTests.reopenedLoadWaitsForCanceledRead | Delayed uncancellable reads and A/B/A identities are covered at public seams, not through installed-window input. |
+| FM-40 | ProviderSetupSessionTests.pendingValidationSuppressesDuplicates, recoveryPublishesBusyState; ProviderCredentialEditorTests.closingSubmittedDraft, closedFailureRetainsCandidate | Application/window wiring remains a physical interaction gap; programmatic native Paste does not accept this workflow. |
+| FM-41 | ProviderConfigurationCoordinatorTests.canceledValidationDoesNotPersistCandidate, postKeychainPublicationFailureRecovers; ProviderSetupSessionTests.cancellationBeforeReplacementAdmission; ProviderCredentialEditorTests.terminationDiscardsCandidates | Task cancellation and restart from injected durable state are covered; actual Quit/crash/force-termination of the installed app is not simulated. |
+| FM-45 | ProviderSetupSessionTests.keychainReadFailureIsNotMissingCredential, lateReadFailureIsIgnored; ProviderSettingsPresentationTests.storageReadOnlyActions | Missing/read-error distinction and reopen are tested; all eight recovery/read-error production renders inspected. Browser controls remain unverified. |
+| FM-46 (reconciliation only) | ProviderConfigurationCoordinatorTests.reconciliationRecoversStoredKeyWithoutConfiguration, reconciliationCommitsMetadataForDurableNewCredential, reconciliationClearsConfigurationWithoutCredential, postKeychainPublicationFailureRecovers | Cross-workflow exclusion belongs to Ticket 22; combined restart flow belongs to Ticket 23. Neither is accepted here. |
+| US-11 | Both localization dictionaries have 251 matching keys; candidate termination tests; production secret-flow index covers 117 matching lines across the three production source roots | Formal security/code review remains pending. Metadata stores generation/configuration values, not candidate text; diagnostic construction does not receive API Key values. No zeroization claim. |
+| US-12, FM-22 | Final v2 Universal Developer ID/profile verification and Data Protection Keychain CRUD returned exit 0 | Separate signed test bundle; no installation, notarization, appcast publication or release performed. |
+
+The `/implement` checklist gate remains open. Formal code review, test review and final feature cross-regression must not be marked complete from this inventory.
+
+### Ticket 21 current-source reconciliation — 2026-09-07
+
+The inventory above is now reconciled for code-level review: each owned row names its public test, signed gate or inspected secret-flow evidence. The documented physical-process/browser gaps remain explicit exceptions, not passing tests. Ticket 22/23 responsibilities are unchanged.
+
+- Current strict/full/native chain exited 0: 312 tests / 72 suites, 15.447 seconds; native editor 10/10, 0.858–1.325 seconds. Logs: `/private/tmp/ticket21-final-v4-{strict,full,native}.log`.
+- US-11 inspection: `/private/tmp/ticket21-review-secret-sinks-v4.log` contains 117 matches / 13,027 bytes from all three production Swift roots with hidden/ignored files included. Followed the actual credential, metadata and diagnostic encoders and application diagnostic call sites. Candidate values go to memory, the designated Provider request and Keychain, not metadata or diagnostic fields. This is source-flow review, not a universal runtime leak detector or a memory-zeroization claim.
+- US-12/FM-22 final-source Universal bundle: `/private/tmp/vlmsnapper-ticket21-signing-final-v4/VLMSnapper.app`. Developer ID/profile verification and random-service Keychain CRUD exited 0; logs `/private/tmp/ticket21-final-v4-{universal,signing,keychain}.log`. Installed app was untouched.
+- US-07 empty-state correction: `unchangedCredentialAfterFailure` failed before the eligibility correction and passed afterward; `clearedFailedCandidateRenders` produced the actual management view before/after. Before: validation row absent; after: visible disabled. Static PNG generation alone is not an automated visibility assertion.
+- This code-level reconciliation permits the separate code/test reviews below. Browser preview acceptance is still unavailable; it is not inferred from this checklist. Do not mark the ticket delivered or open a PR on the strength of these local gates alone.
+
+### Ticket 21 final acceptance — 2026-09-07
+
+This table supersedes the pending delivery status above, not its historical observations. Each row is accepted at the ticket's declared test/gate/evidence boundary, not as installed-app or live-account certification.
+
+| Owned rows | Redeemed criterion and current evidence | Verdict |
+|---|---|---|
+| US-07, FM-28 | `retirementWriteFailurePreservesOriginalConfiguration`, `credentialWriteFailureDoesNotRestorePreviousConfiguration`, `listFailureDoesNotRestorePreviousProviderConfiguration`, `failedDeletionCannotRecoverRetiredCredential`; actual no-network mutation red and exact-restoration green recorded above | Pass: admission/no rollback; no retired authentication |
+| FM-29 | `replacementPreservesAvailableModelAndCurrentProvider`, `configuringAnotherProviderDoesNotReplaceRememberedCurrentProvider` | Pass: full-list model retention, no selection theft |
+| US-08, FM-20 | `genericCredentialWriteFailureIsSecureStorage`, `metadataPublicationFailureIsSecureStorage`, `keychainReadFailureIsNotMissingCredential` | Pass: local storage errors are not Provider outages |
+| FM-32, FM-35 | `lateReadFailureIsIgnored`, `submittedValidationUsesExplicitProvider`, `reopenedLoadWaitsForCanceledRead` | Pass: stale generation rejected at session/editor seams |
+| FM-40 | `pendingValidationSuppressesDuplicates`, `recoveryPublishesBusyState`, `closingSubmittedDraft`, `closedFailureRetainsCandidate`; reviewed app-owned task wiring | Pass at declared tests; physical window sequence is not claimed |
+| FM-41 | `canceledValidationDoesNotPersistCandidate`, `postKeychainPublicationFailureRecovers`, `cancellationBeforeReplacementAdmission`, `terminationDiscardsCandidates`; inspected accepted-Quit cancellation | Pass at cancellation/persistence seams; actual process death is not simulated |
+| FM-45 | `keychainReadFailureIsNotMissingCredential`, `lateReadFailureIsIgnored`, `storageReadOnlyActions`; eight production renders; user accepted prototype checklist on 2026-09-07 | Pass: distinct absence/read error, read-only surface, explicit reopen |
+| FM-46 reconciliation | `reconciliationRecoversStoredKeyWithoutConfiguration`, `reconciliationCommitsMetadataForDurableNewCredential`, `reconciliationClearsConfigurationWithoutCredential`, `postKeychainPublicationFailureRecovers` | Pass for Ticket 21 only; exclusion and combined restart remain Tickets 22/23 |
+| US-11 | 251-key bilingual parity; termination cases; exhaustive production secret-flow inventory and followed encoders in separate code review | Pass for declared evidence; no runtime leak-detector/zeroization claim |
+| US-12, FM-22 | Final-source v4 Universal Developer ID/profile verification and Data Protection Keychain CRUD, exit 0 | Pass for retained signed gate; no notarization/release/install |
+
+Delivery refresh: strict build passed; full tests with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` passed 312 tests / 72 suites (16.015 seconds); rebuilt native Paste passed 10/10 (0.956–3.369 seconds); shell syntax, localization parity and diff checks passed. The default Command Line Tools setup failure was excluded from test evidence and prevented delivery until this rerun passed. Source has not changed since the v4 signed gate. Separate code/test reviews and the three-stage document regression are complete for this scope. User prototype acceptance does not accept the separate physical/lifecycle supplement or later tickets.

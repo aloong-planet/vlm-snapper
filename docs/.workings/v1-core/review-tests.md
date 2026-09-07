@@ -961,3 +961,38 @@ Gap: tests use actual AppKit windows/editors but programmatic events/actions. Ph
 - The new shorter-value selection assertion was green immediately because AppKit already handles it; no fake product fix was made to manufacture a red.
 - No conditional success-return silently skips the added native cases. Required fields, editor, events and indices use #require; async session tasks are awaited; external callbacks have explicit payload-count assertions.
 - Final verified gate: 293 tests / 72 suites, 15.460 seconds; strict build and native 10/10 (0.893–1.477 seconds), plus identical 248-key localization sets and git diff --check. These are scoped evidence, not full feature or signed-app acceptance.
+
+## Ticket 21 — 2026-09-07
+
+### 1. Coverage
+
+All owned requirement rows are enumerated in the Ticket 21 checklist inventory, with physical/browsing gaps retained. Added/changed case inventory:
+
+| Cases | Boundary and failure sensitivity |
+|---|---|
+| genericCredentialWriteFailureIsSecureStorage; metadataPublicationFailureIsSecureStorage; credentialWriteFailureDoesNotRestorePreviousConfiguration | Injected credential/metadata failures through the real coordinator/session; category and not-usable outcome. Wrong network classification produced a genuine red. |
+| retirementWriteFailurePreservesOriginalConfiguration; failedDeletionCannotRecoverRetiredCredential | Public configuration/selection first, then storage fault. No-auth boundary rejects any forbidden external call. Old-key mutation reached both parameter cases and failed; restored run passed. |
+| canceledValidationDoesNotPersistCandidate; cancellationBeforeReplacementAdmission | Suspended external listing/read, task cancellation, release, awaited result, public credential/state inspection. Late-read request was genuinely reproduced before its guard. |
+| postKeychainPublicationFailureRecovers; reconciliationCommitsMetadataForDurableNewCredential | Durable new key with failed publication or legacy journal, then a different fresh model list. Literal model IDs/time prevent cached-list tautology. |
+| reconciliationClearsConfigurationWithoutCredential; reconciliationRecoversStoredKeyWithoutConfiguration | Public save followed by external item/cache loss; public reconciliation proves missing cleanup versus orphan recovery. |
+| configuringAnotherProviderDoesNotReplaceRememberedCurrentProvider | Both providers configured and selected through public operations; replaced the formerly fabricated current pointer. |
+| lateReadFailureIsIgnored; closingEditorInvalidatesCredentialRead; recoveryPublishesBusyState; keychainReadFailureIsNotMissingCredential | Close/A-B-A and uncancellable read, positive read-error control, recovery pending/terminal and successful explicit reopen. Generic and Apple error variants included. |
+| reopenedLoadWaitsForCanceledRead; closingCancelsLoad; terminationDiscardsCandidates | Public editor lifetime. Uncancellable continuation replaces misleading cancellation-aware stream. Detached recovery is the positive counterexample to load cancellation. Both pending and failed candidates tested on termination. |
+| storageReadOnlyActions; unchangedCredentialAfterFailure | Recovery/read-error have no unusable action, editable failed write can retry, unchanged loaded key cannot resubmit. Actual red for eligibility, positive failed-write control retained. |
+| confirmedSurfacesRender; clearedFailedCandidateRenders | Production render creation; manual inspection of recovery/read-error variants and before/after cleared-write-error view. PNG byte count is not an assertion of visibility or native interaction. |
+
+Existing real-coordinator continuity tests remain in the full suite. Installed process death/physical input and blocked prototype interaction are explicitly not simulated. Their supplement requires a user-driven installed-app session and an allowed browser preview. Ticket 22/23 combined flow remains unaccepted.
+
+### 2. Case design and fixture provenance
+
+- New coordinator/session tests use actual product modules and injected external storage/model-list boundaries. Memory stores make faults deterministic; they do not claim OS permission/entitlement realism. The separately signed random-service CRUD gate supplies actual Data Protection Keychain evidence.
+- Legacy journal fixture represents the persisted pre-change schema; fresh-list expectations are independent literals. Model API fixtures retain object/data/id and Gemini next-page shapes in the existing adapter suite; this turn did not independently establish their capture provenance or run a live account catalog request. Recovery tests consume the existing typed complete-list contract, not a new HTTP parser. Do not call their fixture success live Provider validation.
+- The three existing setup boundary doubles gained the protocol method only to preserve their original isolated tests; they are not used to accept new reconciliation behavior. Inspection of the test storage's durable metadata is a deliberate persistence-boundary assertion where the public readiness view masks an unreadable provider; public reopen/ready assertions additionally prove recovery.
+- No private casts or direct writes to product private state were added. External call counts are justified only for the user-visible no-resubmission/no-retired-authentication contract. Callback tests have positive completion/payload assertions; rendering uses required hosts and artifacts.
+
+### 3. False-green review
+
+- Genuine reds and exact-restoration logs are indexed in the tasklist: delayed reopen, stale read error, storage classification, recovery action hiding, cancellation-before-admission and isolated retired-authentication mutation. Compilation/sandbox setup failures are excluded from red evidence.
+- New unchanged-key case fails specifically at the overly permissive canValidate result. The production wiring fault was observed in the pre-fix render; the model test alone would not catch a future view-side reintroduction. This manual visual check remains required and is not disguised as automated coverage.
+- Checked the new case inventory for empty-loop assertions, unawaited tasks, same-object expected values and silent environment returns. New outcomes use literals/categories; resumed tasks are awaited and positive controls show the targeted paths execute. Native smoke requires current-source rebuild, process success and one exact completion marker; 10 successes measure repeatability, not physical input or account access.
+- Final v4: 312 tests / 72 suites, 15.447 seconds; strict build; native 10/10 (0.858–1.325 seconds); signed Universal/profile/Keychain CRUD; identical 251-key dictionaries; diff check. Browser validation remains unavailable, not green.

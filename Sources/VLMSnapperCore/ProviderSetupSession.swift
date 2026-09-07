@@ -1,5 +1,8 @@
 public protocol ProviderSetupConfiguring: Sendable {
     func configurationState() async throws -> ProviderMetadataState
+    func reconcileCredentialState(
+        for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void
+    ) async throws -> ProviderMetadataState
     func validateAndSaveKey(
         _ apiKey: String,
         for provider: ProviderID
@@ -14,6 +17,7 @@ public protocol ProviderSetupConfiguring: Sendable {
 public enum ProviderSetupPhase: Equatable, Sendable {
     case awaitingValidation
     case validating
+    case recovering
     case selectingModel
     case ready
     case failed
@@ -63,8 +67,17 @@ public actor ProviderSetupSession {
     private var failure: ProviderSetupFailure?
     private var generation = 0
     private var isReadOnly = false
+    private var credentialReadFailed = false
+    private var recoveringProviders: Set<ProviderID> = []
     private var validatingProviders: Set<ProviderID> = []
     private var validationFailures: [ProviderID: ProviderSetupFailure] = [:]
+    private var changeContinuation: AsyncStream<Void>.Continuation?
+
+    public func changes() -> AsyncStream<Void> {
+        let channel = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        changeContinuation = channel.continuation
+        return channel.stream
+    }
 
     public init(
         selectedProvider: ProviderID,
@@ -81,49 +94,87 @@ public actor ProviderSetupSession {
             selectedModelID: configuration?.selectedModelID,
             phase: phase,
             failure: failure,
-            isReadOnly: isReadOnly
+            isReadOnly: isReadOnly || credentialReadFailed || recoveringProviders.contains(selectedProvider)
         )
     }
 
     public func setReadOnly(_ isReadOnly: Bool) {
         self.isReadOnly = isReadOnly
+        changeContinuation?.yield(())
     }
 
-    public func load() async {
+    public func load(onRecovery: @escaping @Sendable () async -> Void = {}) async {
+        defer { changeContinuation?.yield(()) }
+        if recoveringProviders.contains(selectedProvider) {
+            configuration = nil
+            phase = .recovering
+            failure = nil
+            return
+        }
         if validatingProviders.contains(selectedProvider) {
             configuration = nil
             phase = .validating
             failure = nil
             return
         }
-        if let storedFailure = validationFailures[selectedProvider] {
+        if let storedFailure = validationFailures[selectedProvider], storedFailure != .secureStorage {
             configuration = nil
             failure = storedFailure
             phase = .failed
             return
         }
         let requestGeneration = generation
+        let provider = selectedProvider
         do {
-            let state = try await boundary.configurationState()
-            guard requestGeneration == generation else {
+            let state = try await boundary.reconcileCredentialState(for: provider) {
+                await self.recoveryStarted(for: provider)
+                await onRecovery()
+            }
+            let wasRecovering = recoveringProviders.remove(provider) != nil
+            guard provider == selectedProvider, requestGeneration == generation || wasRecovering else {
                 return
             }
-            apply(state.configurations[selectedProvider])
+            credentialReadFailed = false
+            if state.configurations[provider] == nil, let storedFailure = validationFailures[provider] {
+                configuration = nil
+                failure = storedFailure
+                phase = .failed
+            } else {
+                validationFailures[provider] = nil
+                apply(state.configurations[selectedProvider])
+            }
         } catch {
-            guard requestGeneration == generation else {
+            let wasRecovering = recoveringProviders.remove(provider) != nil
+            guard !Task.isCancelled else { return }
+            guard provider == selectedProvider, requestGeneration == generation || wasRecovering else {
                 return
             }
             setFailure(error)
+            credentialReadFailed = classifyFailure(error) == .secureStorage
         }
     }
 
-    public func selectProvider(_ provider: ProviderID) async {
+    private func recoveryStarted(for provider: ProviderID) {
+        recoveringProviders.insert(provider)
+        if selectedProvider == provider {
+            configuration = nil
+            phase = .recovering
+            failure = nil
+        }
+        changeContinuation?.yield(())
+    }
+
+    public func selectProvider(
+        _ provider: ProviderID,
+        onRecovery: @escaping @Sendable () async -> Void = {}
+    ) async {
         generation += 1
         selectedProvider = provider
         configuration = nil
         phase = .awaitingValidation
         failure = nil
-        await load()
+        credentialReadFailed = false
+        await load(onRecovery: onRecovery)
     }
 
     public func validate(apiKey: String) async {
@@ -132,10 +183,15 @@ public actor ProviderSetupSession {
 
     @discardableResult
     public func validate(apiKey: String, for provider: ProviderID) async -> Bool {
-        guard !isReadOnly, validatingProviders.insert(provider).inserted else {
+        guard !isReadOnly, !recoveringProviders.contains(provider),
+              !(provider == selectedProvider && credentialReadFailed),
+              validatingProviders.insert(provider).inserted else {
             return false
         }
-        defer { validatingProviders.remove(provider) }
+        defer {
+            validatingProviders.remove(provider)
+            changeContinuation?.yield(())
+        }
         validationFailures[provider] = nil
         if provider == selectedProvider {
             generation += 1
@@ -166,8 +222,23 @@ public actor ProviderSetupSession {
         validationFailures[provider] = nil
     }
 
+    public func credentialReadDidFail(
+        for provider: ProviderID,
+        isCurrent: @escaping @Sendable () async -> Bool
+    ) async {
+        let readGeneration = generation
+        guard await isCurrent(), readGeneration == generation else { return }
+        guard selectedProvider == provider else { return }
+        configuration = nil
+        failure = .secureStorage
+        phase = .failed
+        credentialReadFailed = true
+        changeContinuation?.yield(())
+    }
+
     public func refreshModels() async {
-        guard !isReadOnly, !validatingProviders.contains(selectedProvider) else {
+        guard !isReadOnly, !credentialReadFailed, !recoveringProviders.contains(selectedProvider),
+              !validatingProviders.contains(selectedProvider) else {
             return
         }
         generation += 1
@@ -190,7 +261,8 @@ public actor ProviderSetupSession {
     }
 
     public func selectModel(_ modelID: String) async {
-        guard !isReadOnly, !validatingProviders.contains(selectedProvider) else {
+        guard !isReadOnly, !credentialReadFailed, !recoveringProviders.contains(selectedProvider),
+              !validatingProviders.contains(selectedProvider) else {
             return
         }
         generation += 1
@@ -232,13 +304,15 @@ public actor ProviderSetupSession {
             case .configurationLocked, .configurationMutationInProgress:
                 .configurationLocked
             case .missingCredential, .providerNotUsable, .modelNotFound,
-                 .incompatibleModel, .inconsistentCredentialState:
+                 .incompatibleModel:
                 .invalidConfiguration
+            case .inconsistentCredentialState:
+                .secureStorage
             }
         } else if let modelListError = error as? ProviderModelListError,
                   modelListError == .authenticationRejected {
             return .invalidConfiguration
-        } else if error is AppleKeychainError {
+        } else if error is AppleKeychainError || error is ProviderPersistenceError {
             return .secureStorage
         } else {
             return .unavailable

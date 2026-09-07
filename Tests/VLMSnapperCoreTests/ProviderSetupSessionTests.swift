@@ -3,8 +3,132 @@ import Security
 import Testing
 @testable import VLMSnapperCore
 
+// OS read delays and storage faults are injected. Installed-app Quit/window wiring
+// requires user interaction; these tests do not simulate process death.
 @Suite("Provider setup session")
 struct ProviderSetupSessionTests {
+    @Test("canceling validation before a delayed credential read returns never starts a Provider request")
+    func cancellationBeforeReplacementAdmission() async throws {
+        let storage = SessionTestStorage()
+        let lister = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: lister, credentialStore: storage, metadataStore: storage
+        )
+        await storage.suspendNextRead()
+        let validation = Task {
+            try await coordinator.validateAndSaveKey("memory-only-candidate", for: .deepSeek)
+        }
+        await storage.waitUntilReading()
+        validation.cancel()
+        await storage.finishReading()
+        do {
+            _ = try await validation.value
+            Issue.record("Expected cancellation before replacement admission")
+        } catch is CancellationError {} catch {
+            Issue.record("Expected cancellation, not a storage or Provider failure")
+        }
+        #expect(await lister.keys.isEmpty)
+        #expect(try await coordinator.apiKey(for: .deepSeek) == nil)
+    }
+
+    @Test("a late editing read error cannot lock a closed or newly reopened card", arguments: [false, true])
+    func lateReadFailureIsIgnored(reopen: Bool) async {
+        let session = ProviderSetupSession(
+            selectedProvider: .deepSeek,
+            boundary: makeCoordinator(modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false))
+        )
+        await session.load()
+        await session.credentialReadDidFail(for: .deepSeek) {
+            if reopen {
+                await session.selectProvider(.openAI)
+                await session.selectProvider(.deepSeek)
+            }
+            return reopen
+        }
+        #expect(await session.snapshot().failure == nil)
+        #expect(!(await session.snapshot().isReadOnly))
+        await session.credentialReadDidFail(for: .deepSeek) { true }
+        #expect(await session.snapshot().failure == .secureStorage)
+        #expect(await session.snapshot().isReadOnly)
+    }
+
+    @Test("canceling a card load before Keychain responds cannot start recovery")
+    func closingEditorInvalidatesCredentialRead() async throws {
+        let storage = SessionTestStorage()
+        let initial = ProviderConfigurationCoordinator(
+            modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false),
+            credentialStore: storage, metadataStore: storage
+        )
+        _ = try await initial.validateAndSaveKey("durable-key", for: .deepSeek)
+        await storage.save(ProviderMetadataState())
+        await storage.suspendNextRead()
+        let lister = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: lister, credentialStore: storage, metadataStore: storage
+        )
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        let load = Task { await session.load() }
+        await storage.waitUntilReading()
+        load.cancel()
+        await storage.finishReading()
+        await load.value
+        #expect(await lister.keys.isEmpty)
+        #expect(await session.snapshot().phase == .awaitingValidation)
+        await session.selectProvider(.deepSeek)
+        #expect(await session.snapshot().phase == .selectingModel)
+    }
+
+    @Test("recovery is observable and read-only until the complete model list arrives", arguments: [false, true])
+    func recoveryPublishesBusyState(reopen: Bool) async throws {
+        let storage = SessionTestStorage()
+        let initial = ProviderConfigurationCoordinator(
+            modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false),
+            credentialStore: storage, metadataStore: storage
+        )
+        _ = try await initial.validateAndSaveKey("durable-key", for: .deepSeek)
+        await storage.save(ProviderMetadataState())
+        let lister = SuspendedValidationModelLister(failFirst: false)
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: lister, credentialStore: storage, metadataStore: storage
+        )
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        let load = Task { await session.load() }
+        await lister.waitUntilStarted()
+        if reopen {
+            await session.selectProvider(.openAI)
+            await session.selectProvider(.deepSeek)
+        }
+        #expect(await session.snapshot().phase == .recovering)
+        #expect(await session.snapshot().isReadOnly)
+        await lister.finish()
+        await load.value
+        #expect(await session.snapshot().phase == .selectingModel)
+        #expect(!(await session.snapshot().isReadOnly))
+        #expect(await lister.keys == ["durable-key"])
+    }
+
+    @Test("Keychain read failure preserves metadata and locks editing until reopening retries", arguments: [false, true])
+    func keychainReadFailureIsNotMissingCredential(genericFailure: Bool) async throws {
+        let storage = SessionTestStorage()
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false),
+            credentialStore: storage, metadataStore: storage
+        )
+        _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        await storage.setReadFailure(true)
+        await storage.setGenericReadFailure(genericFailure)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        #expect(await session.snapshot().failure == .secureStorage)
+        #expect(await session.snapshot().isReadOnly)
+        #expect(await storage.load().configurations[.deepSeek]?.selectedModelID == "model")
+        await storage.setReadFailure(false)
+        await session.selectProvider(.deepSeek)
+        #expect(await session.snapshot().phase == .ready)
+        #expect(!(await session.snapshot().isReadOnly))
+    }
+
     @Test("returning after validation failure shows its original failure")
     func returningAfterValidationFailure() async {
         let boundary = SuspendedValidationModelLister(failFirst: true)
@@ -255,6 +379,7 @@ private actor SuspendedValidationModelLister: ProviderModelListing {
 }
 
 private actor FailingProviderBoundary: ProviderSetupConfiguring {
+    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
     let error: any Error
 
     init(error: any Error) {
@@ -285,6 +410,7 @@ private actor FailingProviderBoundary: ProviderSetupConfiguring {
 }
 
 private actor ProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
+    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
     let validationResult: ProviderConfiguration
     private(set) var validatedKeys: [String] = []
     private(set) var selectedModels: [String] = []
@@ -324,6 +450,7 @@ private actor ProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
 }
 
 private actor SuspendedProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
+    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
     private var selectionStarted = false
     private var selectionContinuation: CheckedContinuation<Void, Never>?
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
@@ -390,7 +517,34 @@ private actor SessionTestStorage: ProviderCredentialStoring, ProviderMetadataSto
     private var credentials: [ProviderID: ProviderCredential] = [:]
     private var state = ProviderMetadataState()
 
-    func credential(for provider: ProviderID) -> ProviderCredential? { credentials[provider] }
+    private var readFailure = false
+    private var genericReadFailure = false
+    private var suspendsRead = false
+    private var readContinuation: CheckedContinuation<Void, Never>?
+    private var readWaiters: [CheckedContinuation<Void, Never>] = []
+    func suspendNextRead() { suspendsRead = true }
+    func waitUntilReading() async {
+        if readContinuation != nil { return }
+        await withCheckedContinuation { readWaiters.append($0) }
+    }
+    func finishReading() { readContinuation?.resume(); readContinuation = nil }
+    func setReadFailure(_ value: Bool) { readFailure = value }
+    func setGenericReadFailure(_ value: Bool) { genericReadFailure = value }
+    func credential(for provider: ProviderID) async throws -> ProviderCredential? {
+        if suspendsRead {
+            suspendsRead = false
+            await withCheckedContinuation { continuation in
+                readContinuation = continuation
+                for waiter in readWaiters { waiter.resume() }
+                readWaiters.removeAll()
+            }
+        }
+        if readFailure {
+            if genericReadFailure { throw CocoaError(.fileReadUnknown) }
+            throw AppleKeychainError.unexpectedStatus(errSecMissingEntitlement)
+        }
+        return credentials[provider]
+    }
     func replaceCredential(_ credential: ProviderCredential, for provider: ProviderID) {
         credentials[provider] = credential
     }
