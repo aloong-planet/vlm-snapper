@@ -996,3 +996,39 @@ Existing real-coordinator continuity tests remain in the full suite. Installed p
 - New unchanged-key case fails specifically at the overly permissive canValidate result. The production wiring fault was observed in the pre-fix render; the model test alone would not catch a future view-side reintroduction. This manual visual check remains required and is not disguised as automated coverage.
 - Checked the new case inventory for empty-loop assertions, unawaited tasks, same-object expected values and silent environment returns. New outcomes use literals/categories; resumed tasks are awaited and positive controls show the targeted paths execute. Native smoke requires current-source rebuild, process success and one exact completion marker; 10 successes measure repeatability, not physical input or account access.
 - Final v4: 312 tests / 72 suites, 15.447 seconds; strict build; native 10/10 (0.858–1.325 seconds); signed Universal/profile/Keychain CRUD; identical 251-key dictionaries; diff check. Browser validation remains unavailable, not green.
+
+## Ticket 22 — 2026-09-07
+
+### 1. Coverage inventory
+
+| New test | Behavior / failure boundary |
+|---|---|
+| exclusiveActivityReleaseRequiresTheOwnerToken | Foreign/stale release cannot unlock a successor; correct release permits admission. |
+| workflowOwnerBlocksAllConfigurationChanges | Capture/model owners block all five mutation families; saved key/state unchanged. |
+| providerValidationAndCaptureAreMutuallyExclusive | Capture rejects validation before writes; only owner transitions atomically. |
+| reconciliationWaitsForModelRequestToFinish | Orphan credential waits, then recovers after model owner release. |
+| reconciliationWaitsForCaptureToFinish | Capture wait succeeds after release or cancels without publishing. |
+| canceledRecoveryDoesNotWaitForOwner | Cancellation finishes while capture still holds; bounded rescue prevents hanging silently. |
+| captureRoutesActiveProviderJob | Shortcut/menu target active Provider with no capture effect; terminal positive control executes. |
+| blockedTryAgainPreservesHistory | Real workspace/runner/SQLite; no blocked request/snapshot/history mutation; terminal rerun replaces Result 1 with Result 2 under same ID. |
+| captureHandoffFailureReleasesOwner | Failed replacement retains capture; transition stays exclusive; operation failure releases; stale handoff has no effect. |
+| captureActivityLocksSession | Real actor activity reaches session; no blocked validation/list/model effects, then succeeds. |
+| crossProviderSubmissionIsExclusive | Externally suspended first list, success/failure terminals; other draft editable but duplicate submissions produce no request. |
+| activeCredentialJobControlsEditingAndValidationSeparately | Valid/empty/newline drafts; only valid changed draft re-enables. |
+| otherProviderJobBlocksNativeSubmission | AppKit field editing; blocked click/Return do not submit; terminal click submits preserved draft once. |
+| activeJobFocusNavigatesExistingWindow | Existing History window shows target's disabled field within content bounds after focus request. |
+
+Existing request-freeze tests now use owner tokens. Unsaved-workspace preparation and render/localization suites remain regression gates. Native input is programmatic AppKit, not physical shortcut delivery. Signed-app capture/foregrounding/account acceptance is excluded in test headers and remains combined acceptance. No old standalone Provider-sheet harness was restored.
+
+### 2. Case and fixture design
+
+- Exclusivity uses real coordinator/session/editor. Only external credential/metadata storage and model-list delay are controlled. Rerun uses real temporary SQLite, screenshot storage, runner and workspace; reads via public history, not SQL/private state. Counts observe external Provider/native effects because zero/one request is the requirement, not internal call order.
+- Expected snapshots/records are immutable values with independent Result 1/Result 2, count and ID assertions, not mutable aliases. The PNG header fixture is opaque persistence input, not image-decoding evidence. No new external response parser is introduced; normalized sourceDelta/metadata/completed is the established boundary, whose protocol-shape coverage remains in recorded adapter fixtures.
+- Unsaved-result foregrounding is native wiring without injectable window construction in this test target. The session outcome test does not prove OS focus. No private cast or duplicate test router hides that gap.
+
+### 3. False-green audit
+
+- Genuine owner red failed foreign/stale release; recovery red rejected instead of waiting; integration red failed observed activity/routing. Toolchain/build failures are excluded.
+- Explicit restoration mutation added only && false to production canValidate (stricter never-enabled control). Rebuilt source reached ProviderSettingsPresentation.swift. Presentation test failed at line 21 for valid terminal draft; native test failed at line 358 with zero instead of one submission. Log /private/tmp/ticket22-ui-restoration-mutation.log, exit 1. Removed only that token and rebuilt: /private/tmp/ticket22-review-green.log, three tests passed, including unsaved preparation. This proves terminal restoration sensitivity, not every routing mutation.
+- Initial unguarded capture stub was rejected before application and not retried elsewhere. Capture/rerun gate-removal mutation is not claimed. Blocked/admitted controls establish effect observables; owner/recovery reds guard admission independently. This limitation is recorded instead of manufacturing a bypass or red-first claim.
+- Enumerated new cases for zero-assertion loops, silent skips, missing awaits, stale paths and same-algorithm expected values: none introduced. Parameters are explicit; suspended tasks resume and are awaited. Recovery's 50 ms observation alone is not scheduling proof; rejection red, terminal effect and cancellation-owner assertion are separate checks. Geometry checks target visibility, not pixel identity or physical foregrounding.

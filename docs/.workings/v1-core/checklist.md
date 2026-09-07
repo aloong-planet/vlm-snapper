@@ -50,7 +50,7 @@
 | FM-28 | 用户在已配置 Provider 输入新 Key 并点击验证：先持久记录旧凭据作废，再接受替换并移除旧 Key、旧模型缓存及该 Provider 的当前模型；验证、模型列表获取或后续安全存储失败不恢复旧配置。若作废记录无法持久化，则拒绝本次替换、不发请求、保留原配置并提示安全存储错误；存储恢复后重开可读取原配置。作废已经持久化但旧条目删除失败时，重开只允许清除明确已作废的旧条目，不能把它当作遗留凭据恢复。 | 21 | Ticket 21 changed-key invalidation and no-rollback criterion — test |
 | FM-29 | 用户验证新 Key 后，Provider 返回的完整模型列表仍含旧模型：保留旧模型选择；列表不含旧模型：进入待选择模型。两种情况都不因该 Provider 可用而抢占另一个全局当前 Provider。 | 21 | Ticket 21 model-preservation/current-Provider criterion — test |
 | FM-30 | 用户移除非当前 Provider：只清除该 Provider；用户移除全局当前 Provider：同时清空全局当前选择，不自动切换到其他可用 Provider，下一次截图按缺少当前 Provider 的流程进入引导。 | 19 | Ticket 19 Provider removal/current-selection criterion — test |
-| FM-31 | 用户在模型请求进行中进入 Provider 页面：所有卡片仍可查看，但 API Key、验证、清空、模型选择、刷新、设为当前和移除配置全部只读；请求进入终态后恢复。 | 22 | Ticket 22 read-only-during-model/capture criterion — test |
+| FM-31 | 用户在截图冻结、选区或模型请求进行中进入 Provider 页面：所有卡片仍可查看，但 API Key、验证、清空、模型选择、刷新、设为当前和移除配置全部只读；活动结束后恢复。 | 22 | Ticket 22 read-only-during-model/capture criterion — test |
 | FM-32 | 用户打开 Provider 卡片但 Keychain 载入尚未完成：字段不接受键盘、粘贴、清空、显隐或验证操作；载入完成后一次性呈现该 Provider 的真实字段与状态。用户在此期间切换卡片时，迟到的载入结果被忽略，不改变新卡片。 | 20、21 | Ticket 20 coherent editor state plus Ticket 21 load-generation isolation — test |
 | FM-33 | Provider 配置当前可编辑时，用户通过键盘或 `Command-V` 输入非空有效 Key：占位文案立即消失，清空和验证立即可用，字段与状态同时进入“待验证”；任一项仍显示空值状态都视为失败。移除已有配置必须走“移除配置”，不能把空输入当作新凭据。 | 20 | Ticket 20 native input and coherent presentation criteria — test |
 | FM-34 | 用户在 Key 编辑过程中清空字段：字段回到空态，清空与验证禁用；尚未点击验证时不删除 Keychain 中的旧凭据，关闭并重新打开管理中心后恢复已保存配置。 | 20 | Ticket 20 coherent state and unsubmitted-draft lifecycle criteria — test |
@@ -63,7 +63,7 @@
 | FM-41 | 应用在验证进行中正常退出、崩溃或被强制终止：取消仍可取消的请求并丢弃只存在内存中的候选 Key；已经接受替换并持久记录作废的旧配置不恢复。下次启动时不重新提交已经丢失的候选 Key；若新 Key 已经写入 Keychain，则按安全存储真相进入模型配置恢复，否则显示未配置。若退出前尚未接受替换，则保留原配置；迟到的凭据读取返回后不得再发验证请求。 | 21 | Ticket 21 termination, candidate-secret, and reconciliation criteria — test/evidence |
 | FM-42 | 用户键盘输入 Key：空格、制表符和其他非换行字符按原样保留。用户粘贴 Key：只移除该次粘贴内容末尾至多一个 `CRLF`、`LF` 或 `CR`，再插入当前选区；其他字符不修剪、不规范化。结果为空、仍含换行或超过应用明确的 4096 UTF-8 字节安全上限时，保持编辑状态并显示本地输入错误，不删除旧配置、不联网，也不截断内容后尝试验证。 | 20 | Ticket 20 exact paste and local-validation criteria — test |
 | FM-43 | 一个 Provider 正在验证时，用户切换到另一张卡片并输入新 Key：草稿正常保留在当前窗口会话，但验证操作保持禁用并显示现有只读提示条；前一项进入任一终态后，若草稿仍合法且非空，验证操作自动恢复。重复点击或按 Return 不产生第二个验证请求。 | 22 | Ticket 22 one-credential-job and cross-Provider draft criterion — test |
-| FM-44 | Provider 凭据作业已经开始后，用户触发截图快捷键或菜单栏截图入口：不冻结屏幕、不创建选区，把管理中心的 Provider 页面及当前作业带到前台；截图操作栏不会出现“配置处理中”状态。已有结果工作区的 Try Again 同样禁用，不启动模型请求、不新增或修改历史记录。反向地，截图冻结、选区或模型请求已经活动时提交 Provider 验证或开始恢复均被拒绝，原有截图或请求不受影响；双方进入终态后恢复相应入口。 | 22、23 | Ticket 22 production routing and symmetric-gate criteria; Ticket 23 combined integration — test/evidence |
+| FM-44 | Provider 凭据作业已经开始后，用户触发截图快捷键或菜单栏截图入口：不冻结屏幕、不创建选区，把管理中心的 Provider 页面及当前作业带到前台；截图操作栏不会出现“配置处理中”状态。已有结果工作区的 Try Again 同样禁用，不启动模型请求、不新增或修改历史记录。反向地，截图冻结、选区或模型请求已经活动时，Provider 验证提交被拒绝，凭据恢复按 FM-46 等待原活动终结后再开始，原有截图或请求不受影响；双方进入终态后恢复相应入口。 | 22、23 | Ticket 22 production routing and symmetric-gate criteria; Ticket 23 combined integration — test/evidence |
 | FM-45 | 用户打开 Provider 卡片读取凭据：Keychain 返回条目不存在时显示未配置；返回权限、entitlement、访问控制或其他读取错误时显示本地安全存储错误并保持字段只读，不得伪装成未配置。用户收起再展开时发起新的读取，旧读取结果不能覆盖新代次。 | 21 | Ticket 21 missing-versus-read-failure and load-generation criteria — test |
 | FM-46 | 新 Key 已成功写入 Keychain，但应用在发布模型缓存或 Provider 状态之前失败、崩溃或终止：下次启动或打开卡片时发现“有 Key、无一致配置”，自动进入恢复并重新获取完整模型列表；恢复作业开始后阻止新的截图、Provider 验证和模型请求，若截图冻结、选区或模型请求已经活动则等待其终结再开始。恢复成功前 Provider 不可用。反向发现“有配置、无 Key”时清除残留配置和全局当前指向。 | 21、22、23 | Ticket 21 deterministic reconciliation, Ticket 22 recovery exclusivity, and Ticket 23 combined restart flow — test |
 
@@ -88,9 +88,9 @@ The closeout gate must parse `US-01` through `US-12` and `FM-01` through `FM-46`
 | 15 | 菜单截图恢复置前、Provider 鉴权失败原因和管理窗口最小内容区回归 | 已实现，待安装版验收 |
 | 17 | DeepSeek 推理流活动重置 10 秒无活动计时，且不展示推理内容 | 已完成 |
 | 19 | 设置中心内联 Provider 管理、首次引导自动返回、旧独立表面退役与确认响应式几何 | 已完成（PR #23 已合并） |
-| 20 | 原生 API Key 编辑、精确粘贴、光标/选区保持与提交身份隔离 | 本票核销完成，ready-for-review；未合并 |
-| 21 | Keychain 真相对账、凭据替换、失败恢复与启动修复 | in-progress; prerequisite 20 merged in PR #24; acceptance pending |
-| 22 | Provider 凭据作业与截图、选区、模型请求及重跑互斥 | blocked by 21 |
+| 20 | 原生 API Key 编辑、精确粘贴、光标/选区保持与提交身份隔离 | 已完成（PR #24 已合并） |
+| 21 | Keychain 真相对账、凭据替换、失败恢复与启动修复 | 已完成（PR #25 已合并） |
+| 22 | Provider 凭据作业与截图、选区、模型请求及重跑互斥 | ready-for-review；核销见 22-provider-workflow-exclusivity-tasklist.md；未合并 |
 | 23 | 内联 Provider 配置全 feature 验收与文档回归收口 | blocked by 19–22 |
 
 ## Ticket 01 evidence

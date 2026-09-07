@@ -234,7 +234,7 @@
                 </button>
                 <div class="provider-body">
                   <div class="provider-form">
-                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>模型操作进行中，Provider 配置暂时只读。</span></div>
+                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>当前操作进行中，请稍后提交配置更改。</span></div>
                     <div class="provider-form-grid">
                       <div class="provider-field">
                         <div class="provider-field-heading"><label for="deepseek-key">API Key</label><span class="credential-status" data-key-status><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span>已配置</span></span></div>
@@ -261,7 +261,7 @@
                 </button>
                 <div class="provider-body">
                   <div class="provider-form">
-                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>模型操作进行中，Provider 配置暂时只读。</span></div>
+                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>当前操作进行中，请稍后提交配置更改。</span></div>
                     <div class="provider-form-grid">
                       <div class="provider-field"><div class="provider-field-heading"><label for="openai-key">API Key</label><span class="credential-status" data-key-status><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span>已配置</span></span></div><div class="key-field-row"><div class="key-field-shell"><input id="openai-key" type="password" autocomplete="off" value="demo-openai-api-key" data-key-input data-saved-value="demo-openai-api-key" aria-label="OpenAI API Key"><button class="key-field-action" data-clear-key aria-label="清空 OpenAI API Key"><svg class="icon" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button><button class="key-field-action" data-toggle-key-visibility aria-label="显示 OpenAI API Key" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div><div class="credential-commit" data-key-commit hidden><span>新 Key 尚未验证</span><button class="primary-button" data-validate-key disabled>验证</button></div><p class="provider-error">API Key 无效或已失效，请检查后重新验证。</p><p class="provider-help">提交新 Key 后会直接替换旧 Key，不保留回退副本。</p></div>
                       <div class="provider-field"><label>当前模型</label><div class="model-control"><select data-model-select aria-label="OpenAI 当前模型"><option selected>gpt-5.2-vision</option><option>gpt-5.1</option></select><button class="secondary-button" data-refresh-models>刷新</button></div><p class="provider-help">选择模型不会发送测试图片；首次真实操作会验证图片输入能力。</p></div>
@@ -278,7 +278,7 @@
                 </button>
                 <div class="provider-body">
                   <div class="provider-form">
-                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>模型操作进行中，Provider 配置暂时只读。</span></div>
+                    <div class="provider-lock"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>当前操作进行中，请稍后提交配置更改。</span></div>
                     <div class="provider-form-grid">
                       <div class="provider-field"><div class="provider-field-heading"><label for="gemini-key">API Key</label><span class="credential-status warning" data-key-status><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span>未配置</span></span></div><div class="key-field-row"><div class="key-field-shell"><input id="gemini-key" type="password" autocomplete="off" placeholder="输入 API Key" data-key-input data-saved-value="" aria-label="Gemini API Key"><button class="key-field-action" data-clear-key aria-label="清空 Gemini API Key"><svg class="icon" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button><button class="key-field-action" data-toggle-key-visibility aria-label="显示 Gemini API Key" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div><div class="credential-commit" data-key-commit><span>输入 Key 后进行验证</span><button class="primary-button" data-validate-key disabled>验证</button></div><p class="provider-error">API Key 无效或已失效，请检查后重新验证。</p><p class="provider-help">验证只检查凭据并获取完整模型列表，不会发送测试图片。</p></div>
                       <div class="provider-field"><label>当前模型</label><div class="model-control"><select data-model-select aria-label="Gemini 当前模型" disabled><option selected>验证后选择模型</option></select><button class="secondary-button" data-refresh-models disabled>刷新</button></div><p class="provider-help">模型只能从当前账户返回的列表中选择。</p></div>

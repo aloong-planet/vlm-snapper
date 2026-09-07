@@ -1,4 +1,5 @@
 public protocol ProviderSetupConfiguring: Sendable {
+    func currentActivity() async -> ProviderWorkflowActivity?
     func configurationState() async throws -> ProviderMetadataState
     func reconcileCredentialState(
         for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void
@@ -37,6 +38,9 @@ public struct ProviderSetupSnapshot: Equatable, Sendable {
     public let phase: ProviderSetupPhase
     public let failure: ProviderSetupFailure?
     public let isReadOnly: Bool
+    public let activity: ProviderWorkflowActivity?
+
+    public var blocksConfigurationChanges: Bool { isReadOnly || activity != nil }
 
     public init(
         selectedProvider: ProviderID,
@@ -44,7 +48,8 @@ public struct ProviderSetupSnapshot: Equatable, Sendable {
         selectedModelID: String?,
         phase: ProviderSetupPhase,
         failure: ProviderSetupFailure?,
-        isReadOnly: Bool = false
+        isReadOnly: Bool = false,
+        activity: ProviderWorkflowActivity? = nil
     ) {
         self.selectedProvider = selectedProvider
         self.availableModelIDs = availableModelIDs
@@ -52,6 +57,7 @@ public struct ProviderSetupSnapshot: Equatable, Sendable {
         self.phase = phase
         self.failure = failure
         self.isReadOnly = isReadOnly
+        self.activity = activity
     }
 
     public var canFinish: Bool {
@@ -87,14 +93,24 @@ public actor ProviderSetupSession {
         self.boundary = boundary
     }
 
-    public func snapshot() -> ProviderSetupSnapshot {
-        ProviderSetupSnapshot(
+    public func snapshot() async -> ProviderSetupSnapshot {
+        let activity = await boundary.currentActivity()
+            ?? validatingProviders.first.map(ProviderWorkflowActivity.credential)
+            ?? recoveringProviders.first.map(ProviderWorkflowActivity.credential)
+        let workflowReadOnly: Bool
+        switch activity {
+        case .capture, .modelRequest: workflowReadOnly = true
+        case let .credential(provider): workflowReadOnly = provider == selectedProvider
+        case nil: workflowReadOnly = false
+        }
+        return ProviderSetupSnapshot(
             selectedProvider: selectedProvider,
             availableModelIDs: configuration?.models.map(\.id) ?? [],
             selectedModelID: configuration?.selectedModelID,
             phase: phase,
             failure: failure,
-            isReadOnly: isReadOnly || credentialReadFailed || recoveringProviders.contains(selectedProvider)
+            isReadOnly: isReadOnly || credentialReadFailed || workflowReadOnly,
+            activity: activity
         )
     }
 
@@ -126,6 +142,12 @@ public actor ProviderSetupSession {
         let requestGeneration = generation
         let provider = selectedProvider
         do {
+            if let activeProvider = await boundary.currentActivity()?.provider, activeProvider != provider {
+                let state = try await boundary.configurationState()
+                guard requestGeneration == generation, provider == selectedProvider else { return }
+                apply(state.configurations[provider])
+                return
+            }
             let state = try await boundary.reconcileCredentialState(for: provider) {
                 await self.recoveryStarted(for: provider)
                 await onRecovery()
@@ -174,6 +196,7 @@ public actor ProviderSetupSession {
         phase = .awaitingValidation
         failure = nil
         credentialReadFailed = false
+        changeContinuation?.yield(())
         await load(onRecovery: onRecovery)
     }
 
@@ -183,7 +206,8 @@ public actor ProviderSetupSession {
 
     @discardableResult
     public func validate(apiKey: String, for provider: ProviderID) async -> Bool {
-        guard !isReadOnly, !recoveringProviders.contains(provider),
+        let activity = await boundary.currentActivity()
+        guard activity == nil, !isReadOnly, recoveringProviders.isEmpty, validatingProviders.isEmpty,
               !(provider == selectedProvider && credentialReadFailed),
               validatingProviders.insert(provider).inserted else {
             return false
@@ -237,13 +261,15 @@ public actor ProviderSetupSession {
     }
 
     public func refreshModels() async {
-        guard !isReadOnly, !credentialReadFailed, !recoveringProviders.contains(selectedProvider),
-              !validatingProviders.contains(selectedProvider) else {
-            return
-        }
+        guard !(await snapshot()).blocksConfigurationChanges else { return }
         generation += 1
         let requestGeneration = generation
         let provider = selectedProvider
+        validatingProviders.insert(provider)
+        defer {
+            validatingProviders.remove(provider)
+            changeContinuation?.yield(())
+        }
         phase = .validating
         failure = nil
         do {
@@ -261,10 +287,7 @@ public actor ProviderSetupSession {
     }
 
     public func selectModel(_ modelID: String) async {
-        guard !isReadOnly, !credentialReadFailed, !recoveringProviders.contains(selectedProvider),
-              !validatingProviders.contains(selectedProvider) else {
-            return
-        }
+        guard !(await snapshot()).blocksConfigurationChanges else { return }
         generation += 1
         let requestGeneration = generation
         let provider = selectedProvider

@@ -1129,3 +1129,32 @@ Reviewed current coordinator/session, application lifecycle, editor/presentation
 - Restored empty-validation behavior without changing approved geometry, icons, theme or edit semantics. Recovery/read-error wording is paired in both dictionaries. Existing context invariants and ADR-0012's accepted admission addendum remain consistent.
 - The provider-indexed pending/failure maps and load identities have distinct lifetimes; they are required state, not speculative abstraction. Storage wrappers centralize error sanitization. Presentation switches distinguish card, credential and model-detail roles; no unrelated refactor or dead-code deletion is proposed.
 - The previously reported prototype DS/OA/G letter marks remain assigned to Ticket 23's visual closeout; no unapproved icon change. Browser-preview policy remains a delivery gap, not a reason to invent a passed UI gate.
+
+## Ticket 22 — 2026-09-07
+
+Scope: owner-token activity admission, event-driven reconciliation waiting, shared production capture/rerun entry, cross-Provider exclusion and native active-job focus. All seven criteria were mapped to tests and evidence before this separate review. This is not Ticket 23 whole-feature review.
+
+### ① Bottom-layer assumptions
+
+- Fixed integration finding: an async protocol default returning no activity shadowed the actor's synchronous query at awaited call sites. The gate rejected work but UI/routing observed idle (same-layer escape into other cards and routing). Nine activity/routing assertions failed; removing only the default made the same 51 tests pass. Enumerated all protocol conformers in Sources, Tests and VLMSnapper: one production coordinator and three legacy test doubles. The production witness is mandatory; the three explicit nil test witnesses are not used for exclusivity cases. captureActivityLocksSession uses the real actor.
+- Result-window update replaces content only; present activates the window. Activity observation uses update and cannot unhide retired sources or repeatedly activate streaming results.
+- Read-only presentation is advisory. Coordinator admission remains before storage/model effects; a gray button alone is not exclusion.
+
+### ② Runtime and lifecycle
+
+- Fixed review finding: the rewritten native capture adapter discarded presentWorkspace without fronting an unsaved result. Restored its make-key/activate effect after workspace-identity validation, retaining no capture and release of the new lease. Instance-level omission, same-layer loss of recovery navigation. The shared model-active refusal already invokes its fronting effect. unsavedResultKeepsWorkspaceForCapture verifies the session preparation outcome; installed-app unsaved-window fronting remains a manual wiring gap, not a newly proved red/green test.
+- Entry/exit audit: new capture acquires before readiness/native effects; failure releases; replacement failure retains the original owner; cancel closes selection before release; stale generations cannot commit an overlay or cancel its successor; selection-to-model transition keeps its lease. Model closures release on success/error, and cancellation of a superseded child run is awaited before outer release. Failure-alert retries release failed new ownership before showing the alert, without releasing a surviving selection.
+- Recovery waits before credential read/list/publication. Cancellation resumes its waiter with CancellationError; release resumes registered waiters; reentry checks occupation again. Batched recovery publishes the current Provider. Observer termination removes its continuation. Test-only 30/50 ms probes and cancellation rescue are not production waiting; existing result-render polling is unrelated and retained.
+- Credential errors keep their original Provider attribution; denied capture/rerun cannot mutate sibling history or workspace. Foreign/stale release is a no-op. Existing request-owned compatibility updates remain inside the running request, not user configuration controls.
+
+### ③ Security and correctness
+
+- Tested all five user mutation families under capture and model ownership: replacement, refresh, model selection, current selection, removal. Coordinator admission serializes them across awaits. ADR-0012 replacement/retirement semantics are unchanged.
+- Cross-card editing does not permit submission. UI/session reject duplicates; coordinator rechecks stale callbacks. Fronting only responds to an explicit capture action, not an observer update.
+- No real account requests, key logging, raw Provider payloads, broad deletion, signing or installed-app changes. History tests use isolated temporary SQLite and public history access.
+
+### ④ Consistency and smell check
+
+- FM-44's recovery-rejected sentence contradicted FM-46 and the ticket. Corrected spec/checklist to waiting and extended read-only statements to capture/selection; synchronized CONTEXT/features.
+- Owner IDs and capture generations protect distinct boundaries: activity ownership and native replacement completion. CaptureEntryPoint enumerates two production entrances with identical policy. ApplicationWorkflow is used by production, not a test-only duplicate.
+- No further refactor/dead-code cleanup proposed. Existing prototype icon followups remain with Ticket 23. Only paired localized lock wording changes, no geometry/theme/icon redesign.

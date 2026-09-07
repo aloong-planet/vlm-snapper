@@ -300,6 +300,96 @@ struct ProviderCredentialInteractionTests {
         #expect(submitted == ["test-key", "second-key"])
     }
 
+    @Test("another active Provider job permits native editing but blocks click and Return until it ends")
+    func otherProviderJobBlocksNativeSubmission() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let credential = ProviderCredentialEditor(loadedValue: "")
+        var submissions: [String] = []
+        func configuration(blocked: Bool) -> ProviderSettingsConfiguration {
+            ProviderSettingsConfiguration(
+                snapshot: ProviderSetupSnapshot(selectedProvider: .deepSeek, availableModelIDs: [],
+                    selectedModelID: nil, phase: .awaitingValidation, failure: nil,
+                    activity: blocked ? .credential(.openAI) : nil),
+                credentialEditor: credential, pendingModelID: .constant(nil),
+                onSelectProvider: { _ in }, onValidate: { submissions.append($0.value) },
+                onRefresh: {}, onSelectModel: { _ in }
+            )
+        }
+        let controller = ManagementCenterWindowController(records: [], providerSettings: configuration(blocked: true))
+        controller.show(destination: .providerSettings)
+        let window = try #require(controller.window)
+        defer { window.orderOut(nil) }
+        settle(window)
+        let content = try #require(window.contentView)
+        let field = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
+        #expect(field.isEnabled)
+        #expect(window.makeFirstResponder(field))
+        let editor = try #require(field.currentEditor() as? NSTextView)
+        editor.insertText("draft-fixture", replacementRange: editor.selectedRange())
+        settle(window)
+        #expect(credential.value == "draft-fixture")
+        let fieldRect = field.convert(field.bounds, to: nil)
+        try click(window, at: NSPoint(x: content.bounds.width - 75, y: fieldRect.minY - 30))
+        window.makeFirstResponder(field)
+        let focusedEditor = try #require(field.currentEditor() as? NSTextView)
+        focusedEditor.interpretKeyEvents([try #require(NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: "\r",
+            charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36
+        ))])
+        settle(window)
+        #expect(submissions.isEmpty)
+        let bitmap = try #require(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+        content.cacheDisplay(in: content.bounds, to: bitmap)
+        try #require(bitmap.representation(using: .png, properties: [:])).write(
+            to: URL(fileURLWithPath: "/private/tmp/vlmsnapper-ticket22-other-provider.png")
+        )
+        controller.update(records: [], selectedRecordID: nil, selectedImage: nil,
+                          cleanupFailureCount: 0, retention: .thirtyDays,
+                          settings: GeneralSettingsSnapshot(), providerSettings: configuration(blocked: false))
+        settle(window)
+        #expect(credential.value == "draft-fixture")
+        let enabledField = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
+        let enabledRect = enabledField.convert(enabledField.bounds, to: nil)
+        try click(window, at: NSPoint(x: content.bounds.width - 75, y: enabledRect.minY - 30))
+        settle(window)
+        #expect(submissions == ["draft-fixture"])
+    }
+
+    @Test("an explicit active-job focus request navigates an existing history window to that Provider")
+    func activeJobFocusNavigatesExistingWindow() throws {
+        let credential = ProviderCredentialEditor(loadedValue: "")
+        func configuration(target: ProviderID, focus: ProviderSettingsFocusRequest?) -> ProviderSettingsConfiguration {
+            ProviderSettingsConfiguration(
+                snapshot: ProviderSetupSnapshot(selectedProvider: target, availableModelIDs: [],
+                    selectedModelID: nil, phase: .validating, failure: nil, isReadOnly: true,
+                    activity: .credential(target)), focusRequest: focus,
+                credentialEditor: credential, pendingModelID: .constant(nil),
+                onSelectProvider: { _ in }, onValidate: { _ in }, onRefresh: {}, onSelectModel: { _ in }
+            )
+        }
+        let controller = ManagementCenterWindowController(records: [], providerSettings: configuration(target: .deepSeek, focus: nil))
+        controller.show(destination: .history)
+        let window = try #require(controller.window)
+        defer { window.orderOut(nil) }
+        settle(window)
+        let content = try #require(window.contentView)
+        #expect(descendants(content).compactMap { $0 as? NSSecureTextField }.isEmpty)
+        let load = credential.beginLoading(for: .openAI)
+        credential.completeLoad(load, value: "active-fixture")
+        controller.update(records: [], selectedRecordID: nil, selectedImage: nil,
+            cleanupFailureCount: 0, retention: .thirtyDays, settings: GeneralSettingsSnapshot(),
+            providerSettings: configuration(target: .openAI, focus: ProviderSettingsFocusRequest(provider: .openAI)))
+        controller.show(destination: .providerSettings)
+        settle(window)
+        let field = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
+        #expect(field.stringValue == "active-fixture")
+        #expect(!field.isEnabled)
+        #expect(content.bounds.intersects(field.convert(field.bounds, to: content)))
+    }
+
     private func settle(_ window: NSWindow) {
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         window.layoutIfNeeded()

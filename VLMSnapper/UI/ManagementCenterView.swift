@@ -2,8 +2,16 @@ import AppKit
 import SwiftUI
 import VLMSnapperCore
 
+public struct ProviderSettingsFocusRequest: Equatable {
+    public let id = UUID()
+    public let provider: ProviderID
+
+    public init(provider: ProviderID) { self.provider = provider }
+}
+
 public struct ProviderSettingsConfiguration {
     public let snapshot: ProviderSetupSnapshot
+    public let focusRequest: ProviderSettingsFocusRequest?
     public let configurations: [ProviderID: ProviderConfiguration]
     public let currentProvider: ProviderID?
     public let credentialEditor: ProviderCredentialEditor
@@ -17,6 +25,7 @@ public struct ProviderSettingsConfiguration {
 
     public init(
         snapshot: ProviderSetupSnapshot,
+        focusRequest: ProviderSettingsFocusRequest? = nil,
         configurations: [ProviderID: ProviderConfiguration] = [:],
         currentProvider: ProviderID? = nil,
         credentialEditor: ProviderCredentialEditor,
@@ -29,6 +38,7 @@ public struct ProviderSettingsConfiguration {
         onRemoveProvider: @escaping (ProviderID) -> Void = { _ in }
     ) {
         self.snapshot = snapshot
+        self.focusRequest = focusRequest
         self.configurations = configurations
         self.currentProvider = currentProvider
         self.credentialEditor = credentialEditor
@@ -200,9 +210,9 @@ public struct ManagementCenterView: View {
         _expandedProvider = State(
             initialValue: providerSettings.map {
                 ProviderSettingsInitialSelection.resolve(
-                    explicitTarget: destination == .providerSettings
+                    explicitTarget: $0.focusRequest?.provider ?? (destination == .providerSettings
                         ? $0.snapshot.selectedProvider
-                        : nil,
+                        : nil),
                     currentProvider: $0.currentProvider
                 )
             }
@@ -276,6 +286,13 @@ public struct ManagementCenterView: View {
             }
         }
         .onChange(of: credentialEditor.provider) { _, _ in
+            showsAPIKey = false
+        }
+        .onChange(of: providerSettings?.focusRequest) { _, request in
+            guard let request else { return }
+            destination = .providerSettings
+            showGeneralSettings = false
+            expandedProvider = request.provider
             showsAPIKey = false
         }
         .onAppear {
@@ -582,7 +599,7 @@ public struct ManagementCenterView: View {
            providerSettings.snapshot.selectedProvider == provider {
             let presentation = providerCredentialPresentation(provider)
             VStack(alignment: .leading, spacing: 18) {
-                if providerSettings.snapshot.isReadOnly,
+                if providerSettings.snapshot.blocksConfigurationChanges,
                    providerSettings.snapshot.phase != .recovering,
                    providerSettings.snapshot.failure != .secureStorage {
                     Label(
@@ -607,7 +624,7 @@ public struct ManagementCenterView: View {
                         Button(VLMSnapperStrings.providerRemove, role: .destructive) {
                             providerPendingRemoval = provider
                         }
-                        .disabled(providerSettings.snapshot.isReadOnly
+                        .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
                     }
                     Spacer()
@@ -619,7 +636,7 @@ public struct ManagementCenterView: View {
                         Button(VLMSnapperStrings.providerSetCurrent) {
                             providerSettings.onSetCurrentProvider(provider)
                         }
-                        .disabled(providerSettings.snapshot.isReadOnly
+                        .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
                     }
                 }
@@ -681,7 +698,7 @@ public struct ManagementCenterView: View {
                     onSubmit: {
                         if presentation.canValidate {
                             credentialEditor.submit(for: providerSettings.snapshot.selectedProvider,
-                                                    isReadOnly: providerSettings.snapshot.isReadOnly,
+                                                    isReadOnly: providerSettings.snapshot.blocksConfigurationChanges,
                                                     operation: providerSettings.onValidate)
                         }
                     }
@@ -732,7 +749,7 @@ public struct ManagementCenterView: View {
                     Spacer()
                     Button(VLMSnapperStrings.validate) {
                         credentialEditor.submit(for: providerSettings.snapshot.selectedProvider,
-                                                    isReadOnly: providerSettings.snapshot.isReadOnly,
+                                                    isReadOnly: providerSettings.snapshot.blocksConfigurationChanges,
                                                     operation: providerSettings.onValidate)
                     }
                         .buttonStyle(.borderedProminent)
@@ -769,10 +786,10 @@ public struct ManagementCenterView: View {
                     }
                 }
                 .labelsHidden()
-                .disabled(providerSettings.snapshot.isReadOnly
+                .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
                 Button(VLMSnapperStrings.refresh, action: providerSettings.onRefresh)
-                    .disabled(providerSettings.snapshot.isReadOnly
+                    .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
             }
             Text(VLMSnapperStrings.visionValidationHint)
@@ -829,6 +846,7 @@ public struct ManagementCenterView: View {
             hasAPIKey: !credentialEditor.value.isEmpty,
             isReadOnly: providerSettings.snapshot.isReadOnly
                 || credentialEditor.isLoading || credentialEditor.provider != provider,
+            isValidationBlocked: providerSettings.snapshot.blocksConfigurationChanges,
             inputIssue: ProviderAPIKeyInput.issue(in: credentialEditor.value),
             failure: providerSettings.snapshot.failure
         )

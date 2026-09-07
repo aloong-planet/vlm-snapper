@@ -7,6 +7,47 @@ import Testing
 // requires user interaction; these tests do not simulate process death.
 @Suite("Provider setup session")
 struct ProviderSetupSessionTests {
+    @Test("real coordinator capture state makes configuration read-only until release")
+    func captureActivityLocksSession() async throws {
+        let lister = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
+        let coordinator = makeCoordinator(modelLister: lister)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        let owner = try await coordinator.beginCaptureActivity()
+        #expect(await session.snapshot().activity == .capture)
+        #expect(await session.snapshot().isReadOnly)
+        await session.validate(apiKey: "fixture")
+        await session.refreshModels()
+        await session.selectModel("model")
+        #expect(await lister.keys.isEmpty)
+        await coordinator.release(owner)
+        #expect(await session.snapshot().isReadOnly == false)
+        await session.validate(apiKey: "fixture")
+        #expect(await lister.keys == ["fixture"])
+    }
+
+    @Test("another Provider keeps editing but duplicate submissions cannot overlap the active job", arguments: [false, true])
+    func crossProviderSubmissionIsExclusive(failFirst: Bool) async {
+        let lister = SuspendedValidationModelLister(failFirst: failFirst)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: lister))
+        let first = Task { await session.validate(apiKey: "first-fixture-key") }
+        await lister.waitUntilStarted()
+        await session.selectProvider(.openAI)
+        let snapshot = await session.snapshot()
+        #expect(snapshot.selectedProvider == .openAI)
+        #expect(!snapshot.isReadOnly)
+        #expect(snapshot.blocksConfigurationChanges)
+        for _ in 0..<2 {
+            #expect(await session.validate(apiKey: "second-fixture-key", for: .openAI) == false)
+        }
+        #expect(await lister.providers == [.deepSeek])
+        await lister.finish()
+        await first.value
+        #expect(await session.snapshot().blocksConfigurationChanges == false)
+        #expect(await session.validate(apiKey: "second-fixture-key", for: .openAI))
+        #expect(await lister.providers == [.deepSeek, .openAI])
+    }
+
     @Test("canceling validation before a delayed credential read returns never starts a Provider request")
     func cancellationBeforeReplacementAdmission() async throws {
         let storage = SessionTestStorage()
@@ -379,6 +420,7 @@ private actor SuspendedValidationModelLister: ProviderModelListing {
 }
 
 private actor FailingProviderBoundary: ProviderSetupConfiguring {
+    func currentActivity() async -> ProviderWorkflowActivity? { nil }
     func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
     let error: any Error
 
@@ -410,6 +452,7 @@ private actor FailingProviderBoundary: ProviderSetupConfiguring {
 }
 
 private actor ProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
+    func currentActivity() async -> ProviderWorkflowActivity? { nil }
     func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
     let validationResult: ProviderConfiguration
     private(set) var validatedKeys: [String] = []
@@ -450,6 +493,7 @@ private actor ProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
 }
 
 private actor SuspendedProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
+    func currentActivity() async -> ProviderWorkflowActivity? { nil }
     func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
     private var selectionStarted = false
     private var selectionContinuation: CheckedContinuation<Void, Never>?
