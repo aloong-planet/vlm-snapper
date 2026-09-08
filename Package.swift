@@ -113,6 +113,10 @@ let package = Package(
             dependencies: ["VLMSnapperReleaseSupport"]
         ),
         .testTarget(
+            name: "VLMSnapperAppTests",
+            dependencies: ["VLMSnapperApp", "VLMSnapperCore", "VLMSnapperUI"]
+        ),
+        .testTarget(
             name: "VLMSnapperCoreTests",
             dependencies: ["VLMSnapperCore"]
         ),

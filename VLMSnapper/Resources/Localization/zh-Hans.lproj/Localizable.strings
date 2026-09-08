@@ -51,6 +51,9 @@
 "action.done" = "完成";
 "action.validate" = "验证";
 "action.refresh" = "刷新";
+"providerSetup.refreshingModels" = "刷新中";
+"providerSetup.retryModelRefresh" = "重试刷新";
+"providerSetup.modelRefreshFailureHint" = "刷新失败，已保留原模型列表和选择。请检查网络后重试。";
 "action.close" = "关闭";
 "action.openSettings" = "打开系统设置";
 "action.restart" = "重新启动 VLMSnapper";

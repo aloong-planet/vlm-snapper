@@ -40,6 +40,9 @@ enum VLMSnapperStrings {
     static var done: String { localized("action.done") }
     static var validate: String { localized("action.validate") }
     static var refresh: String { localized("action.refresh") }
+    static var refreshingModels: String { localized("providerSetup.refreshingModels") }
+    static var retryModelRefresh: String { localized("providerSetup.retryModelRefresh") }
+    static var modelRefreshFailureHint: String { localized("providerSetup.modelRefreshFailureHint") }
     static var close: String { localized("action.close") }
     static var openSettings: String { localized("action.openSettings") }
     static var restart: String { localized("action.restart") }

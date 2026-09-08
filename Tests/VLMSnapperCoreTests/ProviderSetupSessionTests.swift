@@ -7,6 +7,110 @@ import Testing
 // requires user interaction; these tests do not simulate process death.
 @Suite("Provider setup session")
 struct ProviderSetupSessionTests {
+    @Test("concurrent refresh activations retain one busy owner until the external request finishes")
+    func concurrentRefreshKeepsBusyOwner() async throws {
+        let lister = SuspendedRefreshModelLister()
+        let coordinator = makeCoordinator(modelLister: lister)
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<32 { group.addTask { await session.refreshModels() } }
+            await lister.waitUntilRefreshing()
+            for _ in 0..<31 { await group.next() }
+            #expect(await session.snapshot().refreshingProvider == .deepSeek)
+            #expect(await session.snapshot().phase == .ready)
+            #expect(await lister.requests == 2)
+            await lister.finish()
+        }
+        #expect(await session.snapshot().refreshingProvider == nil)
+        #expect(await session.snapshot().blocksConfigurationChanges == false)
+    }
+
+    @Test("a completed refresh that removes the selected model requires explicit reselection")
+    func refreshedModelRemoval() async throws {
+        let lister = SuspendedRefreshModelLister(refreshedModels: ["replacement"])
+        let coordinator = makeCoordinator(modelLister: lister)
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        let refresh = Task { await session.refreshModels() }
+        await lister.waitUntilRefreshing()
+        #expect(await session.snapshot().selectedModelID == "model")
+        await session.selectProvider(.openAI)
+        await lister.finish()
+        await refresh.value
+        await session.selectProvider(.deepSeek)
+        #expect(await session.snapshot().phase == .selectingModel)
+        #expect(await session.snapshot().availableModelIDs == ["replacement"])
+        #expect(await session.snapshot().selectedModelID == nil)
+        #expect(await session.snapshot().canFinish == false)
+        #expect(await session.snapshot().refreshingProvider == nil)
+        await session.selectModel("replacement")
+        #expect(await session.snapshot().phase == .ready)
+    }
+
+    @Test("returning to a refreshing card preserves its model and a network failure is not a credential failure", arguments: [false, true])
+    func refreshSurvivesCardSwitchAndNetworkFailure(fails: Bool) async throws {
+        let lister = SuspendedRefreshModelLister(fails: fails)
+        let coordinator = makeCoordinator(modelLister: lister)
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        let refresh = Task { await session.refreshModels() }
+        await lister.waitUntilRefreshing()
+        await session.selectProvider(.openAI)
+        #expect(await session.snapshot().refreshingProvider == .deepSeek)
+        #expect(await session.snapshot().isReadOnly == false)
+        #expect(await session.snapshot().blocksConfigurationChanges)
+        await session.selectProvider(.deepSeek)
+        #expect(await session.snapshot().phase == .ready)
+        #expect(await session.snapshot().availableModelIDs == ["model"])
+        #expect(await session.snapshot().selectedModelID == "model")
+        await lister.finish()
+        await refresh.value
+        #expect(await session.snapshot().phase == .ready)
+        #expect(await session.snapshot().failure == nil)
+        #expect(await session.snapshot().selectedModelID == "model")
+        #expect(await session.snapshot().blocksConfigurationChanges == false)
+        #expect(try await coordinator.apiKey(for: .deepSeek) == "fixture-key")
+        #expect(await session.snapshot().refreshingProvider == nil)
+        #expect(await session.snapshot().modelRefreshFailure == (fails ? .unavailable : nil))
+        #expect(await lister.requests == 2)
+        await session.refreshModels()
+        #expect(await session.snapshot().modelRefreshFailure == nil)
+        #expect(await lister.requests == 3)
+    }
+
+    @Test("model refresh keeps configured content visible while conflicting changes stay blocked")
+    func refreshPreservesConfiguredContent() async throws {
+        let lister = SuspendedRefreshModelLister()
+        let coordinator = makeCoordinator(modelLister: lister)
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        let refresh = Task { await session.refreshModels() }
+        await lister.waitUntilRefreshing()
+        let busy = await session.snapshot()
+        #expect(busy.phase == .ready)
+        #expect(busy.availableModelIDs == ["model"])
+        #expect(busy.selectedModelID == "model")
+        #expect(busy.failure == nil)
+        #expect(busy.blocksConfigurationChanges)
+        #expect(busy.refreshingProvider == .deepSeek)
+        await session.refreshModels()
+        #expect(await session.validate(apiKey: "conflicting-key", for: .openAI) == false)
+        await lister.finish()
+        await refresh.value
+        #expect(await lister.requests == 2)
+        #expect(await session.snapshot().phase == .ready)
+        #expect(await session.snapshot().blocksConfigurationChanges == false)
+    }
+
     @Test("real coordinator capture state makes configuration read-only until release")
     func captureActivityLocksSession() async throws {
         let lister = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
@@ -382,6 +486,39 @@ struct ProviderSetupSessionTests {
         #expect(snapshot.phase == .failed)
         #expect(snapshot.failure == .secureStorage)
     }
+}
+
+private actor SuspendedRefreshModelLister: ProviderModelListing {
+    private let fails: Bool
+    private let refreshedModels: [String]
+    private(set) var requests = 0
+    private var pending: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(fails: Bool = false, refreshedModels: [String] = ["model"]) {
+        self.fails = fails
+        self.refreshedModels = refreshedModels
+    }
+
+    func listModels(provider: ProviderID, apiKey: String) async throws -> [String] {
+        requests += 1
+        if requests == 2 {
+            await withCheckedContinuation { continuation in
+                pending = continuation
+                waiters.forEach { $0.resume() }
+                waiters.removeAll()
+            }
+            if fails { throw ProviderModelListError.requestRejected(statusCode: 503) }
+        }
+        return requests == 1 ? ["model"] : refreshedModels
+    }
+
+    func waitUntilRefreshing() async {
+        if pending != nil { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func finish() { pending?.resume(); pending = nil }
 }
 
 private actor SuspendedValidationModelLister: ProviderModelListing {

@@ -51,6 +51,9 @@
 "action.done" = "Done";
 "action.validate" = "Validate";
 "action.refresh" = "Refresh";
+"providerSetup.refreshingModels" = "Refreshing";
+"providerSetup.retryModelRefresh" = "Try Again";
+"providerSetup.modelRefreshFailureHint" = "Refresh failed. Your model list and selection are unchanged. Check your network and try again.";
 "action.close" = "Close";
 "action.openSettings" = "Open System Settings";
 "action.restart" = "Restart VLMSnapper";

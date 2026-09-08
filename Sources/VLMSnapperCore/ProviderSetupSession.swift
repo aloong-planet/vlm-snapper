@@ -39,6 +39,8 @@ public struct ProviderSetupSnapshot: Equatable, Sendable {
     public let failure: ProviderSetupFailure?
     public let isReadOnly: Bool
     public let activity: ProviderWorkflowActivity?
+    public let refreshingProvider: ProviderID?
+    public let modelRefreshFailure: ProviderSetupFailure?
 
     public var blocksConfigurationChanges: Bool { isReadOnly || activity != nil }
 
@@ -49,7 +51,9 @@ public struct ProviderSetupSnapshot: Equatable, Sendable {
         phase: ProviderSetupPhase,
         failure: ProviderSetupFailure?,
         isReadOnly: Bool = false,
-        activity: ProviderWorkflowActivity? = nil
+        activity: ProviderWorkflowActivity? = nil,
+        refreshingProvider: ProviderID? = nil,
+        modelRefreshFailure: ProviderSetupFailure? = nil
     ) {
         self.selectedProvider = selectedProvider
         self.availableModelIDs = availableModelIDs
@@ -58,6 +62,8 @@ public struct ProviderSetupSnapshot: Equatable, Sendable {
         self.failure = failure
         self.isReadOnly = isReadOnly
         self.activity = activity
+        self.refreshingProvider = refreshingProvider
+        self.modelRefreshFailure = modelRefreshFailure
     }
 
     public var canFinish: Bool {
@@ -76,6 +82,8 @@ public actor ProviderSetupSession {
     private var credentialReadFailed = false
     private var recoveringProviders: Set<ProviderID> = []
     private var validatingProviders: Set<ProviderID> = []
+    private var refreshingConfigurations: [ProviderID: ProviderConfiguration] = [:]
+    private var modelRefreshFailures: [ProviderID: ProviderSetupFailure] = [:]
     private var validationFailures: [ProviderID: ProviderSetupFailure] = [:]
     private var changeContinuation: AsyncStream<Void>.Continuation?
 
@@ -110,7 +118,9 @@ public actor ProviderSetupSession {
             phase: phase,
             failure: failure,
             isReadOnly: isReadOnly || credentialReadFailed || workflowReadOnly,
-            activity: activity
+            activity: activity,
+            refreshingProvider: refreshingConfigurations.keys.first,
+            modelRefreshFailure: modelRefreshFailures[selectedProvider]
         )
     }
 
@@ -121,6 +131,10 @@ public actor ProviderSetupSession {
 
     public func load(onRecovery: @escaping @Sendable () async -> Void = {}) async {
         defer { changeContinuation?.yield(()) }
+        if let refreshing = refreshingConfigurations[selectedProvider] {
+            apply(refreshing)
+            return
+        }
         if recoveringProviders.contains(selectedProvider) {
             configuration = nil
             phase = .recovering
@@ -217,6 +231,7 @@ public actor ProviderSetupSession {
             changeContinuation?.yield(())
         }
         validationFailures[provider] = nil
+        modelRefreshFailures[provider] = nil
         if provider == selectedProvider {
             generation += 1
             configuration = nil
@@ -244,6 +259,7 @@ public actor ProviderSetupSession {
 
     public func clearValidationFailure(for provider: ProviderID) {
         validationFailures[provider] = nil
+        modelRefreshFailures[provider] = nil
     }
 
     public func credentialReadDidFail(
@@ -261,28 +277,40 @@ public actor ProviderSetupSession {
     }
 
     public func refreshModels() async {
-        guard !(await snapshot()).blocksConfigurationChanges else { return }
+        guard !(await snapshot()).blocksConfigurationChanges, let configuration else { return }
         generation += 1
-        let requestGeneration = generation
         let provider = selectedProvider
+        refreshingConfigurations[provider] = configuration
+        modelRefreshFailures[provider] = nil
         validatingProviders.insert(provider)
         defer {
+            refreshingConfigurations[provider] = nil
             validatingProviders.remove(provider)
             changeContinuation?.yield(())
         }
-        phase = .validating
         failure = nil
+        changeContinuation?.yield(())
         do {
             let refreshed = try await boundary.refreshModels(for: provider)
-            guard requestGeneration == generation, provider == selectedProvider else {
+            guard provider == selectedProvider, !credentialReadFailed else {
                 return
             }
+            generation += 1
             apply(refreshed)
         } catch {
-            guard requestGeneration == generation, provider == selectedProvider else {
+            let refreshFailure = classifyFailure(error)
+            if refreshFailure == .unavailable {
+                modelRefreshFailures[provider] = refreshFailure
+            }
+            guard provider == selectedProvider, !credentialReadFailed else {
                 return
             }
-            setFailure(error)
+            generation += 1
+            if refreshFailure == .unavailable {
+                apply(configuration)
+            } else {
+                setFailure(error)
+            }
         }
     }
 
@@ -292,6 +320,7 @@ public actor ProviderSetupSession {
         let requestGeneration = generation
         let provider = selectedProvider
         failure = nil
+        modelRefreshFailures[provider] = nil
         do {
             let selected = try await boundary.selectModel(modelID, for: provider)
             guard requestGeneration == generation, provider == selectedProvider else {
@@ -310,6 +339,7 @@ public actor ProviderSetupSession {
         self.configuration = configuration
         failure = nil
         guard let configuration else {
+            modelRefreshFailures[selectedProvider] = nil
             phase = .awaitingValidation
             return
         }

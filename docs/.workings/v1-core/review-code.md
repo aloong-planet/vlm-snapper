@@ -1158,3 +1158,94 @@ Scope: owner-token activity admission, event-driven reconciliation waiting, shar
 - FM-44's recovery-rejected sentence contradicted FM-46 and the ticket. Corrected spec/checklist to waiting and extended read-only statements to capture/selection; synchronized CONTEXT/features.
 - Owner IDs and capture generations protect distinct boundaries: activity ownership and native replacement completion. CaptureEntryPoint enumerates two production entrances with identical policy. ApplicationWorkflow is used by production, not a test-only duplicate.
 - No further refactor/dead-code cleanup proposed. Existing prototype icon followups remain with Ticket 23. Only paired localized lock wording changes, no geometry/theme/icon redesign.
+
+## 2026-09-07 — Ticket 23 checklist gate increment only
+
+This is a scoped review of the new command, its CLI tests, CI step and merge/status receipts. It is not the ticket's final review: combined application acceptance and full-feature reconciliation remain open.
+
+### ① Bottom-level assumptions
+
+The actual checklist contains both ownership and historical evidence tables. The initial whole-document ID scan wrongly counted the latter as duplicates (aggregate gate failure from unrelated rows). Fixed by requiring one named ownership section; the complete repository document is the positive control. Expected identifiers are the ticket's explicit 12+46 contract, not an inferred count of current input. Existing phase/status notes are preserved, with a new merge receipt.
+
+### ② Runtime behavior
+
+Six CLI cases pass, including missing/duplicate/unknown IDs, blank/malformed cells, absent/duplicate section and the real valid document. IO/encoding errors return nonzero. Every rejection fails the aggregate command intentionally; no mutation of the checklist occurs. Temporary fixtures are isolated and subprocesses have a ten-second bound. Duplicate ownership cannot disappear through conversion to a set.
+
+### ③ Safety/correctness
+
+No shell interpolation, network, credentials, app launch or installation. The executable takes an explicit input path and only reads it. GitHub Actions runs tests and the actual ownership command before build, under its fail-fast shell. The command accepts the repository's simple four-cell Markdown dialect; it is not a general Markdown parser or a semantic acceptance checker.
+
+### ④ Consistency
+
+Only this ticket's demanded gate and status receipts changed; no production or UI change. Standard-library Python matches the repository's existing script tooling. No new general framework or preexisting dead-code cleanup. Current source reveals a separate application-construction seam gap; proposal and affected paths are recorded in the Ticket 23 tasklist for user agreement, not silently refactored.
+
+## 2026-09-07 — Application Model injection increment only
+
+### ① Bottom-level assumptions
+
+Direct executable-target import is now exercised by compiled application tests, not inferred from a package declaration. The Model retains real editor/session/coordinator, parser, files and SQLite. Only external adapters are supplied by tests. Live construction remains on the production initialization path after primary-instance ownership. A passing Model callback test is not evidence of native input, delegate window routing or OS termination delivery.
+
+### ② Runtime and lifecycle
+
+Found and fixed an instance-level regression in this increment: unregistering during termination preparation affected the separate update-install attempt path (same-layer escape into a still-running app's shortcut). Enumerated all production preparation call sites: quit, update installation, and delegate termination. Preparation now preserves registration; final `stop()` releases registration and cancels scheduled cleanup. The corrected expectation failed against the interim implementation and passes after moving release. Repeated stop is covered. Actual OS callback delivery and teardown during suspended external work remain acceptance gaps under Ticket 23, not certified by this fixture.
+
+Validation success, 401/500 failure, manual retry, model selection, completion notification and reconstruction run through real Model callbacks. Failures remain attributed to the submitted Provider; the single-Provider fixture does not certify cross-Provider exclusion. Update-event publication and permission/retention adapters have additional regression cases. On success and thrown test failure, fixture preparation/stop precede temporary-state removal.
+
+### ③ Security/correctness
+
+The dependency constructor requires all external adapters without partial live fallbacks. Fake implementations live only in the new test target; production's factory uses existing Keychain, HTTP, ScreenCaptureKit, login, Sparkle and shortcut adapters. No runtime environment switch or dynamic injection mechanism is added. The same credential store is shared by configuration and operation streaming. Tests use synthetic keys, UUID paths and isolated defaults suites; no installed app or real account is accessed. Streaming and screen capture are intentionally rejected by this setup fixture, not exercised successfully.
+
+### ④ Consistency and smells
+
+No target/source split, main.swift, schema, Keychain identity, entitlement or visual redesign. The dependency bundle groups external construction rather than replacing internal business modules; update/shortcut factories preserve lazy creation. No unrelated dead-code cleanup or new DI framework. Spec and tasklist distinguish approved construction from pending full native acceptance. The stale current-evidence paragraph was updated to describe the new target. No additional refactor proposed in this scope; remaining integration work stays in Ticket 23.
+
+## 2026-09-07 — Delegate/native increment only
+
+### ① Bottom-level assumptions
+
+Two test assumptions were false in this runner: a visible window initially had a zero-sized hosting view, and the SwiftUI popup button had no action although its menu items did. Measured native geometry/render and inspected public controls before changing test input. Production layout and routing were not altered to satisfy those assumptions. The actual delegate now receives startup boundaries; its model factory is invoked after the real POSIX lock. A secondary-start test checks that the factory is not invoked again, not merely that the second model does not register a shortcut.
+
+### ② Runtime/lifecycle
+
+Enumerated affected paths: primary startup creates one model/menu, secondary returns to launch's termination branch, startup errors still terminate from the launch wrapper, ordinary termination prepares before final stop, update preparation remains distinct. Final stop closes owned windows after clearing onboarding return context, removes the status item/monitors, releases model and primary coordinator. Closing during cleanup therefore cannot reopen onboarding. Primary lock reacquisition and single registration are exercised; OS launch notification/actual process exit are not simulated as a success claim. Explicit fixtures restore the prior main menu and remove only UUID temp data/suite.
+
+Validation/freezing suspension uses external adapters, not a second coordinator. Positive terminal controls demonstrate both adapters can be reached after exclusion. Failure escape is confined to the single fixture: suspended operations are released in cleanup; capture release is latched so a late entry cannot wait forever after cleanup. In-flight delegate shutdown remains a separately recorded Ticket 23 gap rather than a proved race-free path.
+
+### ③ Security/correctness
+
+Startup dependencies contain root, defaults, messaging and a lazy factory, with the production default using original implementations. No test switch, private API, TCC reset, real HTTP/Keychain read, installed application replacement or identity change. Native secure input uses a synthetic key. The lock is real but temporary, and messaging cannot activate the installed app. Window enumeration is scoped to the test process and identifies the onboarding hosting type; configuration is driven through the actual production view. Programmatic events are not physical-device delivery evidence.
+
+### ④ Consistency
+
+`main.swift`, UI geometry/colors/text, resources and signatures are unchanged. The only UI-controller addition is final status-item disposal; existing hide behavior removes monitors. Production launch still applies accessory policy before startup; direct tests exercise startup, not that OS launch callback. No new general router or DI framework. CI's complementary skip/filter invocations include every suite while separating process-global AppKit/localization mutations; neither half alone constitutes full verification. Spec and tasklist now identify the native path and freeze-only boundary accurately. Icon choice remains owned by Ticket 23; no new icon surface was introduced or broadly audited here.
+## 2026-09-08 — Native menu/closed-window increment review
+
+- 【① 底层前提】A native field being editable did not imply key-window ownership. The new menu case explicitly waits for the real `NSApp.keyWindow` and invokes the installed Edit item, not a replacement responder. `finishLaunching()` was not necessary in a counterfactual probe and is absent. XCTest methods are run in separate processes: combined native methods aborted, and prior Swift Testing activation experiments exited without completion. The runtime root cause is unresolved; explicit completed-test reports and process isolation are the gate, not a claim of a product fix.
+- 【② 可运行性】Enumerated clipboard creation/live default/use/release; native activation success/rejection/throw restoration; fixture start/operation failure/success teardown; paused response release on success/failure. Shared fixture optional unwrapping now throws independently of the testing framework. Both `withModel` and `withApplication` previously could skip `stop()` when preparation returned false; both now stop before throwing (same-class cleanup escape fixed in both helpers). This only disposes isolated test resources, not production update-preparation semantics. Capture regression timing sensitivity remains tracked in #23 rather than hidden by its later pass.
+- 【③ 安全正确性】Live startup supplies the unchanged general pasteboard; only tests supply a unique pasteboard and release it. No real key, HTTP, Keychain or desktop pixels are read. Vision recognizes only an in-process fixture onboarding render, without saving its image. No application callback is forged; native event pumping processes AppKit events. Temporary probes/mutations are removed precisely, with no production overlay/menu behavior diff.
+- 【④ 一致性】No user-visible product behavior changed: startup simply forwards the existing menu-builder clipboard dependency. Accordingly no feature sentence becomes false and no user-visible feature sentence is missing from this increment; #23 still requires its separate full-feature closeout. CI covers existing non-App/App groups and each native XCTest method explicitly, with an outer timeout and nonempty completion check. Physical input, visual parity and untested failure/cancellation variants remain out of this increment's evidence. Small native-fixture helpers are shared rather than copying production routing. RTL mirroring is not enabled by the project capability declaration and is skipped.
+
+# Ticket 23 scoped review — 2026-09-08 capture/rerun/recovery tests
+
+## Subsequent scoped review: pending-validation close/reopen
+
+- 【① 底层前提】The attempted Paste case had an editable real field and readable isolated clipboard but no `NSApp.keyWindow`; accessory policy and explicit activation did not establish it. A global event-dispatch experiment exited 0 without a test-completion record: rejected as false green. Accessibility terminal-label probes also failed against unmodified behavior. These experiments and unused clipboard injection were removed; no production cause is claimed.
+- 【② 可运行性】The retained case pauses external model-list HTTP, inserts text through the native editor, clicks the rendered Validate action, closes via NSWindow, reopens through the actual onboarding action, observes the same candidate disabled, then releases HTTP and observes editable text/model choices. Delegate fixture cleanup now releases both suspended external adapters on success and throw before normal preparation/stop, preventing a fixture-owned waiter from escaping into another test. Normal and exceptional cleanup branches were both exercised by green and candidate-loss mutation runs.
+- 【③ 安全正确性】Retained changes do not read the general clipboard or real credentials, dispatch arbitrary application events, change activation policy, or modify production Provider behavior. Only synthetic text and isolated temporary adapters are used. Production mutations were exactly removed; the editor file has no diff. No private state or fake responder is used.
+- 【④ 一致性】The test was renamed to explicitly say reopen while response is pending. Waiting on credential persistence alone was too early to prove closed-window callback completion, so that claim remains Pending in the spec and tasklist. Actual main-menu Paste also remains Pending with its environment prerequisite. No user-visible behavior changed in this increment; feature-wide review still remains required for #23. According to project capability declaration, RTL UI mirroring is not enabled and that check is skipped.
+
+This reviews only the current test increment, not full Ticket 23 completion.
+
+- 【① 底层前提】Found and corrected a test-only assumption: rendered SwiftUI Run Again is not an `NSButton` in the observed native view tree; the only native button was Copy with an empty title. A fresh production render established the mouse hit point. Synthetic frames use observed screen geometry but contain only generated white pixels. HTTP fixture shape follows the existing recorded DeepSeek chat contract (delta content, finish_reason, usage, DONE), retaining production decoding. No claim of real-provider or accessibility acceptance.
+- 【② 可运行性】Real shortcut → overlay → toolbar → request → saved history → rerun paths executed. Terminal completion wakes an actual waiting recovery. The HTTP fixture rejects unexpected or overlapping image requests; teardown releases suspended response/capture continuations, prepares/stops the Model, and hides only windows created within the fixture. Previously title-based lookup could fail this case itself (self-contained test failure); fixed before reviewing upper layers. Deadline errors now carry call-site file/line instead of an unlocatable timeout.
+- 【③ 安全正确性】No real secrets, screen pixels, global shortcut registration, login service, system permission request, update network or installed-app mutation. Fake key enters only the isolated credential adapter; generated PNG and real SQLite remain in the unique temporary root. Public AppKit view/window operations do not access private application members. Temporary mutation/debug output was removed and both production files restored.
+- 【④ 一致性】No product behavior or visual change in this increment; spec Testing Decisions now reports the increased but still partial coverage. Existing-current-history identity and non-current Provider not stealing selection are asserted. New fixture-only helpers are narrow; geometry coupling is intentionally limited to the English one-line fixture and does not count as bilingual layout acceptance. Full feature review remains open under #23. According to project capability declaration, RTL UI mirroring is not enabled, so that check is skipped.
+
+## 2026-09-08 — Refresh A scoped implementation review
+
+- 【① 底层前提】Confirmed through public-session red tests that model refresh reused the credential-validating phase; returning to that card additionally cleared its cached presentation. Native rendering confirmed a separate lock row and conditional footer actions were the geometry-sensitive consumers. Refresh now preserves configuration phase, exposes separate transient progress, and stores ordinary refresh feedback per Provider.
+- 【② 可运行性】Reviewed start, duplicate, cross-card, return, success, removed-model and ordinary-failure/manual-retry paths. The real coordinator owns persistence and its lease; delayed completion applies only to its Provider and does not override a recorded credential-read failure. Existing storage/authentication error categories remain separate, not converted to the retained-cache network message. Failures are Provider-local, with other cards' drafts still editable and mutations globally blocked.
+- 【③ 安全正确性】No credential format, Keychain permissions, HTTP endpoint, persistence schema or production injection default changed. Tests use fixture keys and isolated adapters. Refresh does not call the replacement-key path, so the destructive replacement policy is unchanged. Existing capture/model-request locks remain enabled; hiding the banner does not remove admission checks.
+- 【④ 一致性】Refresh progress and ordinary failure are no longer credential status. Reused semantic colors, native spinner and existing disabled behavior; added matching source-language/English strings. Render review caught a fixture with an unconfigured current OpenAI and corrected it to a reachable configured state. No new dependency or reusable abstraction. Existing DS/OA/G prototype marks remain assigned to Ticket 23's visual consistency item rather than being copied into native UI. According to project capability declaration, RTL mirroring is not enabled and that check is skipped.
+
+This is the Refresh follow-up only. Installed-app Refresh clicks, signing/packaging and the feature-wide Ticket 23 closeout are not claimed.
