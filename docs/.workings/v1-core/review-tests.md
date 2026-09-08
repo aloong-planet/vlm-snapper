@@ -1032,3 +1032,124 @@ Existing request-freeze tests now use owner tokens. Unsaved-workspace preparatio
 - Explicit restoration mutation added only && false to production canValidate (stricter never-enabled control). Rebuilt source reached ProviderSettingsPresentation.swift. Presentation test failed at line 21 for valid terminal draft; native test failed at line 358 with zero instead of one submission. Log /private/tmp/ticket22-ui-restoration-mutation.log, exit 1. Removed only that token and rebuilt: /private/tmp/ticket22-review-green.log, three tests passed, including unsaved preparation. This proves terminal restoration sensitivity, not every routing mutation.
 - Initial unguarded capture stub was rejected before application and not retried elsewhere. Capture/rerun gate-removal mutation is not claimed. Blocked/admitted controls establish effect observables; owner/recovery reds guard admission independently. This limitation is recorded instead of manufacturing a bypass or red-first claim.
 - Enumerated new cases for zero-assertion loops, silent skips, missing awaits, stale paths and same-algorithm expected values: none introduced. Parameters are explicit; suspended tasks resume and are awaited. Recovery's 50 ms observation alone is not scheduling proof; rejection red, terminal effect and cancellation-owner assertion are separate checks. Geometry checks target visibility, not pixel identity or physical foregrounding.
+
+## 2026-09-07 — Ticket 23 checklist gate increment only
+
+This review covers the six new CLI tests, not the still-missing combined application cases or the final feature-wide review.
+
+### 1. Coverage
+
+| Case | Actual boundary driven | Result / limitation |
+|---|---|---|
+| missing_requirement_fails_even_with_ownership_heading | Remove FM-46 from real document | Nonzero, names FM-46 |
+| duplicate_requirement_is_not_hidden_by_unique_count | Insert a second US-01 inside ownership | Nonzero duplicate diagnostic |
+| unknown_requirement_cannot_expand_the_contract_silently | Insert FM-47 inside ownership | Nonzero unexpected diagnostic |
+| complete_repository_checklist_passes_with_historical_evidence | Entire current checklist with other historical tables | Zero, explicit 58-row report |
+| blank_or_malformed_ownership_rows_fail | Blank owner/criterion, missing/extra column | All four variants fail, name US-01 |
+| missing_or_duplicate_section_is_not_accepted | Rename ownership heading / append another heading | Both fail at section validation |
+
+The fixture shape is the actual repository document, not a toy table generated with the implementation's algorithm. Source/spec semantic correspondence, named criterion truth, application interactions and full release acceptance remain outside this structural gate.
+
+### 2. Case design
+
+All tests use the public CLI in subprocesses with isolated files; none imports the parser or mocks an internal component. Expectations use independent requirement identifiers and exit behavior. No original checklist mutation. The success control prevents an always-failing gate from passing the negative suite. Named negative cases inspect the relevant error, not merely any process failure.
+
+### 3. False-green checks
+
+Observed reds are logged in the Ticket 23 tasklist. During the duplicate increment, the test initially passed for the wrong reason: unrelated historical rows also triggered duplicates. This signal was rejected, the parser scope was corrected, and the full-document positive control was added. The corrected unknown-ID red fails precisely on returncode 0; malformed-cell reds likewise prove false acceptance before the check. Section cases passed initially because section validation already existed; no red-first claim is made for those supplementary regressions. Six cases now pass through current source, without build caching, async callbacks, silent skips or zero-iteration input sets. These results are not native interaction evidence.
+
+## 2026-09-07 — Application Model injection increment only
+
+### 1. Coverage
+
+Complete new-case inventory:
+
+| Test | Driven boundary and observable failure |
+|---|---|
+| injectedUpdateEventsReachTheApplicationPresentation | Injected driver emits availability through captured production handler; both Model and settings must update; automatic download remains disabled. |
+| failedValidationKeepsCandidateAndAllowsManualRetry | Real HTTP parser/coordinator sees status 401 and 500; candidate remains editable, no credential stored, manual retry sends a second request and reaches pending-model. |
+| permissionAndRetentionUseOnlyTheIsolatedPreferences | Preflight false plus requested-history true produces unavailable; actual retention callback writes the isolated suite and a fresh Model restores 60 days. |
+| terminationPreparationDoesNotUnregisterBeforeExitIsCommitted | Real start registers; preparation retains; final stop unregisters once and repeated stop leaves zero registrations. |
+| validatesSelectsAndRestoresProviderThroughApplicationCallbacks | Real editor submission and Model callbacks discover/select/persist/notify; duplicate refused; reconstructed Model recovers the selected model and credential without another HTTP request. |
+
+Five functions, six parameterized cases. Test header excludes native input/window routing. Delegate onboarding return, capture/rerun exclusion, suspended-request teardown and signed-app physical focus remain pending Ticket 23 work, not coverage supplied by these cases.
+
+### 2. Case and fixture design
+
+No mocked internal coordinator or alternate router. HTTP, credentials and system adapters are test replacements; parser/files/SQLite are production. HTTP fixture shape comes from the official DeepSeek list-models response example (https://api-docs.deepseek.com/api/list-models/), with synthetic identifiers; this is a documented wire-shape sample, not a successful live-account request. All other new fixtures implement external adapter behavior rather than inventing external file formats. Request/registration counts observe external effects required by duplicate/lifecycle semantics, not internal ordering. Defaults readback is an additional adapter check; reconstruction through the Model supplies the persistent-behavior assertion.
+
+### 3. False-green checks
+
+Audited every listed case for silent skips, unawaited assertions, empty loops, stale production paths and expectations recomputed with implementation algorithms. None is used to claim native acceptance. Update payload comparisons check propagation into separately owned presentation state, not mutation of an aliased expected object. A five-second bounded poll awaits the same terminal fields subsequently asserted; an earlier editor-only wait read presentation too soon and was rejected as a false red.
+
+The completion test's deliberate production-callback removal reached rebuilt code (independent runtime mutation marker), then failed its completion deadline; only that edit was restored and full tests passed. The corrected lifecycle test failed specifically at premature unregister, then passed after final-stop separation. Initial toolchain/concurrency compilation failures and the superseded preparation-unregister expectation are not product-bug evidence. Supplementary preference, HTTP and updater cases are regression checks, not claimed independently mutation-validated for every assertion. Final full suite: 331 tests/73 suites, exit 0; strict build also passed. No all-native or all-Ticket-23 completion claim follows.
+
+## 2026-09-07 — Delegate/native increment only
+
+### 1. Coverage
+
+Complete additional-case inventory (earlier five Model functions unchanged in purpose):
+
+| Case | Actual path / remaining boundary |
+|---|---|
+| nativeOnboardingValidatesSelectsAndReturns | Real delegate startup, rendered Provider button via AppKit mouse events, secure editor insert/Return, one HTTP request, unselected-model stay, close/reopen through delegate, native popup menu action, both window visibility states, fresh Model restore. Does not prove Paste, Validate mouse click, in-flight close, late completion, ordinary settings non-return or OS foregrounding. |
+| applicationStartupOwnsRealWindowsAndReleasesPrimaryLock | Two real temporary-lock contenders, no secondary Model factory/extra registration, final release and new primary. Does not invoke an actual process exit or failure launch. |
+| credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring | External HTTP paused, real registered shortcut routes to Provider without capture; resumed configuration enables capture; paused freezer disables submission and preserves candidate/no new HTTP/empty history; permission-denied terminal enables resubmission. Does not prove selection/model/rerun/recovery waiting or preservation of nonempty history. |
+
+The wire fixture is the previously documented official DeepSeek model-list shape. New messaging, permission and suspended-capture fixtures are external effects, not business-module mocks or invented wire formats. All three cases retain actual application state ownership. Full Ticket 23 coverage remains incomplete and its acceptance boxes remain open.
+
+### 2. Design
+
+No private setters/casts or copied delegate callbacks. Native NSView downcasts select public AppKit controls; the popup's actual menu action drives its binding. The onboarding click point was verified against the newly rendered fixture at `/private/tmp/ticket23-onboarding-native.png`, and English is explicitly selected in the isolated suite. This coordinate is layout-coupled, so future layout changes must reverify the hit point; missing routing fails the bounded wait rather than passing on a click alone. This exception avoids falsely claiming unavailable in-process accessibility children were found.
+
+AppKit pumping has a 10 ms event-processing bound and runs only while checking real readiness, under an outer five-second deadline; production receives no sleep. Suspension completion is explicit. Process-level main menu/localization state requires running the application suite separately from other suites, now encoded in CI's complementary commands. Model fixture cleanup releases suspended adapters even after an assertion/throw; capture release remains latched for late arrival.
+
+### 3. False-green audit
+
+New native failure-sensitivity mutation omitted only the delegate's final `showOnboarding()`. Rebuilt runtime printed its distinct marker, and the final return wait failed with deadline/exit 1; the preceding close-return path had already passed. Restoration touched only that line. Initial zero geometry, absent accessibility children, wrong popup action ownership, nested Testing macro error and a Swift compiler assertion on `#require(handler)()` are invalid red signals, explicitly excluded. The latter was corrected by separating unwrap and invocation; no production change addressed it.
+
+All eight test functions were checked for unconditional expectations, await completion, no silent skips, and active production paths. The complementary CI filters preserve all suites. Exclusion uses observable positive controls and explicit suspended work, not fixed waiting to infer zero effects; it is supplementary regression coverage, not claimed independently gate-removal-mutation-proved. Empty history is only asserted as no creation, never as preservation of an existing result. The two new startup/native cases are not substitutes for signed/installed acceptance or completion of Ticket 23.
+## 2026-09-08 — Native menu/closed-window increment test review
+
+- 【维度 1：覆盖】Enumerated two additions: (1) actual key-window ownership, Edit/Paste action, CRLF-normalized native input/caret, mouse Validate, one exact authenticated external request; (2) validation starts, Settings closes before HTTP release, onboarding first lacks then renders pending-model status while Settings remains hidden, reopening restores editable submitted text without a duplicate request. Existing close/reopen-before-response remains complementary. Failure/cancellation, physical Cmd+V/foregrounding, bilingual visual parity and full-ticket acceptance remain open; the header says so. Model-list fixture retains the previously verified official wire shape, only identifiers/key text are synthetic.
+- 【维度 2：设计】Production delegate, editor, sessions, coordinator, menus and views execute unchanged. The isolated pasteboard is an external input seam, not an internal mock. HTTP suspension establishes close-before-response causally. Render OCR reads only the actual fixture view, not an invented status label. `Choose a model` proves the model-list outcome, not all downstream editor cleanup; the reopened editable field is separately awaited/asserted. Existing external request counts express no duplicates. Test-runner activation is explicitly not physical-focus acceptance. Shared helpers throw neutral errors, and XCTest failures are explicitly recorded rather than relying on Swift Testing assertions outside a Swift Testing test.
+- 【维度 3：假通过】Paste mutation rebuilt/reached `MUTATION-ticket23-real-paste-disconnected`, then failed waiting for the exact field text (`ticket23-paste-mutation-neutral.log`, exit 1). Closed-editor completion mutation rebuilt/reached `MUTATION-ticket23-closed-completion-dropped`, then failed waiting for editability on reopen (`ticket23-closed-mutation-caught.log`, exit 1). Earlier InvalidTransition/crash/incomplete-footer runs are invalid evidence, not target failures. Both mutations restored with exact patches. CI's positive report checks require one XCTest case, so Swift Testing's separate zero-tests footer cannot count as success. The all-App group initially failed at capture toolbar delivery; logging made that test pass, revealing timing sensitivity rather than proving a production fix. Event pumping between test drag events is verified separately; no fixed production delay or relaxed toolbar assertion was introduced.
+
+# Ticket 23 scoped test review — 2026-09-08 capture/rerun/recovery composition
+
+## Subsequent scoped review: pending-validation close/reopen
+
+- 【维度 1：覆盖】One added case, `nativeValidateSurvivesCloseAndReopenWhileResponseIsPending`: real delegate onboarding route; native editor value/caret; mouse Validate; exact one authenticated model-list request; close and return; reopen before HTTP release with original candidate read-only and no duplicate request; response completion restores editable value/model list; a fresh Model restores saved key and pending-model readiness. Main-menu Paste, completion while remaining closed, failure/retry variants, physical focus and visual review remain explicit gaps. Existing fixture model-list JSON retains the previously verified official response shape; no new wire schema invented.
+- 【维度 2：设计】All business components and native controls remain production instances. Suspended HTTP gives a deterministic causal boundary, not a sleep-based race. Native field and popup are public AppKit controls; no private object graph access. Validate geometry is relative to the real field, with its effect proved by the actual request. The case uses direct text insertion, not clipboard input, and its name/header do not claim otherwise. Cleanup releases external pending operations in both successful and throwing paths. External request counts enforce the no-duplicate requirement, not internal call order.
+- 【维度 3：假通过】An early experiment reopened after observing credential storage, before the application completion callback; a closed-editor mutation never printed its marker, proving that experiment did not establish the claimed ordering. It is not red-capability evidence. A later accessibility wait failed even without mutation and was also discarded. The final case's mutation removes submitted candidates only on actual `ProviderCredentialEditor.close()`: rebuilt runtime printed `MUTATION-ticket23-close-drops-submitted-candidate`, then failed exactly at the reopened candidate/read-only wait (line 53, `/private/tmp/ticket23-close-candidate-mutation.log`, exit 1). Mutation restored precisely. A separate global event-loop experiment exited 0 with no completed test summary; never counted as a pass. Final acceptance requires both successful command exit and an explicit Swift Testing completion summary. No silent skip or deprecated accessibility probe remains.
+
+- 【维度 1：覆盖】Enumerated current increment: native selection rejects edits; active image request rejects edits; successful result creates history; credential validation blocks result rerun; terminal validation permits rerun; successful rerun updates the same history identity/text; a second Provider's credential-without-metadata recovery waits for the active model; recovery then blocks freeze/rerun; recovery terminates without stealing the current Provider. Existing freezing case remains complementary. Not covered here: all cancellation/failure permutations, native menu Paste/Validate-button/late-completion cases, real focus/shortcut delivery, signed identity or full bilingual/light-dark rendering. Header and spec retain these boundaries.
+- 【维度 2：设计】Uses production application model/real workflow, editor, sessions, parser, cropper, PNG store and SQLite. Only external credential/HTTP/SCK/system adapters are replaced. Request counts are external network/capture effects whose cardinality is part of the contract, not counts of internal calls. History is read through Model's presented records with value snapshots and independent literals `First result`/`Replacement result`; equality against the preserved snapshot additionally checks IDs/status/metrics. Setup's orphan credential models an external persisted-key/publication-interruption condition, then recovery is entered through the production card binding. No private-state casting or duplicate routing.
+- 【维度 3：假通过】The new case already passed against existing production behavior; no production fix was manufactured. Initial compiler/lookup/coordinate failures do not establish red capability. Deliberately disconnected rerun was rebuilt, reached its unique marker and failed the second-request wait. Deliberately omitted waiter wakeup was rebuilt, reached its marker with a real waiter and failed the recovery-request wait. Both exact mutations restored; full complementary suites then passed. Native rerun is driven at a measured point and validated by an actual second request and replacement text, not just button existence. History replacement waits for the asserted text, not merely a different record. Immediate blocked-effect checks are repeated after credential terminal completion. These tests do not prove OS-generated physical event delivery or an accessibility-enabled property.
+
+Verification: `/private/tmp/ticket23-composition-strict.log`; `/private/tmp/ticket23-composition-nonapp.log` (326); `/private/tmp/ticket23-composition-app.log` (9). All chained gates exited 0. Six Python CLI cases and the 58-row ownership gate passed. Full Ticket 23 closeout is still incomplete.
+
+## 2026-09-08 — Refresh A scoped test review
+
+### 1. Coverage inventory
+
+| Case | Observed contract |
+|---|---|
+| refreshPreservesConfiguredContent | Ready phase, cached list/selection and lock during suspended refresh; duplicate refresh/replacement does not send extra HTTP work |
+| concurrentRefreshKeepsBusyOwner | 32 concurrent public activations converge to one external refresh; busy owner remains until that response is released |
+| refreshSurvivesCardSwitchAndNetworkFailure | Other-card editable/read-only distinction; return during pending work; ready terminal on success/503; credential preserved; no auto retry; explicit retry clears feedback |
+| refreshedModelRemoval | Finish while another card is open; returning sees the new complete list and cleared selection; explicit choice restores readiness |
+| modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState | Production application callback and observer wiring publish busy, 503 and manual retry through the real HTTP decoder |
+| modelRefreshSurfacesRender | 24 production-view renders: zh-Hans/en, light/dark, 920/1200 widths, idle/busy/failed |
+
+Existing coordinator refresh cache/error tests, session locks and all application test partitions were rerun. Physical installed-app Refresh clicking and every OS window/foreground interaction remain outside this increment. Render-file creation alone is not layout acceptance: current PNGs were opened and visually compared; no pixel-perfect or automatic geometry gate is claimed.
+
+### 2. Case design
+
+Session tests retain the real coordinator; only external model-list and storage boundaries are controlled. External request counts check the user-visible no-duplicate/no-auto-retry contract, not internal method order. Application HTTP fixture follows the recorded DeepSeek models-list shape and retains production parsing. Render fixtures represent reachable configured states; corrected the initial inconsistent current-Provider fixture before final review. No real key/clipboard or private-state cast is used.
+
+### 3. False-green audit
+
+The first baseline red reports phase validating instead of ready. The second reports cached model/selection loss and stale validating completion after switching back (10 assertions across success/failure). Both are intended behavioral failures, followed by passing real-coordinator tests. Removed-model and application-observer cases extend regression coverage without claiming another baseline red. Compilation typos and the initial SDK/cache failure are setup failures, not regression evidence. Render PNG byte-count checks only establish render production; visual review is the separate evidence. Tests await the actual snapshot states and all four Swift command partitions exited 0 with nonzero completion counts.
+
+Final evidence: strict build; 331 non-App tests; 11 App tests; each isolated native XCTest reported Executed 1 test, with 0 failures; six Python cases; 58 ownership entries; shell syntax and git diff --check. Logs are listed in provider-refresh-tasklist.md. The final concurrent-activation case passed against the existing admission path; it is additional coverage, not a new reproduced bug or evidence that every scheduling permutation was tested.

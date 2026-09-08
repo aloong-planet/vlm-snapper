@@ -6,6 +6,7 @@ import VLMSnapperUI
 
 @MainActor
 final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
+    private let makeStartupDependencies: () throws -> ApplicationStartupDependencies
     private var primaryCoordinator: PrimaryInstanceCoordinator?
     private var model: VLMSnapperApplicationModel?
     private var menuController: MenuBarPanelController<MenuBarContainerView>?
@@ -16,24 +17,65 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
     private var providerSettingsReturnContext = ProviderSettingsReturnContext()
     private var startupTask: Task<Void, Never>?
 
+    override convenience init() {
+        self.init(makeStartupDependencies: { try .live() })
+    }
+
+    init(makeStartupDependencies: @escaping () throws -> ApplicationStartupDependencies) {
+        self.makeStartupDependencies = makeStartupDependencies
+        super.init()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        startupTask = Task { await start() }
+        startupTask = Task {
+            do {
+                if try await start() == .secondary { NSApp.terminate(nil) }
+            } catch {
+                guard !Task.isCancelled else { return }
+                let message = "VLMSnapper startup failed: \(error)\n"
+                try? FileHandle.standardError.write(contentsOf: Data(message.utf8))
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        stop()
+    }
+
+    func prepareForTermination() async -> Bool {
+        await model?.prepareForTermination() ?? true
+    }
+
+    func stop() {
+        startupTask?.cancel()
+        providerSettingsReturnContext = ProviderSettingsReturnContext()
+        model?.stop()
+        managementController?.close()
+        onboardingController?.close()
+        menuController?.stop()
+        managementController = nil
+        onboardingController = nil
+        onboardingHostingController = nil
+        menuController = nil
+        model = nil
+        primaryCoordinator = nil
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let model else {
+        guard model != nil else {
             startupTask?.cancel()
             return .terminateNow
         }
         guard !isPreparingForTermination else { return .terminateLater }
         isPreparingForTermination = true
         Task {
-            let canTerminate = await model.prepareForTermination()
+            let canTerminate = await prepareForTermination()
             if canTerminate { startupTask?.cancel() }
             isPreparingForTermination = false
             sender.reply(toApplicationShouldTerminate: canTerminate)
@@ -41,37 +83,27 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
-    private func start() async {
-        do {
-            let root = try ApplicationDirectories.applicationSupportRoot()
-            let coordinator = PrimaryInstanceCoordinator(
-                lock: POSIXPrimaryInstanceLock(
-                    lockFileURL: root.appendingPathComponent("primary.lock")
-                ),
-                messaging: DistributedPrimaryInstanceMessaging()
-            )
-            primaryCoordinator = coordinator
-            let role = try await coordinator.start(
-                onActivation: { [weak self] in
-                    await self?.activatePrimarySurface()
-                },
-                initializePrimary: { [weak self] in
-                    try await self?.initializePrimary(root: root)
-                }
-            )
-            if role == .secondary {
-                NSApp.terminate(nil)
+    func start() async throws -> PrimaryInstanceRole {
+        let dependencies = try makeStartupDependencies()
+        let coordinator = PrimaryInstanceCoordinator(
+            lock: POSIXPrimaryInstanceLock(
+                lockFileURL: dependencies.root.appendingPathComponent("primary.lock")
+            ),
+            messaging: dependencies.messaging
+        )
+        primaryCoordinator = coordinator
+        return try await coordinator.start(
+            onActivation: { [weak self] in
+                await self?.activatePrimarySurface()
+            },
+            initializePrimary: { [weak self] in
+                try await self?.initializePrimary(dependencies: dependencies)
             }
-        } catch {
-            guard !Task.isCancelled else { return }
-            let message = "VLMSnapper startup failed: \(error)\n"
-            try? FileHandle.standardError.write(contentsOf: Data(message.utf8))
-            NSApp.terminate(nil)
-        }
+        )
     }
 
-    private func initializePrimary(root: URL) async throws {
-        let languageStore = UserDefaultsApplicationLanguageStore()
+    private func initializePrimary(dependencies: ApplicationStartupDependencies) async throws {
+        let languageStore = UserDefaultsApplicationLanguageStore(defaults: dependencies.defaults)
         let preference = await languageStore.load()
         let effectiveLanguage = ApplicationLanguageResolver().resolve(
             preference: preference,
@@ -79,12 +111,14 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         )
         VLMSnapperLocalization.configure(effectiveLanguage: effectiveLanguage)
         NSApp.mainMenu = VLMSnapperApplicationMenuBuilder.makeMainMenu(
-            applicationName: "VLMSnapper"
+            applicationName: "VLMSnapper", pasteboard: dependencies.pasteboard
         )
 
         let model = try VLMSnapperApplicationModel(
-            applicationSupportRoot: root,
-            languageStore: languageStore
+            applicationSupportRoot: dependencies.root,
+            languageStore: languageStore,
+            defaults: dependencies.defaults,
+            dependencies: try dependencies.makeModelDependencies()
         )
         self.model = model
         model.onSnapshotChange = { [weak self] in

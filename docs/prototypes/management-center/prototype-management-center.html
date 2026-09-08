@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VLMSnapper · 统一管理中心</title>
   <link rel="stylesheet" href="../_shared/vlmsnapper-shell.css">
-  <!-- Demo harness: theme and updater-state controls are not product UI. -->
+  <!-- Demo harness: theme, credential fixtures, updater fixtures and Refresh A
+       states/language are not product UI. Refresh A previews stable layout only;
+       real progress is driven by the model-list request. All keys are dummy data.
+       The new refresh copy covers Chinese/English; the legacy shell is Chinese. -->
   <style>
     .menu-entry { width: 27px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; color: var(--accent-text); background: var(--surface-selected); }
     .capture-mark { width: 14px; height: 12px; border: 1.7px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--menubar); }
@@ -117,6 +120,22 @@
     .model-control { display: flex; align-items: center; gap: 8px; }
     .model-control select { min-width: 0; height: 32px; flex: 1; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--text); background: var(--surface); }
     .model-control select { padding: 0 28px 0 9px; }
+    .model-refresh-button { width: 128px; flex: 0 0 128px; height: 32px; white-space: nowrap; }
+    .model-refresh-button .spinner { width: 13px; height: 13px; flex: 0 0 13px; }
+    /* Share one content-sized help row; messages overlap rather than stack. */
+    .model-refresh-feedback { display: grid; }
+    .model-refresh-feedback > span { grid-area: 1 / 1; }
+    .model-refresh-feedback > [aria-hidden="true"] { visibility: hidden; }
+    .model-refresh-feedback > [data-refresh-error] { color: var(--danger); }
+    body[data-refresh-preview="true"] .provider-body :disabled { opacity: .5; cursor: default; }
+    body[data-refresh-preview="true"] .provider-body button:disabled:hover { background: var(--surface); }
+    body[data-refresh-preview="true"] .provider-body .danger-button:disabled:hover { background: transparent; }
+    body[data-refresh-preview="true"] .provider-lock { display: none; }
+    body[data-refresh-preview="true"] [data-provider-harness],
+    body[data-refresh-preview="true"] [data-provider-demo-state],
+    body:not([data-page="settings"]) [data-refresh-harness] { display: none; }
+    [data-refresh-harness] { display: contents; }
+    .harness { max-width: calc(100vw - 24px); flex-wrap: wrap; justify-content: center; border-radius: 20px; }
     .provider-help { margin: 6px 0 0; color: var(--text-tertiary); font-size: 10px; line-height: 1.4; }
     .provider-error { display: none; margin: 7px 0 0; color: var(--danger); font-size: 10px; line-height: 1.4; }
     .provider-card[data-state="failed"] .provider-error,
@@ -356,6 +375,82 @@
     const updateStatus = document.querySelector('#update-status');
     const providerCards = [...document.querySelectorAll('[data-provider-card]')];
     const openedFromOnboarding = new URLSearchParams(location.search).get('origin') === 'onboarding';
+    const refreshPreview = !openedFromOnboarding;
+    let refreshOwner = null;
+    let refreshTimer;
+    let refreshLanguage = 'zh-Hans';
+    const refreshCopy = {
+      'zh-Hans': { idle: '刷新', loading: '刷新中', retry: '重试刷新', help: '选择模型不会发送测试图片；首次真实操作会验证图片输入能力。', unconfiguredHelp: '模型只能从当前账户返回的列表中选择。', failed: '刷新失败，已保留原模型列表和选择。请检查网络后重试。', locked: '模型列表正在刷新，完成后可提交配置更改。' },
+      en: { idle: 'Refresh', loading: 'Refreshing', retry: 'Try Again', help: 'Choosing a model does not send a test image. The first real operation verifies image input support.', unconfiguredHelp: 'Choose a model from the list returned by your account.', failed: 'Refresh failed. Your model list and selection are unchanged. Check your network and try again.', locked: 'The model list is refreshing. Submit configuration changes after it finishes.' }
+    };
+
+    function renderRefreshControls() {
+      const copy = refreshCopy[refreshLanguage];
+      providerCards.forEach((card) => {
+        const loading = card === refreshOwner;
+        const failed = card.dataset.refreshState === 'failed';
+        const button = card.querySelector('[data-refresh-models]');
+        button.innerHTML = `${loading ? '<span class="spinner" aria-hidden="true"></span>' : ''}<span>${loading ? copy.loading : failed ? copy.retry : copy.idle}</span>`;
+        button.setAttribute('aria-busy', String(loading));
+        const help = card.querySelector('[data-refresh-help]');
+        const error = card.querySelector('[data-refresh-error]');
+        help.textContent = card.dataset.keyValid === 'true' ? copy.help : copy.unconfiguredHelp;
+        help.setAttribute('aria-hidden', String(failed));
+        error.textContent = card.dataset.keyValid === 'true' ? copy.failed : '';
+        error.setAttribute('aria-hidden', String(!failed));
+        card.querySelectorAll('[data-refresh-models], [data-model-select], [data-set-current], [data-remove-provider], [data-validate-key]').forEach((control) => {
+          const invalidKey = card.dataset.keyValid !== 'true';
+          const validation = control.hasAttribute('data-validate-key');
+          control.disabled = Boolean(refreshOwner) || (validation ? !card.querySelector('[data-key-input]').value.trim() : invalidKey);
+          control.title = refreshOwner ? copy.locked : '';
+        });
+        // The active provider cannot change its key mid-request. Other cards can edit drafts.
+        card.querySelectorAll('[data-key-input], [data-clear-key]').forEach((control) => { control.disabled = loading; });
+      });
+    }
+
+    function setRefreshState(card, state) {
+      clearTimeout(refreshTimer);
+      refreshOwner = state === 'loading' ? card : null;
+      providerCards.forEach((candidate) => { candidate.dataset.refreshState = candidate === card ? state : 'idle'; });
+      renderRefreshControls();
+    }
+
+    function prepareRefreshPreview() {
+      if (!refreshPreview) return;
+      body.dataset.refreshPreview = 'true';
+      const harness = document.createElement('span');
+      harness.dataset.refreshHarness = '';
+      harness.innerHTML = '<span class="harness-label" title="真实进度来自模型请求。此处仅演示布局；不连接服务。新刷新文案覆盖中英文，旧外壳未覆盖英语。">演示·Refresh A</span><button data-refresh-state="idle">正常</button><button data-refresh-state="loading">刷新中</button><button data-refresh-state="failed">网络失败</button><button data-refresh-language>English 文案</button>';
+      document.querySelector('.harness').prepend(harness);
+      providerCards.forEach((card) => {
+        const button = card.querySelector('[data-refresh-models]');
+        button.classList.add('model-refresh-button');
+        const feedback = button.closest('.provider-field').querySelector('.provider-help');
+        feedback.classList.add('model-refresh-feedback');
+        feedback.innerHTML = '<span data-refresh-help></span><span data-refresh-error aria-hidden="true"></span>';
+        feedback.setAttribute('role', 'status');
+        feedback.setAttribute('aria-live', 'polite');
+        button.addEventListener('click', () => {
+          if (refreshOwner) return;
+          setRefreshState(card, 'loading');
+          // Demo latency only. A normal request completes silently with the same model list.
+          refreshTimer = window.setTimeout(() => setRefreshState(card, 'idle'), 1800);
+        });
+        card.querySelector('[data-key-input]').addEventListener('input', renderRefreshControls);
+        card.querySelector('[data-clear-key]').addEventListener('click', renderRefreshControls);
+      });
+      harness.querySelectorAll('[data-refresh-state]').forEach((control) => control.addEventListener('click', () => {
+        const card = document.querySelector('.provider-card.is-expanded');
+        setRefreshState(card.dataset.keyValid === 'true' ? card : providerCards[0], control.dataset.refreshState);
+      }));
+      harness.querySelector('[data-refresh-language]').addEventListener('click', (event) => {
+        refreshLanguage = refreshLanguage === 'en' ? 'zh-Hans' : 'en';
+        event.target.textContent = refreshLanguage === 'en' ? '中文文案' : 'English 文案';
+        renderRefreshControls();
+      });
+      renderRefreshControls();
+    }
 
     function setPage(page) {
       body.dataset.page = page;
@@ -668,6 +763,7 @@
 
     providerCards.forEach(syncProviderCard);
     prepareOnboardingEntry();
+    prepareRefreshPreview();
     setFilter('all');
     const initialPage = location.hash === '#settings' ? 'settings' : location.hash === '#general' ? 'general' : 'history';
     setPage(initialPage);

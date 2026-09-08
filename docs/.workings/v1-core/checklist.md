@@ -90,8 +90,8 @@ The closeout gate must parse `US-01` through `US-12` and `FM-01` through `FM-46`
 | 19 | 设置中心内联 Provider 管理、首次引导自动返回、旧独立表面退役与确认响应式几何 | 已完成（PR #23 已合并） |
 | 20 | 原生 API Key 编辑、精确粘贴、光标/选区保持与提交身份隔离 | 已完成（PR #24 已合并） |
 | 21 | Keychain 真相对账、凭据替换、失败恢复与启动修复 | 已完成（PR #25 已合并） |
-| 22 | Provider 凭据作业与截图、选区、模型请求及重跑互斥 | ready-for-review；核销见 22-provider-workflow-exclusivity-tasklist.md；未合并 |
-| 23 | 内联 Provider 配置全 feature 验收与文档回归收口 | blocked by 19–22 |
+| 22 | Provider 凭据作业与截图、选区、模型请求及重跑互斥 | 已完成（PR #26 已合并，af4ffcd） |
+| 23 | 内联 Provider 配置全 feature 验收与文档回归收口 | 进行中；全量验收尚未完成 |
 
 ## Ticket 01 evidence
 

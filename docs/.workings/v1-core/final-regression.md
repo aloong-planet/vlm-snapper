@@ -1248,3 +1248,35 @@ Scope derives from this ticket's diff, not the entire feature. Project AGENTS de
 | Test mutation and native regression | Only stricter canValidate mutation was applied, observed to fail, then exactly restored and rebuilt. Unsaved native fronting fixed; physical window-focus evidence remains explicitly missing. |
 
 All changed conclusions were rechecked against the relation endpoints after correction. Remaining physical-input/installed-app acceptance is named, not reported green. Final build/test exit evidence is recorded in the tasklist before commit.
+
+## 2026-09-08 — Refresh A follow-up only
+
+### Phase 1 — changed statements
+
+| Statement surface | Counterpart / conclusion |
+|---|---|
+| Spec US7 and FM43 | Session retains configuration during refresh; view keeps controls and uses fixed progress; network error shares the model-help slot. Validation's original lock banner remains, refresh's does not. |
+| Feature catalog | Added user-visible refresh retention, disabled-in-place behavior, inline retry and missing-selection rule; no implementation details added. |
+| Confirmed prototype | Native UI follows compact shared-help/error space and fixed loading/retry label. Native 24-state render set generated, representative states inspected; not an installation claim. |
+| Both localization dictionaries | Refreshing/retry/failure copy matches the confirmed bilingual prototype; no new locale or hardcoded UI text. |
+
+### Phase 2 — relation endpoints
+
+| Relation | Conclusion |
+|---|---|
+| Spec/features ↔ indexes | Existing v1-core file identity and synopsis unchanged; no index entry added or renamed. |
+| Refresh retention ↔ ADR-0012 | Refresh preserves existing credential; submitting a replacement still invalidates the old one. No new persistence decision. |
+| Lock presentation ↔ CONTEXT/workflow | Only the refresh banner is omitted; coordinator leases and disabled controls continue enforcing exclusivity. |
+| Rules ↔ tests | Core reds cover phase/cache failure, application callback test covers production propagation, renders cover visible layout. Physical Refresh acceptance remains manual. |
+| Scope-out icon marks ↔ ticket | DS/OA/G vs native SF Symbol discrepancy remains explicitly assigned to Ticket 23 visual consistency; unchanged here. |
+
+### Phase 3 — events
+
+| Event | Conclusion |
+|---|---|
+| Transient refresh fields added | No persisted value/schema or Provider/language/architecture membership changed. |
+| Pending notes | Live-account and release gates remain open; fixture success cannot fulfill them. Full Ticket 23 composition/visual closeout is not claimed. |
+| New UI convention | The approved fixed-progress/shared-feedback contract is in spec and features, not only prototype/workings. |
+| Local implementation, no distribution | No App installation, release artifact, push, merge or ticket closure performed. |
+
+Scoped conclusions were rechecked after copy/fixture corrections. According to project capability declaration, i18n is enabled and both dictionaries are included; RTL mirroring is not enabled, so that check is skipped. This is not the feature-wide Ticket 23 final regression.

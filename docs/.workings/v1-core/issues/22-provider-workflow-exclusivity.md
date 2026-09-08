@@ -4,7 +4,7 @@
 
 **Blocked by:** 21 — Reconcile Provider credentials from Keychain truth.
 
-**Status:** ready-for-review
+**Status:** completed
 
 - [x] Capture, model request, Provider validation, and Provider recovery acquire one symmetric application activity gate; only the owning token can transition or release it — **test**: `ProviderConfigurationCoordinatorTests.providerValidationAndCaptureAreMutuallyExclusive` and `ProviderConfigurationCoordinatorTests.exclusiveActivityReleaseRequiresTheOwnerToken`.
 - [x] Recovery waits for an active capture or model request to finish and becomes exclusive before reading/listing/publishing Provider state; no polling path can bypass the gate — **test**: `ProviderConfigurationCoordinatorTests.reconciliationWaitsForCaptureToFinish` plus a nameable model-request counterpart.
@@ -15,6 +15,8 @@
 - [x] Strict build, focused gate/application-routing tests, full tests, render contracts, and `git diff --check` pass — **gate**: the repository's complete local verification commands fail non-zero on any regression.
 
 ## Comments
+
+- 2026-09-07 merge receipt: PR #26 was squash-merged as `af4ffcd` after its test-and-package check passed. The remote branch was deleted. Ticket 23 starts from that main commit; installed-app acceptance remains in Ticket 23, not retroactively claimed here.
 
 - 2026-09-07 delivery: user confirmed the production-used workflow seam. All seven criteria now have named evidence in the tasklist; strict build and full 326 tests / 72 suites passed (16.513 seconds), script syntax and diff check exit 0. Separate code/test reviews and three-stage scoped document regression are recorded. New capture/rerun effect tests are not falsely called red-first; stricter terminal-button mutation failed both presentation and native click assertions, then passed after exact restoration. Physical shortcut and installed-app foregrounding remain explicit combined-acceptance gaps in Ticket 23. Ready for PR review, not merged, installed or released.
 

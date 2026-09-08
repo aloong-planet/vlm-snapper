@@ -600,6 +600,7 @@ public struct ManagementCenterView: View {
             let presentation = providerCredentialPresentation(provider)
             VStack(alignment: .leading, spacing: 18) {
                 if providerSettings.snapshot.blocksConfigurationChanges,
+                   providerSettings.snapshot.refreshingProvider == nil,
                    providerSettings.snapshot.phase != .recovering,
                    providerSettings.snapshot.failure != .secureStorage {
                     Label(
@@ -773,7 +774,10 @@ public struct ManagementCenterView: View {
     private func providerModelField(
         _ providerSettings: ProviderSettingsConfiguration
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let isRefreshing = providerSettings.snapshot.refreshingProvider
+            == providerSettings.snapshot.selectedProvider
+        let refreshFailed = providerSettings.snapshot.modelRefreshFailure != nil
+        return VStack(alignment: .leading, spacing: 8) {
             Text(VLMSnapperStrings.currentModel).font(.headline)
             HStack(spacing: 10) {
                 Picker(
@@ -788,13 +792,34 @@ public struct ManagementCenterView: View {
                 .labelsHidden()
                 .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
-                Button(VLMSnapperStrings.refresh, action: providerSettings.onRefresh)
+                Button(action: providerSettings.onRefresh) {
+                    HStack(spacing: 6) {
+                        if isRefreshing {
+                            ProgressView().controlSize(.small)
+                        }
+                        Text(isRefreshing
+                             ? VLMSnapperStrings.refreshingModels
+                             : (refreshFailed ? VLMSnapperStrings.retryModelRefresh : VLMSnapperStrings.refresh))
+                    }
+                    .frame(width: 104, height: 24)
+                }
                     .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
             }
-            Text(VLMSnapperStrings.visionValidationHint)
-                .font(.caption)
-                .foregroundStyle(VLMSnapperTheme.secondaryText)
+            // Both messages share a content-sized row; no separate blank error slot.
+            ZStack(alignment: .topLeading) {
+                Text(VLMSnapperStrings.visionValidationHint)
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+                    .opacity(refreshFailed ? 0 : 1)
+                    .accessibilityHidden(refreshFailed)
+                Text(VLMSnapperStrings.modelRefreshFailureHint)
+                    .foregroundStyle(VLMSnapperTheme.destructive)
+                    .opacity(refreshFailed ? 1 : 0)
+                    .accessibilityHidden(!refreshFailed)
+            }
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

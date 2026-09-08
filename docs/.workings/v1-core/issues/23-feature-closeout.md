@@ -4,7 +4,9 @@
 
 **Blocked by:** 19 — Manage Providers inline in Settings Center; 20 — Make Provider credential editing deterministic; 21 — Reconcile Provider credentials from Keychain truth; 22 — Make Provider credential work exclusive with capture and model requests.
 
-**Status:** ready-for-agent
+**Status:** in-progress
+
+- 2026-09-08 Refresh follow-up: approved compact prototype implemented in the native Provider card. Refresh progress is separate from credential phase; controls remain visible and disabled, ordinary network failure retains cache/selection and replaces model-help text, returning to a busy card preserves state. Core baseline reds reproduced phase/cache loss. Application callback/HTTP and native render coverage added; scoped review and evidence live in `../provider-refresh-tasklist.md`. Installed-app Refresh acceptance and full feature closeout remain open. No push, merge or installation performed.
 
 - [ ] `/features-catalog` 的全 feature 收口通过 — **evidence**: record the three consistency passes for spec/implementation, implementation/features, and decision/prototype/terminology documents, including every discrepancy and its resolution.
 - [ ] The feature checklist maps all twelve v1 User Stories and all forty-six failure modes to an owning ticket and named acceptance criterion, with no uncovered row — **gate**: a reproducible checklist parser verifies the expected 58 unique requirement rows and rejects empty owner or criterion cells.
@@ -15,6 +17,22 @@
 - [ ] Strict warnings-as-errors build, full test suite, localization parity, prototype syntax, render contracts, source/literal checks, and `git diff --check` all pass together after the four behavior tickets — **gate**: the repository's full closeout command set fails non-zero on any member failure.
 
 ## Comments
+
+- 2026-09-08: User confirmed installed build 27 Refresh acceptance and explicitly requested push and merge of the current work. Publish the accepted application-test wiring and Refresh follow-up incrementally; keep this ticket in-progress. Full-feature visual consistency (including the unresolved Provider icon choice), remaining failure/cancellation coverage and document reconciliation are not waived. No release or tag requested.
+
+- 2026-09-08: User identified excessive whitespace in Refresh A and approved reusing the existing model-help row for inline errors. Prototype now shares a content-sized row between help/error text instead of adding a separate fixed-height empty block; Refresh button geometry is unchanged. Native implementation is still untouched. Static checks do not establish visual acceptance; the revised render still needs user confirmation because browser URL policy prevented automated preview.
+
+- 2026-09-08: User confirmed the six installed-app manual checks (native paste/validation, replacement key/model selection, closed-window response and reconstruction, capture admission during validation, capture/rerun history identity, result backgrounding and Quit). This is scoped manual acceptance, not completion of every closeout criterion. A new Refresh layout defect remains: operation feedback inserts/removes controls. User selected presentation A: preserve controls and geometry, show progress inside a fixed-size Refresh button, disable conflicting submissions without hiding them, keep credential status separate, preserve cached models/selection on ordinary network failure, and reserve inline failure feedback space. Prototype updated only; native implementation and visual confirmation remain pending. Browser preview was denied by the browser URL policy; static JavaScript syntax and diff checks passed, but these are not render evidence. Existing prototype letter-icon discrepancy remains assigned to the visual consistency criterion above.
+
+- 2026-09-08: Added independent-process native main-menu Paste/Validate and successful-response-while-Settings-remains-closed cases. Both have reached target mutations and explicit restored completion reports. Same-process native runner aborts and incomplete reports are rejected. Full regression additionally exposed a capture/toolbar timing-sensitive failure; stability remains open. See the new tasklist entry; no full-ticket gate or physical-input acceptance is claimed.
+
+- 2026-09-08: Added actual Validate-button and close/reopen-before-response coverage, with preserved candidate/read-only/no duplicate request and durable reconstruction. Candidate-loss mutation reached and failed its intended wait; restored. Strict build plus 336 Swift tests and six checklist tests passed. Main-menu Paste and completion while remaining closed are still Pending: rejected key-window/terminal-observation probes are recorded separately, not counted as acceptance. Full ticket status remains in-progress.
+
+- 2026-09-08: Added same-Model native selection/toolbar/image/rerun and recovery-wait composition coverage, including nonempty history preservation and successful replacement retaining the history ID. Disconnected-rerun and missing-recovery-wakeup mutations both failed at their intended waits, then were restored. Strict build, 335 Swift tests and six checklist tests passed. Full acceptance remains open for remaining native failure/cancellation branches, physical/bilingual visual checks and feature-wide reconciliation; see the dated tasklist evidence.
+
+- 2026-09-07: Added real-delegate startup/cleanup and a combined native onboarding → secure input/Return → validate → close/reopen → model menu → return → reconstruction case. Added application-wiring validation/freezing exclusion in both directions. These are partial acceptance: model/rerun/recovery-wait and additional native failure branches remain open; the full acceptance checkboxes above are intentionally unchanged. Scoped evidence and review records are in the Ticket 23 tasklist.
+
+- 2026-09-07: Started on `codex/ticket-23-provider-feature-closeout` from merged PR #26 (`af4ffcd`); `git log origin/main..HEAD` was empty. Plan and acceptance boundaries are recorded in `../23-feature-closeout-tasklist.md`. No full-feature acceptance is claimed by starting this ticket.
 
 - 2026-09-05: This closeout ticket explicitly prevents the retrospectively ticketed drafts from being treated as complete merely because prior tasklists were checked.
 

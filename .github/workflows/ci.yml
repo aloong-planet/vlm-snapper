@@ -17,13 +17,31 @@ jobs:
       - uses: actions/checkout@v6
       - name: Report toolchain
         run: /usr/bin/xcrun swift --version
+      - name: Feature checklist ownership gate
+        run: |
+          python3 -m unittest discover -s Scripts/tests -p 'test_feature_checklist.py' -v
+          python3 Scripts/verify-feature-checklist.py docs/.workings/v1-core/checklist.md
       - name: Strict build
         run: >-
           /usr/bin/xcrun swift build
           -Xswiftc -warnings-as-errors
           -Xcc -Wall -Xcc -Wextra -Xcc -Werror
       - name: Full test suite
-        run: /usr/bin/xcrun swift test
+        run: |
+          /usr/bin/xcrun swift test --skip ProviderApplicationTests
+          /usr/bin/xcrun swift test --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu
+      - name: Native Provider main-menu Paste (isolated process)
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          /usr/bin/xcrun swift test --filter ProviderApplicationTestsNativeMenu.testNativeMainMenuPasteValidatesThroughRealKeyWindow | tee "$RUNNER_TEMP/provider-paste.log"
+          grep -F 'Executed 1 test, with 0 failures' "$RUNNER_TEMP/provider-paste.log"
+      - name: Native Provider closed-window completion (isolated process)
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          /usr/bin/xcrun swift test --filter ProviderApplicationTestsNativeMenu.testValidationCompletesWhileManagementRemainsClosed | tee "$RUNNER_TEMP/provider-closed.log"
+          grep -F 'Executed 1 test, with 0 failures' "$RUNNER_TEMP/provider-closed.log"
       - name: Release script syntax
         run: bash -n Scripts/*.sh
       - name: Three-architecture development packages

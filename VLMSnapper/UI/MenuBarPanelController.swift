@@ -230,6 +230,11 @@ public final class MenuBarPanelController<Content: View>: NSObject {
         hide()
     }
 
+    public func stop() {
+        hide()
+        NSStatusBar.system.removeStatusItem(statusItem)
+    }
+
     @objc private func handleStatusItemAction() {
         switch MenuBarStatusItemInteractionRouter.route(eventType: NSApp.currentEvent?.type) {
         case .primaryPanel:

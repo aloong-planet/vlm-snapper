@@ -9,6 +9,63 @@ import VLMSnapperCore
 // PNG generation is not interaction acceptance. Inspect the renders and separately
 // exercise the confirmed prototype and installed application controls.
 struct Ticket13RenderingTests {
+    @Test("configured model refresh renders stable idle busy and failure surfaces")
+    func modelRefreshSurfacesRender() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vlmsnapper-provider-refresh-renders", isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        for language in Ticket13Language.allCases {
+            VLMSnapperLocalization.configure(effectiveLanguage: language.effectiveLanguage)
+            for appearance in Ticket13Appearance.allCases {
+                for width in [920, 1200] {
+                    for state in ["idle", "busy", "failed"] {
+                        let editor = ProviderCredentialEditor()
+                        let load = editor.beginLoading(for: .deepSeek)
+                        editor.completeLoad(load, value: "fixture-key")
+                        let configuration = ProviderConfiguration(
+                            models: [ProviderModelState(id: "deepseek-v4-flash-vision-exp")],
+                            fetchedAt: Date(timeIntervalSince1970: 0),
+                            selectedModelID: "deepseek-v4-flash-vision-exp"
+                        )
+                        try render(
+                            ManagementCenterView(
+                                destination: .providerSettings, records: [],
+                                providerSettings: ProviderSettingsConfiguration(
+                                    snapshot: ProviderSetupSnapshot(
+                                        selectedProvider: .deepSeek,
+                                        availableModelIDs: ["deepseek-v4-flash-vision-exp"],
+                                        selectedModelID: "deepseek-v4-flash-vision-exp", phase: .ready,
+                                        failure: nil, isReadOnly: state == "busy",
+                                        activity: state == "busy" ? .credential(.deepSeek) : nil,
+                                        refreshingProvider: state == "busy" ? .deepSeek : nil,
+                                        modelRefreshFailure: state == "failed" ? .unavailable : nil
+                                    ),
+                                    configurations: [
+                                        .deepSeek: configuration,
+                                        .openAI: ProviderConfiguration(
+                                            models: [ProviderModelState(id: "gpt-4o")],
+                                            fetchedAt: Date(timeIntervalSince1970: 0), selectedModelID: "gpt-4o"
+                                        )
+                                    ], currentProvider: .openAI,
+                                    credentialEditor: editor,
+                                    pendingModelID: .constant("deepseek-v4-flash-vision-exp"),
+                                    onSelectProvider: { _ in }, onValidate: { _ in }, onRefresh: {},
+                                    onSelectModel: { _ in }
+                                )
+                            ),
+                            size: CGSize(width: width, height: 700), appearance: appearance,
+                            outputURL: output.appendingPathComponent(
+                                "\(language.rawValue)-\(appearance.rawValue)-\(width)-\(state).png"
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     @Test("a cleared candidate after a storage write failure renders the empty validation form")
     func clearedFailedCandidateRenders() throws {
         LocalizationTestCoordinator.acquire()

@@ -52,6 +52,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     var onRetireCaptureSources: (@MainActor () -> Void)?
 
     private let defaults: UserDefaults
+    private let dependencies: ApplicationModelDependencies
     private let shortcutStore: UserDefaultsGlobalShortcutStore
     private let languageStore: UserDefaultsApplicationLanguageStore
     private let providerCoordinator: ProviderConfigurationCoordinator
@@ -96,25 +97,40 @@ final class VLMSnapperApplicationModel: ObservableObject {
             await self?.discardUnsavedWorkspace()
         }
     )
-    private lazy var updateDriver = SparkleUpdateDriver { [weak self] event in
+    private lazy var updateDriver = dependencies.makeUpdateDriver { [weak self] event in
         await self?.receiveUpdateEvent(event)
     }
     private lazy var updateCoordinator = UpdateLifecycleCoordinator(driver: updateDriver)
 
-    init(
+    convenience init(
         applicationSupportRoot: URL,
         languageStore: UserDefaultsApplicationLanguageStore,
         defaults: UserDefaults = .standard
     ) throws {
+        try self.init(
+            applicationSupportRoot: applicationSupportRoot,
+            languageStore: languageStore,
+            defaults: defaults,
+            dependencies: .live()
+        )
+    }
+
+    init(
+        applicationSupportRoot: URL,
+        languageStore: UserDefaultsApplicationLanguageStore,
+        defaults: UserDefaults,
+        dependencies: ApplicationModelDependencies
+    ) throws {
         self.defaults = defaults
+        self.dependencies = dependencies
         shortcutStore = UserDefaultsGlobalShortcutStore(defaults: defaults)
         self.languageStore = languageStore
-        let credentialStore = AppleKeychainProviderCredentialStore()
+        let credentialStore = dependencies.credentialStore
         let metadataStore = FileProviderMetadataStore(
             fileURL: applicationSupportRoot.appendingPathComponent("providers.json")
         )
         providerCoordinator = ProviderConfigurationCoordinator(
-            modelLister: OfficialProviderModelLister(),
+            modelLister: OfficialProviderModelLister(httpLoader: dependencies.modelHTTP),
             credentialStore: credentialStore,
             metadataStore: metadataStore
         )
@@ -123,11 +139,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
             boundary: providerCoordinator
         )
         permissionCoordinator = ScreenCapturePermissionCoordinator(
-            authorizer: CoreGraphicsScreenCapturePermissionChecker(),
-            requestHistory: UserDefaultsPermissionRequestHistoryStore()
+            authorizer: dependencies.permissionAuthorizer,
+            requestHistory: dependencies.permissionHistory
         )
         loginCoordinator = LoginItemCoordinator(
-            service: SMAppServiceLoginItemAdapter(),
+            service: dependencies.loginService,
             preference: UserDefaultsLoginItemPreferenceStore(defaults: defaults)
         )
         historyStore = try SQLiteHistoryStore(
@@ -140,10 +156,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
             )
         )
         screenshotStore = FileSystemScreenshotStore(
-            rootDirectory: try ApplicationDirectories.screenshotRoot()
+            rootDirectory: dependencies.screenshotRoot
         )
         providerStreamer = ProviderPreparedOperationStreamer(
-            credentialStore: credentialStore
+            credentialStore: credentialStore,
+            executor: ProviderAdapterExecutor(transport: dependencies.operationHTTP)
         )
         let deletionCoordinator = HistoryDeletionCoordinator(
             historyStore: historyStore,
@@ -156,13 +173,13 @@ final class VLMSnapperApplicationModel: ObservableObject {
         )
         historyCleanupCoordinator = cleanupCoordinator
         retentionSettingsSession = RetentionSettingsSession(
-            preferences: UserDefaultsRetentionPreferenceStore(),
+            preferences: dependencies.retentionPreferences,
             cleanup: cleanupCoordinator
         )
         cleanupScheduler = AutomaticHistoryCleanupScheduler(cleanup: cleanupCoordinator)
         captureCoordinator = CaptureFreezeCoordinator(
-            permissionChecker: CoreGraphicsScreenCapturePermissionChecker(),
-            capturer: ScreenCaptureKitFrozenDisplayCapturer(),
+            permissionChecker: dependencies.permissionChecker,
+            capturer: dependencies.frozenDisplayCapturer,
             cropper: SRGBPNGCropper()
         )
         retention = HistoryRetentionPeriod(
@@ -235,7 +252,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             automaticallyChecks: settings.automaticallyChecksForUpdates
         )
         let shortcut = GlobalShortcutCoordinator(
-            backend: try CarbonGlobalShortcutBackend()
+            backend: try dependencies.makeShortcutBackend()
         ) { [weak self] in
             self?.capture(from: .shortcut)
         }
@@ -622,6 +639,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
         providerObservationTask?.cancel()
         activityObservationTask?.cancel()
         return true
+    }
+
+    /// Final resource release after termination has been committed, not during
+    /// preparation (which is also used before an update installation attempt).
+    func stop() {
+        cleanupTask?.cancel()
+        cleanupTask = nil
+        shortcutCoordinator?.unregister()
     }
 
     private func exportDiagnostics() async {
