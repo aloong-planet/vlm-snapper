@@ -2,9 +2,29 @@ import AppKit
 import SwiftUI
 
 @MainActor
+private final class ProviderSecureTextField: NSSecureTextField {
+    var onAccessibilityEdit: ((NSTextField, String) -> Void)?
+
+    override func setAccessibilityValue(_ value: Any?) {
+        guard let value = value as? String else { return }
+        onAccessibilityEdit?(self, value)
+    }
+}
+
+@MainActor
+private final class ProviderPlainTextField: NSTextField {
+    var onAccessibilityEdit: ((NSTextField, String) -> Void)?
+
+    override func setAccessibilityValue(_ value: Any?) {
+        guard let value = value as? String else { return }
+        onAccessibilityEdit?(self, value)
+    }
+}
+
+@MainActor
 final class ProviderAPIKeyInputView: NSView, NSTextFieldDelegate {
-    private let secureField = NSSecureTextField()
-    private let plainField = NSTextField()
+    private let secureField = ProviderSecureTextField()
+    private let plainField = ProviderPlainTextField()
     var onValueChange: (String) -> Void = { _ in }
     var onSubmit: () -> Void = {}
     private(set) var isRevealed = false
@@ -33,6 +53,12 @@ final class ProviderAPIKeyInputView: NSView, NSTextFieldDelegate {
             ])
         }
         plainField.isHidden = true
+        secureField.onAccessibilityEdit = { [weak self] field, value in
+            self?.applyAccessibilityEdit(value, to: field)
+        }
+        plainField.onAccessibilityEdit = { [weak self] field, value in
+            self?.applyAccessibilityEdit(value, to: field)
+        }
     }
 
     @available(*, unavailable)
@@ -73,6 +99,14 @@ final class ProviderAPIKeyInputView: NSView, NSTextFieldDelegate {
     func controlTextDidChange(_ notification: Notification) {
         guard notification.object as? NSTextField === activeField else { return }
         onValueChange(activeField.stringValue)
+    }
+
+    private func applyAccessibilityEdit(_ value: String, to field: NSTextField) {
+        guard field === activeField, isEditable, !field.isHiddenOrHasHiddenAncestor else { return }
+        // AX value writes do not deliver the text-editing delegate notification.
+        // Keep this standard input entry point connected to the same binding.
+        field.stringValue = value
+        onValueChange(field.stringValue)
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {

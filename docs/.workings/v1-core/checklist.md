@@ -1,4 +1,328 @@
-# VLMSnapper v1 实现核销清单
+# VLMSnapper v1 — 覆盖与验收清单
+
+Spec：[v1-core](../../specs/v1-core.md)
+来源 commit：`0febbb48fcd9acccdefc67dc9015ebf92605511c`；本轮基线包含恢复自原 #23 工作区的未提交修改，本轮文档也尚未提交。
+核对范围：未完成历史扩展筛选、显示器变化补验收及所触及回归/共享约束的增量盘点；**不是全 v1 收口**。#23 仍须逐节完成其全范围核销。
+需求权威为现行 spec/ADR；本文件是工作索引。下方旧 58 行表仅保留迁移与历史证据，不再作为本轮覆盖门禁。
+
+## 来源 → spec
+
+### 2026-09-16 接续核销（本段优先于下方当时状态）
+
+版本参考：`0febbb48fcd9acccdefc67dc9015ebf92605511c` 加当前未提交实现/spec；不使用内容指纹。用户已确认提示词版本仅是内部实现标记，本票不增加历史字段或数据库迁移。之前关于该项“等待确认”的记录到期。用户已确认取消双击额外功能、历史在右侧展示，以及普通窗口铺满可用屏幕；本轮同步仍滞后的实现和文本。
+
+范围变更：REQ-002/AC-02 改为双击无额外动作；AC-03 不再承兑已取消的“从历史打开独立结果”入口；AC-05（关闭该独立历史结果返回列表）撤销且编号保留不复用，不计作验收通过；AC-06 只保留新截图结果关闭/应用退出不自动打开列表；AC-10 移除无用户来源的提示词持久化子句；US-001/AC-17 改为首次普通窗口铺满 `visibleFrame`、之后保留用户尺寸。原型已包含已确认方向，不另起视觉方案。
+
+以下覆盖仍由 [#25](issues/25-history-filter-workflow.md) 承兑、#23 收口查证。旧映射/旧验证历史保留原样，只能在与当前 spec 一致时复用。
+
+| 覆盖单位 | 本轮实际查证与证据 | 结论/边界 |
+|---|---|---|
+| REQ-002/AC-01、AC-02 | HistoryWindowNativeTests：单击选择；双击回调未打开窗口且仍选中目标；旧双击行为先红后绿 | 程序化原生通过，不等同物理鼠标验收 |
+| US-001/AC-17 | 同测试：首开 frame 等于屏幕 visibleFrame、无 native fullscreen 标志、调整尺寸后隐藏重开保持 | 程序化原生通过 |
+| REQ-002/AC-03 | historyRetryUpdatesOriginalRecord 提取/翻译两参数，从真实 SQLite 记录与新执行上下文进入；原 ID 更新、条数不增；当前结果重跑既有集成回归 | 自动化通过；安装版 Retry 点击待用户确认 |
+| REQ-002/AC-04、AC-07 | Core 缺图/换图预检和 App 换图不发请求、现有图标/禁用回归 | 自动化通过；安装版提示及禁用表现待确认 |
+| REQ-002/AC-08 | restoredTranslationKeepsLanguageAndMetadata + App 两参数：当前 Provider/模型与原语言 | 通过 |
+| REQ-002/AC-09 | historyRetrySurvivesWindowChangesAndRejectsLateDeletion：隐藏、重开、实际窗口关闭后完成不抢前台；未保存保留和退出确认既有测试 | 自动化通过；不声称真实强杀/断电验收 |
+| REQ-002/AC-10 | Core 同 ID/原图/时间/Pin/usage/其他行；App 真实写回、连续重试及 PNG 数量断言 | 通过；无新增 schema 要求 |
+| REQ-002/AC-11 | failedOrCanceledRetryPreservesEntireArchivedRecord 四种旧终态×失败/取消；App 截断保留整条记录；失败详情 OCR 断言旧正文 | 通过；真进程断电未实测，靠持久化提交边界测试 |
+| REQ-002/AC-12 | App SQLite trigger 真实阻止 UPDATE→原行未变→移除故障后 Retry Save，不新增 HTTP | 通过 |
+| REQ-002/AC-13 | Core 请求前删除不联网；提交前删除失败且 retry save 不重建行 | 通过 |
+| REQ-002/AC-14 | App 受控 HTTP 期间重复点击、Provider 活动作业和未保存结果保护 | 通过 |
+| REQ-002/AC-15 | lifecycle 测试选中另一条再完成，目标归属不变、不打开结果窗口；失败正文真实渲染 OCR | 通过 |
+| REQ-002/AC-16 | 请求中迟到删除确认/保留期缩短确认不删目标；保存失败期间保护；终结后删除、保留期清理恢复 | 通过；迟到保留期确认先复现删至 0 行再修复 |
+| REQ-002/AC-17 | App 磁盘重建模型、关闭重开，Core 重开 SQLite 读同 ID 新结果；搜索/Provider 查询与原有选择协调回归 | 通过 |
+| US-001/AC-02、05、09、10、12；CON-001；REQ-003/AC-01 | 搜索/Provider/Pin/组合筛选/选择协调既有测试及全量回归；显式 HTTP 计数；本地化门禁 | 本轮触及回归通过；不扩大为全 feature 核销 |
+
+完整门禁 `/private/tmp/history-retry-full-closeout.log` 退出 0：strict-build、脚本检查、checklist、shell、340 项非 App Swift Testing、17 项 App Swift Testing、XCTest、两项独立原生测试及 AX 全部通过。明细目录 `/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/vlmsnapper-full-regression.d2Y48V/`。新红绿归因与程序化/物理验收边界见本轮 review-code、review-tests 和 final-regression。#25 / #23 不因本轮自动化通过而自动关闭；显示器硬件及真实 Provider 发布门槛也未取消。
+
+### 2026-09-16 历史重试实现验证进展（未核销）
+
+参考 `0febbb48fcd9acccdefc67dc9015ebf92605511c` 加当前未提交内容。已按既有 #25 接入原记录身份，具体覆盖、红绿日志、门禁结果及未验证路径追加在 [实施进展](history-retry-identity-tasklist.md#2026-09-16-实施进展与停止点)。341 项非 App、16 项 App、8+2 项 XCTest 通过；AX 首次启动失败后 15 场景重跑通过，不是一次整轮全绿。最终 17 项定向回归通过。
+
+REQ-002/AC-10 的提示词版本持久化未实现，是否本轮引入迁移待用户确认；没有删减 AC 或伪记通过。REQ-002/AC-03 的历史结果窗口原生点击及 AC-09/15/16 的组合证据尚需补齐。#25、#23 均不因此标为完成，正式双 review、最终文档回归和安装仍待后续。
+
+### 2026-09-16 实施接续：spec → tickets → 验证
+
+用户已授权继续。既有 #25 承兑历史重试身份修正，#23 保持后续收口职责，不新增票、不改变依赖编号。逐覆盖单位和共享回归责任见 [本轮映射](history-retry-identity-tasklist.md#spec--tickets--验证)，票内已摘录当前 spec 原文。当前均未验证；下方 spec 阶段“下一阶段分配”记录已由本条承接。仍以 `0febbb48fcd9acccdefc67dc9015ebf92605511c` 加未提交内容为版本参考。
+
+### 2026-09-16 历史重试身份修正：来源盘点
+
+本轮仅先发布修正后的 spec；不把下方旧实现验收视为新语义的通过证据。参考 commit 为 `0febbb48fcd9acccdefc67dc9015ebf92605511c`，包含本轮开始前已有的未提交修改；此次文档修改也未提交。
+
+| 来源锚点及支持原文 | 来源处置 | 拟核对范围 | 结论 |
+|---|---|---|---|
+| 用户故障反馈：“预期是直接更新当前记录的文本或翻译，实际是又创建了一条新的记录” | 本轮有效 | v1-core::REQ-002/AC-03、v1-core::REQ-002/AC-08 | 历史重试必须保留原记录身份；不能把当前实现当作需求。 |
+| 上轮修复建议“显式绑定持久化 operationID”“只有结果完整成功时原子更新同一行”“保留 ID、原图、创建时间和 Pin”；用户本轮“按建议修复，走完成的流程，先更新specs” | 本轮有效 | 重试入口统一、成功提交、不新增记录和图片副本 | 包括历史详情及重新打开历史后的重试；新截图首次执行不受该身份复用规则替代。 |
+| 同一已批准建议：“失败、取消、超时保留此前持久化结果”“重试保存只 UPDATE，不再发网络请求”“原目标不存在时明确报错，禁止自动降级为 INSERT” | 本轮有效 | 请求失败、保存失败、目标失效及生命周期 | 保留已有失败/取消/中断记录也属于原记录保护，不只保护成功记录。 |
+| 同一已批准建议：“成功后重新读库；切换记录、关闭重开、App 重启均显示已更新内容”及必须回归项 | 本轮有效 | 持久化读回、入口接线、互斥与其他记录保护 | 不接受只更新右侧暂存显示；既有原图、Provider 互斥和本地查询边界继续适用。 |
+| 旧 spec、CONTEXT 与测试“历史操作重跑创建新记录，不改写原历史” | 已被本轮决定取代 | v1-core::REQ-002/AC-03、v1-core::REQ-002/AC-08–09 及其旧验收 | 旧新增条数测试不能抵扣本轮验收；历史证据留存但需标明适用性。 |
+| 旧同一 runner 的替换测试、安装包比对及本轮两参数失败复现 | 背景诊断证据 | [诊断记录](history-retry-identity-diagnosis.md) | 证明入口身份缺失及测试预期错误，不证明修复完成。 |
+| 已批准建议“不自动清理历史上已生成的重复记录” | 明确不做 | Out of Scope | 不按相同截图去重、不删除用户既有历史；此轮不安排清理。 |
+
+原型门：本轮仅修正既有重试的数据身份、提交与恢复语义；沿用当前重试、进度、失败、待保存及退出确认界面，不增控件、布局或状态形态，按纯数据口径例外免于重画原型。
+
+### 2026-09-16 发布前设计自审：来源 → spec
+
+以下是本轮有效覆盖映射，优先于下方历史映射中关于“重试创建新记录”的行。此处不提前分配新票或伪填验收通过；承兑归属须在下一阶段更新既有 ticket 后确定。
+
+| 覆盖单位 | 唯一主定义及来源反查 | 设计核对 / 实现验收状态 |
+|---|---|---|
+| v1-core::REQ-002/AC-03 | 用户更新当前记录要求；已批准建议的显式身份绑定及两历史入口 | 保留 ID 并修正语义；扩及当前结果入口，连续重试也不插入；待实现。 |
+| v1-core::REQ-002/AC-08 | 已批准建议保留当前 Provider/模型、原类型及语言 | 保留原 ID 的请求选择义务；其余独立义务分出如下；待回归。 |
+| v1-core::REQ-002/AC-09 | 已批准建议的窗口生命周期；原 AC-09 应用所有权及退出确认 | 保留原 ID 的应用生命周期义务；待保存结果绑定原目标；待回归。 |
+| v1-core::REQ-002/AC-10 | 已批准建议的完整成功后原子替换、原元数据及其他记录保护 | 新 ID，原 AC-03/08 和旧当前结果规则具体化；Pin 不被重试写回旧快照；待实现。 |
+| v1-core::REQ-002/AC-11 | 已批准建议的失败/取消/超时保留原结果及重启边界 | 新 ID，原 AC-08 失败保护独立化，包含原本失败/取消/中断记录；待实现。 |
+| v1-core::REQ-002/AC-12 | 已批准建议及原 AC-09 本地保存重试 | 从 AC-09 分出；保持原目标、不联网；待实现。 |
+| v1-core::REQ-002/AC-13 | 已批准建议“原目标不存在…禁止…INSERT” | 新独立义务；请求前及提交前两种失效分别验证；待实现。 |
+| v1-core::REQ-002/AC-14 | 原 AC-08 重复点击/配置互斥，已批准回归建议 | 从 AC-08 分出；适用共享活动任务及待保存互斥；待回归。 |
+| v1-core::REQ-002/AC-15 | 原 AC-08 右侧展示/切换不串记录及已批准建议 | 从 AC-08 分出；不改变现有界面形态；待回归。 |
+| v1-core::REQ-002/AC-16 | 原 AC-09 删除清理保护及已批准建议 | 从 AC-09 分出，保护同一目标而非旧目标加新副本；待回归。 |
+| v1-core::REQ-002/AC-17 | 已批准建议“成功后重新读库…App 重启” | 新独立义务；历史查询、选中协调与持久化恢复，待实现。 |
+
+编号核实：本次编辑前，当前 spec 的 REQ-002 主定义为 AC-01–09；对 `docs/specs/v1-core.md` 执行 `git log --all -G 'REQ-002/AC-(1[0-9]|2[0-9])'` 无匹配提交，因此此次 AC-10–17 未与该文档可用 Git 历史冲突。现有工作区未提交文本也已核对。未撤销或复用既有 ID；上述拆分关系就是旧 → 新映射，不另造票内产品 AC。
+
+共享与回归范围：v1-core::REQ-002/AC-04 原图路径/哈希校验、v1-core::REQ-002/AC-07 按钮现有禁用与反馈、v1-core::US-001/AC-02 搜索、v1-core::US-001/AC-05 Provider 筛选、v1-core::US-001/AC-09 Pin、v1-core::US-001/AC-10 组合筛选、v1-core::US-001/AC-12 选中协调、v1-core::CON-001 仅显式模型操作上传、v1-core::REQ-003/AC-01 两语界面继续适用。i18n 在项目能力中已启用；如实现新增错误文字必须覆盖中英，本次未新增 UI 文案。
+
+操作序列自审：已检查新操作首次执行与已持久化记录重试的分流；重试 → 预检/请求 → 完整成功 → 原子提交或待保存 → 本地保存/退出确认；失败/取消/中断返回原记录；目标消失不能转创建。管理中心关闭继续任务与独立结果窗口关闭取消任务明确区分。提交前中断与提交后重启分别受 AC-11/17 约束；成功后因内容/Provider 改变而不再匹配查询时沿用 US-001/AC-12，不强留错误选中项。
+
+矛盾处置：同步修改结果工作区、错误取消、首次 PNG/准备记录、请求预检及 FM-08/09/12/13/18/26，防止通用“保存失败/取消/中断状态”覆盖原记录。CONTEXT 同步统一两重跑术语；spec 索引明确 Pending。ADR-0002 的显式上传与本地历史、ADR-0006 的受管理 PNG 先落盘、ADR-0008 的数据库不可用禁止写入均继续满足：重试复用已落盘原图，而非绕过持久化。未改变架构选型或所有权，不满足新增 ADR 的难逆转门槛，未创建或改写已接受 ADR。
+
+其余章节不受本轮影响：启动与单实例、首次引导、屏幕冻结/显示器变化、Provider 凭据编辑与模型目录、权限/Keychain、UI 几何配色、更新分发及发布限制均不因身份修正改变；只回归与模型任务互斥、退出相关的共用边界，不新拆无关功能。原型按上文纯数据口径例外，不能据此豁免修复后的安装版重试验收。
+
+发布结论：已批准来源均有主定义，新增验收项均可反查上述批准建议或既有义务；本增量可进入票范围更新与实现。代码、测试、features 和 ticket 中旧“新增记录”的描述仍是后续必须同步的已知差距，现阶段不得标完成或将旧绿测试计入新语义。该差距归当前修复及既有历史重试/收口票承接阶段，不留作无归宿泛化待办。历史证据保留，不伪造本轮实现验收。
+
+文档验证：`git diff --check` 通过；既有 `verify-feature-checklist.py` 的 58 行旧 ownership 结构检查通过，但该脚本不检查新需求标识或本轮产品验收，不能代替上面的逐项设计核对。本轮未运行产品回归，未修改生产代码或安装 App。
+
+### 历史来源索引（按后续决定判断适用性）
+
+| 来源锚点及支持原文 | 来源处置 | spec 覆盖单位 | 语义核对结论 |
+|---|---|---|---|
+| [既有需求对齐记录](requirements-alignment.md)“历史与隐私”相关条文：历史搜索覆盖原文/译文，按操作类型、最终状态、Provider、模型、目标语言、日期范围和钉住状态筛选；与现行 spec“历史浏览与清理”交叉核实 | 有效；施工记录只作为来源线索，当前 spec 为基线 | v1-core::US-001/AC-01、v1-core::US-001/AC-02、v1-core::US-001/AC-03、v1-core::US-001/AC-05、v1-core::US-001/AC-06、v1-core::US-001/AC-07、v1-core::US-001/AC-08、v1-core::US-001/AC-09 | 八个维度逐项保留；五个缺失入口不能由 SQL 支持抵扣。没有确认的组合/日期细则另列，不捏造 |
+| spec“错误、限流与取消”：已取消和意外中断分开显示和筛选 | 有效 | v1-core::US-001/AC-04 | 保留两个独立终态，不把筛选改成一个失败总类 |
+| 当前 spec“历史浏览与清理”及原 FM-26；用户已确认双击历史进入生成页 | 有效 | v1-core::REQ-002/AC-01、v1-core::REQ-002/AC-02、v1-core::REQ-002/AC-03、v1-core::REQ-002/AC-04 | 单击/双击/显式重跑/原图不可用分别保留；不将重跑身份规则互换 |
+| 当前 spec“历史浏览与清理”：最小 920×620 内容区不得裁切；用户曾确认默认窗口 Header 修复 | 有效 | v1-core::QR-001 | 数值沿用现行约束，不发明性能目标 |
+| [ADR-0002](../../adr/0002-local-history-without-app-layer-encryption.md)、[ADR-0006](../../adr/0006-layer-user-screenshots-and-internal-history-storage.md)；对齐记录“历史搜索与筛选完全在本地执行” | 有效 | v1-core::CON-001 | 检索零上传；显式重跑仍受原有发送门禁约束 |
+| 当前 spec“截图入口、全局快捷键与屏幕冻结”、[ADR-0010](../../adr/0010-freeze-display-frames-before-region-selection.md)：断开/几何变化只使对应屏失效，其他屏继续，新屏下次加入 | 有效 | v1-core::REQ-001/AC-01、v1-core::REQ-001/AC-02、v1-core::REQ-001/AC-03、v1-core::REQ-001/AC-04、v1-core::REQ-001/AC-05、v1-core::REQ-001/AC-08 | 用户已授权实现的显示器变化补验收；不换截图策略，不用 sleep |
+| 当前 spec“Testing Decisions”已有注册后几何核对和取消/替换/裁切监听释放条文 | 有效；从测试章节移至唯一行为主定义 | v1-core::REQ-001/AC-06、v1-core::REQ-001/AC-07 | 原有义务不删除；注入通知验证与硬件验收分开 |
+| 当前 spec“本地化、隐私与诊断”、[ADR-0003](../../adr/0003-v1-interface-localization-boundary.md)及 AGENTS 项目能力 i18n 已启用 | 有效共享条件 | v1-core::REQ-003/AC-01、v1-core::REQ-003/AC-02 | 两种 UI 语言与独立区域格式，适用新增控件 |
+| 旧 Provider 附着面板、失败恢复旧 Key 等早期描述 | 已被后续确认取代 | 本轮不新增引用 | 现行内联配置与直接替换规则不回滚；不复制旧来源为当前需求 |
+| 本次用户“按照新的 skill 更新 spec 和 tickets” | 有效流程授权 | 来源整理、身份迁移、验收责任修订 | 不授权新增日期/组合/布局决定，不授权发布或改产品代码 |
+
+| 2026-09-13 用户“ok，新增#25” | 有效建票授权 | 上述 17 个历史筛选及共享/回归单位 | 批准新增本地 #25 和 #23 对其依赖；未批准交互建议，未产生产品通过证据 |
+
+## 2026-09-14 原生同步基线（取代以下旧映射中受影响的历史项）
+
+Spec 与实现参考：`0febbb48fcd9acccdefc67dc9015ebf92605511c` + 当前未提交修改。
+来源：用户“同步到目前为止的ui调整到app”；接受当前管理中心原型。类型/Provider/搜索/Pinned 组合与窗口会话来自已提交表单；后续明确取消高级面板及状态/模型/目标语言/日期筛选，前述取消优先。
+
+身份处置：`v1-core::US-001/AC-03`、`v1-core::US-001/AC-04`、`v1-core::US-001/AC-06`、`v1-core::US-001/AC-07`、`v1-core::US-001/AC-08` 为批准移除，不复用、不标通过。保留 01/02/05/09；新增 10–16 分别来自已确认组合、会话、选择、260pt 分栏、恢复紧凑灰底按钮、行颜色/时间、无选中边框。先前 Capture 风格/日期边界/模型联动已失效。其余 v1 截图、Provider、发布等章节不受本轮历史 UI 修改影响，未扩大实施范围。
+
+### 当前 spec → #25 → 验证
+
+| 覆盖单位 | 现行 spec 原文 | 承兑与验证责任 | 机制 |
+|---|---|---|---|
+| v1-core::US-001/AC-01 | 管理中心历史页工具栏左侧提供“全部 / 提取 / 翻译”分段筛选，选择类型后列表只展示对应记录；不额外显示“操作类型”文字标签，保留辅助功能名称。中文简写仅用于历史列表和历史类型筛选；英文保留 All / Extract Text / Translate。 | #25 实现/回归；#23 查证 | Test：生产分段控件选择类型，匹配/反例列表。 |
+| v1-core::US-001/AC-02 | 历史页右侧搜索可匹配已保存原文或译文内容，结果列表不包含不匹配的记录。 | #25 实现/回归；#23 查证 | Test：原生搜索原文、译文和零匹配。 |
+| v1-core::US-001/AC-05 | Provider 下拉框直接位于历史工具栏的类型筛选和搜索之间；选项为全部 Provider 及本地历史记录中出现的 Provider，不依赖当前配置或联网模型目录。选择后只显示对应记录；没有高级筛选展开入口。 | #25 实现/回归；#23 查证 | Test：历史 Provider 原生选择，配置为空仍能筛选。 |
+| v1-core::US-001/AC-09 | 用户可在管理中心筛选钉住记录；钉住状态不等于把结果窗口置顶。 | #25 实现/回归；#23 查证 | Test：Pinned 导航交集与返回 History。 |
+| v1-core::US-001/AC-10 | 类型、Provider、文字搜索即时生效并按 AND 组合；清空搜索仅移除文字条件。History 与 Pinned 间切换保留查询，Pinned 仅追加钉住交集，返回 History 仅移除钉住限制。 | #25 实现/回归；#23 查证 | Test：真实控件组合、清空搜索、切 Pinned，观察列表。 |
+| v1-core::US-001/AC-11 | 同一管理中心窗口会话内往返设置保留查询；真正关闭再打开管理中心重置为全部类型、全部 Provider 和空搜索。截图退让等暂时隐藏不视为关闭。 | #25 实现/回归；#23 查证 | Test：设置往返、隐藏、关闭重开，观察控件和结果。 |
+| v1-core::US-001/AC-12 | 查询或历史数据变化后，原选中记录仍匹配时保留选中；否则选择第一条匹配记录，结果为空时清空详情。详情图片不得残留为另一条记录的图片。 | #25 实现/回归；#23 查证 | Test：非首行选择后查询/数据改变，核对 ID、空详情及图片。 |
+| v1-core::US-001/AC-13 | 历史记录列表宽 260pt，右侧详情填满剩余空间，最左侧应用导航宽度保持不变。 | #25 实现/回归；#23 查证 | Evidence：中英、明暗原生渲染及 260pt 几何。 |
+| v1-core::US-001/AC-14 | 类型按钮使用紧凑的灰底分段组和浅色选中块，三个按钮并排；不采用浮起 Capture 按钮样式。中文按钮最小宽度 54pt、水平内边距 9pt，英文按文字宽度扩展而不截断。 | #25 实现/回归；#23 查证 | Evidence：紧凑分段控件正常/最小窗口渲染。 |
+| v1-core::US-001/AC-15 | 记录行类型文字统一蓝色；完成绿色、取消橙色、失败和意外中断红色，均保留明确文字。时间右对齐，空间不足可换到下一行仍右对齐；不改变区域日期格式。 | #25 实现/回归；#23 查证 | Evidence：四终态/两类型、右对齐日期原生渲染。 |
+| v1-core::US-001/AC-16 | 历史列表选中条目仅背景高亮，不加边框或内描边，悬浮选中项不改变选中表现；保留独立键盘焦点提示。最左侧应用导航同样不加选中边框。 | #25 实现/回归；#23 查证 | Evidence：选中、悬停、键盘焦点原生交互。 |
+| v1-core::REQ-002/AC-01 | 单击一条记录只更新当前详情。 | #25 实现/回归；#23 查证 | Test：原生单击仅选择，观察回调及详情。 |
+| v1-core::REQ-002/AC-02 | 双击整条记录打开该记录对应的结果工作区，展示已保存内容且不自动请求 Provider、不创建历史记录；管理中心同时退到后台。 | #25 实现/回归；#23 查证 | Test：双击打开生产结果工作区，无新请求/记录；Evidence：安装版退到后台。 |
+| v1-core::REQ-002/AC-03 | 从历史打开的结果工作区，原始截图仍可用时，用户显式手动重跑生成新的历史操作，不改写原历史。 | #25 实现/回归；#23 查证 | Test：历史工作区显式重跑，经真实临时 SQLite 核对新操作及旧记录。 |
+| v1-core::REQ-002/AC-04 | 原始截图已移动、删除或替换时，仍可查看、搜索、复制已保存文字与元数据，但不显示或上传不匹配图片，不允许依赖原图重跑。 | #25 实现/回归；#23 查证 | Test：测试原图移动/删除/替换，保存文字仍可搜与复制，无上传。 |
+| v1-core::REQ-002/AC-07 | 历史详情右上角重试图标、提示、固定忙碌态；初次加载及禁用条件。 | #25 实现/回归；#23 查证 | Test：初次详情加载；Evidence：中英明暗渲染；安装版鼠标点击/tooltip待验。 |
+| v1-core::REQ-002/AC-08 | 显式一次请求、当前 Provider、原类型及语言、新历史不改旧记录、右侧结果及失败保留文字。 | #25 实现/回归；#23 查证 | Test：应用正式回调→HTTP→真实临时SQLite；提取/翻译、重复点击、配置互斥、截断响应、图片替换。 |
+| v1-core::REQ-002/AC-09 | 应用持有重试及未保存结果，本地保存不重请求，源记录删除/清理保护，退出确认。 | #25 实现/回归；#23 查证 | Test：SQLite真实写失败、恢复写入、删除保护；窗口重开/退出确认实机待验。 |
+| v1-core::REQ-003/AC-01 | v1 UI 支持简体中文和英语，默认跟随系统，允许手动切换；切换后要求重启。 | #25 实现/回归；#23 查证 | Gate：本地化检查；Evidence：中英原生渲染，切换/重启沿用回归。 |
+| v1-core::REQ-003/AC-02 | 日期与数字遵循用户区域设置，不随 UI 语言覆盖改变。 | #25 实现/回归；#23 查证 | Test：界面语言与区域故意不同，日期仍按区域。 |
+| v1-core::QR-001 | 最小 920×620pt 不裁切 | #25；#23 查证 | Evidence：中英明暗渲染及操作 |
+| v1-core::CON-001 | 查询本地，不发送历史内容 | #25；#23 查证 | Test：控件路径及网络/历史不变 |
+
+双向审核：所有当轮界面点有当前原型覆盖；无新增未确认控件。AC-10–16 全历史及当前文档编号检索未见旧主定义。上表全部执行前为未验证；下方旧“设计门未解除”仅描述旧版本，不再作为阻塞依据。
+
+### 本轮验证历史：UI 原生同步（2026-09-14）
+
+实现与 spec 参考同上 commit + 当前未提交文件，未安装、未推送。下表是本轮实际查证，不以旧总数或单次渲染覆盖全部产品行为。
+
+| 覆盖单位 | 本轮结论与证据 |
+|---|---|
+| v1-core::US-001/AC-01 | 原生中英文紧凑按钮已渲染；组合测试类型点击后 4→3 行成立，但完整 case 未通过，保留交互验收。 |
+| v1-core::US-001/AC-02 | 过滤谓词仍检索原文/译文；完整输入、零匹配未取得可靠控件证据，未验证。 |
+| v1-core::US-001/AC-05 | historicalProviderFiltersList 通过：未配置账户时可选 All Providers/DeepSeek/OpenAI，菜单选择后 2→1 行且详情为目标记录。history-session-regression.log。 |
+| v1-core::US-001/AC-09 | Pinned 去掉类型重置，交集实现已接线；组合测试未到达可靠终点，不计通过。 |
+| v1-core::US-001/AC-10 | 类型 + Provider 的缩小已观察；清空搜索、Pinned 往返完整组合仍未验证。 |
+| v1-core::US-001/AC-11 | queryWindowLifetime 通过隐藏保留/真正关闭重置 Provider；Provider 草稿关闭回归也通过。设置往返与全部查询字段的组合仍缺。 |
+| v1-core::US-001/AC-12 | Provider 筛选失配后详情切到首个匹配已观察；仍匹配非首项保留、空详情、异步图片乱序尚未验收。加载结果增加 ID 保护不等于已实测。 |
+| v1-core::US-001/AC-13 | historyRenders 的 8 个原生渲染及滚动区几何 260pt 通过；默认导航 218pt 不变，右详情填充。 |
+| v1-core::US-001/AC-14 | 已看中文浅色/英文深色最小宽原生图，灰组/浅选中块、三项并排、英文不截断；8 个环境均生成图，未逐图人工确认全部。 |
+| v1-core::US-001/AC-15 | 上述两张原生图有四终态、两类型及右日期；英文长标签换行后日期仍靠右。配色/文字核对通过，非穷举所有区域。 |
+| v1-core::US-001/AC-16 | 原生选中背景无边框；hover/键盘焦点实际操作未验，不标整条通过。 |
+| v1-core::REQ-002/AC-01 | 合成鼠标单击未可靠选中第二项，原因未定；保持未完成，不宣称原生单击回归通过。 |
+| v1-core::REQ-002/AC-02 | 沿用生产双击回调，本轮未补完“打开结果+无请求/无新记录+退到后台”组合，未验证。 |
+| v1-core::REQ-002/AC-03 | 既有低层历史重跑回归包含在测试分组；没有本轮原生入口到新历史完整证据，未验证。 |
+| v1-core::REQ-002/AC-04 | 缺图原生渲染保留文字/元数据；移动/替换后的搜索、复制与禁重跑完整组合仍缺。 |
+| v1-core::REQ-003/AC-01 | 本轮三项字典中英齐备，8 张原生图；14 项 App 回归通过，未做新的安装版语言重启验收。 |
+| v1-core::REQ-003/AC-02 | 中文界面仍显示当前英文区域日期，英文同样日期格式；当前区域核对通过，未切系统区域或穷举。 |
+| v1-core::QR-001 | 920×620/1200×620 内容区生成原生图；已查看两个最小宽主题样本。不是物理键鼠或系统标题栏验收。 |
+| v1-core::CON-001 | 静态确认本地谓词只读，Provider 菜单测试无配置依赖；未增加查询入口到网络/SQLite 的完整观测，保持未验证。 |
+
+渲染位置：`/var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/vlmsnapper-history-ui-sync/`，实际查看 simplifiedChinese-NSAppearanceNameAqua-920.png 与 english-NSAppearanceNameDarkAqua-920.png。另看 Provider en-light-1200-idle.png 确认补齐字段组件不产生原来的空白块。
+
+已读完整结束报告的通过项：严格构建 `/tmp/vlmsnapper-ui-sync-strict-build-fixed.log`；专项 4 例 `/tmp/vlmsnapper-history-session-regression.log`；App 14 例 `/tmp/vlmsnapper-ui-sync-app-tests.log`；独立 XCTest 主菜单 Paste/关闭后完成各 1 例 `/tmp/vlmsnapper-ui-sync-native-paste.log`、`/tmp/vlmsnapper-ui-sync-native-closed.log`；清单门禁测试 6 例 `/tmp/vlmsnapper-ui-sync-checklist-tests-fixed.log`、旧 58 行 ownership gate、shell syntax。清单 gate 不核新 ID 验收。
+
+完整非 App 分组首次 335 例 / 1 issue（焦点前提）见 `/tmp/vlmsnapper-ui-sync-full-tests.log`。处理 AppKit 激活事件后进入单击/导航仍失败（`/tmp/vlmsnapper-history-activation-events.log`）；不能继续归因于无焦点。后续手势/异步试验没有可靠完成报告，已撤回生产试验改动；保留失败用例。最终分组见 `/tmp/vlmsnapper-ui-sync-final-full-tests.log`，其未通过不被其他绿色抵扣。三架构打包/签名安装未运行。本票及 #23 均不收口。
+
+补充最终夹具处置：`/tmp/vlmsnapper-ui-sync-final-full-tests.log` 退出0但缺少 Swift Testing 最终摘要，明确不算通过。共享激活事件泵已撤回；`/tmp/vlmsnapper-ui-sync-final-restored-tests.log` 最终完整报告为335例、73 suites、1 issue，退出1，失败在 HistoryInteractionTests.swift:93 的 isKeyWindow 前提。最终源码严格构建 `/tmp/vlmsnapper-ui-sync-final-build.log` 退出0；再次运行清单测试6例及58行旧门禁通过。完整交互门仍未解除，不因其余通过样本而改变。
+
+## 2026-09-14 已确认来源补充：历史筛选交互
+
+### 最新覆盖范围调整（优先于下方历史表单记录）
+
+- 用户要求左侧条目选中不加边框：移除历史列表选中态的可见边框和内描边，保留背景高亮，悬浮选中项不恢复描边；最左侧应用导航原本无选中边框，保持不变。键盘焦点提示不作为选中边框删除。仅调整原型，待视觉确认。
+- 用户随后取消 Capture 同款浮起样式，仅保留缩窄宽度：恢复原灰底分段控件、原高度和选中态；三个按钮最小宽度为 54px、水平内边距 9px。前一轮的白色浮起/蓝字底线方案已撤销，其余历史页改动保留；未改 App。
+- 用户指定历史条目类型与顶部类型筛选按钮的中文“提取文字”统一简写为“提取”。原型静态初始标签与运行时共用字典同步，英文保持 Extract Text；不改操作标识或原生 App。
+- 列表元信息视觉调整：用户指定时间右对齐；类型统一蓝色；完成绿色、取消橙色、失败与中断红色。原型保留文字标签，使用既有深浅色主题语义色；时间在空间不足时换行并保持右对齐，日期区域格式不变。该条是明确设计来源，实际渲染效果仍待确认，非 App 验收。
+- 后续用户进一步要求：“不需要下拉筛选了，把 provider 下拉菜单选择移到 header 栏，其余两个筛选项也删除”。最新设计为顶部类型切换 + Provider 下拉框 + 文字搜索；取消展开筛选入口、最终状态及日期筛选。保留 History/Pinned 范围及会话内条件、详情选择行为；状态仍可在记录中展示，不再作为筛选项。日期边界、无效日期暂停查询及模型联动表单结论均不再适用。
+- `v1-core::US-001/AC-03`、`v1-core::US-001/AC-04`、`v1-core::US-001/AC-08` 的筛选要求追加进入用户授权取消、待 spec/票映射同步；记录本身区分取消和中断的既有行为不受影响。旧清单数量不代表当前范围，不可按完成核销。原型已调整，仍待视觉确认，未实施或安装 App。
+- 用户在原型预览后明确提出：“模型和目标语言都不需要，布局需要调整：左侧选择栏缩窄，右侧详情扩大”。取消模型、目标语言两个筛选维度，先前的模型联动与失配重置决定随之不再适用；历史记录自身的模型元数据不删除。
+- 原型已移除对应控件及查询条件，记录列表改为 260px，剩余宽度给详情；最左侧应用导航维持 200px。该尺寸是本轮预览方案，等待用户视觉确认，不是已验收的 App 实现。
+- `v1-core::US-001/AC-06`、`v1-core::US-001/AC-07` 进入“用户授权取消，待 spec 与拆票映射同步”，不可按实现通过核销、不可复用编号。下方旧覆盖数量与模型相关表单答案仅保留作历史记录；原型确认后统一更新 spec 和 #25 覆盖映射。
+- 本轮仅修改原型与来源记录，未修改原生 App；浏览器安全策略限制仍在，渲染与几何待人工确认。
+
+来源：decision-form/v1，表单 vlmsnapper-ticket25-history-design，submissionId `5f605447-8c85-43a3-b9f2-77f613a29a0c`。已与展示的 schema 逐项核对 protocol、版本、表单、问题集合、选项和必填项；9 项均为单选，无自定义文字。服务返回 DECISION_FORM_SUBMITTED 并退出 0；不是从页面未提交选择推断。
+
+参考 commit：`0febbb48fcd9acccdefc67dc9015ebf92605511c`，含未提交修改。本段只保存“来源 → spec”阶段的确认记录，不是第二份需求权威；旧建议不再具有覆盖这些答案的资格。新的原型及依赖细节确认后，必须把来源逐项合成进现行 spec，再更新本表的独立 AC 对应；未完成前不宣称 ready-for-agent 或产品通过。
+
+| 来源问题 | 已提交选项原文 | 对应选项描述原文 | 处置 |
+|---|---|---|---|
+| layout | 同页展开筛选区 | 工具栏增加“筛选”入口，展开下方高级筛选区；收起不清除条件，并显示已启用数量。 | 已确认；原型和具体验收定位尚待后续合成 |
+| combination | 每维单选，维度之间取交集 | 状态、Provider、模型、目标语言每项选一个值或“全部”；搜索、类型、日期同时约束结果。 | 已确认；原型和具体验收定位尚待后续合成 |
+| lifetime | 本次窗口会话内保留 | 往返历史和设置时保留；关闭管理中心后再次打开恢复默认。 | 已确认；原型和具体验收定位尚待后续合成 |
+| date_granularity | 按创建日期，精确到天 | 选择开始日期与结束日期，按用户时区解释自然日。 | 已确认；原型和具体验收定位尚待后续合成 |
+| model_linkage | 模型选项随 Provider 联动 | 未限定 Provider 时列出全部历史模型并标明 Provider；限定后只列对应模型。 | 已确认；原型和具体验收定位尚待后续合成 |
+| application | 合法条件立即生效 | 选择分类、修改搜索等立即更新；日期形成合法条件后更新。 | 已确认；原型和具体验收定位尚待后续合成 |
+| reset | 重置查询，保留当前侧栏 | 清空搜索、类型恢复全部、清空新增筛选；仍停留在 History 或 Pinned。 | 已确认；原型和具体验收定位尚待后续合成 |
+| pinned_navigation | 保留条件，仅切换范围 | 切到 Pinned 取当前查询与钉住状态的交集；回 History 去掉钉住限制。 | 已确认；原型和具体验收定位尚待后续合成 |
+| selection | 尽量保留当前记录 | 当前记录仍在结果中就保持；被排除则选择新结果首条；无结果则清空详情。 | 已确认；原型和具体验收定位尚待后续合成 |
+
+模型选项问题的已展示前提：选项从本地历史记录取值，已移除配置的 Provider/模型仍可查；不能只使用当前在线模型列表。相同 model ID 也可能属于不同 Provider。
+
+第二轮来源：decision-form/v1，表单 vlmsnapper-ticket25-history-boundaries，submissionId `66a40205-0e32-4806-b2d9-c801b530457f`。已核对 protocol、版本、表单、submissionId、4 个问题及选项集合、必填项；均为单选，无自定义文字，服务退出 0。
+
+| 来源问题 | 已提交选项原文 | 对应选项描述原文 | 处置 |
+|---|---|---|---|
+| date_bounds | 允许单边日期 | 仅开始：包含该日及以后；仅结束：包含该日及以前；两端均空：不限制日期。两端均填写时首尾日都包含。 | 已确认；待原型确认后合成独立 AC |
+| timezone | 跟随系统时区重新计算 | 保留用户选择的日期，系统时区变化后按新时区重新筛选并显示新的时区说明；以日历日边界计算，正确处理 23/25 小时日。 | 已确认；待原型确认后合成独立 AC |
+| invalid_date | 保留上次有效结果，明确标注 | 日期旁提示“开始日期不能晚于结束日期”，结果区显示“日期未应用”及上次生效范围；无效期间暂停查询更新，修正或重置后用当前完整条件刷新。 | 已确认；当前输入与结果生效条件必须可区分 |
+| incompatible_model | 模型重置为“全部”，原位提示 | 切换 Provider 后仅当旧模型不属于新范围时清除模型限制；其余条件保留，并原位提示模型条件已重置。切回“全部 Provider”时保留仍适用的模型。 | 已确认；不得自动选择首个或同名模型 |
+
+第二轮已展示的共同前提与限制：开始日与结束日均包含整天，同日表示该天；不能静默交换或忽略无效日期，也不能将输入错误显示为无匹配；系统时区变化保留选定民用日期，并按日历处理 23/25 小时日，不用固定 86400 秒推导结束日；模型身份为 Provider + model ID，同名不等于同一历史模型。无效期间展示上次生效的完整查询条件，避免修改搜索等其它输入后把旧结果冒充新结果。
+
+依赖决策已全部答复；多选分支按 single 答案裁除。剩余门禁仅为 UI 原型确认及随后的 spec/票/验收映射合成，不再重复询问上述 13 项。原型是视觉评审材料，不是原生实现通过证据；本次未改变 App。
+
+原型检查记录：管理中心历史原型已补同页展开、各维度交集、模型联动、日期未应用说明、保留选择、重置及 Pinned 范围；纯内存 fixture，未连接真实数据库或服务。两个内联脚本语法解析通过、字面量 DOM ID 无重复、git diff --check 通过。浏览器工具拒绝 file URL，明确禁止换端口/浏览器等绕行；未尝试绕过。没有取得渲染与几何证据，920×620、深浅色、最长标签和可点击范围仍待人工原型验收，不能记通过。原型不验证真实系统时区通知、原生日期编辑或 App 生命周期。
+
+## 本轮范围与不受影响项
+
+| 章节 | 本轮处理与理由 |
+|---|---|
+| Problem / Solution | 背景与全局边界已读；保留原生、本地持久化、显式上传限制，无产品方案变更 |
+| User Stories 1–2 | 不受本轮影响：不改启动、菜单、引导或 Provider 路由；旧实机接受不泛化成全部路径通过 |
+| User Stories 3 | 显示变化及其冻结帧生命周期进入本轮；其余快捷键注册、像素编码不改，仍是硬件场景的既有前提 |
+| User Stories 4–7 | 不改工具栏、提取/翻译、Provider 配置；历史打开/重跑与工作区行为交互由 v1-core::REQ-002 回归，其余待 #23 全范围重核 |
+| User Stories 8–9 | 纳入状态区分及原图缺失/替代回归；其余限流、错误、持久化顺序未改，不新增实现票 |
+| User Stories 10 | 本轮修补八个筛选维度及历史操作/窗口尺寸。详情指标、保留期、删除和同步政策未改，不视为永久 Out of Scope；#23 全收口仍核对 |
+| User Stories 11 | 本轮适用语言、区域、本地处理约束；诊断导出/日志保留期不改 |
+| User Stories 12 / Further Notes 的发布 Pending | 正式发布仍由 #10 承兑。本轮不测试真实账户、不发布，不重写这些未变的要求；旧签名/网络阻塞原因不能当作当前探测结果 |
+| Failure Modes | 原 FM-15、26 与本轮历史路径；FM-03、04、05、23、25 与显示失效/替换回归对应现行主定义。其余模型/Keychain/退出失败模式本轮不改，#23 尚未完成全量复核 |
+| Implementation / Testing Decisions | 复用现有生产装配、管理中心、临时 SQLite、受控外部 adapter；不新增 DI 或替代界面。显示监听义务从测试章节抽出，原生与硬件证据不互抵 |
+| Prototype Coverage | 现有类型/搜索原型可回归；五个扩展筛选及新状态布局尚未确认，不得通过实施门 |
+| Out of Scope | 全部保留；不引入 OCR、云历史搜索、图像编辑或新发布渠道 |
+
+## 标识迁移
+
+旧 US-01…US-12、FM-01…FM-46 是章节级工作清单键，不是已经拆清的验收单位。已检索当前 spec 和全部本地 Git refs 中 spec 历史：新使用的 v1-core::US-001、REQ-001/002/003、QR-001、CON-001 未发现既有定义。该结论覆盖当前可访问 Git 历史与恢复文档，不声称覆盖已删除且不可访问的历史。
+
+| 旧定位 | 本轮身份与保留范围 |
+|---|---|
+| US-10 的筛选句 | v1-core::US-001 的九个 AC；该父项只承兑筛选，不冒充旧 US-10 全部清理义务 |
+| US-10 的单击/双击/原图句、FM-26、FM-15 的历史读取分支 | v1-core::REQ-002 的四个 AC；FM-15 的删除权限仍保留原定义，未声称整条已迁移 |
+| US-10 最小尺寸 | v1-core::QR-001 |
+| US-03 显示器变化、Testing Decisions 监听段 | v1-core::REQ-001 的八个 AC；旧 US-03 的快捷键/编码范围不因此消失 |
+| US-11 语言/区域 | v1-core::REQ-003 的两个 AC；其余隐私诊断义务保留 |
+| 本地历史检索约束 | v1-core::CON-001；引用既有 ADR，不建立平行同义 REQ |
+
+## spec → tickets → 验证
+
+本轮承兑共 25 个覆盖单位。**这是单位数，不是通过数。** [#25](issues/25-history-filter-workflow.md) 已获建票批准并承兑 17 个历史相关单位，但交互与原型门禁未解除，不能取票实现；显示变化票的 8 个单位不变。
+
+| spec 覆盖单位及文档链接 | 来源原文及适用条件 | 承兑票与角色 | 计划验证及边界 |
+|---|---|---|---|
+| v1-core::REQ-001/AC-01 | 选区期间已冻结显示器断开时立即使该屏不可选并撤下其遮罩、释放其冻结帧，不等待鼠标松开。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Evidence：安装版双屏选区拖拽中拔除所在屏，鼠标尚未松开时遮罩失效；记录系统、屏幕配置、App commit 与观察。Test：复用真实应用注入显示通知用例。 |
+| v1-core::REQ-001/AC-02 | 选区期间显示器分辨率、缩放、旋转或几何布局变化时只使受影响屏幕失效，并取消其当前拖拽，不重新捕获实时画面。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Evidence：安装版分别改变分辨率、缩放、旋转、排列，观察仅受影响屏取消拖拽且不抓新帧。Test：注入对应几何变化驱动生产遮罩。 |
+| v1-core::REQ-001/AC-03 | 已冻结显示器休眠时使其失效；唤醒不恢复本次已经失效的冻结帧。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Evidence：安装版选区中休眠/唤醒，已失效帧不恢复；Test：真实应用休眠通知路径。不能把整机锁屏下测试超时当作合格结果。 |
+| v1-core::REQ-001/AC-04 | 部分屏幕失效后，未变化的成功冻结屏幕仍可继续选择。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Evidence：双屏一屏失效后在幸存屏完成选择；全部失效后选区结束、历史无新增。Test：应用组合分别验证部分/全部失效。 |
+| v1-core::REQ-001/AC-05 | 本次选择开始后新接入的显示器不可选，下一次显式截图才纳入新的冻结集合。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Evidence：选区中新接屏本次不可选，退出后显式新截图可选；Test：应用通知路径相同前后状态。 |
+| v1-core::REQ-001/AC-06 | 冻结完成后和监听注册后均核对完整几何，注册前的异步间隙发生的变化不能遗漏。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Test：复用 displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost，经生产装配把变化插入监听注册间隙，断言失效遮罩不发布。 |
+| v1-core::REQ-001/AC-07 | 取消、替换选区和裁切完成后解除旧监听；迟到通知不能撤下或改变新会话的遮罩。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Test：复用 replacementAndEscapeRetireDisplaySubscriptions，并覆盖裁切完成/旧代次迟到通知；断言新会话遮罩不受影响及旧订阅释放。 |
+| v1-core::REQ-001/AC-08 | 全部冻结屏幕失效时结束选区且不创建历史。 | [显示变化票](issues/01-live-display-reconfiguration.md)：实现回归及实机验收；#23：组合查证 | Test：生产应用组合驱动全部冻结屏失效，检查选区关闭、历史无新增；Evidence：实机全部屏失效场景独立记录。 |
+| v1-core::US-001/AC-01 | 管理中心历史页左侧提供“全部 / 提取文字 / 翻译”分段筛选，选择类型后列表只展示对应记录；不额外显示“操作类型”文字标签，保留辅助功能名称。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：打开历史页依次操作三个真实分段，匹配与反例记录同时在库；断言列表记录 ID 集合和辅助功能名称。不能只直接调用查询层。 |
+| v1-core::US-001/AC-02 | 历史页右侧搜索可匹配已保存原文或译文内容，结果列表不包含不匹配的记录。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：从搜索框分别输入只命中原文、只命中译文和不命中的词；断言实际列表；空搜索的恢复纳入交互确认。 |
+| v1-core::US-001/AC-03 | 用户可在历史页按最终状态筛选，只显示符合所选状态的记录。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：从待确认的状态控件逐项选择终态；每项至少一匹配和一异状态反例，断言真实列表排除。 |
+| v1-core::US-001/AC-04 | 历史状态筛选必须区分“已取消”和“意外中断”，不能合并为同一种可选状态。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：同库存已取消与意外中断记录，分别通过状态控件选择，断言互不混入。 |
+| v1-core::US-001/AC-05 | 用户可在历史页按 Provider 筛选，只显示对应 Provider 的记录。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：在原生 Provider 筛选选择 A，列表排除 B；不能用单条全匹配记录通过。 |
+| v1-core::US-001/AC-06 | 用户可在历史页按模型筛选，只显示对应模型的记录。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：真实模型筛选对两个模型记录做正反例；跨 Provider 同名模型规则确认后单独用例。 |
+| v1-core::US-001/AC-07 | 用户可在历史页按目标语言筛选，只显示对应目标语言的记录。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：原生目标语言筛选区分两种语言；提取记录没有目标语言的处理须先确认。 |
+| v1-core::US-001/AC-08 | 用户可在历史页按日期范围筛选，只显示符合日期条件的记录。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：通过日期控件输入确认后的范围；覆盖上下界内/外、恰在边界的记录及无效范围。日期字段、时区和端点定义待确认，当前不能宣称可执行。 |
+| v1-core::US-001/AC-09 | 用户可在管理中心筛选钉住记录；钉住状态不等于把结果窗口置顶。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：通过现有 Pinned 导航展示钉住记录，返回 History 检查状态；筛选组合和保留规则确认后追加交互用例。 |
+| v1-core::REQ-002/AC-01 | 单击一条记录只更新当前详情。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：筛选产生多条结果后真实单击非首行，详情对应该记录且没有模型请求。 |
+| v1-core::REQ-002/AC-02 | 双击整条记录打开该记录对应的结果工作区，展示已保存内容且不自动请求 Provider、不创建历史记录；管理中心同时退到后台。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：筛选后双击整行边缘，生产窗口显示该 ID 已保存结果，请求计数/历史数量不变；Evidence：安装版管理中心进入后台。 |
+| v1-core::REQ-002/AC-03 | 从历史打开的结果工作区，原始截图仍可用时，用户显式手动重跑生成新的历史操作，不改写原历史。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：筛选后打开可用原图记录并显式重跑，真实临时 SQLite 验证新增操作且原记录未改；不把当前仍打开工作区的重跑复用规则混入。 |
+| v1-core::REQ-002/AC-04 | 原始截图已移动、删除或替换时，仍可查看、搜索、复制已保存文字与元数据，但不显示或上传不匹配图片，不允许依赖原图重跑。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：分别移走、删除、替换测试 PNG，再通过筛选进入详情；文字可搜索/复制，原图及重跑不可用、无上传，替代文件未变。 |
+| v1-core::REQ-003/AC-01 | v1 UI 支持简体中文和英语，默认跟随系统，允许手动切换；切换后要求重启。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Gate：本地化字典键集及源码文案检查；Evidence：中英安装版实际筛选路径文案与确认原型对照；不以键数代替显示验收。 |
+| v1-core::REQ-003/AC-02 | 日期与数字遵循用户区域设置，不随 UI 语言覆盖改变。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：相同区域下切换 UI 语言，日期/数字保持区域格式；Evidence：日期控件及详情可读性。日期范围的时区语义仍待确认。 |
+| v1-core::QR-001 | 历史与设置共用管理中心；最小内容区 920×620pt，标题栏、列表底栏和详情内容均不被窗口外框裁切；扩展筛选不得破坏。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Evidence：中英、明暗主题正常/最小 920×620pt 原生窗口，打开全部确认筛选后逐一检查工具栏、底栏、详情不裁切；快照不替代控件操作。 |
+| v1-core::CON-001 | 搜索、筛选和查看已保存历史全部本地执行，不向模型或其他服务发送历史内容；只有显式模型操作才按既有门禁发送原始 PNG。 | [#25](issues/25-history-filter-workflow.md)：实现与原生验收（设计门禁未解除）；#23：收口查证 | Test：从真实管理中心进行搜索、各筛选与查看，受控网络边界断言新增请求为零；历史/文件快照验证检索不产生写入。模型显式重跑不在该零请求断言内。 |
+
+## 验证历史
+
+| 日期、spec 与实现 commit 参考 | 覆盖单位、票及适用路径 | 实际结果与证据 | 结论 |
+|---|---|---|---|
+| 2026-09-13；spec/实现基于 0febbb48fcd9acccdefc67dc9015ebf92605511c，均含恢复的未提交修改 | 本轮上述全部单位 | 本轮只做文档和源码只读核对，未运行 App、硬件或 Provider 测试 | 全部保留未验证；历史结果需按当前内容判断适用性 |
+| 2026-09-09 历史记录（无独立实现 commit，工作区未提交） | 显示变化组合测试与 #24 等待边界 | 旧票记录 strict/333 non-App/14 App 通过，但 native 3 tests / 1 failure；见显示票及 #24 Comments | 保留首个失败；不据此核销硬件、聚焦或当前整套门禁 |
+| 用户之前对 build 28/29 的验收反馈；本轮未重测 | 已接受的视觉、Provider 图标及明确交互路径 | 既有 #23 Comments 保留；不扩张为未曾展示的历史筛选 | 有限范围历史证据，不搬成新 AC 的绿灯 |
+
+## 双向核对
+
+| 核对范围或发现 | 涉及来源及标识 | 处置与依据 |
+|---|---|---|
+| 五个筛选维度只在查询层 | v1-core::US-001/AC-03、v1-core::US-001/AC-04、v1-core::US-001/AC-05、v1-core::US-001/AC-06、v1-core::US-001/AC-07、v1-core::US-001/AC-08 | 控件到列表单列责任；原型、日期与组合细则未定，发布门禁未通过 |
+| AC 独立性复审 | v1-core::REQ-001/AC-04、v1-core::REQ-001/AC-08 | 将本轮 AC-04 中全部失效分支拆为新 AC-08，部分失效保留 AC-04；原有已确认义务不变，不复用编号 |
+| 数据库支持 AND / created_at 下闭上开 | v1-core::US-001/AC-08 | 实现证据不是需求批准；不写入已确认 AC，见拆票建议中的待决项 |
+| 原 58 行拥有者 gate | 旧全表及 #23 | 标为历史结构检查，不抵扣语义覆盖；#23 必须读取新映射并逐项查证，全功能其余单位仍待迁移 |
+| 产品与测试工装混用 | #24 | 按技术前提/流程验收写，不给窗口聚焦诊断虚构产品需求 ID |
+| 旧重复 01 票号 | 原始持久化票与显示变化 follow-up | 保留两个文件和原编号；所有新引用使用完整文件链接，禁止仅写“#01” |
+| #10 与 #23 都称全功能收口 | 既有两票 | 不擅自互相加依赖制造环；本轮保留 #10 发布门禁，#23 不得用局部迁移宣告整版完成，边界整合待确认 |
+| 反向核对 | 上述 25 行、显示票、#23/#24 和 #25 | 已定义的产品条目均引用本 spec；原型制作、门禁与诊断标为流程/技术前提。未确认设计只在建议中，不当作已批准需求；#25 已登记但仍被设计门禁阻塞 |
+
+## #25 登记后的受影响双向复核（2026-09-13）
+
+- 本次批准将原拟票登记为 [#25](issues/25-history-filter-workflow.md)。v1-core::US-001 的 9 项、v1-core::REQ-002 的 4 项、v1-core::REQ-003 的 2 项，以及 v1-core::QR-001、v1-core::CON-001 共 17 个单位直接映射到 #25；#23 负责收口查证并新增依赖。
+- 反向核对：#25 产品条目均引用上述现行 spec 单位；技术前提引用生产用户路径及本地处理边界，流程项引用对应 skill，不另造产品要求。
+- 未解决项：交互组合、选项联动、日期边界、会话状态及新控件原型尚未确认，部分测试期望仍待细化。登记为 blocked，不是 ready-for-agent，不宣称发布门禁已通过。
+- 验证历史：参考 commit 0febbb48fcd9acccdefc67dc9015ebf92605511c，含未提交修改；本次只做文档映射复核，17 项产品验收全部未执行。原有结果不自动沿用。显示变化 8 项责任、其它票状态均未改。
+
+## 历史清单与证据（不再作为本轮规范或完成判据）
+
+以下原文保留追溯。旧行包含复合义务且已发现遗漏，旧勾选仅表示当时所列范围与证据，不代表当前覆盖单位已通过。后续新引用只使用上方完整标识；全 feature 迁移尚未完成。
+
+### 旧版 VLMSnapper v1 实现核销清单
 
 本清单把 `docs/specs/v1-core.md` 的行为分配给实现票。每票完成时必须补充 gate、测试名和可复查证据。
 
@@ -17,7 +341,7 @@
 | US-07 | Provider 配置与模型发现 | 03、04、14、15、16、19、20、21、22、23 | Tickets 19–22 分别承兑内联表面、原生编辑、Keychain 对账和跨工作流互斥；Ticket 23 组合收口 — gate/test/evidence |
 | US-08 | 错误、限流与取消 | 04、06、08、09、15、21 | 既有错误归一化验收加 Ticket 21 的安全存储错误区分 — test |
 | US-09 | 原始 PNG、历史与持久化顺序 | 01、02、06 | 既有持久化门禁、历史所有权及最终落库验收；对应 evidence 章节提供 gate/test/evidence |
-| US-10 | 历史浏览与清理 | 02、08、18、22 | 既有历史验收加 Ticket 22 的阻止 Try Again 时历史不变标准 — test |
+| US-10 | 历史浏览与清理 | 02、08、18、22、23 | 既有历史验收加 Ticket 22 的阻止 Try Again 时历史不变标准 — test；#23 核销发现状态、Provider、模型、目标语言、日期筛选仅在查询层实现，原生入口待补，不能计为完整验收（23-history-filter-audit.md） |
 | US-11 | 本地化、隐私与诊断 | 02、07、08、09、16、20、21 | Ticket 20 本地化编辑状态与 Ticket 21 秘密流审查，连同既有隐私/诊断门禁 — gate/evidence |
 | US-12 | 更新与分发 | 09、10、16、21 | 既有发布门禁加 Ticket 21 的签名 Data Protection Keychain 回归标准 — gate |
 | FM-01 | 用户通过快捷键或主面板按钮触发截图，但没有可用 Provider/模型：不请求屏幕权限、不冻结屏幕；把首次引导窗口带到最前并提供前往设置中心 Provider 页面的入口。 | 14、15、19 | Ticket 19 onboarding 到内联 Provider 入口标准 — test |
@@ -62,12 +386,12 @@
 | FM-40 | 用户在 Keychain 载入或尚未提交的编辑状态关闭管理中心：取消载入并清除窗口会话草稿，已保存凭据不变。用户在正在验证时关闭：验证继续执行；重新打开后显示同一验证或其终态。失败时保留提交 Key 供修正，成功时只在安全存储写入成功后清除内存候选。 | 20、21、23 | Ticket 20 draft lifecycle, Ticket 21 validation continuity, and Ticket 23 combined flow — test |
 | FM-41 | 应用在验证进行中正常退出、崩溃或被强制终止：取消仍可取消的请求并丢弃只存在内存中的候选 Key；已经接受替换并持久记录作废的旧配置不恢复。下次启动时不重新提交已经丢失的候选 Key；若新 Key 已经写入 Keychain，则按安全存储真相进入模型配置恢复，否则显示未配置。若退出前尚未接受替换，则保留原配置；迟到的凭据读取返回后不得再发验证请求。 | 21 | Ticket 21 termination, candidate-secret, and reconciliation criteria — test/evidence |
 | FM-42 | 用户键盘输入 Key：空格、制表符和其他非换行字符按原样保留。用户粘贴 Key：只移除该次粘贴内容末尾至多一个 `CRLF`、`LF` 或 `CR`，再插入当前选区；其他字符不修剪、不规范化。结果为空、仍含换行或超过应用明确的 4096 UTF-8 字节安全上限时，保持编辑状态并显示本地输入错误，不删除旧配置、不联网，也不截断内容后尝试验证。 | 20 | Ticket 20 exact paste and local-validation criteria — test |
-| FM-43 | 一个 Provider 正在验证时，用户切换到另一张卡片并输入新 Key：草稿正常保留在当前窗口会话，但验证操作保持禁用并显示现有只读提示条；前一项进入任一终态后，若草稿仍合法且非空，验证操作自动恢复。重复点击或按 Return 不产生第二个验证请求。 | 22 | Ticket 22 one-credential-job and cross-Provider draft criterion — test |
+| FM-43 | 一个 Provider 正在验证时，用户切换到另一张卡片并输入新 Key：草稿正常保留在当前窗口会话，但验证操作保持禁用并显示现有只读提示条；前一项进入任一终态后，若草稿仍合法且非空，验证操作自动恢复。重复点击或按 Return 不产生第二个验证请求。模型刷新同样禁止冲突提交，但不插入提示条或隐藏已有控件；切卡片后返回仍保留刷新前的列表和选择直到请求完成。普通刷新失败保留配置并原位展示可重试错误，成功但所选模型消失时清空选择。 | 22、23 | Ticket 22 one-credential-job and cross-Provider draft criterion; Ticket 23 stable Refresh follow-up — test |
 | FM-44 | Provider 凭据作业已经开始后，用户触发截图快捷键或菜单栏截图入口：不冻结屏幕、不创建选区，把管理中心的 Provider 页面及当前作业带到前台；截图操作栏不会出现“配置处理中”状态。已有结果工作区的 Try Again 同样禁用，不启动模型请求、不新增或修改历史记录。反向地，截图冻结、选区或模型请求已经活动时，Provider 验证提交被拒绝，凭据恢复按 FM-46 等待原活动终结后再开始，原有截图或请求不受影响；双方进入终态后恢复相应入口。 | 22、23 | Ticket 22 production routing and symmetric-gate criteria; Ticket 23 combined integration — test/evidence |
 | FM-45 | 用户打开 Provider 卡片读取凭据：Keychain 返回条目不存在时显示未配置；返回权限、entitlement、访问控制或其他读取错误时显示本地安全存储错误并保持字段只读，不得伪装成未配置。用户收起再展开时发起新的读取，旧读取结果不能覆盖新代次。 | 21 | Ticket 21 missing-versus-read-failure and load-generation criteria — test |
 | FM-46 | 新 Key 已成功写入 Keychain，但应用在发布模型缓存或 Provider 状态之前失败、崩溃或终止：下次启动或打开卡片时发现“有 Key、无一致配置”，自动进入恢复并重新获取完整模型列表；恢复作业开始后阻止新的截图、Provider 验证和模型请求，若截图冻结、选区或模型请求已经活动则等待其终结再开始。恢复成功前 Provider 不可用。反向发现“有配置、无 Key”时清除残留配置和全局当前指向。 | 21、22、23 | Ticket 21 deterministic reconciliation, Ticket 22 recovery exclusivity, and Ticket 23 combined restart flow — test |
 
-The closeout gate must parse `US-01` through `US-12` and `FM-01` through `FM-46`, require exactly 58 unique rows, and reject blank ownership or acceptance cells.
+Historical structural checker: `US-01`…`US-12` / `FM-01`…`FM-46` expected 58 rows. This is retained evidence only; it is not the current semantic coverage gate.
 
 | 票 | 承兑范围 | 状态 |
 | --- | --- | --- |
@@ -78,7 +402,7 @@ The closeout gate must parse `US-01` through `US-12` and `FM-01` through `FM-46`
 | 05 | 多显示器冻结、选区裁切、全局快捷键与原始 PNG | 已完成 |
 | 06 | 操作栏、核心结果窗口、单活动任务、取消和重新执行 | 已完成 |
 | 07 | 菜单栏、首次引导、权限恢复与 Provider 配置 UI | 已完成 |
-| 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 已完成 |
+| 08 | 管理中心、搜索筛选、钉住、保留期与清理 | 原票已完成；#23 发现 US-10 扩展筛选未接入原生界面，完整行为仍有缺口 |
 | 09 | 单实例、诊断、本地化、登录项与 Sparkle 更新 | 已完成 |
 | 10 | 三架构直接分发、签名/公证/appcast 门禁与全功能收口 | 进行中（正式门禁阻塞） |
 | 11 | app-owned sheet 打开时的菜单退出、Command-Q 与系统 Quit 进入统一退出协调 | 已完成 |
@@ -265,3 +589,41 @@ This table supersedes the pending delivery status above, not its historical obse
 | US-12, FM-22 | Final-source v4 Universal Developer ID/profile verification and Data Protection Keychain CRUD, exit 0 | Pass for retained signed gate; no notarization/release/install |
 
 Delivery refresh: strict build passed; full tests with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` passed 312 tests / 72 suites (16.015 seconds); rebuilt native Paste passed 10/10 (0.956–3.369 seconds); shell syntax, localization parity and diff checks passed. The default Command Line Tools setup failure was excluded from test evidence and prevented delivery until this rerun passed. Source has not changed since the v4 signed gate. Separate code/test reviews and the three-stage document regression are complete for this scope. User prototype acceptance does not accept the separate physical/lifecycle supplement or later tickets.
+
+## 2026-09-09 — US-03 display lifecycle supplement
+
+- US-03: production display notification wiring now reaches `CaptureSelectionSession.applyCurrentDisplayGeometries` and per-display native panel invalidation. Tests: `displayChangesCancelSelectionBeforeMouseUp` (five cases), `displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost`, `replacementAndEscapeRetireDisplaySubscriptions`; post-crop cleanup is checked in `nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive`.
+- FM-03/FM-04: existing partial-freeze, geometry invalidation and suspended-crop cases still pass; application invalidation no longer waits for mouse-up. Actual multi-display hardware/focus and pending-freeze termination composition are not newly accepted by this supplement.
+- Gate: strict build, 333 non-App, 14 App tests, six parser tests and 58 ownership rows pass. Full native gate is red at the separately recorded #24 key-window wait (3 tests / 1 failure). Issue 01 implementation is ready for hardware acceptance; this is not full US-03/#23 closure or authorization to publish.
+
+## 2026-09-14 — 确认原型后的窗口与导航增量
+
+Spec：[v1-core](../../specs/v1-core.md)。参考 0febbb4 + 未提交修改。用户“ok, 按这个原型修改app”确认本轮；旧验证不能替代下面新增路径。
+
+| 已确认来源 | spec 覆盖单位 | #25 承兑与计划验证 | 当前结果 |
+|---|---|---|---|
+| 默认窗口放大、左导航缩窄 | v1-core::US-001/AC-13、AC-17 | 原生首次显示尺寸、调整后再显示；180/260 几何及中英明暗渲染 | 未验证 |
+| 导航信息与原型一致，删除当前 Provider | v1-core::US-001/AC-18 | 生产渲染检查分组与真实计数，无摘要卡片 | 未验证 |
+| 底部 Provider / Settings 与跳转后历史不选中 | v1-core::US-001/AC-19 | 真实按钮→导航→目标页面，往返更新保持正确状态 | 未验证 |
+| 单击切换错误 | v1-core::REQ-002/AC-01、AC-02 | 原生鼠标事件单击/双击，保存结果且无自动请求 | 已复现旧单击失败，待绿 |
+| 关闭历史结果返回列表，而不是所有窗口消失 | v1-core::REQ-002/AC-05 | 原生关闭→生产返回，查询/选择/滚动/frame；取消丢弃保留结果 | 未验证 |
+| 保留新截图和正常退出语义 | v1-core::REQ-002/AC-06 | 新截图替换清除来源，正常退出不恢复 | 未验证 |
+
+回归：US-001/AC-10–12 查询会话和选择、REQ-002/AC-03–04 重跑与原图保护、QR-001 最小尺寸、CON-001 本地查询、REQ-003 双语/区域。都由 #25 负责本轮路径，不改变其他票归属。其余章节（Provider 持久化/网络/发布/截图像素）无行为改动，仍沿用其原承兑和未完成边界，不在此宣称通过。
+双向核对：新增单位来自上述确认；没有新筛选、存储策略或模型行为。菜单旧 History 入口义务由 AC-19 取代；保留管理中心的 History 导航。
+
+### 本轮验证追加（不覆盖上面的当时状态）
+
+版本：0febbb4 基线 + 本轮未提交代码；spec 同路径未提交版本。以下证据仅适用于该工作树，不是已安装 build 30 的证据。
+
+| 覆盖单位 | 当前证据与边界 | 结论 |
+|---|---|---|
+| US-001/AC-13、17 | navigation-red.log 首次窗口实际尺寸错误；navigation-double.log 尺寸/resize/frame 测试完整通过；渲染1200与920两档。未测屏幕可用区小于默认大小 | 部分验证，小屏实机待补 |
+| US-001/AC-18、QR-001、REQ-003 | history-render.log 单独渲染例完整结束；生成中英×明暗×920/1200共8张，人工检查 English/Aqua/1200 与 Chinese/Dark/920 两张。分组、计数、180/260布局符合，剩余图未逐张复核 | 部分验证 |
+| US-001/AC-19 | navigation-final.log 菜单按钮真实 NSWindow 事件路由 Provider/Settings，并确认旧历史列表移除；View 的 navigationRequestID 同步实际 destination。未对两个目标页高亮做独立像素/辅助功能断言 | 路由验证通过，高亮实机待补 |
+| REQ-002/AC-01、02 | single-mutation.log 红在第二条选中；single-restored.log 同用例还原绿，含双击；history-return-green.log 生产 delegate 打开保存结果，不发请求、不加记录 | 隔离程序化原生验证通过；同进程失败保留 #24 |
+| REQ-002/AC-05 | history-return-red4.log 红在关闭后管理窗口未恢复；history-return-green.log 1例完整通过，返回同窗口/同frame/仍选中/记录仍1条 | 基本路径通过；非首条+查询+滚动组合、取消丢弃对话框待补 |
+| REQ-002/AC-06 | 生产代码新捕获与替换路径清除返回来源，Quit直接走模型终止而不调用窗口关闭通知；navigation-app.log 14例集成通过，但不是此新增来源规则的针对性反例 | 未完整验证；并发关闭/替换/退出边界待补 |
+| US-001/AC-10–12、CON-001 | history-interaction-final.log 前3例分别验证历史Provider、临时隐藏保留/真正关闭重置、组合查询选择；总运行无完成报告 | 不按整组通过记账 |
+
+日志均位于 `/tmp/vlmsnapper-*`。严格构建和 diff 检查通过；非 App 全量未收尾且被中止，不能记全绿。#25 仍未完成，本轮不安装、不提交、不推送。正式 review-code/review-tests/最终文档核销待第4步验收门解除；此处记录是有效性排查，不抵扣独立审查。

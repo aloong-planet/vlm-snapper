@@ -14,7 +14,10 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
     private let callbacks: ManagementCenterCallbacks
     private let onClose: () -> Void
     private var currentDestination: ManagementCenterDestination = .history
-    private var hostingController: NSHostingController<ManagementCenterView>?
+    private var hostingController: NSHostingController<AnyView>?
+    private var sessionID = UUID()
+    private var navigationRequestID = UUID()
+    private var hasPresented = false
 
     public init(
         records: [HistoryRecord],
@@ -52,6 +55,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
     required init?(coder: NSCoder) { nil }
 
     public func windowWillClose(_ notification: Notification) {
+        sessionID = UUID()
         providerSettings?.credentialEditor.close()
         onClose()
     }
@@ -61,9 +65,17 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
             providerSettings.onSelectProvider(providerSettings.snapshot.selectedProvider)
         }
         currentDestination = destination
+        navigationRequestID = UUID()
         render(destination: destination)
         showWindow(nil)
-        window?.center()
+        if !hasPresented, let window {
+            if let screen = window.screen ?? NSScreen.main {
+                window.setFrame(screen.visibleFrame, display: true)
+            } else {
+                window.center()
+            }
+            hasPresented = true
+        }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -82,9 +94,21 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
         window?.orderOut(nil)
     }
 
+    public func resumeAfterResult() {
+        render(destination: currentDestination)
+        showWindow(nil)
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     private func render(destination: ManagementCenterDestination) {
-        let view = ManagementCenterView(
+        // Attaching a hosting controller can adopt the SwiftUI minimum size.
+        // Keep the user's frame, including on subsequent content updates.
+        let frame = window?.frame
+        defer { if let frame { window?.setFrame(frame, display: false) } }
+        let view = AnyView(ManagementCenterView(
             destination: destination,
+            navigationRequestID: navigationRequestID,
             records: records,
             selectedRecordID: selectedRecordID,
             selectedImage: selectedImage,
@@ -93,7 +117,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
             settings: settings,
             providerSettings: providerSettings,
             callbacks: callbacks
-        )
+        ).id(sessionID))
         if let hostingController {
             hostingController.rootView = view
         } else {

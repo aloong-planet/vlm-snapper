@@ -174,7 +174,7 @@ struct PersistedOperationWorkspaceRunnerTests {
                 selection: selection
             )
         )
-        guard case let .resultPersistenceFailed(unsaved) = rerunEvents.last else {
+        guard case let .resultPersistenceFailed(unsaved, _) = rerunEvents.last else {
             Issue.record("Expected the replacement result to remain unsaved")
             return
         }
@@ -334,7 +334,7 @@ struct PersistedOperationWorkspaceRunnerTests {
                 )
             )
         )
-        guard case let .resultPersistenceFailed(unsaved) = events.last else {
+        guard case let .resultPersistenceFailed(unsaved, _) = events.last else {
             Issue.record("Expected an unsaved completed result")
             return
         }
@@ -383,12 +383,16 @@ private func collect(
     return events
 }
 
-private actor RunnerScreenshotStoreProbe: ScreenshotPersisting {
+private actor RunnerScreenshotStoreProbe: ScreenshotPersisting, ManagedScreenshotLoading {
     private(set) var saveCount = 0
     private(set) var discardCount = 0
+    private var png = Data()
+
+    func loadIfOwned(_ screenshot: ManagedScreenshot) async throws -> Data { png }
 
     func save(originalPNG: Data) async throws -> ManagedScreenshot {
         saveCount += 1
+        png = originalPNG
         return ManagedScreenshot(path: "/Pictures/shared.png", sha256: "sha")
     }
 
@@ -398,6 +402,9 @@ private actor RunnerScreenshotStoreProbe: ScreenshotPersisting {
 }
 
 private actor RunnerHistoryProbe: OperationHistoryWriting {
+    private var stored: [UUID: StoredOperation] = [:]
+
+    func operation(id: UUID) async throws -> StoredOperation? { stored[id] }
     private(set) var operations: [ProviderOperation] = []
     private(set) var outcomes: [PersistedOperationOutcome] = []
     private(set) var completions: [OperationCompletion] = []
@@ -452,8 +459,17 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
                 operation: operation
             )
         }
+        let id = UUID()
+        let targetLanguage: String?
+        switch operation {
+        case .extractText: targetLanguage = nil
+        case let .translate(language): targetLanguage = language
+        }
+        stored[id] = StoredOperation(id: id, screenshot: screenshot, selection: selection,
+            status: .succeeded, kind: targetLanguage == nil ? .extract : .translate,
+            targetLanguage: targetLanguage)
         return PreparedOperation(
-            operationID: UUID(),
+            operationID: id,
             screenshot: screenshot,
             selection: selection,
             operation: operation

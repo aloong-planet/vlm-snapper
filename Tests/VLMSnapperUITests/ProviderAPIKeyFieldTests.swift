@@ -7,6 +7,87 @@ import Testing
 @Suite("Native Provider API Key editing", .serialized)
 @MainActor
 struct ProviderAPIKeyFieldTests {
+    @Test("accessibility edits update the credential without submitting", arguments: [false, true])
+    func accessibilityEditsReachBinding(revealed: Bool) {
+        let field = ProviderAPIKeyInputView(frame: .zero)
+        var value = "old"
+        var submissions = 0
+        field.onValueChange = { value = $0 }
+        field.onSubmit = { submissions += 1 }
+        field.update(value: "old", placeholder: "API Key", revealed: revealed, enabled: true)
+
+        field.activeField.setAccessibilityValue(" e\u{301}-key\t ")
+
+        #expect(Array(value.utf8) == [32, 101, 204, 129, 45, 107, 101, 121, 9, 32])
+        #expect(Array(field.activeField.stringValue.utf8) == [32, 101, 204, 129, 45, 107, 101, 121, 9, 32])
+        #expect(submissions == 0)
+    }
+
+    @Test("accessibility writes respect unavailable fields", arguments: [false, true])
+    func accessibilityRejectsUnavailableFields(revealed: Bool) {
+        let field = ProviderAPIKeyInputView(frame: .zero)
+        var edits = [String]()
+        field.onValueChange = { edits.append($0) }
+        field.update(value: "original", placeholder: "API Key", revealed: revealed, enabled: false)
+        let originalField = field.activeField
+        originalField.setAccessibilityValue("disabled-edit")
+        #expect(originalField.stringValue == "original")
+
+        field.update(value: "original", placeholder: "API Key", revealed: revealed, enabled: true)
+        originalField.isEditable = false
+        originalField.setAccessibilityValue("read-only-edit")
+        #expect(originalField.stringValue == "original")
+
+        field.update(value: "original", placeholder: "API Key", revealed: !revealed, enabled: true)
+        originalField.setAccessibilityValue("hidden-edit")
+        #expect(originalField.stringValue == "original")
+        #expect(field.activeField.stringValue == "original")
+
+        field.isHidden = true
+        field.activeField.setAccessibilityValue("hidden-parent-edit")
+        #expect(field.activeField.stringValue == "original")
+        #expect(edits.isEmpty)
+    }
+
+    @Test("accessibility clearing is an edit but loading and invalid types are not", arguments: [false, true])
+    func accessibilityClearingAndReload(revealed: Bool) {
+        let field = ProviderAPIKeyInputView(frame: .zero)
+        var edits = [String]()
+        field.onValueChange = { edits.append($0) }
+        field.update(value: "loaded", placeholder: "API Key", revealed: revealed, enabled: true)
+        field.activeField.setAccessibilityValue(nil)
+        field.activeField.setAccessibilityValue(42)
+        #expect(field.activeField.stringValue == "loaded")
+        #expect(edits.isEmpty)
+
+        field.activeField.setAccessibilityValue("")
+        #expect(field.activeField.stringValue == "")
+        #expect(edits == [""])
+        field.update(value: "reloaded", placeholder: "API Key", revealed: !revealed, enabled: true)
+        #expect(field.activeField.stringValue == "reloaded")
+        #expect(edits == [""])
+    }
+
+    @Test("accessibility edits keep an attached system editor synchronized", arguments: [false, true])
+    func accessibilityEditsWithSystemEditor(revealed: Bool) throws {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 60),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        let field = ProviderAPIKeyInputView(frame: NSRect(x: 10, y: 10, width: 300, height: 40))
+        window.contentView?.addSubview(field)
+        defer { window.orderOut(nil) }
+        var value = "old-key"
+        field.onValueChange = { value = $0 }
+        field.update(value: "old-key", placeholder: "API Key", revealed: revealed, enabled: true)
+        #expect(window.makeFirstResponder(field.activeField))
+        let editor = try #require(field.activeField.currentEditor() as? NSTextView)
+        field.activeField.setAccessibilityValue("new-key")
+        #expect(editor.string == "new-key")
+        #expect(window.firstResponder === editor)
+        editor.insertText("!", replacementRange: NSRange(location: 7, length: 0))
+        #expect(value == "new-key!")
+        #expect(field.activeField.stringValue == "new-key!")
+    }
+
     @Test("paste normalization preserves all content except one trailing CRLF LF or CR",
           arguments: [
             ("X\n", "X"), ("X\r", "X"), ("X\r\n", "X"),

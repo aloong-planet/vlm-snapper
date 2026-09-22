@@ -1249,3 +1249,161 @@ This reviews only the current test increment, not full Ticket 23 completion.
 - 【④ 一致性】Refresh progress and ordinary failure are no longer credential status. Reused semantic colors, native spinner and existing disabled behavior; added matching source-language/English strings. Render review caught a fixture with an unconfigured current OpenAI and corrected it to a reachable configured state. No new dependency or reusable abstraction. Existing DS/OA/G prototype marks remain assigned to Ticket 23's visual consistency item rather than being copied into native UI. According to project capability declaration, RTL mirroring is not enabled and that check is skipped.
 
 This is the Refresh follow-up only. Installed-app Refresh clicks, signing/packaging and the feature-wide Ticket 23 closeout are not claimed.
+
+## 2026-09-08 — Visual alignment VA-01–04 scoped review
+
+- 【① 底层前提】The existing native model picker measured 24 points high and 143 points wide with the short model fixture, despite an enclosing row frame. The new regression failed on those actual native bounds before replacement. Confirmed prototype geometry requires a 32-point stretching control and 128-point Refresh. Initial English onboarding rendering clipped the footer at the old 760×540 size; adopting the confirmed 900-point shell (604-point content, excluding its simulated title bar) and compact status badges makes the footer visible. These are observed render/geometry failures, not compiler failures.
+- 【② 可运行性】Reviewed all changed view builders, the new native picker/coordinator, its selection binding and disabled state, two-field layout, shared button style, icon vector, bilingual strings and test locator. Refreshed model IDs replace native menu items; unavailable selection uses the existing placeholder; disabled actions do not submit. Existing application validation→model selection→return and closed-window completion pass. The isolated main-menu case initially timed out at `NSApp.keyWindow === management`, before Paste; unchanged independent rerun passes. This establishes intermittent focus acquisition, not its root cause or stable desktop acceptance. No focus workaround or timeout relaxation was introduced. Track that remaining acceptance in Ticket 23.
+- 【③ 安全正确性】No Keychain, credential admission, HTTP, capture, database, or production dependency defaults changed. Fake keys and externally controlled HTTP are isolated in the existing test fixture. The new picker updates the existing public binding, not persistence directly. Removal still requires the existing confirmation and admission checks; the transparent style does not bypass them. No real API call, installation, signing-identity access, or release was performed by these tests.
+- 【④ 一致性】Source contracts and 20 fresh affected surface renders (onboarding plus normal/minimum Provider and History, both languages/appearances) reviewed. Five additional Refresh state renders sampled; not a claim that all 24 were manually rechecked. Colors and interaction states live in the theme; new shared style has four call sites, all within these confirmed actions (`rg SetupActionButtonStyle VLMSnapper Tests`). The brand vector follows the confirmed shape. Existing SF Symbols remain, with prototype DS/OA/G choice outside scope and tracked by Ticket 23. A stale CONTEXT sentence saying models always appear below the key was reconciled to wide-side-by-side/narrow-stacked behavior. No new architecture decision or reusable framework is needed; the two-child Layout remains local to Provider fields. RTL mirroring is not enabled per project declaration and is skipped.
+
+Evidence limit: native view renders exclude real title-bar/occlusion and physical hover. The blocked local HTML browser preview was not bypassed. These checks close the four implementation differences against the confirmed source contract, not the full feature's visual/interactive acceptance. No additional production bug was established by the scoped review.
+
+## 2026-09-08 — Test-owned native lifetime correction
+
+Final fact-layer correction: broader App verification exposed two exit-0 incomplete runs, despite the native-only ten rounds passing. A temporary exit stack points to Swift async-main drain. Removing only the new release wait's nested RunLoop restored the 11-test completion; final polling uses autoreleasepool + the existing async yield. This was an upper-level test-runner escape introduced by this increment and was corrected before delivery. CI also checks completion reports, rejecting those archived incomplete runs. Upper safety/consistency layers were rechecked: no production or installed-app mutation, no deadline relaxation, and the existing native event helpers remain unchanged.
+
+- 【① 底层前提】The same-process XCTest baseline aborted after Paste passed. An autorelease pool around stop alone did not fix it. Snapshotting windows before stop, detaching their hosting content, and awaiting actual weak adapter release form the retained correction. A reduction without content detachment passed with deinit logging but aborted on the first uninstrumented repeat; that reduction was rejected. Earlier instrumentation observed all three real coordinators deinitializing with a current Swift Task. Final repeats must run without that production instrumentation; no claim that an async XCTest declaration alone controls later AppKit release.
+- 【② 可运行性】Enumerated both fixture owners (`withModel`, `withApplication`) and both exit branches in each; all four call the same stop helper. Only windows absent at entry are detached, inside the serialized native-test environment. Normal Paste, closed/reopened settings, explicit thrown operation and cancelled operation with paused HTTP are exercised. New weak lifetime checks can fail rather than retain objects until process exit. Review found cleanup exceptions masking the original operation error (self-contained diagnostic loss); fixed by reporting both. Cleanup runs in an awaited independent MainActor Task so cancellation does not bypass its existing five-second bound. Strong-retention fault injection confirmed deadline failure for ordinary and cancelled exits, not a silent green or infinite wait. Historical runtime abort is an upper-level escape affecting the entire test process; this correction is test-only, not a production compatibility fix.
+- 【③ 安全正确性】No production deinitializer/isolation, permission, credential store, real HTTP, installed binary or user window is modified. The new case types a synthetic key into isolated controls and pauses the fixture HTTP adapter. Pre-existing window content identity is checked after both error paths. View detachment occurs after production prepare/stop and after the operation's assertions, not as a shortcut to passing application behavior. The test-owned weak wrapper observes an external adapter lifetime; it does not expose or mutate private coordinator state.
+- 【④ 一致性】No sleep, longer deadline, assertion weakening or retry-on-failure. Middle-Man exemption: the small forwarding adapter provides a unique lifetime identity per real coordinator while existing shortcut simulation remains shared within the fixture. Temporary strong retention and production deinit logging are removed. CI gains a same-process native suite in addition to existing isolated cases, requiring nonempty XCTest completion and process success. No feature/spec UI behavior changes in this increment: no feature sentence becomes false and none is missing. Full Ticket 23 closeout, historical focus deadlines and actual installed-app acceptance are not inferred from these results. i18n is enabled but no product strings changed; per project declaration RTL mirroring is not enabled, so that check is skipped.
+
+## 2026-09-09 — Live display reconfiguration (scoped follow-up)
+
+This review covers only CaptureDisplayMonitor, its required composition dependency, application selection wiring, per-display overlay retirement and their tests. It is not the unfinished full Ticket 23 review or a passed delivery gate.
+
+- 【① 底层前提】Confirmed Apple documents `NSApplication.didChangeScreenParametersNotification` as a main-actor configuration notification with no geometry payload. `NSWorkspace.screensDidSleepNotification` must use the workspace notification center; production does so. Geometry is read from the active NSScreen set and excludes sleeping displays. Injected center tests establish application delivery/handling, not actual OS hardware notification timing; two-display unplug/scale/focus acceptance remains in issue 01. No assumption that a visible window is key: the full native gate exposed precisely that gap again in #24.
+- 【② 可运行性】Found and repaired an instance-level registration gap: the first geometry read preceded an actor hop and observer registration. A queued external snapshot test was red before the second read; registration followed immediately by re-reading on MainActor now covers that interval without sleep. Traced all touched entry/exit paths: first freeze and replacement revalidate; failed replacement preserves the old monitor/session; successful replacement switches generation before cancelling the old actor; changed panels are retired synchronously; all-invalid cancels/releases; crop success, Escape, termination and final stop unsubscribe. Affected-display errors are self-contained; cancelling unaffected displays would be same-level escape and is avoided. Pending-freeze termination guards are inspected but do not have a new controlled integration test in this increment.
+- 【③ 安全正确性】Both async invalidation and crop completion check session identity and generation before touching UI. Native hit targets and the presentation geometry map are removed before the actor hop; old geometry never re-adds an invalidated frame. Enumerated production `applyCurrentDisplayGeometries` callers across Sources/VLMSnapper: the post-freeze check and active-notification path are both accounted for. No new provider request, screenshot capture, credential read, diagnostic content, privilege, storage or retry path is introduced. Completion/termination behavior uses existing lease ownership rather than releasing unrelated work.
+- 【④ 一致性】US-03/ADR-0010 remain the authority: per-display invalidation, no mid-session additions, no live recapture. UI admission is the already-required lifecycle, not a new panel/design; no style/copy/icon changes. Bad-smell review: two geometry maps serve distinct synchronous native-hit-target and asynchronous crop-resource boundaries; keeping ordered panels plus an ID index preserves existing key-panel ordering while supporting targeted removal. No speculative protocol or dynamic fallback to real test IO. No extra refactoring proposed. Project i18n is enabled; no copy changed. Per capability declaration RTL mirroring is not enabled and is skipped.
+
+The first/second snapshot correction was rechecked against generation, replacement and cancellation guards after the fact-layer fix. Strict build and the App/non-App suites pass; the native key-window failure means the overall gateway is still red. No PR, install or full-ticket closure.
+
+## 2026-09-09 — Provider identity marks (scoped follow-up)
+
+- 【① 底层前提】Confirmed prototype has DS/OA/G. Its later provider-name span
+  selector overrides the logo font size/color to 10px and tertiary gray; retained
+  weight 800, 29px square and radius 8. Native implementation follows that cascade,
+  not the earlier 11px/accent declaration. Browser unavailable: Mac locked.
+- 【② 可运行性】Strict build exit 0; fresh production renders show all three marks.
+  Static exhaustive ProviderID switch introduces no jobs, callbacks or lifecycle.
+  Render inspection: zhHans-light-1200-idle, zhHans-dark-1200-idle,
+  en-dark-920-busy, en-light-920-failed in the temporary Provider render directory.
+- 【③ 安全正确性】Only static display identifiers; no credential access, network,
+  persistence or new interactive control. Mark is accessibility-hidden while the
+  adjacent localized full Provider name remains; existing card button unchanged.
+- 【④ 一致性】Central icon module and theme own appearance. Explicit user approval
+  for prototype monograms is a narrow exception, documented in spec and module.
+  Existing generic SF Symbols remain. No refactoring items introduced. All three
+  ProviderID cases checked through the exhaustive switch and rendered cards.
+  No new class names; pre-edit source search found no ProviderIdentityMark.
+  This pass did not exhaustively audit unrelated character-icon carriers.
+- Regression boundary: 333 non-App tests pass. App suite 14 tests / 1 failure at
+  capture-toolbar wait (ProviderApplicationTests.swift:321), exit 1, retained in
+  /private/tmp/vlmsnapper-provider-marks-app.log. No rerun, no claim of full green.
+  Live native focus suite not attempted on the locked desktop. Ticket 24 remains.
+
+## 2026-09-09 — Ticket 23 continuation: scoped semantic audit
+
+Scope: closeout documentation and the connected history-filter/display-notification
+paths. This is **not** the final review of all accumulated dirty implementation files.
+
+- 【① 底层前提】Found: prior ticket completion and 58 ownership rows did not
+  establish the entire US-10 workflow. Five query dimensions have no native
+  control path. Separately, the display ticket's opening description was stale:
+  production now calls session invalidation and registers AppKit notifications.
+  Corrected current bookkeeping; historical comments retained.
+- 【② 可运行性】History query entry points in the application use the default
+  query; the native view predicate implements kind/search/pinned only. The missing
+  dimensions affect history discoverability, not proven data loss or mutation.
+  All five optional dimensions were enumerated from HistoryQuery and checked
+  against the SQL builder and native state/toolbar/predicate. Their shared UI
+  omission needs a confirmed layout before implementation. Display hardware
+  behavior remains unverified; injected callbacks are not physical acceptance.
+- 【③ 安全正确性】No production behavior or secret-handling changes in this
+  continuation. The audit does not access stored API keys, real screenshots or
+  external Providers. No history migration/deletion proposed. Broader production
+  security review remains pending rather than being inferred from this scope.
+- 【④ 一致性】Corrected ownership/current-checkpoint drift and added the missing
+  feature index. Spec requirements remain intact; the confirmed prototype does
+  not yet cover the five additional controls. The discrepancy stays owned by #23
+  pending user direction. No speculative abstraction or adjacent cleanup.
+
+Detailed source evidence and recommended acceptance: `23-history-filter-audit.md`.
+The independent final code-review task remains unchecked.
+
+## 2026-09-14 — #25 历史 UI 同步审查
+
+范围为当次历史工具栏、行元数据、选择协调、窗口会话和补齐的 Provider 布局/菜单组件；不冒充累积工作区或全 feature 审查。参考 0febbb48fcd9acccdefc67dc9015ebf92605511c + 未提交修改。
+
+- 【① 底层前提】发现当前 Provider 视图引用的 ProviderFieldLayout / ProviderModelPicker 定义缺失，授权构建明确报错；补齐这两个依赖，不撤销已有 Provider UI。原型确认只作为设计依据，不当作 App 证据。严格构建还检出了菜单 Coordinator 缺少 MainActor 声明，已补齐并在 strict-build-fixed 日志中验证。
+- 【② 可运行性】关闭后原 HostingController 保留查询，queryWindowLifetime 明确红过；改用 sessionID 重建 SwiftUI 状态，保留宿主视图身份，关闭后新会话、截图隐藏同会话两路径及 Provider 草稿关闭回归通过。选择原图异步回调存在跨记录污染风险（同层逃逸）：选择时清空旧图，加载成功/失败均核对当前 ID，视图同时检查图片身份。静态路径已修正，受控乱序实测仍缺，不将此条标为完整验收。单击/导航测试失败在处理真实 AppKit 激活事件后仍存在，暂未坐实是产品还是合成输入；试验性手势变更无有效通过证据，已只撤销这些试验，不改变生产焦点规则。
+- 【③ 安全正确性】Provider 筛选只消费传入的本地历史，无网络、Keychain 或数据库写入；不读取用户真实截图/Key。菜单候选为缓存模型 ID；禁用状态传递给原生控件。图片旧结果身份保护适用于成功及失败两条回调。未改变文件所有权规则。残留竞态实测由 #25 继续持有。
+- 【④ 一致性】完整枚举新文案三项，中英字典和调用一致，历史“提取”不改截图/结果页“提取文字”。类型/状态使用动态系统语义色，区域日期继续 .formatted。Provider 字段并排/堆叠复用同一布局，无新生产测试开关。类级会话影响复查 Provider 关闭/重开及截图隐藏两种使用者，专项四例通过。未顺带删除旧查询模型字段或重构既有手势。
+
+未完成项有明确归宿：#25 保留鼠标组合、图片乱序和完整原生验收；#24 保留原有焦点/等待诊断。未开 PR、未将门禁失败解释为通过。
+
+## 2026-09-14 记录栏视觉对齐自审
+
+范围：ManagementCenterView 的历史列表/行呈现、Theme 的历史专用配色及其测试适配；不重审本分支其他既存改动。
+
+- 【① 底层前提】发现并修正：List 的默认行布局并不等于声明的 row inset，实际原生 PNG 显示额外缩进；改为原生滚动列表。原型列宽包含 1pt 分隔线，内容应为 259pt，非 260pt。PNG 带显示器色彩描述，直接比较未转换 RGB 会误判颜色；已按 sRGB 核验。
+- 【② 可运行性】最终构建及四项定向测试通过，包含 8 个实际原生渲染与鼠标事件选择。发现 HStack + Spacer 的两个 10pt spacing 会把最小日期间距扩大为 20pt，已改为单一 10pt 最小间隔并复测。选中背景优先于 hover；过滤、关闭重置和临时隐藏保留由生产窗口回归覆盖。实际 hover、键盘焦点和组合交互仍未完成验收，不能推断通过。
+- 【③ 安全正确性】未改变 Provider 请求、凭据、图片路径、持久化或删除逻辑；测试只用隔离记录。列表 Button 仍仅更新选择，既有双击 callback 本轮保留。没有自动网络调用或更广的数据逃逸面。
+- 【④ 一致性】原生 SwiftUI 实现视觉契约而非嵌入原型；同一个 historyContent 覆盖 History/Pinned/筛选结果，未复制多套样式。专用颜色避免系统强调色改变已确认视觉；既有主题其他调用不受影响。spec 的 AC-13/15/16 与 features 同步。没有新增需跨文件重构的抽象；无另行删除既有 dead code。
+
+结论：本轮发现均已修复；交互验收缺口记录于 25-history-row-style.md，不将编译/渲染通过等同全量原生验收。
+
+## 2026-09-14 记录栏视觉对齐自审
+
+- 【① 底层前提】原生 List 的额外行缩进由实际 PNG 坐实，替换为原生 ScrollView/LazyVStack/Button；原型260列宽包含1pt分隔，内容259而非260。截图带显示器ICC，先转sRGB再比较，不能直接读原始RGB。
+- 【② 可运行性】修正 HStack + Spacer 造成最小时间间隔20而非10的问题；最终构建、单击选择、Provider筛选、隐藏/关闭恢复、8组渲染通过。选中背景优先hover。组合交互无完成摘要，实际hover/键盘尚未验收，不推断通过。
+- 【③ 安全正确性】没有改变请求、凭据、图片路径或持久化；测试用隔离记录。保留本轮前既有双击callback，不自动请求Provider。无跨记录数据副作用。
+- 【④ 一致性】History/Pinned/筛选共用一份行呈现，无复制实现；历史专用明暗配色与系统强调色独立。spec AC-13/15/16、features已同步。不涉及架构或领域变更，无新增重构建议。
+
+证据与未验证边界见25-history-row-style.md。视觉实现完成不代表全量原生交互验收。
+
+## 2026-09-15 历史详情重试（本轮增量自审）
+
+- 【① 底层前提】历史重跑创建新操作、当前工作区重跑复用身份是不同语义。本次复用生产 runner/session，但每次历史重试创建新 runner；原 PNG 经存储所有权及哈希重新验证。测试通过外部 HTTP、真实 SQLite 验证，并读取生产详情渲染证明成功文本实际可见。Provider phase.ready 比应用 readiness 先传播，测试改为等待实际按钮 allowsStart，不修改生产配置规则。
+- 【② 可运行性】首次选中未触发图片加载会永久禁用重试，补 initial 回调；观察任务在 actor 返回后检查取消，避免终态被迟到进度覆盖。同步 isRunning 挡重复点击，应用级工作流挡配置冲突。发现未保存结果的源记录可被删除（同层逃逸：恢复入口消失）；已保护该记录，并对同类入口逐一检查：单条删除、清空历史、手动保留期清理和每小时自动清理。后两者暂缓；启动清理先于任何历史重试，不受本轮状态影响。
+- 【③ 安全正确性】不读取真实 Key，不添加模拟启动入口。请求前保存新截图和数据库准备记录，原图替换测试无新增 HTTP。SQLite 触发器制造真实完成写失败，本地 Retry Save 恢复后 HTTP 总数不增；失败不自动请求、不覆盖旧记录。应用退出取消任务或确认未保存结果；该确认框的安装版交互未在本轮验收。
+- 【④ 一致性】沿用顺时针 SF Symbol、既有中英 Retry/Retry Save 字典、主题色，三个标题按钮盒统一 30pt；失败时保留旧文字，成功时不把旧耗时冒充新结果。新入口不删除原双击功能或改变默认窗口大小。当前 spec AC-07–09、功能目录、CONTEXT、原型适用范围与映射已同步。未发现本轮必须执行的额外重构。
+
+验证边界和全套测试未完成记录见 25-history-retry-verification.md。本自审不抵扣物理鼠标验收或全 feature 收口。
+
+同层逃逸复审补充：仅保护源ID仍允许迟到的清空确认删除待保存的新操作，之后Retry Save无法恢复。已先让负测在保存成功断言上红，再改为请求中/待保存时暂停全部历史删除和清理（共用应用入口，UI保留禁用）；源ID和新操作ID均被保护。最终16项应用/初始详情回归退出0。
+
+## 2026-09-16 AX 输入同步修复
+
+- 【① 底层前提】标准 AX 写值不等于文本 delegate 通知。前轮外部观测与通知校准支持此归因；本轮不在 Runner 合成通知，而在两个原生字段标准 setter 连接生产 binding。新类仍保留 NSSecureTextField / NSTextField 身份。
+- 【② 可运行性】类级问题：该输入组件包含密码/明文两实现，均已修复并分别通过外部 AX → Validate → 精确值回调。当前活跃、可编辑且非隐藏字段才接受写入；有系统编辑器时写入与后续编辑一致，切换显隐及程序载入不产生编辑。闭包弱引用 owner，无新异步任务/订阅或生命周期竞争。故障影响为本卡片输入自伤，没有跨 Provider 写入。
+- 【③ 安全正确性】仅标准字符串写入，不改安全字段读接口、不记录值、不绕过 editor 的本地输入校验、提交互斥或 Keychain 边界。无真实 Key 或真实网络；只读/隐藏负测通过。拒绝的变异未执行；正式保护仍在。无自动提交或主动激活行为。
+- 【④ 一致性】两段相同 setter 是 AppKit 两个基类所需的薄适配；检查与更新合并在 owner 一处，不引泛化框架。UI 几何、文字、图标均不改，沿用原型；图标模块既有明确批准的 Provider 字母标识不在此次范围，本次未对全项目图标做穷举。未发现需另开重构的本次新增问题。
+
+本轮全量失败和安装边界见 [验证记录](ax-input-sync-verification.md)；不等于 #24 或全功能收口。
+
+## 2026-09-16 Provider 旧坐标用例替换
+
+- 【① 底层前提】旧测试的按钮坐标已经过单变量复现确认不再命中，尤其不能继续用同一空白位置的负向断言充当禁用验证。现行测试接入固定授权的外部 AX 客户端，fixture 从当前源码重建；不复用 PoC 产物。实际两尺寸、两初值、两显隐组合均通过。
+- 【② 可运行性】真实 ManagementCenterView / CredentialEditor / 字段保留；fixture 仅替换公开网络/存储提交终点，快照更新维持同一 hosting controller。Runner 检查唯一 selector、前台不变和正常清理。丢弃结果分支先由独立标题确认到达，再在最终效果断言失败。测试 fixture 90 秒自退，调用器 180 秒超时；不强杀用户 App。
+- 【③ 安全正确性】独立 bundle ID、仅固定非秘密测试值、不打开生产数据/Keychain/网络、不移除生产字段保护。报告门禁用显式异常而非可被 python -O 移除的 assert；非预期阶段/原因、漏步骤、子进程退出码不符或清理失败均阻断。正式 App 未增加任何测试开关。
+- 【④ 一致性】全库枚举鼠标事件调用：ProviderCredentialInteractionTests 内四处同类定位（含负向）全部替换，清空坐标和截图副作用一并删除；其他 History/Application 交互及菜单整行命中测试保留，不能把它们误称为都已迁移。新 shell 语法门禁逐文件运行 bash -n，修正通配参数实际只检查首文件的问题。未发现需扩大生产改动面的重构。
+
+本次没有改变产品行为；features 既有描述无新增缺口或失真，不重做视觉原型或安装生产 App。只更新 spec 的 Testing Decisions 和测试执行说明。全量结果单列于 ax-test-migration-verification.md；不关闭 #24 的其他焦点/toolbar 待查事项。
+
+## 2026-09-16 菜单最近记录五条
+
+- 【① 底层前提】当前生产链路在 model 和 view 两处截取三条，均改为五条；没有数据库条数限制变更。面板控制器实际按 hosting fittingSize 取高度，不使用固定三行高度。
+- 【② 可运行性】临时 SQLite 经真实 model.menuView 渲染；0、2、超过五条分别验证，追加正好五条边界。保留缩略图、终态、回调与排序；第六条仅从菜单省略。无新增异步或错误路径。
+- 【③ 安全正确性】不改变凭据、权限、网络和数据删除。测试只写自身临时数据库。安装按原身份覆盖，不碰用户数据。
+- 【④ 一致性】保持 300pt、原行尺寸及五条同样式；两处既有限制同步修改，不为简单数量新增抽象。渲染样本补两条并扩高，避免固定测试画布把英文更新提示和箭头裁切。现行 spec/features/原型 README 同步；未发现需另开重构的本轮新增项。
+
+## 2026-09-16 历史重试身份修复接续
+
+- 【① 底层前提】旧“同 runner 第二次调用”不能代表从数据库恢复的历史入口。生产 App 回调测试先复现原行未改、条数增加，恢复显式 operation ID 后转绿。删除“历史重试应新建行”的旧假设；提示词版本持久化经用户否认后从验收移除，不新增 schema。首开尺寸和双击旧测试与已确认原型相反，已替换。
+- 【② 可运行性】逐条核对恢复→原图预检→请求→完整结果→UPDATE、失败/取消、待保存→本地重试、目标丢失、切换/隐藏/关闭、删除和清理路径。发现迟到 retention 确认绕过忙碌保护并删除两行（同层逃逸），已加保护；失败后 committedResult 已保留却阻止正文渲染（自条目可见功能 bug），已恢复旧正文并保留成功指标展示。两者均有目标错误上的红→绿。枚举应用删除入口：单条删除、清空、手动清理、自动清理、缩短保留期确认，最后一项缺保护，已修复；其余入口保留既有保护。
+- 【③ 安全正确性】持久化只替换既有 ID，目标消失不得 INSERT；保留创建时间/原图/语言/Pin，Pin 运行中变化不被旧快照覆盖。复核受管理路径、哈希和 PNG 内容，不因预览曾可用就直接上传。更新失败保留内存结果和原目标，不重发 HTTP。测试仅访问隔离目录、假凭据与受控 HTTP；安装不修改用户数据。没有引入提示词历史落盘或密钥日志。
+- 【④ 一致性】从 spec/CONTEXT/features/原型 README 中清理双击打开独立结果、1200×780 默认窗口及提示词持久化的过时现行描述；施工历史保留并追加取代记录。双击只保留普通行选择；首次铺满 visibleFrame，非 macOS fullscreen，后续保留用户尺寸。类级目录 URL 比较 load/discard 两处已同步验证。未增加与本次无关的重构。
+
+证据：`/private/tmp/history-retry-boundaries-current-red.log`、`history-retry-failed-body-red.log`、`history-retry-complete-targeted.log`、`history-retry-full-closeout.log`。完整门禁退出 0。程序化回调/渲染与真实安装版操作区分记录，不把人工验收标成完成。

@@ -4,7 +4,9 @@ import Testing
 import VLMSnapperCore
 @testable import VLMSnapperUI
 
-// Uses programmatic AppKit events on the production window. Physical input,
+// Uses programmatic AppKit editor events on the production window. Button
+// actions are covered by Scripts/test-provider-accessibility.py, not coordinates.
+// Physical input,
 // signed-app Keychain access and real Provider calls require separate acceptance.
 @Suite("Provider credential interaction", .serialized)
 @MainActor
@@ -88,7 +90,7 @@ struct ProviderCredentialInteractionTests {
         #expect(submissions == 0)
     }
 
-    @Test("unsafe typed keys cannot be submitted by Validate or Return",
+    @Test("unsafe typed keys cannot be submitted by Return",
           arguments: ["key\nvalue", "key\r", String(repeating: "x", count: 4097)])
     func unsafeDraftCannotValidate(value: String) throws {
         LocalizationTestCoordinator.acquire()
@@ -117,9 +119,6 @@ struct ProviderCredentialInteractionTests {
         editor.insertText(value, replacementRange: editor.selectedRange())
         settle(window)
         #expect(Array(credential.value.utf8) == Array(value.utf8))
-        let rect = field.convert(field.bounds, to: nil)
-        try click(window, at: NSPoint(x: content.bounds.width - 75, y: rect.minY - 30))
-        window.makeFirstResponder(field)
         editor.interpretKeyEvents([try #require(NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: window.windowNumber, context: nil, characters: "\r",
@@ -174,10 +173,10 @@ struct ProviderCredentialInteractionTests {
     // These tests exercise the production window and AppKit editor. Network and
     // Keychain effects stop at the public validation callback; no real key is used.
     @Test(
-        "credential edits, clearing, and window refreshes keep validation coherent",
+        "typed and pasted credentials submit once via Return and survive window refreshes",
         arguments: ["", "initial-key"], [false, true]
     )
-    func editingEnablesValidation(initialKey: String, paste: Bool) throws {
+    func editsSubmitViaReturn(initialKey: String, paste: Bool) throws {
         LocalizationTestCoordinator.acquire()
         defer { LocalizationTestCoordinator.release() }
         VLMSnapperLocalization.configure(effectiveLanguage: .english)
@@ -223,16 +222,7 @@ struct ProviderCredentialInteractionTests {
         }
         settle(window)
         #expect(credential.value == "test-key")
-        let fieldRect = field.convert(field.bounds, to: nil)
-        // These points target the confirmed minimum-width layout. The prefilled
-        // positive control proves the same hit test can reach Validate.
-        let point = NSPoint(x: content.bounds.width - 75, y: fieldRect.minY - 30)
-        let bitmap = try #require(content.bitmapImageRepForCachingDisplay(in: content.bounds))
-        content.cacheDisplay(in: content.bounds, to: bitmap)
-        try #require(bitmap.representation(using: .png, properties: [:])).write(
-            to: URL(fileURLWithPath: "/private/tmp/vlmsnapper-credential-\(initialKey.isEmpty ? "empty" : "prefilled").png")
-        )
-        try click(window, at: point)
+        try submitReturn(editor, in: window)
         settle(window)
         #expect(submitted == ["test-key"])
 
@@ -246,12 +236,11 @@ struct ProviderCredentialInteractionTests {
         settle(window)
         #expect(submitted == ["test-key"])
 
-        // Clear through the visible button and verify the previous enabled state
-        // does not linger. Refill and submit with Return without ending editing.
-        try click(window, at: NSPoint(x: fieldRect.maxX + 17, y: fieldRect.midY))
+        // Editing to empty is distinct from the AX Clear button scenario.
+        submittedEditor.insertText("", replacementRange: NSRange(location: 0, length: submittedEditor.string.utf16.count))
         settle(window)
         #expect(credential.value == "")
-        try click(window, at: point)
+        try submitReturn(submittedEditor, in: window)
         settle(window)
         #expect(submitted == ["test-key"])
 
@@ -295,12 +284,13 @@ struct ProviderCredentialInteractionTests {
         )
         settle(window)
         #expect(loadedField.stringValue == "")
-        try click(window, at: point)
+        #expect(window.makeFirstResponder(loadedField))
+        try submitReturn(try #require(loadedField.currentEditor() as? NSTextView), in: window)
         settle(window)
         #expect(submitted == ["test-key", "second-key"])
     }
 
-    @Test("another active Provider job permits native editing but blocks click and Return until it ends")
+    @Test("another active Provider job permits native editing but blocks Return until it ends")
     func otherProviderJobBlocksNativeSubmission() throws {
         LocalizationTestCoordinator.acquire()
         defer { LocalizationTestCoordinator.release() }
@@ -330,9 +320,6 @@ struct ProviderCredentialInteractionTests {
         editor.insertText("draft-fixture", replacementRange: editor.selectedRange())
         settle(window)
         #expect(credential.value == "draft-fixture")
-        let fieldRect = field.convert(field.bounds, to: nil)
-        try click(window, at: NSPoint(x: content.bounds.width - 75, y: fieldRect.minY - 30))
-        window.makeFirstResponder(field)
         let focusedEditor = try #require(field.currentEditor() as? NSTextView)
         focusedEditor.interpretKeyEvents([try #require(NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
@@ -341,19 +328,14 @@ struct ProviderCredentialInteractionTests {
         ))])
         settle(window)
         #expect(submissions.isEmpty)
-        let bitmap = try #require(content.bitmapImageRepForCachingDisplay(in: content.bounds))
-        content.cacheDisplay(in: content.bounds, to: bitmap)
-        try #require(bitmap.representation(using: .png, properties: [:])).write(
-            to: URL(fileURLWithPath: "/private/tmp/vlmsnapper-ticket22-other-provider.png")
-        )
         controller.update(records: [], selectedRecordID: nil, selectedImage: nil,
                           cleanupFailureCount: 0, retention: .thirtyDays,
                           settings: GeneralSettingsSnapshot(), providerSettings: configuration(blocked: false))
         settle(window)
         #expect(credential.value == "draft-fixture")
         let enabledField = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
-        let enabledRect = enabledField.convert(enabledField.bounds, to: nil)
-        try click(window, at: NSPoint(x: content.bounds.width - 75, y: enabledRect.minY - 30))
+        #expect(window.makeFirstResponder(enabledField))
+        try submitReturn(try #require(enabledField.currentEditor() as? NSTextView), in: window)
         settle(window)
         #expect(submissions == ["draft-fixture"])
     }
@@ -400,14 +382,11 @@ struct ProviderCredentialInteractionTests {
         [view] + view.subviews.flatMap(descendants)
     }
 
-    private func click(_ window: NSWindow, at point: NSPoint) throws {
-        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            window.sendEvent(try #require(NSEvent.mouseEvent(
-                with: type, location: point, modifierFlags: [],
-                timestamp: ProcessInfo.processInfo.systemUptime,
-                windowNumber: window.windowNumber, context: nil,
-                eventNumber: 1, clickCount: 1, pressure: 1
-            )))
-        }
+    private func submitReturn(_ editor: NSTextView, in window: NSWindow) throws {
+        editor.interpretKeyEvents([try #require(NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: "\r",
+            charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36
+        ))])
     }
 }

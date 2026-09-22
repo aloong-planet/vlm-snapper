@@ -1280,3 +1280,492 @@ All changed conclusions were rechecked against the relation endpoints after corr
 | Local implementation, no distribution | No App installation, release artifact, push, merge or ticket closure performed. |
 
 Scoped conclusions were rechecked after copy/fixture corrections. According to project capability declaration, i18n is enabled and both dictionaries are included; RTL mirroring is not enabled, so that check is skipped. This is not the feature-wide Ticket 23 final regression.
+
+## 2026-09-08 — Ticket 23 visual audit after #27
+
+This is the visual slice only, not the full feature regression. Detailed evidence and remaining findings: [23-visual-audit.md](23-visual-audit.md).
+
+### Phase 1 — changed statements
+
+| Statement surface | Counterpart / conclusion |
+|---|---|
+| New visual audit coverage | 52 fresh native primary-matrix PNGs individually inspected; three generation tests passed. Neither implies full-state or pixel-parity acceptance. |
+| Ticket 23 status/comment | Remains in-progress; visual checkbox unchanged because confirmed differences and evidence gaps remain. |
+| Audit findings ↔ implementation/prototype | VA-01–04 have native source plus render evidence and corresponding prototype source; VA-05 is observed readability truncation. Findings are not silently converted into new approved design. |
+
+### Phase 2 — relation endpoints
+
+| Relation | Conclusion |
+|---|---|
+| Audit ↔ ticket | Linked from existing Ticket 23; no new ticket or duplicate requirements authority created. |
+| Prototype ↔ native render | Onboarding/Provider/History deltas recorded; source comparison is explicitly weaker than browser render-to-render parity. |
+| Render contract ↔ tests | Expected filenames and PNG size detect missing output, not layout mismatches. Evidence limitations documented, no false visual pass. |
+| Existing features/spec ↔ this audit | No product behavior changed; no features/spec rewrite to legitimize the discovered visual deviations. Full feature-wide reconciliation remains separate. |
+
+### Phase 3 — events
+
+| Event | Conclusion |
+|---|---|
+| Fresh rendering of merged #27 | Source identity and successful generation recorded; no installed-app update or release. |
+| Browser URL denial | Actual HTML visual comparison remains blocked; no alternate execution used. |
+| Newly observed differences | Assigned VA-01–05 to the existing Ticket 23 visual criterion with impact and recommendations. Existing icon decision retained. |
+| Pending acceptance | No visual/full-feature gate promoted to complete. i18n is enabled and both languages/appearances inspected; RTL mirroring is not enabled and is skipped per project capability declaration. |
+
+Rechecked the report's scope, evidence paths and ticket reference. Known differences are now tracked, not resolved; this section must not be cited as a full visual pass.
+
+## 2026-09-08 — Confirmed visual alignment 1–4
+
+This is the user-approved correction of VA-01–04, not closure of Ticket 23. Native evidence is preserved at `/private/tmp/vlmsnapper-visual-alignment-evidence.NxghbV/` (20 affected surface images personally inspected, plus five Refresh state samples). Full generated sets contain 52 surface and 24 Refresh images; counts are generation coverage, not a new assertion that every state was reviewed.
+
+### Phase 1 — changed declarations and counterparts
+
+| Declaration | Counterpart and conclusion |
+|---|---|
+| Spec §1 onboarding composition/dimensions | `OnboardingView`/metrics and four bilingual appearance renders: intro, three tiled rows, tinted gate, grouped footer align to confirmed source. English footer fits the updated content size. No simulated title bar. |
+| Spec §5 Provider geometry/styles | Native picker bounds test plus eight Provider renders: fields stretch/stack, model and Refresh are 32 points high, Refresh 128 points wide, small secondary API label, red Remove and green Current. Selection/admission callbacks retained. |
+| Spec §10 History filter label | `.labelsHidden()` and eight History renders: only segment choices remain visible. Picker retains its original label for accessibility. No filter/record navigation change. |
+| Features setup/Provider/History paragraphs | Updated with observable composition and styles, without internal type names. No new business capability asserted. |
+| English and Chinese string dictionaries | Sixteen paired additions and two title updates match the confirmed composition. Permission and Provider readiness still derive from the actual snapshot. Localization/source checks are included in the passing 333-test partition. |
+| CONTEXT Provider layout statement | Corrected old always-below wording to same-card expansion with wide side-by-side/narrow stacked behavior. No domain/state/persistence decision changed. |
+| Review/tasklist/audit statements | Both first native focus failure and unchanged passing rerun retained. These records explicitly do not claim physical events, full visual parity or Ticket 23 completion. |
+
+### Phase 2 — relationships outside the diff
+
+| Relationship | Conclusion |
+|---|---|
+| Confirmed prototypes ↔ native implementation | Direction A and Provider source geometry are the reference, not a new design. Actual local HTML preview remains denied by browser URL policy; no alternative execution used. Source-contract alignment is evidenced, browser pixel parity is not. |
+| Changed documents ↔ directory indexes | `rg --files docs/features` enumerates only `v1-core.md`; no existing feature README index to update. No spec/feature slug or document purpose renamed. |
+| Same layout fact ↔ CONTEXT/spec/features/prototype READMEs | Search for onboarding/model layout and 760/540/900/604 located the stale CONTEXT below-key sentence, corrected and reread against spec/implementation. Historical working records retain their original dimensions as historical evidence. |
+| ADR-0003/0012 ↔ credential/interaction behavior | No change to platform boundary, replacement/no-rollback, actual stored truth, admission or navigation ownership. No new ADR needed for these already-confirmed visual choices. |
+| Rules ↔ gates | Geometry tests measure the actual control; render tests produce visual evidence but do not inspect pixels automatically. Strict build, both Swift Testing partitions, isolated closed-window test and independent Paste rerun pass. The first Paste run timed out before key-window acquisition, so overall first-attempt/stability acceptance remains open. |
+| Shared theme/style ↔ consumers | All four new style call sites reviewed; no other view receives this custom style. No CSS/theme runtime introduced. Existing native icon anchor retained; unresolved prototype letters remain with #23. |
+
+### Phase 3 — event-based checks
+
+| Event | Conclusion |
+|---|---|
+| Supported languages/providers/platform set | No member added or removed. English/Simplified Chinese both rendered. Per project declaration, RTL mirroring is not enabled and is skipped. |
+| Pending notes | Spec release Pending entries for real Provider size/contracts and experimental model remain unresolved and untouched. Partial full-feature visual/interactive acceptance is not expired by this incremental correction. |
+| New cross-cutting rule | None. Existing UI choices were implemented, with concrete geometry in spec and observable behavior in features; no new policy left only in comments. |
+| Native focus timeout | Impact is an intermittent precondition failure in the isolated menu test; this run never reached Paste. Unchanged rerun passed. Root cause unconfirmed; retained in #23's native-acceptance work, no product focus workaround or relaxed assertion. |
+| Packaging | arm64/x64/universal development DMGs built, deep-signature/metadata/architecture checks and DMG verification passed; `/private/tmp/visual-align-packages.log`. Ad-hoc development artifacts are not Developer ID/notarized release or an installed-app update. |
+
+Rechecked changed prose against its counterpart after the CONTEXT/History additions. No full-feature checkbox is promoted. Installation, publish/merge, VA-05 and Provider icon redesign are outside this request.
+
+## 2026-09-09 — Ticket 23 closeout checkpoint (not complete)
+
+User requested recording the unconfirmed focus issue before closeout. It now has local Ticket 24. This checkpoint records actual checks and their limits; it is not the completed full-feature report required for PR delivery. No new product code, installed App, signing state or release was changed in this closeout pass.
+
+### Verification gate results
+
+Using `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`, a `set -euo pipefail` sequence ran strict Swift/C warnings-as-errors build, non-App tests, App tests, native XCTest, ownership tests/parser, shell syntax and diff validation. Each suite required both successful exit and a nonempty terminal completion report.
+
+| Gate | Current result / evidence |
+|---|---|
+| Strict build | Passed; `/private/tmp/vlmsnapper-ticket23-closeout-strict.log` |
+| Non-App Swift tests | 333 tests / 73 suites, 22.729 s; `/private/tmp/vlmsnapper-ticket23-closeout-nonapp.log` |
+| App integration | 11 tests / 1 suite, 6.496 s; `/private/tmp/vlmsnapper-ticket23-closeout-app.log` |
+| Native XCTest | 3 tests, 0 failures, 6.153 s; `/private/tmp/vlmsnapper-ticket23-closeout-native.log`. Repeated enclosing-suite footer lines are not additional executions. |
+| Ownership parser | All 58 unique rows; six parser tests passed. This checks assignment shape, not implementation or spec-text equality. |
+| Localization | 270 unique keys in each dictionary, exact set equality; both `.strings` files passed `plutil -lint`. Semantics and every rendered state are not proved by parity. |
+| Prototype syntax | Nine HTML files / nine inline scripts compiled with Node `vm.Script`; both shared-shell references passed the existing checker. This is not browser interaction or visual parity. |
+| Shell and whitespace | `bash -n Scripts/*.sh` and `git diff --check` passed. |
+
+The initial restricted build failed writing Clang module cache before tests ran. The approved normal-host Xcode run above supersedes that environment failure, not an application-code fix. `pnpm exec` failed in this non-package Swift checkout; the dependency-free syntax checks were run with the existing Node runtime, without installing packages. Failed commands were not counted as successful validation.
+
+### Phase 1 — statement and implementation comparisons
+
+| Statement surface / counterpart | Result and disposition |
+|---|---|
+| Spec US-03 / ADR-0010 ↔ capture production wiring | **Open requirement gap.** `CaptureSelectionSession.applyCurrentDisplayGeometries` has only test callers. `VLMSnapperApplicationModel.finishSelection` checks current geometry after mouse-up. This does not implement immediate invalidation during selection. Existing `issues/01-live-display-reconfiguration.md` remains the owner; requirement not weakened. |
+| Spec US-01 ↔ feature menu description ↔ inline Provider UI | Corrected retired Provider-sheet wording in spec/features. Permission/privacy attached panels still participate in coordinated quit; Provider configuration is inline. |
+| FM-43 ↔ ownership row | Corrected omitted stable Refresh layout/cache/failure clause. Current test `ProviderApplicationTests.modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState` is part of the passing App suite. |
+| Tickets 19–21 combined flow ↔ production-delegate test | `nativeOnboardingValidatesSelectsAndReturns` enters through onboarding, edits the native field, submits Return, asserts one external request, closes/reopens before selection, chooses the native model menu action, returns and reconstructs saved configuration. Checked its actual assertions and passed this run. Programmatic events are explicitly distinguished from physical input. |
+| Ticket 22 combined gate ↔ application tests | `credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring` and `nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive` assert both directions, unchanged nonempty history under blocked rerun, release and deferred recovery. Passed this run. |
+| Feature catalog ↔ user-observable scope | Removed status/distribution paragraphs and low-level storage/transport wording; retained observable storage, replacement, timing and update behavior. Formal release requirements remain in spec and Ticket 10, not waived by removal from the catalog. |
+| Spec verification note ↔ current acceptance | Replaced stale blanket physical/visual Pending with the user's reported acceptance and explicit residual limits; recorded the live-display gap separately. Recent green tests do not prove historical window deadlines resolved. |
+| Management prototype ↔ Provider icons | **Decision pending:** DS/OA/G prototype marks versus current native symbol. Asked user whether to keep the native symbol and explicitly treat letters as placeholders; no design change or waiver assumed. |
+| All other 58-row evidence, complete visual matrix and unchanged ADR surfaces | **Not fully re-audited in this checkpoint.** Existing passing suites/historical reports remain evidence inventory, not a substitute for full semantic and visual closeout. Finish after the live-display requirement and icon decision are resolved. |
+
+### Phase 2 — relationship comparisons
+
+| Relationship | Result and disposition |
+|---|---|
+| New follow-up ↔ local tracker convention | Ticket 24 has unique filename, status, dependencies, impact and named acceptance boundaries; Ticket 23 links it. No remote issue created. |
+| Feature/spec file ↔ indexes | Existing `v1-core` filenames unchanged. No features README exists in this checkout. New follow-up is discoverable via Ticket 23 and the closeout tasklist. |
+| Ownership rule ↔ parser | Six cases test missing/duplicate/unknown/malformed rows and valid input; success on 58 does not validate their truth. FM-43 drift was found by comparison, not by this gate. Do not call parser green full requirement coverage. |
+| Complete-test claim ↔ CI/local commands | CI uses pipefail and completion checks for App/non-App and native suites; local run likewise failed closed before proceeding. Previous exit-0 incomplete runs are not accepted evidence. |
+| Retired Provider symbols ↔ active source/tests/prototypes | Search for `ProviderSetupView`, `ProviderSetupInputState`, `providerSetupSheet`, and standalone `--provider` over Sources, VLMSnapper, Tests, Package.swift and prototypes returned no matches. This bounded symbol search does not prove that every historical tasklist reference is retired authority; that broader criterion stays open. |
+| Display-change claim ↔ actual callers | `rg -n -uuu --glob '*.swift' 'applyCurrentDisplayGeometries|CGDisplayRegisterReconfigurationCallback|didChangeScreenParametersNotification' Sources VLMSnapper Tests` returned one session declaration and three test calls. Read production `finishSelection` directly to distinguish a missing notification from the existing mouse-up check. |
+| Template/rule changes | No repository template or general workflow rule changed in this pass. Full-feature relationship audit remains open. |
+
+### Phase 3 — event-based checks
+
+| Event | Result and disposition |
+|---|---|
+| Follow-up ticket added | Ticket 24 owns unconfirmed key-window/toolbar deadlines only. The separate teardown correction is not relabeled as their root cause. |
+| Installed-App acceptance received | User-reported accepted interactions are no longer blanket Pending. No claim that the user accepted an unmentioned icon difference or display hot-plug behavior. |
+| Current gap discovered in previously ticketed behavior | Live-display issue confirmed still open; full-feature US-03 cannot be checked off. Keep #23 in progress and return to implementation rather than silently defer an accepted requirement. |
+| Provider/language/platform membership | No membership changed this pass. Both enabled UI dictionaries checked. Per project capability, RTL interface mirroring is not enabled and is skipped. |
+| Release Pending annotations | Real-account Provider limits/contracts, hosting and signed-upgrade acceptance remain with Ticket 10/spec; no release attempted, no Pending clause removed. |
+| New general policy | None. Existing evidence/authority rules retained; issue-specific diagnosis belongs to its ticket. |
+
+### Stop point
+
+Only the ownership-shape gate and two combined-integration criteria are checked in Ticket 23. Full-feature consistency, full 58-row semantic audit, residual visual decision, retired-authority audit and the complete closeout gate remain unchecked. The `/implement` pre-review requirement gate is not satisfied because of US-03; do not claim a new completed `/review-code` or `/review-tests` pass from this checkpoint. Earlier scoped reviews remain historical evidence. No commit, push, PR or merge performed.
+
+## 2026-09-09 — Display reconfiguration scoped follow-up
+
+User scope: complete the first identified implementation gap, not the remaining icon decision or the #24 focus investigation. This is the follow-up's document reconciliation, not the still-open full-feature closeout.
+
+### Phase 1 — Changed declaration surfaces
+
+| Surface | Counterpart checked | Result |
+|---|---|---|
+| `docs/specs/v1-core.md` display paragraph | New monitor, post-freeze and post-registration checks, per-ID retirement, generation/terminal guards | Replaced expired “not wired” Partial note; kept hardware acceptance requirement and removed the process-record link from the current spec paragraph |
+| `docs/features/v1-core.md` frozen-frame capture | Spec US-03 + existing ADR-0010 + observable native invalidation | Added missing live display-change behavior in user terms; no implementation names, extra UI or new platform promise |
+| New source/test comments | App wiring, notification handlers and fixture boundaries | Registration gap is backed by red/green; explicit distinction between injected notifications and physical display events; no claim that merely visible windows are key |
+| Tasklist, checklist and issues 01/23/24 | Current source, actual terminal test reports and user scope | Implementation evidence recorded; hardware acceptance and failed native gateway left unchecked; #24 now includes a captured unforced activation-boundary failure |
+| Scoped code/test review records | Actual diff and full validation logs | Four code layers and three test dimensions recorded; no full Ticket 23 pass inferred |
+
+### Phase 2 — Relations outside this increment
+
+| Relation | Check and result |
+|---|---|
+| Spec/features ↔ ADR-0010 | Per-display invalidation, no new displays until recapture, no automatic live recapture and terminal resource ownership agree. AppKit notification instead of raw CG callback changes implementation choice, not the accepted decision |
+| Spec/features ↔ CONTEXT | Frozen capture, operation and current-result vocabulary unchanged; no new term or generic invariant to add |
+| Product ↔ confirmed toolbar prototype | Existing geometry/style/copy untouched; native completion still presents the existing toolbar. Hardware invalidation is not a new visual design and no unavailable-screen panel was invented |
+| Files ↔ indexes | No feature/spec addition, rename or headline scope change. Spec README still correctly describes core capture; features directory has no README index to update |
+| Same fact elsewhere | Searched spec/features/ADR/CONTEXT for `Partial`, `Pending:`, display invalidation and `mouse-up`; removed the current unwired note. Earlier dated closeout/task records are preserved as historical checkpoints; new comments supersede them, not rewrite them |
+| Rule ↔ gate | Existing CI filters include the three new App tests, require suite completion and nonzero test count, and propagate process failures. Current native failure proves the delivery gate remains blocking; injected OS centers do not certify physical device delivery |
+| UI dictionary and package declarations | Project i18n is enabled; this increment changes no strings, glyphs, supported languages, minimum OS or version. RTL mirroring is not enabled by project declaration, so that check is skipped |
+
+### Phase 3 — Events
+
+| Event | Result |
+|---|---|
+| Production notification wiring added | Expired “unwired” current-spec statement replaced; issue 01 moves from agent-ready to in-progress / implemented awaiting hardware acceptance |
+| Test membership changed | Three App test methods added (14 total, with five display cases inside one parameterized test); CI uses nonempty completion, not a stale exact App count. Native XCTest count remains three |
+| Pending facts | Provider request-size/live-account release gates unchanged; no live Provider request was made. Hardware multi-display acceptance remains explicit, and full feature/icon closeout is still pending |
+| Existing focus deadline recurred | New #24 evidence: visible/canKey window stayed inactive/non-key, before Paste. Root cause remains unconfirmed. No workaround, retry-until-green or production focus change |
+| New general policy/architecture | None. Existing ADR-0010 governs behavior; notification adapter is the narrow platform boundary. No new ADR required |
+
+### Validation and stop
+
+- Strict warnings-as-errors build: exit 0.
+- Non-App: 333 tests / 73 suites, 19.940 s; App: 14 tests / one suite, 7.521 s; both explicit complete reports and exit 0.
+- Native lifecycle: 3 tests / 1 failure, exit 1 at #24 key-window acquisition; other two cases pass. This remains a failed overall gate. Log: `/private/tmp/vlmsnapper-display-native.log`.
+- Six checklist parser tests, 58 ownership rows, shell syntax and diff checks pass. Scoped display red/green/mutation evidence is indexed in `display-reconfiguration-tasklist.md`.
+- Full Ticket 23 reconciliation remains separate. Actual display unplug/settings/sleep/multi-screen focus and the pending-freeze termination combination are not newly certified. No commit, push, PR, install or release.
+
+## 2026-09-09 — Provider identity parity only
+
+This is a scoped visual follow-up, not completion of the full Ticket 23 closeout.
+
+### Phase 1 — Changed statements
+| Statement pair | Result |
+| --- | --- |
+| Spec ↔ icon/theme/card implementation | DS/OA/G, 29pt square, 8pt radius, 10pt heavy gray text, explicit light/dark blue tile implemented. |
+| Spec ↔ features | Added the visible identity mapping to both; removed current spec wording that the icon choice remains undecided. |
+| Icon/theme comments ↔ implementation | Explicit user-approved identity exception; not a fallback for generic action icons. Colors centralized and appearance-aware. |
+| ADR/CONTEXT ↔ change | ADR-0003 localization boundary and Provider terminology unchanged; verbatim identity labels are language-independent, full names remain localized. |
+| Prototype ↔ native | Static HTML/CSS cascade and fresh native renders agree on the changed marks; live browser comparison blocked by locked Mac. |
+
+### Phase 2 — Relationships
+| Relationship | Result |
+| --- | --- |
+| File ↔ index | No file rename, feature split or changed overview summary; no index update needed. |
+| Rules ↔ templates | No template or general rule changed. |
+| Identity fact ↔ other statements | Searched Provider mark/icon declarations in spec/features/CONTEXT/UI and prototype. Updated spec's current undecided wording. Earlier working-log decisions preserved as history; new Ticket 23 comment resolves choice. |
+| Rule ↔ gate | Exhaustive ProviderID switch covers current identities. PNG-size and geometry gates do not prove glyph identity; new render inspection supplies scoped evidence. |
+
+### Phase 3 — Events
+| Event | Result |
+| --- | --- |
+| Provider/language member count | Unchanged; no new provider or language. |
+| Pending identity selection | User selected existing prototype marks; design decision resolved. Installed acceptance and full-feature comparison not inferred. |
+| New general rule | None; specific identity decision recorded in spec, not a blanket character-icon rule. |
+| Regression failure | App suite 13/14 passed; toolbar wait deadline retained under Ticket 24. Full green and publication gate not met. |
+
+Strict build and 333 non-App tests passed. Browser and native key-window acceptance
+were not run on the locked desktop. No installation, push, PR or merge this turn.
+
+## 2026-09-09 — Ticket 23 continuation after build 29 acceptance (partial)
+
+This records the rows actually resolved in this continuation. It is **not** the
+required whole-feature three-pass completion or a substitute for auditing all
+58 semantic requirements.
+
+### Phase 1 — Statement/counterpart checks
+
+| Statement | Counterpart | Result |
+|---|---|---|
+| Spec US-10 promises five advanced history-filter dimensions | HistoryQuery, SQLite builder, application callers and native toolbar/predicate | Query support exists; native controls absent. Keep requirement and record #23 gap. |
+| Feature catalog describes kind/search/pinned navigation | Native ManagementCenterView | Current description matches the implemented subset; do not advertise missing controls. |
+| Display follow-up says production has no observer/caller | CaptureDisplayMonitor and beginCapture/captureDisplaysChanged | Stale current statement corrected; physical acceptance still open. |
+| Provider DS/OA/G parity | Previously installed build 29 and explicit user acceptance | Scoped manual acceptance recorded; not all-surface/all-failure acceptance. |
+
+### Phase 2 — Relationship checks
+
+| Relationship | Check | Result |
+|---|---|---|
+| Feature document ↔ index | Feature directory has v1-core.md but no README index | Added index with current capability summary. |
+| Spec ↔ spec index | Index mentioned release facts only | Added current history-interaction gap to status; spec itself not weakened. |
+| US-10 ↔ ownership ↔ Ticket08 evidence | Generic “existing history acceptance” vs query-only advanced filters | Explicit #23 ownership and incomplete native acceptance added. Historical test-run narrative retained. |
+| Rules ↔ gates | Read ownership parser and rerun its six tests/58-row check | Structural guard works; cannot detect missing controls or certify implementation. |
+| Prototype ↔ native surface ↔ spec | Type/search are present in both visual implementations | Both omit the five spec dimensions. New prototype decision needed. |
+| Test coverage claim ↔ actual assertions | Public SQLite fixture and Ticket08 render code | Positive persistence/render smoke evidence is not full filter interaction coverage. |
+
+### Phase 3 — Event reconciliation
+
+| Event | Result |
+|---|---|
+| User accepted installed build 29 | Supersedes the Provider-mark locked-Mac acceptance gap only. |
+| Display notification implementation superseded original proposal | Current ticket description now reflects AppKit wiring; old comments remain historical. |
+| Semantic audit found US-10 cross-layer omission | Kept under #23 with source evidence and recommended prototype-first follow-up. No silent scope reduction. |
+| Supported members changed | None this continuation: same three Providers and two interface languages. Project declares i18n enabled; no RTL UI promise. |
+| Pending release facts in spec | Two Pending clauses for request limits/live DeepSeek contract still apply; local UI acceptance does not satisfy them. |
+| New architectural rule | None. Existing prototype approval and evidence-boundary rules applied. |
+
+Remaining queue: complete 58-row semantic audit, resolve the US-10 UI/spec
+discrepancy, hardware display acceptance, final accumulated-code/test reviews
+and full passing gates. #24 native waits and #10 deferred release gates remain
+separate tracked limitations. No claim of full-feature convergence or PR readiness.
+
+## 2026-09-14 — #25 已确认 UI 原生同步（未收口）
+
+本轮只核当前历史 UI 与必需 Provider 组件，版本为 0febbb48fcd9acccdefc67dc9015ebf92605511c + 当前未提交修改。逐需求结论引用同一 `checklist.md` 的“本轮验证历史：UI 原生同步”，不另建映射。按项目能力声明 i18n 已启用，中英字典入查；不新增语言/Provider。
+
+### 阶段一 · 逐句核真
+
+| 声明面及对照 | 结论 |
+|---|---|
+| spec US-001 ↔ 原生控件/布局 | 当前 Provider header、紧凑分段、260pt、彩色元数据/右时间已实现；原型确认不等于交互验收，未通过项逐条保留。 |
+| spec ↔ features/v1-core.md | 功能说明已就地更新本地 Provider、组合条件、窗口会话及选中行为；不列已取消高级筛选。 |
+| CONTEXT ↔ spec/实现 | 工具栏顺序、查询会话与选择规则已同步。没有新的架构决策，不新建 ADR。 |
+| 原型 ↔ 原生渲染 | 生成 8 张历史图，实际看中文浅色/英文深色最小宽；Provider 补齐布局另看英文宽屏。物理键鼠/悬浮及全图片逐张比对仍缺。 |
+| 本地化字典 ↔ Strings/调用 | 三个新增 key 中英齐备，历史短标签隔离；日期未绑定 UI locale。 |
+
+### 阶段二 · 关系对读
+
+| 关系 | 结论 |
+|---|---|
+| spec ↔ specs/README | 已将“原型待确认”改为原型确认/原生同步且组合交互未验完。 |
+| features ↔ features/README | 仍是同一核心功能条目，索引描述未失真，无新文件或改名。 |
+| 同一筛选事实的镜像 | 检索历史/Provider/筛选；更新 CONTEXT、features、#25 与清单新基线。保留旧 comments 为历史，明确最新记录优先。 |
+| 清单规则 ↔ 门禁及测试 | 旧 US/FM 58 行 gate 不验证新稳定 ID。人工逐行核对19项映射，不冒充门禁覆盖。两个变异因插到新表而失效，已按章节定位，6项复测通过。 |
+| 窗口会话 ↔ Provider 关闭流程 | sessionID 重建 SwiftUI 状态但保留 host；关闭草稿、隐藏保留及重开筛选专项通过。 |
+
+### 阶段三 · 事件核销
+
+| 本轮事件 | 结论 |
+|---|---|
+| 用户接受最近原型同步 | 取消旧03/04/06/07/08需求，不复用编号、不算通过；保留有效项并加10–16。 |
+| 用户可见行为已改变 | features 同步在同一工作区，无仅改代码遗漏文档。 |
+| 支持成员变更 | 无新增平台、Provider、语言；只加3条文案。 |
+| Pending 注记 | 历史原型门已解除；显示硬件与两条正式发布门未解除，未删。 |
+| 验证发现新差异 | 原生组合测试不稳定/未完成，由 #25 持有当前验收，#24 记录夹具实验；未把事件泵试验当成原有超时根因。 |
+| 新通则 | 查询和选择规则正本在 spec 与 CONTEXT，施工日志不替代它们。 |
+
+结论：UI 代码/文档同步完成，但原生组合验收与完整门禁未通过，#25/#23 不能 done。未打包安装、未推送、未创建或合并 PR。验收缺口、完整日志与版本见 checklist；未取得通过的单击、导航和异步图片边界不得用于宣称可发布。
+
+## 2026-09-14 记录栏样式本轮文档回归
+
+本次仅记录栏视觉同步，不执行全 feature 收口，不关闭 #25 或其他验收缺口。
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+|---|---|---|
+| spec US-001/AC-13 | 原型行宽/间隔 + 原生 historyContent/historyRow | 明确 260 含分隔 1、249 行宽、5 外距、10 内距、9 圆角及 13/11/10 字号；当次原生宽度已验证 |
+| spec AC-15/16 | Theme/historyRow + 原型明暗色 | 精确色值及 selected 优先写回，未引入系统强调色依赖；hover/焦点仍待真实交互核验 |
+| features 历史管理段 | spec 与当前原生代码 | 补单行标题摘要、圆角留白、选中/悬浮色和行内不显示 pin；保留现有详情 pin |
+| 原型 ↔ 实现 | management-center HTML 与当前 UI | 本轮行视觉已对齐源码契约；正常行高/浏览器像素对照未取证。默认铺满、取消双击、内联重试属于前轮待同步，不在此宣称已完成 |
+| ADR/CONTEXT | 本轮代码与原有列表260pt不变量 | 未改变架构、领域词、窗口生命周期，未新增 ADR |
+
+### 阶段二：关系对读
+
+| 关系 | 核验 | 结论 |
+|---|---|---|
+| 文件 ↔ 索引 | specs/README、features/README | 文件/功能名未变，无新增索引 |
+| 同一事实 ↔ 其他声明 | rg 记录栏/记录列表/260pt/260 于 CONTEXT 与 management-center README | 原有260列宽仍真；更细几何补在 spec，未修改其他功能规则 |
+| 规则 ↔ 门禁 | historyRenders + mutation | 可发现1pt行宽错，不覆盖全部视觉；已逐项列出人工验收边界 |
+| i18n 字典 ↔ 代码 | AGENTS 已启用中英；历史类型/状态仍引用 VLMSnapperStrings | 无新硬编码用户文案；中文和英文原生渲染均通过 |
+| 规则 ↔ 模板 | 本轮没有规则/模板结构更改 | 不适用，无第二套模板定义 |
+
+### 阶段三：事件核销
+
+| 事件 | 核验 | 结论 |
+|---|---|---|
+| 原生 List 改为显式滚动行 | 两份历史交互测试的 NSTableView 假设 | 替换为真实渲染/选择断言；不添加生产测试专用接口 |
+| Pending 到期检查 | rg Pending: 于 spec、features、原型 README；输出为显示器硬件及两项 Provider 发布约束 | 本轮视觉变化不能完成这些条件，保持未验收 |
+| 可枚举成员变化 | Provider/语言/操作类型/状态 | 本轮均未增删，无相关枚举文案需改变 |
+| 新视觉规则正本 | 精确尺寸/配色 | 已写入 spec AC-13/15/16，不仅留在代码或工作记录 |
+
+核对范围内的文档更新已完成；验证缺口保留在 25-history-row-style.md。本轮最终日志 /private/tmp/vlmsnapper-history-style-verified.log 退出0；不据此宣称全功能验收或安装版已更新。
+
+## 2026-09-14 记录栏视觉对齐文档回归
+
+仅本轮视觉同步，不执行全feature收口。
+
+### 阶段一：逐句核真
+
+| 声明面 | 对照端 | 结论 |
+|---|---|---|
+| spec AC-13 | 原型与historyContent/historyRow | 260含1分隔、行249、外距5、内距10、圆角9、13/11/10字号已同步；实际宽度通过 |
+| spec AC-15/16 | Theme与原型 | 精确明暗配色、右对齐/换行、selected优先已同步；真实hover/焦点仍待验收 |
+| features历史段 | spec与当前代码 | 补单行标题摘要、圆角留白、选中/悬浮表现及行内不显示pin |
+| 原型 | 原生实现 | 本轮行样式按源码契约对齐；浏览器计算行高/逐像素对照未取证。前轮默认铺满/取消双击/内联重试未在本轮实现 |
+| CONTEXT/ADR | 260列宽不变量和当前代码 | 架构/领域/生命周期未变，无新ADR |
+
+### 阶段二：关系对读
+
+| 关系 | 核验 | 结论 |
+|---|---|---|
+| 文件与索引 | specs/README、features/README | 文件与功能名未变，无新索引 |
+| 事实与其他声明 | rg记录栏/记录列表/260于CONTEXT与management-center README | 原260列宽仍成立，细节正本补入spec |
+| 规则与门禁 | historyRenders及宽度变异 | 能发现1pt宽度错；不声称守全部视觉 |
+| i18n字典与代码 | AGENTS声明已启用中英，仍引用VLMSnapperStrings | 无新硬编码文案，中英均有原生渲染 |
+| 规则与模板 | 本轮无模板结构修改 | 无新增双重定义 |
+
+### 阶段三：事件核销
+
+| 事件 | 检查 | 结论 |
+|---|---|---|
+| List改显式滚动行 | 两份历史原生测试的NSTableView假设 | 改为实际像素/选择验证，无生产测试专用接口 |
+| Pending到期 | rg Pending:于spec/features/原型README，返回硬件显示器与两项Provider发布条件 | 本轮未完成这些条件，保持待验收 |
+| 可枚举成员 | Provider、语言、状态和操作类型 | 本轮均未增删 |
+| 视觉规则正本 | 尺寸/配色 | 已写spec AC-13/15/16，不只留工作记录 |
+
+文档核对完成；验收缺口保留于25-history-row-style.md，不关闭#25。最终日志 /private/tmp/vlmsnapper-history-style-verified.log 退出0，不代表全功能验收或安装版已更新。
+
+## 2026-09-15 历史详情重试文档回归
+
+### 阶段一：逐句核真
+
+| 声明与实现 | 结论 |
+|---|---|
+| spec REQ-002/AC-07 ↔ 详情按钮/首次图片加载 | 30pt顺时针图标、忙碌态、初始选中回调已接；原生渲染通过，物理点击/hover待验 |
+| spec AC-08 ↔ 应用工作流/runner | 真实fixture HTTP、当前模型、原操作和语言、新记录、不自动请求/不改原历史及右侧渲染已验证 |
+| spec AC-09 ↔ 应用所有权/保护 | SQLite真实写失败与只重试本地保存验证；单条/整批删除共用保护，自动/手动清理暂停。窗口重开及退出确认实机尚未验证 |
+| spec ↔ features ↔ CONTEXT | 统一“历史重跑新记录、当前工作区重跑复用身份”；新增内联入口及保存恢复，不声称删除双击或已铺满屏幕 |
+| 原型 ↔ 实现/字典 | 顶部Retry、Pin、Delete同盒尺寸；SF Symbols与Lucide仅语义对应；原型仍是无网络演示，README写明适用范围。中英复用既有文案 |
+
+### 阶段二：关系对读
+
+| 关系 | 结论 |
+|---|---|
+| specs/features ↔ README索引 | 同步历史详情重试，保留整体未收口条件 |
+| spec ↔ checklist ↔ #25 | 增加AC-07–09承兑映射，不关闭#25/#23，不挪动旧编号 |
+| 保存不重复请求 ↔ 测试 | 真实SQLite触发失败、恢复后HTTP次数不增；故意清空待保存行时新测试在保存成功断言上红，修复后复验 |
+| 原型README过期确认说明 | Retry由本轮用户明确要求落地；取消双击/铺满窗口单列待同步，不能把原型整页视为已实现 |
+
+### 阶段三：事件核销
+
+| 事件 | 结论 |
+|---|---|
+| 新增历史请求入口 | 复用既有全局活动所有者和安全图片加载，不新增Provider/语言/操作枚举成员 |
+| 新发现源记录/新记录都需保护 | 正本写spec AC-09与CONTEXT，清理入口逐一复查；不是只留在测试注释 |
+| 测试全套无完成摘要 | 保留25-history-retry-verification.md缺口；本轮不解除#24原生稳定性和#23全功能收口门槛 |
+| 本轮Pending变化 | 只兑现历史详情重试实现；其他原型增量和已有发布/硬件验收条件未到期 |
+
+本轮文档范围核对完成，不等于全量验证或安装版交互验收。证据、版本与未验证条件统一见25-history-retry-verification.md。
+
+## 2026-09-16 AX 输入同步范围回归
+
+### 一、逐句核真
+
+| 声明面 | 对照与结论 |
+|---|---|
+| spec Testing Decisions 的 AX 输入规则 | 标准 setter → 原 binding → editor，密码/明文外部精确提交通过；不是模拟通知 |
+| features 无障碍输入段 | 原生正负向测试证明同一草稿、只读及隐藏限制、写入不提交；未声称真实鉴权 |
+| 场景 README / 验证记录 | 更新旧失败状态；明确 blocked 只测按钮禁用，drop-result 必须失败、完全隐藏窗口待验收 |
+
+### 二、关系对读
+
+| 关系 | 结论 |
+|---|---|
+| 原型 / 字典 / 主题 ↔ 实现 | 没有视觉、文案或交互布局变化；已确认输入一致性行为恢复，不改资源 |
+| spec Provider 条文/FM ↔ CONTEXT/ADR-0012 | 精确字节、草稿所有权、只读和替换边界未变；AX 不直接写凭据或发请求 |
+| 新方法 ↔ 验证门禁 | 两模式都经原生及外部 AX；返回成功须收到精确业务结果；全量红独立保留 |
+| features/specs 索引 ↔ 文件 | 文件和功能名称未变，无新增目录项 |
+
+### 三、事件核销
+
+| 事件 | 结论 |
+|---|---|
+| 新接通标准 AX 编辑路径 | 不新增产品枚举、平台或可选配置，不增加测试模式到正式入口 |
+| 旧坐标失败再次出现 | 仍归 #24；不改为绿、不关闭 #23，不归因于 AX 输入失败 |
+| 负例与 Pending | 丢弃结果负例确实失败；隐藏窗口、激活负对照、真实账户以及已有发布/硬件 Pending 未到期 |
+
+范围回归完成，**全量验证网关未通过**。仅准备本次相关验证通过后的本地测试安装，不提交/推送/合并。详情见 [验证记录](ax-input-sync-verification.md)。
+
+## 2026-09-16 菜单最近记录五条
+
+本轮为用户直接授权的小改动，不代表 #23/#24 或完整 feature 收口。
+
+### 一、逐句核真
+
+| 声明面 | 结论 |
+|---|---|
+| spec ↔ model / view | 两处最多五条；不足按实际数量；全历史不变。真实 model 渲染测试覆盖 |
+| features ↔ spec | 已将 three most recent 改为 up to five，并明确不足不补空行 |
+| 原型 ↔ 实现 | 原型增补两行，App 保留 300pt 和原行样式；原生图已核对，HTML 自动预览被策略拒绝，未宣称已视觉验收 |
+| 原型 README | 写明五条及完整列表不受限，无新页面或入口 |
+
+### 二、关系对读
+
+| 关系 | 结论 |
+|---|---|
+| 索引 ↔ 文件 | specs/features 文件名、用途未变，无需新增索引 |
+| 同一事实 ↔ 镜像 | 全库检索三条 / three most recent / three recent / 最近…3 / recent…3（排除历史施工记录）；现行匹配仅剩无关的三架构 appcast 描述 |
+| CONTEXT / ADR ↔ 菜单 | 最近记录术语和入口语义未变，无架构决策变更 |
+| 字典 / 主题 ↔ 原型 | 项目 i18n 已启用；本轮没有新用户文案和新颜色，沿用现有两语言资源与主题 |
+| 规则 ↔ 门禁 | 数量测试用六条输入验证五条边界，旧三条实现确实失败；原生语言渲染与 App 测试按既有脚本隔离 |
+
+### 三、事件核销
+
+| 事件 | 结论 |
+|---|---|
+| 默认条数由 3 变 5 | 正本落于现行 spec；两处生产限制、原型、features 同步，无保留三条的现行声明 |
+| 新增样本两行 | 仅视觉 fixture，不新增操作/Provider/语言/平台枚举，不写入用户历史 |
+| 浏览器预览受限 | 保留原型人工查看边界；不改安全策略，不用其他浏览器绕过 |
+| Pending 与范围 | 没有促使既有硬件/全功能 Pending 到期；本次不清理历史施工记录、不关票、不推送 |
+
+回归及本地安装最终证据见 [本轮 tasklist](recent-five-tasklist.md)。
+
+## 2026-09-16 历史重试身份修复接续
+
+参考 `0febbb48fcd9acccdefc67dc9015ebf92605511c` 加未提交改动。范围为当前历史重试增量，不是 #23 全 feature 收口。当前映射与逐项查证见 [checklist](checklist.md#2026-09-16-接续核销本段优先于下方当时状态)。
+
+### 一：逐句核真
+
+| 声明面 ↔ 对照端 | 结论 |
+|---|---|
+| spec REQ-002 ↔ runner/session/model/store | 同 ID 原子替换、失败保留、原图复核、本地重试保存、目标消失保护、生命周期与清理保护相符；生产集成及 Core 回归通过 |
+| spec ↔ features 历史段 | 已移除双击打开/关闭返回陈述；保留右侧显式重试、失败可读、保存和删除边界 |
+| CONTEXT ↔ spec/features | Prompt Version 仅内部标记；历史重试和当前结果重跑各保留身份；无历史版本字段义务 |
+| 原型 README/HTML ↔ native | 沿用已确认右侧重试、双击无额外动作、普通窗口铺满；native 程序化测试通过，未新称浏览器截图通过 |
+| ADR-0002/0006/0008 ↔ 当前变更 | 仍显式上传、复用受管理 PNG、数据库不可用不发请求；未改架构结论，不新增 ADR |
+| 中英文错误字典 ↔ failure codes | i18n 已启用；原记录/原图不可用代码均有两语文案，脚本及 Swift 本地化回归通过 |
+
+### 二：关系对读
+
+| 关系 | 结论 |
+|---|---|
+| spec/features ↔ README 索引 | spec 索引更新为自动化完成、安装版验收待补；feature 索引仍准确描述历史详情重试，无需改名 |
+| 现行历史行为 ↔ 其他文档 | 检索 `double.click\|双击\|1200.?780\|prompt.version\|提示词版本` 于 spec/features/CONTEXT/原型 README，镜像现行句已同步；原型早期确认日期是历史，不冒充现行交互 |
+| spec ↔ #25/checklist | AC-05 撤销不复用，不记通过；AC-02/03/06/10 与 US-001/AC-17 更新有用户来源；旧施工状态由新记录明确取代 |
+| 验收规则 ↔ 门禁 | checklist Python 仅验证旧 58 行结构，不能承兑新 AC；新覆盖逐项指向真实测试与日志，未用 gate 总数代替 |
+
+### 三：事件核销
+
+| 事件 | 结论 |
+|---|---|
+| 需求来源纠正：无历史提示词版本要求 | Pending 到期移除，Out of Scope 明示；不加数据库迁移 |
+| 已确认 UI 变更迟到同步 | 取消独立历史结果打开及其返回验收；双击与初始尺寸用新测试先红后绿；现行文档同步 |
+| 新缺口被红绿发现 | retention 迟到确认删除与失败旧正文隐藏均修复，两个错误分别有对应 red，不以重跑掩盖 |
+| 测试成员变化 | 旧双击/返回相关测试移除或替换；全量 340 非 App、17 App 等结果按当前运行数记录，不覆盖此前数字 |
+| 其他 Pending | 真实显示器硬件和 Provider 发布契约仍待验；本轮不解除、不关 #23/#25、不发布 |
+
+队列中上述改后文本已重新与关系端核对；本次文档核对完成。完整回归退出 0，证据 `/private/tmp/history-retry-full-closeout.log` 及其 d2Y48V 明细目录。安装记录追加在 [本轮 tasklist](history-retry-identity-tasklist.md)，安装版用户验收未替代为自动化通过。

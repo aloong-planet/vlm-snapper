@@ -37,6 +37,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private(set) var historyRecords: [HistoryRecord] = []
     private(set) var selectedHistoryRecordID: UUID?
     private(set) var selectedHistoryImage: NSImage?
+    let historyRetry = HistoryRetryPresentation()
+    private var historyRetrySession: OperationWorkspaceSession?
+    private var historyRetryTask: Task<Void, Never>?
     private(set) var cleanupFailureCount = 0
     private(set) var retention: HistoryRetentionPeriod = .thirtyDays
     private(set) var settings = GeneralSettingsSnapshot()
@@ -49,6 +52,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     var onOpenProviderSettingsFromOnboarding: (@MainActor () -> Void)?
     var onProviderConfigurationCompleted: (@MainActor () -> Void)?
     var onRetireManagementCenter: (@MainActor (@escaping @MainActor () -> Void) -> Void)?
+    var onRestoreManagementCenter: (@MainActor () -> Void)?
     var onRetireCaptureSources: (@MainActor () -> Void)?
 
     private let defaults: UserDefaults
@@ -73,6 +77,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private let captureOverlayController = FrozenCaptureOverlayController()
     private let captureToolbarController = CaptureToolbarPanelController()
     private var captureSelectionSession: CaptureSelectionSession?
+    private var captureDisplayGeometries: [UInt32: CaptureDisplayGeometry] = [:]
     private var captureRequest: CaptureRequest?
     private var activeCaptureGeneration: UUID?
     private var captureLease: UUID?
@@ -87,6 +92,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private var workspaceTargetLanguageCode: String?
     private var workspaceAllowsOperationStart = true
     private var historyOpenGeneration: UUID?
+    private var returnsToHistory = false
     private var shortcutCoordinator: GlobalShortcutCoordinator?
     private var cleanupTask: Task<Void, Never>?
     private lazy var resultController = ResultWorkspaceWindowController(
@@ -95,6 +101,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
         },
         onDiscardUnsaved: { [weak self] in
             await self?.discardUnsavedWorkspace()
+        },
+        onDidClose: { [weak self] in
+            guard let self, returnsToHistory else { return }
+            returnsToHistory = false
+            onRestoreManagementCenter?()
         }
     )
     private lazy var updateDriver = dependencies.makeUpdateDriver { [weak self] event in
@@ -277,7 +288,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     func menuView() -> MenuBarContainerView {
         MenuBarContainerView(
-            recentItems: historyRecords.prefix(3).map {
+            recentItems: historyRecords.prefix(5).map {
                 MenuRecentItem(record: $0)
             },
             permission: permission,
@@ -302,12 +313,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     func managementCallbacks() -> ManagementCenterCallbacks {
         ManagementCenterCallbacks(
+            historyRetry: historyRetry,
+            onRetryHistorySave: { [weak self] in self?.retryHistorySave() },
             onSelectRecord: { [weak self] id in
                 Task { await self?.selectHistoryRecord(id) }
             },
             onOpenRecord: { [weak self] id in
                 Task { await self?.openHistoryRecord(id) }
             },
+            onRetryRecord: { [weak self] id in self?.startHistoryRetry(id) },
             onSetPinned: { [weak self] id, pinned in
                 Task { await self?.setHistoryPinned(id: id, pinned: pinned) }
             },
@@ -619,6 +633,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     func prepareForTermination() async -> Bool {
+        if let historyRetrySession {
+            let disposition = await historyRetrySession.close()
+            if disposition == .confirmDiscardUnsavedResult {
+                guard UnsavedResultConfirmation.confirm() else { return false }
+                await historyRetrySession.discardUnsavedResults()
+            }
+        }
+        historyRetryTask?.cancel()
+        await historyRetryTask?.value
         if let request = captureRequest {
             captureRequest = nil
             await request.workspaceToRetire?.restoreAfterCaptureFailure()
@@ -644,6 +667,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     /// Final resource release after termination has been committed, not during
     /// preparation (which is also used before an update installation attempt).
     func stop() {
+        dependencies.displayMonitor.stop()
         cleanupTask?.cancel()
         cleanupTask = nil
         shortcutCoordinator?.unregister()
@@ -692,15 +716,98 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private func selectHistoryRecord(_ id: UUID) async {
         selectedHistoryRecordID = id
+        selectedHistoryImage = nil
         guard let record = try? await historyStore.historyRecord(id: id),
               let data = try? await screenshotStore.loadIfOwned(record.operation.screenshot)
         else {
-            selectedHistoryImage = nil
+            guard selectedHistoryRecordID == id else { return }
             publish()
             return
         }
+        guard selectedHistoryRecordID == id else { return }
         selectedHistoryImage = NSImage(data: data)
         publish()
+    }
+
+    private func startHistoryRetry(_ id: UUID) {
+        guard !historyRetry.isRunning, historyRetry.slot.unsavedResult == nil else { return }
+        historyRetry.isRunning = true
+        historyRetry.recordID = id
+        historyRetrySession = nil
+        historyRetry.providerSummary = ""
+        historyRetry.slot = WorkspaceOperationSlot(attempt: .preparing)
+        historyRetryTask = Task { [weak self] in
+            guard let self else { return }
+            defer { historyRetry.isRunning = false; publish() }
+            do {
+                let admitted = try await workflow.performOperation {
+                    guard await workspaceSession?.preventsHistoryDiscard != true else {
+                        throw OperationWorkspaceRunFailure(code: "operation_busy")
+                    }
+                    guard let selection = providerSelection else {
+                        throw OperationWorkspaceRunFailure(code: "provider_unavailable")
+                    }
+                    guard let record = try await historyStore.historyRecord(id: id),
+                          !record.operation.status.isActive else {
+                        throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+                    }
+                    guard let png = try? await screenshotStore.loadIfOwned(record.operation.screenshot),
+                          NSImage(data: png) != nil else {
+                        throw OperationWorkspaceRunFailure(code: "history_screenshot_unavailable")
+                    }
+                    try Task.checkCancellation()
+                    let runner = PersistedOperationWorkspaceRunner(screenshotStore: screenshotStore,
+                        historyStore: historyStore, provider: providerStreamer, restoring: record.operation)
+                    let session = OperationWorkspaceSession(originalPNG: png, runner: runner,
+                        activeGate: operationGate, restoring: record.operation)
+                    historyRetrySession = session
+                    historyRetry.providerSummary = providerSummary(for: selection)
+                    let kind: WorkspaceOperationKind = record.operation.kind == .extract ? .extract : .translate
+                    await session.select(kind)
+                    let observation = Task { @MainActor in
+                        while !Task.isCancelled {
+                            let snapshot = await session.snapshot()
+                            guard !Task.isCancelled else { return }
+                            historyRetry.slot = kind == .extract ? snapshot.extract : snapshot.translate
+                            try? await Task.sleep(for: .milliseconds(50))
+                        }
+                    }
+                    defer { observation.cancel() }
+                    do {
+                        try await session.startSelectedOperation(selection: selection,
+                            targetLanguage: record.operation.targetLanguage ?? selectedTargetLanguageCode)
+                    } catch {
+                        let snapshot = await session.snapshot()
+                        historyRetry.slot = kind == .extract ? snapshot.extract : snapshot.translate
+                        await refreshHistory()
+                        throw error
+                    }
+                    let snapshot = await session.snapshot()
+                    historyRetry.slot = kind == .extract ? snapshot.extract : snapshot.translate
+                    await refreshHistory()
+                }
+                if !admitted { historyRetry.slot = WorkspaceOperationSlot(attempt: .failed(code: "operation_busy")) }
+            } catch {
+                if historyRetry.slot.attempt == .preparing || historyRetry.slot.attempt == .neverStarted {
+                    historyRetry.slot = WorkspaceOperationSlot(attempt: .failed(
+                        code: (error as? OperationWorkspaceRunFailure)?.code ?? "operation_failed"))
+                }
+            }
+        }
+    }
+
+    private func retryHistorySave() {
+        guard !historyRetry.isRunning, historyRetry.slot.unsavedResult != nil,
+              let session = historyRetrySession else { return }
+        historyRetry.isRunning = true
+        historyRetryTask = Task { [weak self] in
+            guard let self else { return }
+            defer { historyRetry.isRunning = false; publish() }
+            try? await session.retrySavingSelectedResult()
+            let snapshot = await session.snapshot()
+            historyRetry.slot = snapshot.selectedOperation == .extract ? snapshot.extract : snapshot.translate
+            await refreshHistory()
+        }
     }
 
     private func openHistoryRecord(_ id: UUID) async {
@@ -721,12 +828,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
         let runner = PersistedOperationWorkspaceRunner(
             screenshotStore: screenshotStore,
             historyStore: historyStore,
-            provider: providerStreamer
+            provider: providerStreamer,
+            restoring: record.operation
         )
         let session = OperationWorkspaceSession(
             originalPNG: originalPNG ?? Data(),
             runner: runner,
-            activeGate: operationGate
+            activeGate: operationGate,
+            restoring: record.operation
         )
         await session.select(operation)
         guard historyOpenGeneration == generation else { return }
@@ -741,12 +850,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
         workspaceSession = session
         selectedOperation = operation
         workspaceSnapshot = OperationWorkspaceSnapshot(restoring: record.operation)
+        returnsToHistory = true
         originalImage = originalPNG.flatMap(NSImage.init(data:))
         workspaceProviderSummary = providerSummary(for: record.operation.selection)
         workspaceTargetLanguageCode = record.operation.targetLanguage
         workspaceAllowsOperationStart = originalPNG != nil
         let present: @MainActor @Sendable () -> Void = { [weak self] in
-            self?.showResultWorkspace(bringToFront: true)
+            guard let self, workspaceSession === session else { return }
+            showResultWorkspace(bringToFront: true)
         }
         if let onRetireManagementCenter {
             onRetireManagementCenter(present)
@@ -761,6 +872,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func deleteHistory(ids: [UUID], includePinned: Bool) async {
+        guard !historyRetry.preventsDiscard,
+              await workspaceSession?.preventsHistoryDiscard != true else {
+            await refreshHistory()
+            return
+        }
         let summary = await historyDeletionCoordinator.delete(
             recordIDs: ids,
             includePinned: includePinned
@@ -781,6 +897,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func runHistoryCleanup() async {
+        guard !historyRetry.preventsDiscard,
+              await workspaceSession?.preventsHistoryDiscard != true else { return }
         let summary = await historyCleanupCoordinator.clean(retention: retention)
         cleanupFailureCount = summary.failed
         await refreshHistory()
@@ -796,6 +914,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     return
                 }
                 guard let self else { return }
+                guard !self.historyRetry.preventsDiscard,
+                      await self.workspaceSession?.preventsHistoryDiscard != true else { continue }
                 await self.cleanupScheduler.runIfDue(
                     retention: self.retention,
                     now: Date()
@@ -826,6 +946,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func confirmRetentionShortening() async {
+        guard await workspaceSession?.preventsHistoryDiscard != true,
+              !historyRetry.preventsDiscard else {
+            publish()
+            return
+        }
         guard let summary = try? await retentionSettingsSession.confirmShortening()
         else { return }
         retention = HistoryRetentionPeriod(
@@ -987,14 +1112,18 @@ final class VLMSnapperApplicationModel: ObservableObject {
         }
         switch result {
         case let .ready(session, frozenDisplays, _):
+            // Revalidate the frozen frames before preparing their native overlays.
+            let geometries = dependencies.displayMonitor.currentGeometries()
+            let invalidated = await session.applyCurrentDisplayGeometries(geometries)
+            let validDisplays = frozenDisplays.filter { !invalidated.contains($0.geometry.displayID) }
             guard captureRequestCanCommit(request) else {
-                captureRequest = nil
+                if captureRequest?.generation == request.generation { captureRequest = nil }
                 await session.cancel()
                 await request.workspaceToRetire?.restoreAfterCaptureFailure()
                 return false
             }
             let replacementPresented = captureOverlayController.replace(
-                displays: frozenDisplays,
+                displays: validDisplays,
                 onSelection: { [weak self] selection in
                     Task {
                         await self?.finishSelection(
@@ -1021,13 +1150,23 @@ final class VLMSnapperApplicationModel: ObservableObject {
             }
             let retiredSelectionSession = captureSelectionSession
             captureSelectionSession = session
+            captureDisplayGeometries = Dictionary(uniqueKeysWithValues: validDisplays
+                .filter { captureOverlayController.presentedDisplayIDs.contains($0.geometry.displayID) }
+                .map { ($0.geometry.displayID, $0.geometry) })
             activeCaptureGeneration = request.generation
+            dependencies.displayMonitor.start { [weak self] geometries in
+                self?.captureDisplaysChanged(geometries)
+            }
+            // Registration follows an actor hop. Read again while subscribed,
+            // before yielding, so a change in that gap cannot leave a stale overlay.
+            captureDisplaysChanged(dependencies.displayMonitor.currentGeometries())
             captureRequest = nil
             captureToolbarController.hide()
             if let workspaceToRetire = request.workspaceToRetire,
                workspaceSession === workspaceToRetire {
                 workspaceSession = nil
                 originalImage = nil
+                returnsToHistory = false
                 resetWorkspacePresentation()
                 resultController.hideForCapture()
             }
@@ -1058,6 +1197,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func captureRequestCanCommit(_ request: CaptureRequest) -> Bool {
+        guard captureRequest?.generation == request.generation else { return false }
         guard captureLease == request.lease else { return false }
         if let workspaceToRetire = request.workspaceToRetire {
             return workspaceSession === workspaceToRetire
@@ -1096,22 +1236,10 @@ final class VLMSnapperApplicationModel: ObservableObject {
     ) async {
         guard activeCaptureGeneration == generation,
               let captureSelectionSession,
-              let currentScreen = NSScreen.screens.first(where: { screen in
-                  guard let number = screen.deviceDescription[
-                      NSDeviceDescriptionKey("NSScreenNumber")
-                  ] as? NSNumber else {
-                      return false
-                  }
-                  return number.uint32Value == selection.displayID
-              }),
-              let currentGeometry = currentCaptureDisplayGeometry(
-                  for: selection.displayID,
-                  pointPixelScale: Float(currentScreen.backingScaleFactor)
-              )
-        else {
-            await cancelCapture(generation: generation)
-            return
-        }
+              captureDisplayGeometries[selection.displayID] != nil else { return }
+        let geometries = dependencies.displayMonitor.currentGeometries()
+        captureDisplaysChanged(geometries)
+        guard let currentGeometry = captureDisplayGeometries[selection.displayID] else { return }
         do {
             try await captureSelectionSession.beginSelection(
                 on: selection.displayID,
@@ -1121,6 +1249,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
             let selected = try await captureSelectionSession.finishSelection(
                 currentGeometry: currentGeometry
             )
+            guard activeCaptureGeneration == generation,
+                  self.captureSelectionSession === captureSelectionSession,
+                  captureDisplayGeometries[selection.displayID] != nil else { return }
+            dependencies.displayMonitor.stop()
+            captureDisplayGeometries.removeAll()
             originalImage = NSImage(data: selected.originalPNG)
             showCaptureToolbar(
                 originalPNG: selected.originalPNG,
@@ -1129,8 +1262,35 @@ final class VLMSnapperApplicationModel: ObservableObject {
             )
         } catch CaptureSelectionError.selectionTooSmall {
             return
+        } catch let error as CaptureSelectionError
+            where error == .displayUnavailable || error == .displayGeometryChanged || error == .inactiveSession {
+            // A display notification or a replacement may have retired this drag.
+            // The remaining displays and newer capture belong to their own session.
+            return
         } catch {
             await cancelCapture(generation: generation)
+        }
+    }
+
+    private func captureDisplaysChanged(_ geometries: [CaptureDisplayGeometry]) {
+        guard let generation = activeCaptureGeneration,
+              let session = captureSelectionSession,
+              !captureDisplayGeometries.isEmpty else { return }
+        let current = Dictionary(uniqueKeysWithValues: geometries.map { ($0.displayID, $0) })
+        let invalidated = captureDisplayGeometries.compactMap { id, frozen in
+            current[id] == frozen ? nil : id
+        }
+        guard !invalidated.isEmpty else { return }
+        for id in invalidated { captureDisplayGeometries.removeValue(forKey: id) }
+        // Remove stale native hit targets before yielding to the session actor.
+        captureOverlayController.invalidateDisplays(invalidated)
+        Task { [weak self] in
+            _ = await session.applyCurrentDisplayGeometries(geometries)
+            guard let self, activeCaptureGeneration == generation,
+                  captureSelectionSession === session else { return }
+            if captureDisplayGeometries.isEmpty {
+                await cancelCapture(generation: generation)
+            }
         }
     }
 
@@ -1193,6 +1353,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         workspaceSession = session
         selectedOperation = operation
         workspaceProviderSummary = providerSummary
+        returnsToHistory = false
         workspaceTargetLanguageCode = selectedTargetLanguageCode
         workspaceAllowsOperationStart = true
         await session.select(operation)
@@ -1271,16 +1432,18 @@ final class VLMSnapperApplicationModel: ObservableObject {
               let workspaceSession,
               let providerSelection else { return }
         workspaceProviderSummary = providerSummary
-        workspaceTargetLanguageCode = selectedTargetLanguageCode
         await workspaceSession.select(operation)
         selectedOperation = operation
         workspaceSnapshot = await workspaceSession.snapshot()
+        if operation == .translate, workspaceSnapshot.translate.attempt == .neverStarted {
+            workspaceTargetLanguageCode = selectedTargetLanguageCode
+        }
+        let targetLanguage = workspaceTargetLanguageCode ?? selectedTargetLanguageCode
         let previousAttempt = selectedAttempt
-        let run = Task { [weak self] in
-            guard let self else { return }
+        let run = Task {
             try await workspaceSession.startSelectedOperation(
                 selection: providerSelection,
-                targetLanguage: selectedTargetLanguageCode
+                targetLanguage: targetLanguage
             )
         }
         var observedTransition = false
@@ -1322,7 +1485,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private func closeWorkspace() async -> WorkspaceCloseDisposition {
         guard let workspaceSession else { return .discard }
         let disposition = await workspaceSession.close()
-        if disposition != .confirmDiscardUnsavedResult {
+        if disposition != .confirmDiscardUnsavedResult, self.workspaceSession === workspaceSession {
             self.workspaceSession = nil
             originalImage = nil
             resetWorkspacePresentation()
@@ -1348,6 +1511,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func cancelCaptureSurfaces() {
+        dependencies.displayMonitor.stop()
+        captureDisplayGeometries.removeAll()
         captureOverlayController.close()
         captureToolbarController.hide()
         captureSelectionSession = nil
@@ -1487,6 +1652,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func publish() {
+        historyRetry.allowsStart = providerSelection != nil && providerSnapshot.activity == nil
+            && !historyRetry.isRunning && historyRetry.slot.unsavedResult == nil
         onSnapshotChange?()
     }
 }

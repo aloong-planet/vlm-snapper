@@ -8,13 +8,18 @@ public final class ResultWorkspaceWindowController: NSWindowController,
 {
     private let onClose: @MainActor () async -> WorkspaceCloseDisposition
     private let onDiscardUnsaved: @MainActor () async -> Void
+    private let onDidClose: @MainActor () -> Void
+    private var presentationID = UUID()
+    private var isClosing = false
 
     public init(
         onClose: @escaping @MainActor () async -> WorkspaceCloseDisposition,
-        onDiscardUnsaved: @escaping @MainActor () async -> Void
+        onDiscardUnsaved: @escaping @MainActor () async -> Void,
+        onDidClose: @escaping @MainActor () -> Void = {}
     ) {
         self.onClose = onClose
         self.onDiscardUnsaved = onDiscardUnsaved
+        self.onDidClose = onDidClose
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 980, height: 640),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -35,6 +40,7 @@ public final class ResultWorkspaceWindowController: NSWindowController,
     }
 
     public func present<Content: View>(content: Content) {
+        presentationID = UUID()
         window?.contentViewController = NSHostingController(rootView: content)
         window?.center()
         showWindow(nil)
@@ -46,19 +52,25 @@ public final class ResultWorkspaceWindowController: NSWindowController,
     }
 
     public func hideForCapture() {
+        presentationID = UUID()
         window?.orderOut(nil)
     }
 
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !isClosing else { return false }
+        isClosing = true
+        let closingPresentation = presentationID
         Task { @MainActor [onClose] in
+            defer { isClosing = false }
             let disposition = await onClose()
+            guard presentationID == closingPresentation else { return }
             if disposition == .confirmDiscardUnsavedResult {
                 guard UnsavedResultConfirmation.confirm() else { return }
                 await onDiscardUnsaved()
-                sender.orderOut(nil)
-            } else {
-                sender.orderOut(nil)
             }
+            guard presentationID == closingPresentation else { return }
+            sender.orderOut(nil)
+            onDidClose()
         }
         return false
     }

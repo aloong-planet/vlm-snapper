@@ -1,7 +1,10 @@
 import SwiftUI
+import VLMSnapperCore
 
 // SF Symbols are centralized here so icon geometry stays native and no view
 // substitutes text, Unicode glyphs, or emoji for interface icons.
+// The explicitly approved Provider identity monograms below are the sole
+// exception: they reproduce the prototype's labels, not generic action icons.
 enum VLMSnapperIcon: String {
     case extract = "text.alignleft"
     case translate = "character.book.closed"
@@ -37,5 +40,44 @@ enum VLMSnapperIcon: String {
 
     var image: Image {
         Image(systemName: rawValue)
+    }
+}
+
+struct ProviderIdentityMark: View {
+    let provider: ProviderID
+
+    private var monogram: String {
+        switch provider {
+        case .deepSeek: "DS"
+        case .openAI: "OA"
+        case .gemini: "G"
+        }
+    }
+
+    var body: some View {
+        Text(verbatim: monogram)
+            .font(.system(size: 10, weight: .heavy))
+            .foregroundStyle(VLMSnapperTheme.providerMarkForeground)
+            .frame(
+                width: ManagementCenterMetrics.providerMarkSize,
+                height: ManagementCenterMetrics.providerMarkSize
+            )
+            .background(VLMSnapperTheme.providerMarkBackground, in: RoundedRectangle(cornerRadius: 8))
+            .accessibilityHidden(true)
+    }
+}
+
+// The brand emblem follows the approved onboarding vector, not a text glyph.
+struct OnboardingBrandMark: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addRect(CGRect(x: 5, y: 7, width: 14, height: 10))
+        for x in [8.0, 16.0] {
+            path.move(to: CGPoint(x: x, y: 4))
+            path.addLine(to: CGPoint(x: x, y: 7))
+            path.move(to: CGPoint(x: x, y: 17))
+            path.addLine(to: CGPoint(x: x, y: 20))
+        }
+        return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24))
     }
 }

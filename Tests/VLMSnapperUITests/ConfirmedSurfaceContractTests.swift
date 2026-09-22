@@ -9,8 +9,8 @@ import VLMSnapperCore
 struct ConfirmedSurfaceContractTests {
     @Test("onboarding and attached sheets use the accepted dimensions")
     func setupSurfaceGeometry() {
-        #expect(OnboardingMetrics.width == 760)
-        #expect(OnboardingMetrics.minimumHeight == 540)
+        #expect(OnboardingMetrics.width == 900)
+        #expect(OnboardingMetrics.minimumHeight == 604)
         #expect(OnboardingMetrics.rowCornerRadius == 9)
         #expect(PermissionRecoveryMetrics.width == 520)
         #expect(PermissionRecoveryMetrics.cornerRadius == 8)
@@ -21,8 +21,8 @@ struct ConfirmedSurfaceContractTests {
         #expect(ResultWorkspaceMetrics.minimumSize == CGSize(width: 1_020, height: 620))
         #expect(ResultWorkspaceMetrics.headerHeight == 58)
         #expect(ResultWorkspaceMetrics.footerHeight == 50)
-        #expect(ManagementCenterMetrics.defaultSize == CGSize(width: 1_200, height: 720))
-        #expect(ManagementCenterMetrics.sidebarWidth == 218)
+        #expect(ManagementCenterMetrics.defaultSize == CGSize(width: 1_200, height: 780))
+        #expect(ManagementCenterMetrics.sidebarWidth == 180)
         #expect(ManagementCenterMetrics.titlebarHeight == 46)
         #expect(ManagementCenterMetrics.providerContentWidth == 850)
         #expect(ManagementCenterMetrics.providerHeaderHeight == 54)
@@ -58,9 +58,9 @@ struct ConfirmedSurfaceContractTests {
 @Suite("Management center window contract", .serialized)
 @MainActor
 struct ManagementCenterWindowContractTests {
-    // Integration gap: SwiftUI List double-click delivery, the disabled rerun
-    // state for a missing screenshot, and compositor-level self-exclusion during
-    // capture require verification in the signed app.
+    // Installed-app acceptance still covers the disabled retry state for a
+    // missing screenshot and compositor-level self-exclusion during capture.
+    // Native row tests separately verify that double clicking has no extra action.
     @Test("the minimum applies to the complete content area")
     func minimumAppliesToContentArea() throws {
         let controller = ManagementCenterWindowController(records: [])
@@ -77,23 +77,6 @@ struct ManagementCenterWindowContractTests {
         #expect(window.contentLayoutRect.height >= 620)
     }
 
-    @Test("history callbacks keep selection and opening as separate actions")
-    func historyCallbacksSeparateSelectionAndOpening() {
-        let id = UUID()
-        var selectedID: UUID?
-        var openedID: UUID?
-        let callbacks = ManagementCenterCallbacks(
-            onSelectRecord: { selectedID = $0 },
-            onOpenRecord: { openedID = $0 }
-        )
-
-        callbacks.onSelectRecord(id)
-        #expect(selectedID == id)
-        #expect(openedID == nil)
-
-        callbacks.onOpenRecord(id)
-        #expect(openedID == id)
-    }
 
     @Test("closing the management center reports the user-initiated close")
     func closingManagementCenterReportsClose() throws {

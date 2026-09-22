@@ -274,7 +274,7 @@ public struct MenuBarPanelView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                 } else {
-                    ForEach(recentItems.prefix(3)) { item in
+                ForEach(recentItems.prefix(5)) { item in
                         MenuBarPanelActionButton(
                             role: .row,
                             action: { onOpenRecent(item.id) }
@@ -315,9 +315,9 @@ public struct MenuBarPanelView: View {
             .padding(.bottom, 8)
             Divider()
             HStack(spacing: 0) {
-                footerButton(VLMSnapperStrings.menuHistory) { onNavigate(.history) }
+                footerButton(VLMSnapperStrings.historyProviderSettings) { onNavigate(.providerSettings) }
                 Divider().frame(height: 38)
-                footerButton(VLMSnapperStrings.menuSettings) { onNavigate(.settings) }
+                footerButton(VLMSnapperStrings.menuGeneralSettings) { onNavigate(.settings) }
             }
         }
         .background(VLMSnapperTheme.window)
