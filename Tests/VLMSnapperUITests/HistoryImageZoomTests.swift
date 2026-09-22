@@ -10,7 +10,13 @@ final class HistoryImageZoomTests: XCTestCase {
     func testWheelZoomsAroundPointerAndReverses() throws {
         try withPreview { scroll, host in
             let initial = scroll.magnification
-            XCTAssertEqual(initial, 0.8, accuracy: 0.02)
+            let document = try XCTUnwrap(scroll.documentView)
+            let renderedImage = scroll.convert(document.bounds, from: document)
+            let viewport = scroll.convert(scroll.contentView.bounds, from: scroll.contentView)
+            // The preview follows the available display size, including CI's
+            // smaller desktop. Verify fit geometry, not a machine-specific scale.
+            XCTAssertEqual(renderedImage.width, viewport.width - 40, accuracy: 1)
+            XCTAssertLessThanOrEqual(renderedImage.height, viewport.height)
             try capture(host, name: "fit")
             let point = NSPoint(x: scroll.contentView.bounds.midX + 80, y: scroll.contentView.bounds.midY)
             let windowPoint = scroll.contentView.convert(point, to: nil)
