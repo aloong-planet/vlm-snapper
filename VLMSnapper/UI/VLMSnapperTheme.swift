@@ -23,6 +23,7 @@ enum VLMSnapperTheme {
     static let historyCanceled = historyColor(light: 0xA96609, dark: 0xEFB45F)
     static let historyFailed = historyColor(light: 0xC34242, dark: 0xFF8080)
     static let historyDivider = historyColor(light: 0x383F49, dark: 0xE5E9F0, lightAlpha: 0.15, darkAlpha: 0.13)
+    static let historyImageBorder = historyColor(light: 0x383F49, dark: 0xE5E9F0, lightAlpha: 0.27, darkAlpha: 0.24)
     static let success = Color(nsColor: .systemGreen)
     static let warning = Color(nsColor: .systemOrange)
     static let destructive = Color(nsColor: .systemRed)
@@ -61,6 +62,28 @@ enum VLMSnapperTheme {
                            green: CGFloat((rgb >> 8) & 255) / 255,
                            blue: CGFloat(rgb & 255) / 255, alpha: isDark ? darkAlpha : lightAlpha)
         })
+    }
+}
+
+struct HistoryImageButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        ImageSurface(configuration: configuration)
+    }
+
+    private struct ImageSurface: View {
+        let configuration: Configuration
+        @State private var isHovered = false
+
+        var body: some View {
+            configuration.label
+                .background(isHovered || configuration.isPressed ? VLMSnapperTheme.historyHover : VLMSnapperTheme.subtleSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(isHovered ? VLMSnapperTheme.historyDate : VLMSnapperTheme.historyImageBorder, lineWidth: 1)
+                }
+                .onHover { isHovered = $0 }
+        }
     }
 }
 

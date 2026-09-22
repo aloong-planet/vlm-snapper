@@ -33,6 +33,24 @@ final class FixtureDelegate: NSObject, NSApplicationDelegate {
     }
 
     func render() {
+        if CommandLine.arguments.contains("--history-image") {
+            let image = NSImage(size: NSSize(width: 1200, height: 300))
+            image.lockFocus()
+            NSColor.white.setFill()
+            NSRect(x: 0, y: 0, width: 1200, height: 300).fill()
+            ("Original screenshot fixture" as NSString).draw(at: NSPoint(x: 40, y: 140),
+                withAttributes: [.font: NSFont.systemFont(ofSize: 40), .foregroundColor: NSColor.black])
+            image.unlockFocus()
+            let record = HistoryRecord(operation: StoredOperation(id: UUID(),
+                screenshot: ManagedScreenshot(path: "/unused-fixture.png", sha256: "fixture"),
+                selection: ProviderSelection(providerID: "deepseek", modelID: "fixture"),
+                status: .succeeded, sourceMarkdown: "Preview source", translationMarkdown: "Preview translation", kind: .translate),
+                createdAt: Date(timeIntervalSince1970: 1_787_725_812), isPinned: false)
+            window.contentViewController = NSHostingController(rootView: ManagementCenterView(
+                destination: .history, records: [record], selectedRecordID: record.id,
+                selectedImage: CommandLine.arguments.contains("--missing-image") ? nil : image))
+            return
+        }
         let configuration = ProviderSettingsConfiguration(
             snapshot: ProviderSetupSnapshot(
                 selectedProvider: .deepSeek, availableModelIDs: [], selectedModelID: nil,

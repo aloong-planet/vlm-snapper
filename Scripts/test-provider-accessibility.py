@@ -45,6 +45,18 @@ def result(title="AX fixture validated exact value 1"):
 
 
 def cases():
+    yield "history-image-missing", ["--history-image", "--missing-image"], [
+        result("AX fixture ready"), wait(button("View original image")),
+    ], "step_2"
+    yield "history-image", ["--history-image", "--narrow"], [
+        wait(button("View original image")), press("View original image"),
+        wait(button("100% actual size")), press("100% actual size"),
+        wait(button("Fit to window")), press("Fit to window"),
+        wait(button("100% actual size")), press("Close"),
+        wait(button("View original image")), press("View original image"),
+        wait(button("100% actual size")), press("Close"),
+        result("AX fixture ready"),
+    ], None
     submission = [wait(SECURE), write(), enabled(True), press("Validate")]
     # Negative control must reach the callback and only fail at the final effect.
     yield "drop-result", ["--drop-result"], submission + [

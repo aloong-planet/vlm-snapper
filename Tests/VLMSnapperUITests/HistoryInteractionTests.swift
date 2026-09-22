@@ -9,6 +9,8 @@ import VLMSnapperCore
 // suite; the XCTest host completed the same interactions and assertions.
 // Keep the window lifecycle before the combined interaction in this regression.
 // Synthetic events and rendering do not prove physical input or VoiceOver.
+// External AX covers preview open/resize/close. Escape, parent-window close,
+// and long-image scrolling still require installed-app interaction acceptance.
 @MainActor
 final class HistoryInteractionTests: XCTestCase {
     func test01InitialDetailLoadsForRetry() throws {
@@ -182,6 +184,51 @@ final class HistoryInteractionTests: XCTestCase {
                 }
             }
         }
+    }
+
+    func test06HistoryThumbnailKeepsAspectRatioAndHeight() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let fixtures = records
+        let image = NSImage(size: NSSize(width: 1200, height: 300))
+        image.lockFocus()
+        NSColor(srgbRed: 0.2, green: 0.8, blue: 0.6, alpha: 1).setFill()
+        NSRect(x: 0, y: 0, width: 1200, height: 300).fill()
+        image.unlockFocus()
+        let hosting = NSHostingView(rootView: ManagementCenterView(
+            destination: .history, records: fixtures, selectedRecordID: fixtures[0].id, selectedImage: image
+        ))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 780),
+            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = hosting
+        defer { window.close() }
+        window.orderFront(nil)
+        pump(window)
+        // SwiftUI virtual controls are not exported in-process here. External
+        // AX scenarios exercise opening/closing; this test measures real pixels.
+        let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+        let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        try png.write(to:
+            FileManager.default.temporaryDirectory.appendingPathComponent("vlmsnapper-history-detail-layout.png"))
+        let pixels = try XCTUnwrap(NSBitmapImageRep(data: png)?.converting(to: .sRGB, renderingIntent: .default))
+        let scale = CGFloat(pixels.pixelsWide) / hosting.bounds.width
+        var xs: [Int] = [], ys: [Int] = []
+        for y in 0..<pixels.pixelsHigh {
+            for x in Int(450 * scale)..<pixels.pixelsWide {
+                guard let color = pixels.colorAt(x: x, y: y),
+                    abs(color.redComponent - 0.2) < 0.02,
+                    abs(color.greenComponent - 0.8) < 0.02,
+                    abs(color.blueComponent - 0.6) < 0.02 else { continue }
+                xs.append(x); ys.append(y)
+            }
+        }
+        let width = CGFloat(try XCTUnwrap(xs.max()) - XCTUnwrap(xs.min()) + 1) / scale
+        let height = CGFloat(try XCTUnwrap(ys.max()) - XCTUnwrap(ys.min()) + 1) / scale
+        XCTAssertEqual(height, 100, accuracy: 2)
+        XCTAssertEqual(width, 400, accuracy: 2)
     }
 
     private func enterSearch(_ text: String, in window: NSWindow) throws {
