@@ -27,7 +27,7 @@ final class HistoryInteractionTests: XCTestCase {
         window.contentView = hosting
         defer { window.close() }
         window.orderFront(nil)
-        pump(window)
+        try settle(window) { selected == fixtures[0].id }
         XCTAssertTrue(selected == fixtures[0].id)
     }
 
@@ -39,14 +39,12 @@ final class HistoryInteractionTests: XCTestCase {
         let window = try XCTUnwrap(controller.window)
         defer { window.close() }
         controller.show(destination: .history)
-        pump(window)
         let content = try XCTUnwrap(window.contentView)
-        XCTAssertTrue(historyRenderedRows(in: content).count == 2)
+        try settle(window) { historyRenderedRows(in: content).count == 2 }
         let picker = try XCTUnwrap(descendants(content).compactMap { $0 as? NSPopUpButton }.first)
         XCTAssertTrue(picker.itemTitles == ["All Providers", "DeepSeek", "OpenAI"])
         try XCTUnwrap(picker.menu).performActionForItem(at: picker.indexOfItem(withTitle: "OpenAI"))
-        pump(window)
-        XCTAssertTrue(historyRenderedRows(in: content).count == 1)
+        try settle(window) { historyRenderedRows(in: content).count == 1 }
         let labels = accessibleText(content)
         XCTAssertTrue(labels.contains("OpenAI translation"))
         XCTAssertTrue(!labels.contains("DeepSeek extraction"))
@@ -60,23 +58,20 @@ final class HistoryInteractionTests: XCTestCase {
         let window = try XCTUnwrap(controller.window)
         defer { window.close() }
         controller.show(destination: .history)
-        pump(window)
         var content = try XCTUnwrap(window.contentView)
+        try settle(window) { historyRenderedRows(in: content).count == 2 }
         let picker = try XCTUnwrap(descendants(content).compactMap { $0 as? NSPopUpButton }.first)
         try XCTUnwrap(picker.menu).performActionForItem(at: picker.indexOfItem(withTitle: "OpenAI"))
-        pump(window)
-        XCTAssertTrue(historyRenderedRows(in: content).count == 1)
+        try settle(window) { historyRenderedRows(in: content).count == 1 }
         controller.hideForCapture()
         controller.show(destination: .history)
-        pump(window)
-        XCTAssertTrue(historyRenderedRows(in: content).count == 1)
+        try settle(window) { historyRenderedRows(in: content).count == 1 }
         window.performClose(nil)
         controller.show(destination: .history)
-        pump(window)
         content = try XCTUnwrap(window.contentView)
+        try settle(window) { historyRenderedRows(in: content).count == 2 }
         let reopened = try XCTUnwrap(descendants(content).compactMap { $0 as? NSPopUpButton }.first)
         XCTAssertTrue(reopened.titleOfSelectedItem == "All Providers")
-        XCTAssertTrue(historyRenderedRows(in: content).count == 2)
     }
 
 
@@ -112,36 +107,42 @@ final class HistoryInteractionTests: XCTestCase {
         let content = try XCTUnwrap(window.contentView)
         // Native mouse events hit the production controls at the approved toolbar geometry.
         try click(window, at: NSPoint(x: 330, y: content.bounds.height - 29))
-        XCTAssertTrue(historyRenderedRows(in: content).count == 3)
+        try settle(window) { historyRenderedRows(in: content).count == 3 }
         let picker = try XCTUnwrap(descendants(content).compactMap { $0 as? NSPopUpButton }.first)
         try XCTUnwrap(picker.menu).performActionForItem(at: picker.indexOfItem(withTitle: "DeepSeek"))
-        pump(window)
-        let list = historyRenderedRows(in: content)
-        XCTAssertTrue(list.count == 2)
-        try XCTUnwrap((list.count == 2) ? true : nil)
+        var list: [HistoryRenderedRow] = []
+        try settle(window) {
+            list = historyRenderedRows(in: content)
+            return list.count == 2
+        }
         let row = window.convertFromScreen(list[1].screenFrame())
         try click(window, at: NSPoint(x: row.midX, y: row.midY))
         try await settle(in: window) { historyRenderedRows(in: content).dropFirst().first?.isSelected() == true }
-        XCTAssertTrue(historyRenderedRows(in: content).dropFirst().first?.isSelected() == true)
         XCTAssertTrue(opened == nil)
         try enterSearch("source", in: window)
-        XCTAssertTrue(historyRenderedRows(in: content).dropFirst().first?.isSelected() == true)
+        try settle(window) {
+            let rows = historyRenderedRows(in: content)
+            return rows.count == 2 && rows[1].isSelected()
+        }
         try click(window, at: NSPoint(x: 90, y: content.bounds.height - 213))
+        try settle(window) { historyRenderedRows(in: content).isEmpty }
         try click(window, at: NSPoint(x: 90, y: content.bounds.height - 61))
-        try await settle(in: window) { !historyRenderedRows(in: content).isEmpty }
-        XCTAssertTrue(historyRenderedRows(in: content).count == 2)
-        XCTAssertTrue(historyRenderedRows(in: content).dropFirst().first?.isSelected() == true)
+        try await settle(in: window) {
+            let rows = historyRenderedRows(in: content)
+            return rows.count == 2 && rows[1].isSelected()
+        }
         try click(window, at: NSPoint(x: 90, y: content.bounds.height - 101))
-        XCTAssertTrue(historyRenderedRows(in: content).count == 1)
+        try settle(window) { historyRenderedRows(in: content).count == 1 && accessibleText(content).contains("First source") }
         XCTAssertTrue(accessibleText(content).contains("First source"))
         try click(window, at: NSPoint(x: 90, y: content.bounds.height - 61))
-        XCTAssertTrue(historyRenderedRows(in: content).count == 2)
+        try settle(window) { historyRenderedRows(in: content).count == 2 }
         try enterSearch("unmatched", in: window)
+        try settle(window) { historyRenderedRows(in: content).isEmpty && !accessibleText(content).contains("First source") && !accessibleText(content).contains("Second source") }
         XCTAssertTrue(!accessibleText(content).contains("First source"))
         XCTAssertTrue(!accessibleText(content).contains("Second source"))
         try click(window, at: NSPoint(x: 225, y: content.bounds.height - 29))
         try enterSearch("needle", in: window)
-        XCTAssertTrue(historyRenderedRows(in: content).count == 1)
+        try settle(window) { historyRenderedRows(in: content).count == 1 && accessibleText(content).contains("Translation source") }
         XCTAssertTrue(accessibleText(content).contains("Translation source"))
     }
 
@@ -169,14 +170,14 @@ final class HistoryInteractionTests: XCTestCase {
                     window.contentView = hosting
                     window.appearance = NSAppearance(named: appearance)
                     window.orderFront(nil)
-                    pump(window)
+                    try settle(window) {
+                        let rows = historyRenderedRows(in: hosting)
+                        return rows.count == 4 && abs(historySelectedWidth(in: rows[0]) - 249) < 1
+                    }
                     let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
                     hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
                     let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
                     try png.write(to: output.appendingPathComponent("\(language)-\(appearance.rawValue)-\(width).png"))
-                    let rows = historyRenderedRows(in: hosting)
-                    try XCTUnwrap((rows.count == 4) ? true : nil)
-                    XCTAssertTrue(abs(historySelectedWidth(in: rows[0]) - 249) < 1)
                     window.close()
                 }
             }
@@ -237,19 +238,32 @@ final class HistoryInteractionTests: XCTestCase {
     private func pump(_ window: NSWindow) {
         window.layoutIfNeeded()
         window.contentView?.layoutSubtreeIfNeeded()
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-        window.contentView?.layoutSubtreeIfNeeded()
     }
 
+    private func settle(_ window: NSWindow, file: StaticString = #filePath, line: UInt = #line,
+                        until predicate: () -> Bool) throws {
+        _ = try XCTUnwrap(waitForNativeCondition(timeout: 0.1) {
+            pump(window)
+            return predicate()
+        } ? true : nil, "History UI condition did not settle within 100 ms", file: file, line: line)
+    }
+
+    private struct NativeConditionTimeout: Error {}
+
     private func settle(in window: NSWindow, until predicate: () -> Bool) async throws {
-        let deadline = Date(timeIntervalSinceNow: 2)
-        while !predicate() && Date() < deadline {
+        let deadline = ProcessInfo.processInfo.systemUptime + 2
+        while true {
             if let event = NSApp.nextEvent(matching: .appKitDefined, until: Date(), inMode: .default, dequeue: true) {
                 NSApp.sendEvent(event)
             }
             pump(window)
-            try await Task.sleep(for: .milliseconds(10))
+            if predicate() { return }
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            guard remaining > 0 else {
+                XCTFail("Native condition did not settle")
+                throw NativeConditionTimeout()
+            }
+            try await Task.sleep(for: .seconds(min(0.01, remaining)))
         }
-        try XCTUnwrap((predicate()) ? true : nil, "Native condition did not settle")
     }
 }

@@ -31,20 +31,20 @@ struct ProviderCredentialInteractionTests {
         controller.show(destination: .providerSettings)
         let window = try #require(controller.window)
         defer { window.orderOut(nil) }
-        settle(window)
+        try settle(window) { secureField(in: window)?.stringValue == "saved-key" }
         let content = try #require(window.contentView)
         let field = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         #expect(window.makeFirstResponder(field))
         let editor = try #require(field.currentEditor() as? NSTextView)
         editor.insertText("unsaved-key", replacementRange: NSRange(location: 0, length: 9))
-        settle(window)
+        try settle(window) { credential.isDirty && field.stringValue == "unsaved-key" }
         #expect(credential.isDirty)
         window.performClose(nil)
-        settle(window)
+        try settle(window) { !credential.isOpen && credential.value.isEmpty }
         #expect(!credential.isOpen)
         #expect(credential.value.isEmpty)
         controller.show(destination: .providerSettings)
-        settle(window)
+        try settle(window) { secureField(in: window)?.stringValue == "saved-key" && !credential.isDirty }
         let reopenedField = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         #expect(reopenedField.stringValue == "saved-key")
         #expect(!credential.isDirty)
@@ -70,23 +70,23 @@ struct ProviderCredentialInteractionTests {
         controller.show(destination: .providerSettings)
         let window = try #require(controller.window)
         defer { window.orderOut(nil) }
-        settle(window)
+        try settle(window) { secureField(in: window)?.stringValue == "loaded-key" }
         let content = try #require(window.contentView)
         let field = try #require(descendants(content)
             .compactMap { $0 as? NSSecureTextField }.first)
         #expect(window.makeFirstResponder(field))
         let editor = try #require(field.currentEditor() as? NSTextView)
         editor.insertText("changed-key", replacementRange: NSRange(location: 0, length: 10))
-        settle(window)
+        try settle(window) { credential.value == "changed-key" && field.stringValue == "changed-key" }
         editor.insertText("loaded-key", replacementRange: NSRange(location: 0, length: 11))
-        settle(window)
+        try settle(window) { credential.value == "loaded-key" && field.stringValue == "loaded-key" }
         #expect(credential.value == "loaded-key")
         editor.interpretKeyEvents([try #require(NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: window.windowNumber, context: nil, characters: "\r",
             charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36
         ))])
-        settle(window)
+        layout(window)
         #expect(submissions == 0)
     }
 
@@ -111,20 +111,20 @@ struct ProviderCredentialInteractionTests {
         controller.show(destination: .providerSettings)
         let window = try #require(controller.window)
         defer { window.orderOut(nil) }
-        settle(window)
+        try settle(window) { secureField(in: window) != nil }
         let content = try #require(window.contentView)
         let field = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         #expect(window.makeFirstResponder(field))
         let editor = try #require(field.currentEditor() as? NSTextView)
         editor.insertText(value, replacementRange: editor.selectedRange())
-        settle(window)
+        try settle(window) { credential.value.utf8.elementsEqual(value.utf8) && field.stringValue.utf8.elementsEqual(value.utf8) }
         #expect(Array(credential.value.utf8) == Array(value.utf8))
         editor.interpretKeyEvents([try #require(NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: window.windowNumber, context: nil, characters: "\r",
             charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36
         ))])
-        settle(window)
+        layout(window)
         #expect(submissions == 0)
     }
 
@@ -148,7 +148,7 @@ struct ProviderCredentialInteractionTests {
         controller.show(destination: .providerSettings)
         let window = try #require(controller.window)
         defer { window.orderOut(nil) }
-        settle(window)
+        try settle(window) { secureField(in: window)?.stringValue == "old-suffix" }
         let content = try #require(window.contentView)
         let field = try #require(descendants(content)
             .compactMap { $0 as? NSSecureTextField }.first)
@@ -165,7 +165,7 @@ struct ProviderCredentialInteractionTests {
         let edit = try #require(menu.item(withTitle: "Edit")?.submenu)
         #expect(window.firstResponder === editor)
         edit.performActionForItem(at: try #require(edit.items.firstIndex { $0.action == #selector(NSText.paste(_:)) }))
-        settle(window)
+        try settle(window) { credential.value == " new\t-suffix" && editor.selectedRange() == NSRange(location: 5, length: 0) }
         #expect(Array(credential.value.utf8) == Array(" new\t-suffix".utf8))
         #expect(editor.selectedRange() == NSRange(location: 5, length: 0))
     }
@@ -206,7 +206,7 @@ struct ProviderCredentialInteractionTests {
         controller.show(destination: .providerSettings)
         let window = try #require(controller.window)
         defer { window.orderOut(nil) }
-        settle(window)
+        try settle(window) { secureField(in: window)?.stringValue == initialKey }
         let content = try #require(window.contentView)
         let field = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         window.makeFirstResponder(field)
@@ -220,10 +220,10 @@ struct ProviderCredentialInteractionTests {
         } else {
             editor.insertText("test-key", replacementRange: editor.selectedRange())
         }
-        settle(window)
+        try settle(window) { credential.value == "test-key" && field.stringValue == "test-key" }
         #expect(credential.value == "test-key")
         try submitReturn(editor, in: window)
-        settle(window)
+        try settle(window) { submitted == ["test-key"] }
         #expect(submitted == ["test-key"])
 
         window.makeFirstResponder(field)
@@ -233,27 +233,27 @@ struct ProviderCredentialInteractionTests {
             windowNumber: window.windowNumber, context: nil, characters: "\r",
             charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36
         ))])
-        settle(window)
+        layout(window)
         #expect(submitted == ["test-key"])
 
         // Editing to empty is distinct from the AX Clear button scenario.
         submittedEditor.insertText("", replacementRange: NSRange(location: 0, length: submittedEditor.string.utf16.count))
-        settle(window)
+        try settle(window) { credential.value.isEmpty && field.stringValue.isEmpty }
         #expect(credential.value == "")
         try submitReturn(submittedEditor, in: window)
-        settle(window)
+        layout(window)
         #expect(submitted == ["test-key"])
 
         window.makeFirstResponder(field)
         let secondEditor = try #require(field.currentEditor() as? NSTextView)
         secondEditor.insertText("second-key", replacementRange: secondEditor.selectedRange())
-        settle(window)
+        try settle(window) { credential.value == "second-key" && field.stringValue == "second-key" }
         controller.update(
             records: [], selectedRecordID: nil, selectedImage: nil,
             cleanupFailureCount: 0, retention: .thirtyDays,
             settings: GeneralSettingsSnapshot(), providerSettings: configuration()
         )
-        settle(window)
+        try settle(window) { credential.value == "second-key" && secureField(in: window)?.stringValue == "second-key" }
         #expect(credential.value == "second-key")
         let refreshedField = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         window.makeFirstResponder(refreshedField)
@@ -263,7 +263,7 @@ struct ProviderCredentialInteractionTests {
             windowNumber: window.windowNumber, context: nil, characters: "\r",
             charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36
         ))])
-        settle(window)
+        try settle(window) { submitted == ["test-key", "second-key"] }
         #expect(submitted == ["test-key", "second-key"])
 
         credential.load("loaded-key")
@@ -272,7 +272,7 @@ struct ProviderCredentialInteractionTests {
             cleanupFailureCount: 0, retention: .thirtyDays,
             settings: GeneralSettingsSnapshot(), providerSettings: configuration()
         )
-        settle(window)
+        try settle(window) { secureField(in: window)?.stringValue == "loaded-key" }
         let loadedField = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         #expect(loadedField.stringValue == "loaded-key")
 
@@ -282,11 +282,11 @@ struct ProviderCredentialInteractionTests {
             cleanupFailureCount: 0, retention: .thirtyDays,
             settings: GeneralSettingsSnapshot(), providerSettings: configuration()
         )
-        settle(window)
+        try settle(window) { loadedField.stringValue.isEmpty }
         #expect(loadedField.stringValue == "")
         #expect(window.makeFirstResponder(loadedField))
         try submitReturn(try #require(loadedField.currentEditor() as? NSTextView), in: window)
-        settle(window)
+        layout(window)
         #expect(submitted == ["test-key", "second-key"])
     }
 
@@ -311,14 +311,14 @@ struct ProviderCredentialInteractionTests {
         controller.show(destination: .providerSettings)
         let window = try #require(controller.window)
         defer { window.orderOut(nil) }
-        settle(window)
+        try settle(window) { secureField(in: window) != nil }
         let content = try #require(window.contentView)
         let field = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         #expect(field.isEnabled)
         #expect(window.makeFirstResponder(field))
         let editor = try #require(field.currentEditor() as? NSTextView)
         editor.insertText("draft-fixture", replacementRange: editor.selectedRange())
-        settle(window)
+        try settle(window) { credential.value == "draft-fixture" && field.stringValue == "draft-fixture" }
         #expect(credential.value == "draft-fixture")
         let focusedEditor = try #require(field.currentEditor() as? NSTextView)
         focusedEditor.interpretKeyEvents([try #require(NSEvent.keyEvent(
@@ -326,17 +326,17 @@ struct ProviderCredentialInteractionTests {
             windowNumber: window.windowNumber, context: nil, characters: "\r",
             charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36
         ))])
-        settle(window)
+        layout(window)
         #expect(submissions.isEmpty)
         controller.update(records: [], selectedRecordID: nil, selectedImage: nil,
                           cleanupFailureCount: 0, retention: .thirtyDays,
                           settings: GeneralSettingsSnapshot(), providerSettings: configuration(blocked: false))
-        settle(window)
+        try settle(window) { secureField(in: window)?.isEnabled == true && credential.value == "draft-fixture" }
         #expect(credential.value == "draft-fixture")
         let enabledField = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         #expect(window.makeFirstResponder(enabledField))
         try submitReturn(try #require(enabledField.currentEditor() as? NSTextView), in: window)
-        settle(window)
+        try settle(window) { submissions == ["draft-fixture"] }
         #expect(submissions == ["draft-fixture"])
     }
 
@@ -356,7 +356,7 @@ struct ProviderCredentialInteractionTests {
         controller.show(destination: .history)
         let window = try #require(controller.window)
         defer { window.orderOut(nil) }
-        settle(window)
+        layout(window)
         let content = try #require(window.contentView)
         #expect(descendants(content).compactMap { $0 as? NSSecureTextField }.isEmpty)
         let load = credential.beginLoading(for: .openAI)
@@ -365,17 +365,31 @@ struct ProviderCredentialInteractionTests {
             cleanupFailureCount: 0, retention: .thirtyDays, settings: GeneralSettingsSnapshot(),
             providerSettings: configuration(target: .openAI, focus: ProviderSettingsFocusRequest(provider: .openAI)))
         controller.show(destination: .providerSettings)
-        settle(window)
+        try settle(window) { secureField(in: window)?.stringValue == "active-fixture" && secureField(in: window)?.isEnabled == false }
         let field = try #require(descendants(content).compactMap { $0 as? NSSecureTextField }.first)
         #expect(field.stringValue == "active-fixture")
         #expect(!field.isEnabled)
         #expect(content.bounds.intersects(field.convert(field.bounds, to: content)))
     }
 
-    private func settle(_ window: NSWindow) {
-        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    private func settle(_ window: NSWindow, until predicate: () -> Bool) throws {
+        try #require(waitForNativeCondition(timeout: 0.05) {
+            layout(window)
+            return predicate()
+        }, "Provider UI condition did not settle within 50 ms")
+    }
+
+    // Return submission is synchronous through the NSTextField delegate. Keep
+    // negative assertions direct, rather than polling an initially true count.
+    private func layout(_ window: NSWindow) {
         window.layoutIfNeeded()
         window.contentView?.layoutSubtreeIfNeeded()
+    }
+
+    private func secureField(in window: NSWindow) -> NSSecureTextField? {
+        guard let content = window.contentView else { return nil }
+        return descendants(content).compactMap { $0 as? NSSecureTextField }
+            .first { !$0.isHiddenOrHasHiddenAncestor && $0.bounds.width > 0 }
     }
 
     private func descendants(_ view: NSView) -> [NSView] {
