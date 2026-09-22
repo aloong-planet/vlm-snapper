@@ -12,8 +12,8 @@ public enum VLMSnapperUIConstants {
 }
 
 public enum OnboardingMetrics {
-    public static let width: CGFloat = 760
-    public static let minimumHeight: CGFloat = 540
+    public static let width: CGFloat = 900
+    public static let minimumHeight: CGFloat = 604
     public static let rowCornerRadius: CGFloat = 9
     public static let rowMinimumHeight: CGFloat = 94
 }
@@ -30,8 +30,8 @@ public enum ResultWorkspaceMetrics {
 }
 
 public enum ManagementCenterMetrics {
-    public static let defaultSize = CGSize(width: 1_200, height: 720)
-    public static let sidebarWidth: CGFloat = 218
+    public static let defaultSize = CGSize(width: 1_200, height: 780)
+    public static let sidebarWidth: CGFloat = 180
     public static let titlebarHeight: CGFloat = 46
     public static let providerContentWidth: CGFloat = 850
     public static let providerHeaderHeight: CGFloat = 54

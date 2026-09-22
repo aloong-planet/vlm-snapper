@@ -1,6 +1,8 @@
 import Foundation
 
 public protocol OperationHistoryWriting: Sendable {
+    func operation(id: UUID) async throws -> StoredOperation?
+
     func prepareOperation(
         screenshot: ManagedScreenshot,
         selection: ProviderSelection,
@@ -72,7 +74,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         case translate
     }
 
-    private let screenshotStore: any ScreenshotPersisting
+    private let screenshotStore: any ScreenshotPersisting & ManagedScreenshotLoading
     private let historyStore: any OperationHistoryWriting
     private let provider: any PreparedOperationStreaming
     private let now: @Sendable () -> Date
@@ -81,15 +83,28 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private var pendingPersistence: PendingPersistence?
 
     public init(
-        screenshotStore: any ScreenshotPersisting,
+        screenshotStore: any ScreenshotPersisting & ManagedScreenshotLoading,
         historyStore: any OperationHistoryWriting,
         provider: any PreparedOperationStreaming,
+        restoring operation: StoredOperation? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.screenshotStore = screenshotStore
         self.historyStore = historyStore
         self.provider = provider
         self.now = now
+        if let operation {
+            managedScreenshot = operation.screenshot
+            let restoredOperation: ProviderOperation = operation.kind == .extract
+                ? .extractText
+                : .translate(targetLanguage: operation.targetLanguage ?? "")
+            preparedOperations[Self.slot(for: restoredOperation)] = PreparedOperation(
+                operationID: operation.id,
+                screenshot: operation.screenshot,
+                selection: operation.selection,
+                operation: restoredOperation
+            )
+        }
     }
 
     public func run(
@@ -146,11 +161,27 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             let slot = Self.slot(for: operation)
             let newPrepared: PreparedOperation
             if let existing = preparedOperations[slot] {
+                guard let stored = try await historyStore.operation(id: existing.operationID),
+                      stored.screenshot == existing.screenshot,
+                      !stored.status.isActive else {
+                    throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+                }
+                switch existing.operation {
+                case .extractText:
+                    guard stored.kind == .extract else {
+                        throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+                    }
+                case let .translate(language):
+                    guard !language.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                          stored.kind == .translate, stored.targetLanguage == language else {
+                        throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+                    }
+                }
                 newPrepared = PreparedOperation(
                     operationID: existing.operationID,
                     screenshot: persisted.screenshot,
                     selection: selection,
-                    operation: operation
+                    operation: existing.operation
                 )
                 replacesExistingResult = true
             } else {
@@ -162,7 +193,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             }
             guard newPrepared.screenshot == persisted.screenshot,
                   newPrepared.selection == selection,
-                  newPrepared.operation == operation
+                  Self.slot(for: newPrepared.operation) == slot
             else {
                 throw OperationWorkspaceRunFailure(
                     code: "history_inconsistent"
@@ -177,6 +208,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                     as: .uploading
                 )
             }
+            try Task.checkCancellation()
             let stream = await provider.stream(
                 originalPNG: originalPNG,
                 preparedOperation: newPrepared
@@ -187,7 +219,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                     as: .streaming
                 )
             }
-            var accumulator = ProviderStreamAccumulator(operation: operation)
+            var accumulator = ProviderStreamAccumulator(operation: newPrepared.operation)
             var completed = false
             for try await event in stream {
                 try Task.checkCancellation()
@@ -239,7 +271,8 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                                 as: .resultPersistenceFailed
                             )
                         }
-                        continuation.yield(.resultPersistenceFailed(result))
+                        continuation.yield(.resultPersistenceFailed(result,
+                            code: (error as? OperationWorkspaceRunFailure)?.code))
                     }
                     completed = true
                 }
@@ -297,6 +330,14 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         for originalPNG: Data
     ) async throws -> (screenshot: ManagedScreenshot, isNew: Bool) {
         if let managedScreenshot {
+            do {
+                let savedPNG = try await screenshotStore.loadIfOwned(managedScreenshot)
+                guard savedPNG == originalPNG else {
+                    throw ScreenshotStoreError.ownershipMismatch
+                }
+            } catch {
+                throw OperationWorkspaceRunFailure(code: "history_screenshot_unavailable")
+            }
             return (managedScreenshot, false)
         }
         let screenshot = try await screenshotStore.save(originalPNG: originalPNG)
@@ -311,13 +352,17 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         replacesExistingResult: Bool
     ) async throws {
         if replacesExistingResult {
-            try await historyStore.replace(
-                operationID: preparedOperation.operationID,
-                selection: preparedOperation.selection,
-                operation: preparedOperation.operation,
-                with: outcome,
-                metrics: metrics
-            )
+            do {
+                try await historyStore.replace(
+                    operationID: preparedOperation.operationID,
+                    selection: preparedOperation.selection,
+                    operation: preparedOperation.operation,
+                    with: outcome,
+                    metrics: metrics
+                )
+            } catch SQLiteHistoryStoreError.operationNotFound {
+                throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+            }
         } else {
             try await historyStore.finish(
                 operationID: preparedOperation.operationID,

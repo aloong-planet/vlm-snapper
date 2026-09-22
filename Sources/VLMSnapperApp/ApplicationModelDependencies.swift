@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import VLMSnapperCore
 import VLMSnapperSparkle
 import VLMSnapperUI
@@ -16,6 +16,7 @@ struct ApplicationModelDependencies {
     let retentionPreferences: any RetentionPreferenceStoring
     let permissionChecker: any ScreenCapturePermissionChecking
     let frozenDisplayCapturer: any FrozenDisplayCapturing
+    let displayMonitor: CaptureDisplayMonitor
     let loginService: any LoginItemServicing
     let makeUpdateDriver: (@escaping @Sendable (UpdateLifecycleEvent) async -> Void) -> any UpdateDriving
     let makeShortcutBackend: () throws -> any GlobalShortcutRegistrationBackend
@@ -32,6 +33,11 @@ struct ApplicationModelDependencies {
             retentionPreferences: UserDefaultsRetentionPreferenceStore(),
             permissionChecker: permission,
             frozenDisplayCapturer: ScreenCaptureKitFrozenDisplayCapturer(),
+            displayMonitor: CaptureDisplayMonitor(
+                notifications: .default,
+                workspaceNotifications: NSWorkspace.shared.notificationCenter,
+                readGeometries: CaptureDisplayMonitor.liveGeometries
+            ),
             loginService: SMAppServiceLoginItemAdapter(),
             makeUpdateDriver: { SparkleUpdateDriver(eventHandler: $0) },
             makeShortcutBackend: { try CarbonGlobalShortcutBackend() }

@@ -19,7 +19,7 @@ public enum OperationWorkspaceRunEvent: Equatable, Sendable {
     case sourceDelta(String)
     case translationDelta(String)
     case succeeded(WorkspaceCommittedResult)
-    case resultPersistenceFailed(WorkspaceCommittedResult)
+    case resultPersistenceFailed(WorkspaceCommittedResult, code: String? = nil)
 }
 
 public protocol OperationWorkspaceRunning: Sendable {
@@ -112,19 +112,22 @@ public struct WorkspaceOperationSlot: Equatable, Sendable {
     public let unsavedResult: WorkspaceCommittedResult?
     public let sourceDelta: String
     public let translationDelta: String
+    public let persistenceFailureCode: String?
 
     public init(
         attempt: WorkspaceAttemptState = .neverStarted,
         committedResult: WorkspaceCommittedResult? = nil,
         unsavedResult: WorkspaceCommittedResult? = nil,
         sourceDelta: String = "",
-        translationDelta: String = ""
+        translationDelta: String = "",
+        persistenceFailureCode: String? = nil
     ) {
         self.attempt = attempt
         self.committedResult = committedResult
         self.unsavedResult = unsavedResult
         self.sourceDelta = sourceDelta
         self.translationDelta = translationDelta
+        self.persistenceFailureCode = persistenceFailureCode
     }
 }
 
@@ -198,11 +201,18 @@ public actor OperationWorkspaceSession {
     public init(
         originalPNG: Data,
         runner: any OperationWorkspaceRunning,
-        activeGate: any OperationActivityGating
+        activeGate: any OperationActivityGating,
+        restoring operation: StoredOperation? = nil
     ) {
         self.originalPNG = originalPNG
         self.runner = runner
         self.activeGate = activeGate
+        if let operation {
+            let restored = OperationWorkspaceSnapshot(restoring: operation)
+            selectedOperation = restored.selectedOperation
+            extract = restored.extract
+            translate = restored.translate
+        }
     }
 
     public func select(_ operation: WorkspaceOperationKind) {
@@ -215,6 +225,10 @@ public actor OperationWorkspaceSession {
             extract: extract,
             translate: translate
         )
+    }
+
+    public var preventsHistoryDiscard: Bool {
+        isStarting || activeTask != nil || extract.unsavedResult != nil || translate.unsavedResult != nil
     }
 
     public func prepareForCapture() -> WorkspaceCapturePreparation {
@@ -338,7 +352,16 @@ public actor OperationWorkspaceSession {
         guard slot(for: kind).unsavedResult != nil else {
             throw OperationWorkspaceSessionError.noUnsavedResult
         }
-        let saved = try await runner.retrySavingResult()
+        let saved: WorkspaceCommittedResult
+        do {
+            saved = try await runner.retrySavingResult()
+        } catch {
+            let previous = slot(for: kind)
+            setSlot(WorkspaceOperationSlot(attempt: .resultPersistenceFailed,
+                committedResult: previous.committedResult, unsavedResult: previous.unsavedResult,
+                persistenceFailureCode: (error as? OperationWorkspaceRunFailure)?.code), for: kind)
+            throw error
+        }
         setSlot(
             WorkspaceOperationSlot(
                 attempt: .succeeded,
@@ -468,12 +491,13 @@ public actor OperationWorkspaceSession {
                 ),
                 for: kind
             )
-        case let .resultPersistenceFailed(result):
+        case let .resultPersistenceFailed(result, code):
             setSlot(
                 WorkspaceOperationSlot(
                     attempt: .resultPersistenceFailed,
                     committedResult: current.committedResult,
-                    unsavedResult: result
+                    unsavedResult: result,
+                    persistenceFailureCode: code
                 ),
                 for: kind
             )

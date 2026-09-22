@@ -4,6 +4,20 @@ import Testing
 
 @Suite("File system screenshot store")
 struct FileSystemScreenshotStoreTests {
+    @Test("a newly created root supports load and discard regardless of its URL directory hint", arguments: [false, true])
+    func newRootRoundTrip(directoryHint: Bool) async throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let store = FileSystemScreenshotStore(rootDirectory:
+            base.appendingPathComponent("Pictures", isDirectory: directoryHint))
+        let png = Data([0x89, 0x50, 0x4e, 0x47])
+        let saved = try await store.save(originalPNG: png)
+        #expect(try await store.loadIfOwned(saved) == png)
+        try await store.discardIfOwned(saved)
+        #expect(!FileManager.default.fileExists(atPath: saved.path))
+    }
+
     @Test("saving an original PNG preserves its bytes, local timestamp name, and SHA-256")
     func savingOriginalPNGPreservesBytesNameAndDigest() async throws {
         let root = FileManager.default.temporaryDirectory

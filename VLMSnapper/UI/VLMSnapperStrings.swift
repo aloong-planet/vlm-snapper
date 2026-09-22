@@ -26,6 +26,22 @@ enum VLMSnapperStrings {
     static var captureFailedBody: String { localized("capture.failed.body") }
     static var retry: String { localized("action.retry") }
     static var onboardingTitle: String { localized("onboarding.title") }
+    static var onboardingIntroTitle: String { localized("onboarding.intro.title") }
+    static var onboardingIntroDescription: String { localized("onboarding.intro.description") }
+    static var onboardingPermissionDescription: String { localized("onboarding.permission.description") }
+    static var onboardingProviderDescription: String { localized("onboarding.provider.description") }
+    static var onboardingProviderAction: String { localized("onboarding.provider.action") }
+    static var onboardingPermissionMissing: String { localized("onboarding.permission.missing") }
+    static var onboardingPermissionRestart: String { localized("onboarding.permission.restart") }
+    static var onboardingPermissionReady: String { localized("onboarding.permission.ready") }
+    static var onboardingPrivacyDescription: String { localized("onboarding.privacy.description") }
+    static var onboardingImportant: String { localized("onboarding.privacy.important") }
+    static var onboardingPrivacyNote: String { localized("onboarding.privacy.note") }
+    static var onboardingReadyTitle: String { localized("onboarding.gate.ready.title") }
+    static var onboardingReadyDetail: String { localized("onboarding.gate.ready.detail") }
+    static var onboardingBothMissingTitle: String { localized("onboarding.gate.missing.title") }
+    static var onboardingBothMissingDetail: String { localized("onboarding.gate.missing.detail") }
+    static var onboardingLaterNote: String { localized("onboarding.gate.later") }
     static var onboardingSubtitle: String { localized("onboarding.subtitle") }
     static var permissionTitle: String { localized("onboarding.permission.title") }
     static var providerTitle: String { localized("onboarding.provider.title") }
@@ -99,6 +115,8 @@ enum VLMSnapperStrings {
     static var menuRecent: String { localized("menu.recent") }
     static var menuHistory: String { localized("menu.history") }
     static var menuSettings: String { localized("menu.settings") }
+    static var menuGeneralSettings: String { localized("menu.generalSettings") }
+    static var historyLibrary: String { localized("history.library") }
     static var menuCheckUpdates: String { localized("menu.checkUpdates") }
     static var menuQuit: String { localized("menu.quit") }
     static var menuFile: String { localized("applicationMenu.file") }
@@ -173,6 +191,9 @@ enum VLMSnapperStrings {
     static var menuTimeHoursFormat: String { localized("menu.time.hoursFormat") }
     static var menuTimeDaysFormat: String { localized("menu.time.daysFormat") }
     static var historyAll: String { localized("history.filter.all") }
+    static var historyExtract: String { localized("history.filter.extract") }
+    static var historyAllProviders: String { localized("history.filter.allProviders") }
+    static var historyInterrupted: String { localized("history.status.interrupted") }
     static var historySearch: String { localized("history.search") }
     static var historyEmptyTitle: String { localized("history.empty.title") }
     static var historyEmptyBody: String { localized("history.empty.body") }
@@ -268,6 +289,8 @@ enum VLMSnapperStrings {
             "failure.timeout"
         case "transport": "failure.transport"
         case "local_storage": "failure.localStorage"
+        case "history_record_unavailable": "history.recordUnavailable"
+        case "history_screenshot_unavailable": "history.screenshotUnavailable"
         case "malformed_output", "incomplete_response": "failure.incomplete"
         default: "failure.unknown"
         }

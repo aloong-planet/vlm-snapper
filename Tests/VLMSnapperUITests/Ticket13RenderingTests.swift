@@ -122,13 +122,13 @@ struct Ticket13RenderingTests {
                     MenuBarPanelChrome(arrowCenterX: 280) {
                         menuView
                     },
-                    size: CGSize(width: 300, height: 394),
+                    size: CGSize(width: 300, height: 530),
                     appearance: appearance,
                     outputURL: outputDirectory.appendingPathComponent("menu-\(suffix).png")
                 )
                 try render(
                     onboardingView,
-                    size: CGSize(width: 760, height: 540),
+                    size: CGSize(width: 900, height: 604),
                     appearance: appearance,
                     outputURL: outputDirectory.appendingPathComponent("onboarding-\(suffix).png")
                 )
@@ -305,6 +305,18 @@ struct Ticket13RenderingTests {
                     title: "Provider request failed",
                     detail: "Translate · 1 hr ago",
                     status: .failed
+                ),
+                MenuRecentItem(
+                    id: "4",
+                    title: "Release notes",
+                    detail: "Extract Text · 2 hr ago",
+                    status: .succeeded
+                ),
+                MenuRecentItem(
+                    id: "5",
+                    title: "Meeting notes",
+                    detail: "Translate · 3 hr ago",
+                    status: .succeeded
                 ),
             ],
             provider: .ready(provider: .deepSeek, modelID: "deepseek-v4-flash-vision-exp"),

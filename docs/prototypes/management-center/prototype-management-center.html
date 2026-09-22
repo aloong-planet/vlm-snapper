@@ -8,12 +8,21 @@
   <!-- Demo harness: theme, credential fixtures, updater fixtures and Refresh A
        states/language are not product UI. Refresh A previews stable layout only;
        real progress is driven by the model-list request. All keys are dummy data.
-       The new refresh copy covers Chinese/English; the legacy shell is Chinese. -->
+       The new refresh and history-filter copy covers Chinese/English; the legacy outer shell and settings remain Chinese.
+       History preview harness: language, time zone, minimum-size window and empty
+       local-history fixtures only. These switches are not product controls.
+       History results are inert text fixtures, never user data; copy/delete and
+       retry feedback never call a Provider or persist a record.
+       Reloading the document models a new Management Center window session.
+       The ordinary window fills the available desktop by default, not a macOS
+       fullscreen Space. The minimum-size demo retains 920 x 620 of content.
+       The preview adds its 46px titlebar and 1px border outside that content.
+       All destinations share a 180px sidebar; the history list remains 260px. -->
   <style>
     .menu-entry { width: 27px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; color: var(--accent-text); background: var(--surface-selected); }
     .capture-mark { width: 14px; height: 12px; border: 1.7px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--menubar); }
-    .workspace { width: 100%; height: 100%; display: grid; place-items: center; padding: 34px 38px 78px; }
-    .management-window { width: min(1200px, 94vw); height: min(720px, calc(100vh - 130px)); display: grid; grid-template-rows: 46px 1fr; }
+    .workspace { width: 100%; height: 100%; display: grid; place-items: center; padding: 0; }
+    .management-window { width: 100%; height: 100%; display: grid; grid-template-rows: 46px minmax(0, 1fr); }
     .window-titlebar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--line); }
     .window-title { font-weight: 650; }
     .management-content { min-width: 0; min-height: 0; display: grid; grid-template-rows: 58px 1fr; }
@@ -32,33 +41,30 @@
     body:not([data-page="general"]) [data-demo-state] { display: none; }
 
     .type-filter { display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--surface-strong); }
-    .filter-button { min-width: 78px; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--text-secondary); background: transparent; }
+    .filter-button { min-width: 54px; height: 28px; padding: 0 9px; border: 0; border-radius: 6px; color: var(--text-secondary); background: transparent; }
     .filter-button:hover { background: var(--surface-hover); }
     .filter-button.is-selected, .filter-button.is-selected:hover { color: var(--text); background: var(--surface); box-shadow: 0 1px 3px var(--shadow-soft), inset 0 0 0 1px var(--line); font-weight: 600; }
     .search { width: min(290px, 28vw); height: 31px; display: flex; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
     .search input { min-width: 0; width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); }
     .search input::placeholder { color: var(--text-tertiary); }
 
-    .management-grid { display: grid; grid-template-columns: 218px minmax(720px, 1fr); min-height: 0; }
+    .management-grid { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: 0; }
     .sidebar { min-width: 0; padding: 12px 9px; border-right: 1px solid var(--line); background: var(--surface-subtle); }
     .sidebar-title { margin: 14px 9px 6px; color: var(--text-tertiary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
     .nav-item { width: 100%; min-height: 32px; display: flex; align-items: center; gap: 9px; margin-bottom: 2px; padding: 0 9px; border: 0; border-radius: 7px; color: var(--text-secondary); background: transparent; text-align: left; }
     .nav-item:hover { background: var(--surface-hover); }
     .nav-item.is-selected, .nav-item.is-selected:hover { color: var(--text); background: var(--surface-selected); font-weight: 600; }
     .nav-count { margin-left: auto; color: var(--text-tertiary); font-size: 10px; }
-    .provider-summary { margin: 13px 8px 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
-    .provider-summary strong { display: block; margin-bottom: 5px; font-size: 11px; }
-    .provider-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; color: var(--text-secondary); font-size: 10px; }
 
     .page { display: none; min-width: 0; min-height: 0; }
     body[data-page="history"] .page-history { display: grid; }
     body[data-page="settings"] .page-settings { display: block; }
     body[data-page="general"] .page-general { display: block; }
-    .page-history { grid-template-columns: 320px minmax(430px, 1fr); }
+    .page-history { grid-template-columns: 260px minmax(0, 1fr); }
     .history-list { min-width: 0; overflow: auto; border-right: 1px solid var(--line); background: var(--surface); }
     .history-item { display: grid; grid-template-columns: 66px 1fr; gap: 10px; margin: 5px; padding: 9px; border: 1px solid transparent; border-radius: 9px; }
     .history-item:hover { background: var(--surface-hover); }
-    .history-item.is-selected, .history-item.is-selected:hover { border-color: var(--line); background: var(--surface-selected); box-shadow: inset 0 0 0 1px var(--line); }
+    .history-item.is-selected, .history-item.is-selected:hover { border-color: transparent; background: var(--surface-selected); box-shadow: none; }
     .history-copy { min-width: 0; }
     .history-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
     .history-copy p { display: -webkit-box; overflow: hidden; margin: 4px 0 6px; color: var(--text-secondary); font-size: 10px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -66,6 +72,48 @@
     .history-empty { display: none; padding: 42px 24px; color: var(--text-secondary); text-align: center; }
     .history-list.is-empty .history-empty { display: block; }
     .history-list.is-empty .history-item { display: none; }
+
+    body[data-page="history"] .management-content { grid-template-rows: 58px minmax(0, 1fr); }
+    body[data-page="history"] .content-toolbar { grid-template-columns: auto minmax(0, 1fr); gap: 12px; }
+    body[data-page="history"] .toolbar-right { gap: 8px; min-width: 0; }
+    body[data-page="history"] .search { flex: 1; min-width: 110px; width: auto; max-width: 330px; }
+    .hf-provider-control { flex: 0 0 145px; min-width: 0; height: 31px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; font-size: 12px; }
+    .hf-provider-control:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .hf-status { font-size: 11px; color: var(--text-secondary); overflow-wrap: anywhere; margin-top: 6px; }
+    .hf-list-pane { display: grid; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; border-right: 1px solid var(--line); }
+    .hf-list-pane .history-list { border-right: 0; }
+    .hf-list-footer { padding: 10px 14px; border-top: 1px solid var(--line); background: var(--surface); }
+    .hf-clear { padding: 4px 0; border: 0; color: var(--danger); background: transparent; }
+    .hf-clear:hover { text-decoration: underline; }
+    .hf-row { display: block; width: calc(100% - 10px); text-align: left; color: var(--text); background: var(--surface); cursor: pointer; }
+    .hf-row strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 6px; }
+    .hf-row p { margin: 0 0 7px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-secondary); font-size: 11px; }
+    .hf-row .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 10px; margin-top: 6px; }
+    .hf-row-tags { display: inline-flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+    .hf-row-kind { color: var(--accent-text); }
+    .hf-row-state[data-status="success"] { color: var(--success); }
+    .hf-row-state[data-status="canceled"] { color: var(--warning); }
+    .hf-row-state[data-status="failed"], .hf-row-state[data-status="interrupted"] { color: var(--danger); }
+    .hf-row-date { margin-left: auto; max-width: 100%; text-align: right; overflow-wrap: anywhere; }
+    .hf-detail-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+    .page-history .detail-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; overflow-wrap: anywhere; }
+    .hf-detail-heading { min-width: 0; }
+    .hf-detail-actions { display: flex; gap: 4px; align-items: center; }
+    .hf-action-wrap { position: relative; display: flex; width: 30px; height: 30px; }
+    .hf-detail-actions .icon-button:disabled { color: var(--text-tertiary); background: transparent; cursor: not-allowed; }
+    .hf-pin[aria-pressed="true"] { color: var(--accent-text); }
+    .hf-pin[aria-pressed="true"] .icon > path:last-child { fill: currentColor; }
+    /* Tips open inward, below the controls, within the rounded card's clip. */
+    .hf-action-tip { position: absolute; top: 36px; right: 0; z-index: 2; width: max-content; max-width: 220px; padding: 5px 8px; border-radius: 5px; background: var(--text); color: var(--surface); font-size: 12px; font-weight: 400; opacity: 0; visibility: hidden; pointer-events: none; }
+    .hf-action-wrap:hover .hf-action-tip, .hf-action-wrap:focus-within .hf-action-tip { opacity: 1; visibility: visible; }
+    .hf-model { overflow-wrap: anywhere; color: var(--text-secondary); font-size: 11px; margin-top: 6px; }
+    .hf-detail-empty { text-align: center; padding: 70px 15px; color: var(--text-secondary); }
+    .hf-note { position: fixed; bottom: 66px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--text-secondary); pointer-events: none; }
+    body:not([data-page="history"]) .hf-provider-control,
+    body:not([data-page="history"]) [data-hf-harness],
+    body:not([data-page="history"]) .hf-note { display: none; }
+    body[data-page="history"][data-hf-minimum="true"] .management-window { width: 922px; height: 668px; }
+    body[data-page="history"][data-hf-minimum="true"] .workspace { padding: 8px 0 82px; }
 
     .detail { min-width: 0; min-height: 0; overflow: auto; padding: 16px; background: var(--surface-subtle); }
     .detail-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); box-shadow: 0 3px 10px var(--shadow-soft); }
@@ -194,9 +242,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 1080px) {
-      .management-grid { grid-template-columns: 195px minmax(700px, 1fr); }
-      .page-history { grid-template-columns: 290px minmax(410px, 1fr); }
-      .filter-button { min-width: 68px; padding-inline: 9px; }
+      .filter-button { min-width: 54px; padding-inline: 9px; }
       .content-toolbar { grid-template-columns: auto minmax(260px, 1fr); }
       .provider-form-grid { grid-template-columns: 1fr; }
     }
@@ -223,21 +269,20 @@
             <div class="sidebar-title">设置中心</div>
             <button class="nav-item" data-page-button="settings"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>Provider<span class="nav-count">3</span></button>
             <button class="nav-item" data-page-button="general"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>通用设置</button>
-            <div class="provider-summary"><strong>当前 Provider</strong><div class="provider-line"><span>DeepSeek</span><span class="badge">可用</span></div><div class="provider-line"><span>deepseek-v4-flash…</span><span>视觉</span></div></div>
           </aside>
 
           <section class="management-content">
             <header class="content-toolbar">
-              <div class="type-filter" aria-label="记录类型过滤"><button class="filter-button is-selected" data-filter-button="all">全部</button><button class="filter-button" data-filter-button="extract">提取文字</button><button class="filter-button" data-filter-button="translate">翻译</button></div>
+              <div class="type-filter" aria-label="记录类型过滤"><button class="filter-button is-selected" data-filter-button="all">全部</button><button class="filter-button" data-filter-button="extract">提取</button><button class="filter-button" data-filter-button="translate">翻译</button></div>
               <div class="settings-title" id="settings-title">Provider 设置</div>
               <div class="toolbar-right"><label class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="history-search" type="search" placeholder="搜索原文或译文" aria-label="搜索历史记录"></label></div>
             </header>
             <section class="page page-history">
             <div class="history-list" id="history-list">
               <article class="history-item is-selected" data-type="translate" data-search="designing calm software 优秀的工具软件" data-open-result><div class="thumb">Calm<br>Software</div><div class="history-copy"><strong>Designing Calm Software</strong><p>优秀的工具软件始终贴近任务本身，减少不必要的步骤。</p><div class="item-footer"><span class="badge">翻译</span><span class="meta">2 分钟前</span></div></div></article>
-              <article class="history-item" data-type="extract" data-search="vision api integration guide multimodal input" data-open-result><div class="thumb">API<br>Guide</div><div class="history-copy"><strong>Vision API integration guide</strong><p>Send the original PNG as multimodal input and stream the response.</p><div class="item-footer"><span class="badge">提取文字</span><span class="meta">18 分钟前</span></div></div></article>
+              <article class="history-item" data-type="extract" data-search="vision api integration guide multimodal input" data-open-result><div class="thumb">API<br>Guide</div><div class="history-copy"><strong>Vision API integration guide</strong><p>Send the original PNG as multimodal input and stream the response.</p><div class="item-footer"><span class="badge">提取</span><span class="meta">18 分钟前</span></div></div></article>
               <article class="history-item" data-type="translate" data-search="provider request failed 请求被限流" data-open-result><div class="thumb">429</div><div class="history-copy"><strong>Provider request failed</strong><p>请求被限流，请等待一分钟后手动重试。</p><div class="item-footer"><span class="badge error">翻译失败</span><span class="meta">1 小时前</span></div></div></article>
-              <article class="history-item" data-type="extract" data-search="quarterly model latency 首个文本耗时" data-open-result><div class="thumb">Table</div><div class="history-copy"><strong>Quarterly model latency</strong><p>首个文本耗时与总耗时对比表。</p><div class="item-footer"><span class="badge warning">提取文字</span><span class="meta">昨天</span></div></div></article>
+              <article class="history-item" data-type="extract" data-search="quarterly model latency 首个文本耗时" data-open-result><div class="thumb">Table</div><div class="history-copy"><strong>Quarterly model latency</strong><p>首个文本耗时与总耗时对比表。</p><div class="item-footer"><span class="badge warning">提取</span><span class="meta">昨天</span></div></div></article>
               <div class="history-empty"><strong>没有匹配的记录</strong><p>尝试修改类型过滤或搜索关键词。</p></div>
             </div>
             <section class="detail"><article class="detail-card"><header class="detail-head"><div><strong>Designing Calm Software</strong><div class="meta">DeepSeek · deepseek-v4-flash-vision-exp</div></div><button class="icon-button" aria-label="复制"><svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button></header><div class="detail-body"><div class="capture-strip"><div class="capture-paper"><strong>Designing Calm Software</strong><span></span><span></span><span></span></div></div><section class="text-section"><h3>原文</h3><p>Good utility software stays close to the task. It reduces ceremony, preserves context, and makes the next action obvious.</p></section><section class="text-section"><h3>译文</h3><p>优秀的工具软件始终贴近任务本身。它减少不必要的步骤，保留上下文，并让下一步操作清晰可见。</p></section></div></article></section>
@@ -459,26 +504,18 @@
         button.classList.toggle('is-selected', button.dataset.pageButton === page);
       });
       settingsTitle.textContent = page === 'general' ? '通用设置' : 'Provider 设置';
+      applyHistoryFilter();
     }
 
     function applyHistoryFilter() {
-      const type = body.dataset.filter;
-      const query = searchInput.value.trim().toLocaleLowerCase();
-      let visibleCount = 0;
-      document.querySelectorAll('.history-item').forEach((item) => {
-        const typeMatches = type === 'all' || item.dataset.type === type;
-        const searchMatches = !query || item.dataset.search.toLocaleLowerCase().includes(query);
-        const visible = typeMatches && searchMatches;
-        item.hidden = !visible;
-        if (visible) visibleCount += 1;
-      });
-      historyList.classList.toggle('is-empty', visibleCount === 0);
+      window.applyExtendedHistoryFilter?.();
     }
 
     function setFilter(filter) {
       body.dataset.filter = filter;
       document.querySelectorAll('[data-filter-button]').forEach((button) => {
         button.classList.toggle('is-selected', button.dataset.filterButton === filter);
+        button.setAttribute('aria-pressed', String(button.dataset.filterButton === filter));
       });
       applyHistoryFilter();
     }
@@ -732,11 +769,6 @@
       item.addEventListener('click', () => {
         document.querySelectorAll('[data-open-result]').forEach((candidate) => candidate.classList.toggle('is-selected', candidate === item));
       });
-      item.addEventListener('dblclick', () => {
-        const target = 'core-result/hybrid-card-workbench';
-        if (window.parent !== window) parent.postMessage({ type: 'proto-nav', target }, '*');
-        else location.href = '../core-result/prototype-layout-directions.html#a';
-      });
     });
     searchInput.addEventListener('input', applyHistoryFilter);
     document.querySelectorAll('[data-provider-toggle]').forEach((control) => { control.addEventListener('click', () => openProvider(control.dataset.providerToggle)); });
@@ -767,6 +799,115 @@
     setFilter('all');
     const initialPage = location.hash === '#settings' ? 'settings' : location.hash === '#general' ? 'general' : 'history';
     setPage(initialPage);
+  </script>
+  <script>
+    // History-only UI prototype. All fixtures and selections live in this page.
+    (() => {
+      const copy = {
+        'zh-Hans': { all:'全部', extract:'提取', translate:'翻译', provider:'Provider', allProviders:'全部 Provider', model:'模型', target:'目标语言', modelReset:'模型条件已重置为“全部”。', count:n=>`${n} 条记录`, none:'没有匹配的记录', help:'尝试切换 Provider、类型或修改搜索词。', original:'原文', translation:'译文', history:'历史记录', pinned:'已钉住', clear:'清空历史', success:'完成', failed:'失败', canceled:'已取消', interrupted:'意外中断', search:'搜索原文或译文', fullHistory:'全部历史', copied:'演示：已触发复制，不写入剪贴板。', deleteDemo:'演示：清理流程不在本原型范围内，数据未删除。', note:'演示数据日期：2026-09-01 至 09-04；重载页面模拟关闭重开。旧设置页仍为中文，不属于本轮语言预览。', preview:'原始截图预览', missing:'原图不可用；已保存文字仍可查看。', scope:'范围', retry:'重试', retrying:'重试中…', active:'已有操作进行中，请等待完成。', retryDemo:'演示：正在右侧重试，未调用 Provider。', retryEnded:'演示结束：结果仍为示例，未创建或修改历史。', noTarget:'未指定' },
+        en: { all:'All', extract:'Extract Text', translate:'Translate', provider:'Provider', allProviders:'All Providers', model:'Model', target:'Target language', modelReset:'The model filter has been reset to All.', count:n=>`${n} ${new Intl.PluralRules('en').select(n)==='one'?'record':'records'}`, none:'No Matching Records', help:'Change the Provider, type, or search terms.', original:'Original', translation:'Translation', history:'History', pinned:'Pinned', clear:'Clear History', success:'Done', failed:'Failed', canceled:'Canceled', interrupted:'Interrupted', search:'Search original text or translation', fullHistory:'All history', copied:'Demo: copy requested; the clipboard was not changed.', deleteDemo:'Demo: cleanup is outside this preview. No records were deleted.', note:'Fixtures: Sep 1–4, 2026. Reload to simulate closing and reopening. Legacy settings remain Chinese, outside this language preview.', preview:'Original screenshot preview', missing:'Original unavailable. Saved text is still readable.', scope:'Scope', retry:'Retry', retrying:'Retrying…', active:'An operation is already running. Wait for it to finish.', retryDemo:'Demo: retrying in this pane. No Provider request was sent.', retryEnded:'Demo ended. Results are fixtures; history was not created or changed.', noTarget:'Not specified' }
+      };
+      Object.assign(copy['zh-Hans'], { pin:'钉住', unpin:'取消钉住', delete:'删除' });
+      Object.assign(copy.en, { pin:'Pin', unpin:'Unpin', delete:'Delete' });
+      if (Object.keys(copy.en).sort().join() !== Object.keys(copy['zh-Hans']).sort().join()) throw Error('History copy keys differ');
+      let language = 'zh-Hans', zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const region = navigator.language;
+      let zoneOverride = false, pinned = false, emptyFixture = false, selected = 'h1', notice = '';
+      let retryingRecordID = null;
+      const records = [
+        {id:'h1',kind:'translate',status:'success',provider:'DeepSeek',model:'deepseek-v4-flash-vision-exp',target:'en',date:'2026-09-03T16:30:00Z',pinned:true,source:'优秀的工具软件保留上下文。',translation:'Good utility software preserves context.',title:'Designing Calm Software'},
+        {id:'h2',kind:'extract',status:'success',provider:'OpenAI',model:'gpt-4.1',target:'',date:'2026-09-03T15:59:59Z',pinned:false,source:'Vision API integration guide — multimodal input.',translation:'',title:'Vision API integration guide'},
+        {id:'h3',kind:'translate',status:'failed',provider:'Gemini',model:'gemini-2.5-flash',target:'de',date:'2026-09-03T00:00:00Z',pinned:true,source:'',translation:'',title:'Provider request failed'},
+        {id:'h4',kind:'extract',status:'canceled',provider:'DeepSeek',model:'shared-vision-preview',target:'',date:'2026-09-02T23:59:59Z',pinned:false,source:'',translation:'',title:'Quarterly model latency'},
+        {id:'h5',kind:'translate',status:'interrupted',provider:'OpenAI',model:'shared-vision-preview',target:'zh-Hans',date:'2026-09-02T08:00:00Z',pinned:false,source:'',translation:'',title:'Interrupted translation'},
+        {id:'h6',kind:'translate',status:'success',provider:'DeepSeek',model:'retired-vision-model-with-a-long-historical-identifier',target:'ja',date:'2026-09-01T01:00:00Z',pinned:true,source:'Long identifiers remain searchable in local history.',translation:'長い識別子はローカル履歴から検索できます。',title:'Archived model',missing:true}
+      ];
+      const t = () => copy[language];
+      const toolbar=document.querySelector('.content-toolbar');
+      const provider=document.createElement('select'); provider.id='hf-provider'; provider.className='hf-provider-control'; toolbar.querySelector('.toolbar-right').prepend(provider);
+      const pane=document.createElement('div'); pane.className='hf-list-pane'; historyList.before(pane); pane.append(historyList);
+      const footer=document.createElement('footer'); footer.className='hf-list-footer'; footer.innerHTML='<button class="hf-clear"></button>'; pane.append(footer);
+      const status=document.createElement('div'); status.className='hf-status'; status.setAttribute('role','status'); footer.append(status);
+      const note=document.createElement('div'); note.className='hf-note'; document.body.append(note);
+      const harness=document.createElement('span'); harness.dataset.hfHarness=''; harness.innerHTML='<span class="harness-label">演示·历史</span><button id="hf-language">English</button><button id="hf-size">920 × 620</button><button id="hf-zone-demo">时区：系统</button><button id="hf-empty-demo">空历史</button>'; document.querySelector('.harness').prepend(harness);
+      const get = id => document.querySelector('#hf-'+id);
+      const option = (value,label) => new Option(label,value);
+      const choices = (id, values) => {const control=get(id), value=control.value;control.replaceChildren(option('',t().allProviders),...values.map(([v,l])=>option(v,l)));control.value=[...control.options].some(o=>o.value===value)?value:'';};
+      function setChoices() {
+        choices('provider',[...new Set(records.map(r=>r.provider))].map(p=>[p,p]));
+      }
+      function draft() {return {kind:body.dataset.filter,search:searchInput.value,provider:provider.value,pinned};}
+      function matches(r,q) {const text=(r.source+'\n'+r.translation).toLocaleLowerCase();return (q.kind==='all'||r.kind===q.kind)&&(!q.search||text.includes(q.search.toLocaleLowerCase()))&&(!q.provider||r.provider===q.provider)&&(!q.pinned||r.pinned);}
+      function detail(record) {
+        const area=document.querySelector('.page-history .detail'); area.replaceChildren();
+        if(!record){const empty=document.createElement('div');empty.className='hf-detail-empty';empty.textContent=t().none;area.append(empty);return;}
+        const card=document.createElement('article');card.className='detail-card';
+        const head=document.createElement('header');head.className='detail-head';const heading=document.createElement('div');heading.className='hf-detail-heading';const title=document.createElement('strong');title.textContent=record.title;heading.append(title);
+        const content=document.createElement('div');content.className='detail-body';const model=document.createElement('p');model.className='hf-model';model.textContent=record.provider+' · '+record.model;heading.append(model);
+        // Official Lucide paths mirror the App's clockwise arrow, upright pin and trash semantics.
+        // SVG keeps consistent geometry; never substitute Unicode glyphs for these action icons.
+        const actions=document.createElement('div');actions.className='hf-detail-actions';
+        const action=(name,label,paths,tip=label)=>{
+          const wrap=document.createElement('span');wrap.className='hf-action-wrap';
+          const button=document.createElement('button');button.type='button';button.className='icon-button hf-'+name;button.setAttribute('aria-label',label);
+          button.innerHTML='<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">'+paths+'</svg>';
+          const hint=document.createElement('span');hint.className='hf-action-tip';hint.id='hf-tip-'+name;hint.setAttribute('role','tooltip');hint.textContent=tip;button.setAttribute('aria-describedby',hint.id);
+          wrap.append(button,hint);actions.append(wrap);return button;
+        };
+        const retry=action('retry',t().retry,'<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',record.missing?t().missing:retryingRecordID?t().active:t().retry);
+        retry.disabled=Boolean(record.missing||retryingRecordID);
+        if(retryingRecordID===record.id){retry.innerHTML='<span class="spinner" aria-hidden="true"></span>';retry.setAttribute('aria-label',t().retrying);}
+        retry.addEventListener('click',()=>{if(record.missing||retryingRecordID)return;retryingRecordID=record.id;notice=t().retryDemo;render();window.setTimeout(()=>{retryingRecordID=null;notice=t().retryEnded;render();},1800);});
+        const pin=action('pin',record.pinned?t().unpin:t().pin,'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>');
+        pin.setAttribute('aria-pressed',String(record.pinned));pin.addEventListener('click',()=>{record.pinned=!record.pinned;languageLabels();});
+        const remove=action('delete',t().delete,'<path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>');
+        remove.addEventListener('click',()=>{notice=t().deleteDemo;render();});
+        head.append(heading,actions);
+        const preview=document.createElement('div');preview.className='capture-strip';preview.textContent=record.missing?t().missing:record.title;content.append(preview);
+        for(const [label,value] of [[t().original,record.source],[t().translation,record.translation]]){if(!value)continue;const section=document.createElement('section');section.className='text-section';const heading=document.createElement('h3');heading.textContent=label;const p=document.createElement('p');p.className='hf-detail-text';p.textContent=value;section.append(heading,p);content.append(section);}
+        if(!record.source&&!record.translation){const p=document.createElement('p');p.textContent=t()[record.status];content.append(p);}
+        card.append(head,content);area.append(card);
+      }
+      function render() {
+        const q=draft();
+        const visible=emptyFixture?[]:records.filter(r=>matches(r,q));
+        if(!visible.some(r=>r.id===selected))selected=visible[0]?.id;
+        historyList.classList.remove('is-empty');historyList.replaceChildren();
+        for(const r of visible){
+          const row=document.createElement('button');row.className='history-item hf-row'+(r.id===selected?' is-selected':'');row.dataset.recordId=r.id;row.setAttribute('aria-pressed',String(r.id===selected));
+          const name=document.createElement('strong');name.textContent=r.title;
+          const snippet=document.createElement('p');snippet.textContent=r.translation||r.source||t()[r.status];
+          const meta=document.createElement('span');meta.className='meta';
+          const tags=document.createElement('span');tags.className='hf-row-tags';
+          const kind=document.createElement('span');kind.className='hf-row-kind';kind.textContent=t()[r.kind];
+          const state=document.createElement('span');state.className='hf-row-state';state.dataset.status=r.status;state.textContent=t()[r.status];
+          const date=document.createElement('time');date.className='hf-row-date';date.dateTime=r.date;date.textContent=new Intl.DateTimeFormat(region,{timeZone:zone,dateStyle:'medium',timeStyle:'short'}).format(new Date(r.date));
+          tags.append(kind,state);meta.append(tags,date);row.append(name,snippet,meta);
+          row.addEventListener('click',()=>{selected=r.id;render();});historyList.append(row);
+        }
+        if(!visible.length){const empty=document.createElement('div');empty.className='hf-detail-empty';const strong=document.createElement('strong');strong.textContent=t().none;const p=document.createElement('p');p.textContent=t().help;empty.append(strong,p);historyList.append(empty);}
+        detail(visible.find(r=>r.id===selected));
+        status.textContent=[notice,t().count(visible.length)].filter(Boolean).join(' · ');
+        provider.setAttribute('aria-label',t().provider);
+        footer.querySelector('button').textContent=t().clear;note.textContent=t().note;
+        document.querySelectorAll('[data-filter-button]').forEach(button=>button.textContent=t()[button.dataset.filterButton]);searchInput.placeholder=t().search;searchInput.setAttribute('aria-label',t().search);
+        const historyIsActive=body.dataset.page==='history';
+        historyNav.classList.toggle('is-selected',historyIsActive&&!pinned);pinnedNav.classList.toggle('is-selected',historyIsActive&&pinned);
+      }
+      const navs=document.querySelectorAll('.sidebar .nav-item'), historyNav=navs[0], pinnedNav=navs[1];
+      function labelNav(button,key,count){const svg=button.querySelector('svg');button.replaceChildren(svg,document.createTextNode(t()[key]));const n=document.createElement('span');n.className='nav-count';n.textContent=count;button.append(n);}
+      function languageLabels(){setChoices();labelNav(historyNav,'history',records.length);labelNav(pinnedNav,'pinned',records.filter(r=>r.pinned).length);render();}
+      historyNav.addEventListener('click',()=>{pinned=false;render();});pinnedNav.addEventListener('click',()=>{pinned=true;setPage('history');render();});
+      provider.addEventListener('change',()=>{notice='';render();});
+      footer.querySelector('button').addEventListener('click',()=>{notice=t().deleteDemo;render();});
+      get('language').addEventListener('click',()=>{language=language==='en'?'zh-Hans':'en';notice='';get('language').textContent=language==='en'?'中文':'English';languageLabels();});
+      get('size').addEventListener('click',()=>{body.dataset.hfMinimum=body.dataset.hfMinimum==='true'?'false':'true';get('size').textContent=body.dataset.hfMinimum==='true'?'铺满窗口':'920 × 620';});
+      get('empty-demo').addEventListener('click',()=>{emptyFixture=!emptyFixture;get('empty-demo').textContent=emptyFixture?'恢复历史':'空历史';render();});
+      get('zone-demo').addEventListener('click',()=>{zoneOverride=true;zone=zone==='America/Los_Angeles'?'Asia/Shanghai':'America/Los_Angeles';get('zone-demo').textContent=zone;render();});
+      window.addEventListener('focus',()=>{if(!zoneOverride){zone=Intl.DateTimeFormat().resolvedOptions().timeZone;render();}});
+      window.applyExtendedHistoryFilter=render;
+      languageLabels();
+    })();
   </script>
 </body>
 </html>

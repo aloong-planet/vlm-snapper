@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SQLite3
 import SwiftUI
 import Testing
 import XCTest
@@ -20,11 +21,71 @@ import VLMSnapperUI
 // It is still programmatic input, not installed-app physical Cmd+V acceptance.
 // Closed-window completion is observed from the actual onboarding view render;
 // this is not desktop capture or an occlusion/physical-focus check.
-// Run each XCTest method in a separate process, as in CI. Running both after
-// key-window activation in one test process currently aborts on this toolchain.
+// CI also runs these cases separately; same-process repeats cover fixture
+// teardown without relying on process exit to release the native view graph.
+// Wait traces are diagnostic only: observation can affect scheduling, and a
+// process abort before the deferred flush can lose the buffered transitions.
+// Historical intermittent deadlines still need a failing, instrumented run.
+// History retry tests exercise production callbacks and rebuild the model from disk.
+// History retries remain inline; double clicking no longer opens a result window.
+// Production callback tests do not claim installed-app physical Retry clicks.
+// Display tests inject OS notifications and geometry snapshots; physical
+// hot-plug, display sleep and multi-monitor focus require hardware acceptance.
 @MainActor
 final class ProviderApplicationTestsNativeMenu: XCTestCase {
+
+    func testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows() async throws {
+        let existing = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+                                styleMask: [.titled], backing: .buffered, defer: false)
+        let existingContent = try XCTUnwrap(existing.contentView)
+        defer { existing.orderOut(nil) }
+        for cancel in [false, true] {
+        weak var providerInput: NSView?
+        var receivedExpectedError = false
+        let operation = Task { @MainActor in
+            try await withNativeApplicationEnvironment {
+                try await withFixture { fixture in
+                    try await fixture.withApplication { _ in
+                        let onboarding = try XCTUnwrap(NSApp.windows.first {
+                            $0.isVisible && $0.contentViewController is NSHostingController<OnboardingContainerView>
+                        })
+                        try await openProviderFromOnboarding(onboarding)
+                        let management = try XCTUnwrap(NSApp.windows.first {
+                            $0.isVisible && $0.title == "VLMSnapper" && $0 !== onboarding
+                        })
+                        let field = try await editableSecureField(in: management)
+                        providerInput = try XCTUnwrap(field.superview)
+                        if cancel {
+                            await fixture.http.pause()
+                            XCTAssertTrue(management.makeFirstResponder(field))
+                            let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
+                            editor.insertText("fixture-cancel-key", replacementRange: editor.selectedRange())
+                            pumpNativeEvents(management)
+                            try clickValidate(below: field, in: management)
+                            try await eventually { await fixture.http.requests.count == 1 }
+                            withUnsafeCurrentTask { $0?.cancel() }
+                            throw CancellationError()
+                        }
+                        throw FixtureError.unexpectedOperation
+                    }
+                }
+            }
+        }
+        do {
+            try await operation.value
+        } catch is CancellationError {
+            receivedExpectedError = cancel
+        } catch FixtureError.unexpectedOperation {
+            receivedExpectedError = !cancel
+        }
+        XCTAssertTrue(receivedExpectedError)
+        XCTAssertNil(providerInput, "Error propagation must follow native view cleanup")
+        XCTAssertTrue(existing.contentView === existingContent)
+        }
+    }
+
     func testValidationCompletesWhileManagementRemainsClosed() async throws {
+        weak var providerInput: NSView?
         do {
             try await withNativeApplicationEnvironment {
                 try await withFixture { fixture in
@@ -54,11 +115,16 @@ final class ProviderApplicationTestsNativeMenu: XCTestCase {
                         XCTAssertFalse(management.isVisible)
                         try await openProviderFromOnboarding(onboarding)
                         let reopened = try await editableSecureField(in: management)
+                        providerInput = try XCTUnwrap(reopened.superview)
                         XCTAssertEqual(reopened.stringValue, "fixture-closed-key")
                         let requests = await fixture.http.requests
                         XCTAssertEqual(requests.count, 1)
                     }
                 }
+            }
+            try await eventually {
+                pumpWindowActivationEvents()
+                return providerInput == nil
             }
         } catch {
             XCTFail("Closed-window validation did not complete: \(error)")
@@ -66,6 +132,9 @@ final class ProviderApplicationTestsNativeMenu: XCTestCase {
     }
 
     func testNativeMainMenuPasteValidatesThroughRealKeyWindow() async throws {
+        let trace = NativeWaitTrace(name: "paste")
+        defer { trace.emit() }
+        weak var providerInput: NSView?
         do {
             try await withNativeApplicationEnvironment {
                 try await withFixture { fixture in
@@ -76,12 +145,16 @@ final class ProviderApplicationTestsNativeMenu: XCTestCase {
                         try await openProviderFromOnboarding(onboarding)
                         let management = try XCTUnwrap(NSApp.windows.first { $0.isVisible && $0.title == "VLMSnapper" && $0 !== onboarding })
                         let field = try await editableSecureField(in: management)
+                        trace.record("before-activation", window: management)
+                        providerInput = try XCTUnwrap(field.superview)
                         management.makeKeyAndOrderFront(nil)
                         NSApp.activate(ignoringOtherApps: true)
                         try await eventually {
                             pumpWindowActivationEvents()
+                            trace.record("key-window-wait", window: management)
                             return NSApp.keyWindow === management
                         }
+                        trace.record("key-window-ready", window: management)
                         XCTAssertTrue(management.makeFirstResponder(field))
                         XCTAssertTrue(fixture.pasteboard.setString("fixture-menu-key\r\n", forType: .string))
                         let edit = try XCTUnwrap(NSApp.mainMenu?.items.first { $0.title == "Edit" }?.submenu)
@@ -90,6 +163,7 @@ final class ProviderApplicationTestsNativeMenu: XCTestCase {
                         edit.update()
                         XCTAssertTrue(try XCTUnwrap(edit.item(at: pasteIndex)).isEnabled)
                         edit.performActionForItem(at: pasteIndex)
+                        trace.record("paste-dispatched", window: management)
                         try await eventually {
                             pumpNativeEvents(management)
                             return field.stringValue == "fixture-menu-key"
@@ -97,6 +171,7 @@ final class ProviderApplicationTestsNativeMenu: XCTestCase {
                         let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
                         XCTAssertEqual(editor.selectedRange(), NSRange(location: 16, length: 0))
                         try clickValidate(below: field, in: management)
+                        trace.record("validate-dispatched", window: management)
                         try await eventually { await fixture.credentials.credential(for: .deepSeek)?.apiKey == "fixture-menu-key" }
                         let requests = await fixture.http.requests
                         XCTAssertEqual(requests.count, 1)
@@ -104,7 +179,12 @@ final class ProviderApplicationTestsNativeMenu: XCTestCase {
                     }
                 }
             }
+            try await eventually {
+                pumpWindowActivationEvents()
+                return providerInput == nil
+            }
         } catch {
+            trace.record("failed")
             XCTFail("Main-menu Paste and validation did not complete: \(error)")
         }
     }
@@ -113,6 +193,307 @@ final class ProviderApplicationTestsNativeMenu: XCTestCase {
 @Suite(.serialized)
 @MainActor
 struct ProviderApplicationTests {
+    @Test(arguments: [0, 2, 5, 6])
+    func recentMenuShowsAtMostFiveSavedRecords(count: Int) async throws {
+        try await withFixture { fixture in
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            let titles = ["Oldest entry", "Meeting notes", "Release notes", "Travel plans", "Project summary", "Latest entry"]
+            for title in titles.prefix(count) {
+                let prepared = try await store.prepareExtraction(
+                    screenshot: ManagedScreenshot(path: fixture.root.appendingPathComponent("missing.png").path, sha256: "fixture"),
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "fixture-model"))
+                try await store.finish(operationID: prepared.operationID,
+                    with: .succeeded(sourceMarkdown: title, translationMarkdown: nil))
+            }
+            try await fixture.withModel { model in
+                let hosting = NSHostingView(rootView: model.menuView())
+                hosting.appearance = NSAppearance(named: .aqua)
+                hosting.frame = NSRect(x: 0, y: 0, width: 300, height: 600)
+                let window = NSWindow(contentRect: hosting.frame, styleMask: .borderless, backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false
+                window.contentView = hosting
+                defer { window.contentView = nil; window.close() }
+                window.setContentSize(hosting.fittingSize)
+                let text = try renderedText(in: window)
+                let visibleTitles: [String]
+                switch count {
+                case 0: visibleTitles = []
+                case 2: visibleTitles = ["Meeting notes", "Oldest entry"]
+                case 5: visibleTitles = ["Project summary", "Travel plans", "Release notes", "Meeting notes", "Oldest entry"]
+                default: visibleTitles = ["Latest entry", "Project summary", "Travel plans", "Release notes", "Meeting notes"]
+                }
+                for title in titles {
+                    #expect(text.contains(title) == visibleTitles.contains(title), "Unexpected menu visibility for \(title): \(text)")
+                }
+                #expect(text.contains("Provider") && text.contains("Settings"), "Footer must remain visible")
+                #expect(model.historyRecords.count == count, "The menu limit must not truncate stored history")
+            }
+        }
+    }
+
+    @Test(arguments: [PersistedOperationKind.extract, .translate])
+    func historyRetryUpdatesOriginalRecord(kind: PersistedOperationKind) async throws {
+        try await withFixture { fixture in
+            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            let screenshot = try await screenshots.save(originalPNG: png)
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            let prepared = try await store.prepareOperation(screenshot: screenshot,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"),
+                operation: kind == .extract ? .extractText : .translate(targetLanguage: "ja"))
+            try await store.finish(operationID: prepared.operationID,
+                with: .succeeded(sourceMarkdown: "Archived original",
+                    translationMarkdown: kind == .translate ? "Archived translation" : nil))
+            await fixture.http.allowImageRequests()
+            try await fixture.withModel { model in
+                let controls = model.providerSettingsConfiguration()
+                model.credentialEditor.edit("fixture-history-key")
+                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false, operation: controls.onValidate))
+                try await eventually { model.providerSnapshot.phase == .selectingModel }
+                controls.onSelectModel("fixture-vision")
+                try await eventually { model.providerSnapshot.phase == .ready }
+                try await eventually { model.historyRetry.allowsStart }
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                try await eventually {
+                    let count = await fixture.http.imageRequests.count
+                    return !model.historyRetry.isRunning || count == 1
+                }
+                try #require(await fixture.http.imageRequests.count == 1, "Retry ended before HTTP: \(model.historyRetry.slot.attempt)")
+                try await fixture.http.finishImage(source: "Retried result\n\nRetained historical paragraph.", translation: kind == .translate ? "Translated result" : nil)
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .succeeded)
+                #expect(model.historyRecords.count == 1)
+                #expect(try await store.operation(id: prepared.operationID)?.sourceMarkdown == "Retried result\n\nRetained historical paragraph.")
+                #expect(model.historyRecords.first { $0.id == prepared.operationID }?.operation.selection.modelID == "fixture-vision")
+                #expect(await fixture.http.imageRequests.count == 1)
+                #expect(model.historyRetry.slot.committedResult?.sourceMarkdown == "Retried result\n\nRetained historical paragraph.")
+                if kind == .translate {
+                    #expect(model.historyRecords.first { $0.id == prepared.operationID }?.operation.targetLanguage == "ja")
+                    #expect(model.historyRetry.slot.committedResult?.translationMarkdown == "Translated result")
+                }
+                #expect(!NSApp.windows.contains { $0.isVisible && $0.windowController is ResultWorkspaceWindowController })
+                let preview = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 780),
+                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                preview.isReleasedWhenClosed = false
+                preview.contentView = NSHostingView(rootView: ManagementCenterView(
+                    destination: .history, records: model.historyRecords,
+                    selectedRecordID: prepared.operationID, selectedImage: NSImage(data: png),
+                    callbacks: model.managementCallbacks()))
+                preview.orderFront(nil)
+                defer { preview.close() }
+                let visibleResult = try renderedText(in: preview).lowercased()
+                #expect(visibleResult.contains("retried result"), "The production detail must render the completed retry, not only store it")
+                if kind == .translate { #expect(visibleResult.contains("translated result")) }
+                preview.close()
+                await fixture.http.pause()
+                controls.onRefresh()
+                try await eventually { model.providerSnapshot.refreshingProvider == .deepSeek }
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .failed(code: "operation_busy"))
+                #expect(await fixture.http.imageRequests.count == 1)
+                await fixture.http.release()
+                try await eventually { model.historyRetry.allowsStart }
+
+                // A truncated external response fails inline, without overwriting the archived result.
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                try await eventually { await fixture.http.imageRequests.count == 2 }
+                await fixture.http.release()
+                try await eventually { !model.historyRetry.isRunning }
+                guard case .failed = model.historyRetry.slot.attempt else {
+                    Issue.record("An incomplete response must fail: \(model.historyRetry.slot.attempt)")
+                    return
+                }
+                #expect(model.historyRecords.count == 1)
+                #expect(try await store.operation(id: prepared.operationID)?.sourceMarkdown == "Retried result\n\nRetained historical paragraph.")
+                preview.contentView = NSHostingView(rootView: ManagementCenterView(
+                    destination: .history, records: model.historyRecords,
+                    selectedRecordID: prepared.operationID, selectedImage: NSImage(data: png),
+                    callbacks: model.managementCallbacks()))
+                preview.orderFront(nil)
+                #expect(try renderedText(in: preview).lowercased().contains("retained historical paragraph"),
+                    "A failed retry must keep the previous body readable, not only the row or title")
+                preview.close()
+
+                // Inject an actual SQLite write error only at successful completion.
+                #expect(model.historyRetry.slot.committedResult?.sourceMarkdown == "Retried result\n\nRetained historical paragraph.",
+                    "A failed history retry must retain the last committed text in the live session")
+                var database: OpaquePointer?
+                try #require(sqlite3_open(fixture.root.appendingPathComponent("history.sqlite").path, &database) == SQLITE_OK)
+                defer { sqlite3_close(database) }
+                try #require(sqlite3_exec(database, "CREATE TRIGGER retry_write_failure BEFORE UPDATE ON operations WHEN NEW.status = 'succeeded' BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END", nil, nil, nil) == SQLITE_OK)
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                try await eventually { await fixture.http.imageRequests.count == 3 }
+                try await fixture.http.finishImage(source: "Unsaved result", translation: kind == .translate ? "Unsaved translation" : nil)
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .resultPersistenceFailed)
+                #expect(model.historyRetry.slot.unsavedResult?.sourceMarkdown == "Unsaved result")
+                #expect(!model.historyRetry.allowsStart)
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                #expect(!model.historyRetry.isRunning)
+                var deletionResolved = false
+                // Keep a temporary DB backup only for teardown if the negative case deletes recovery data.
+                try #require(sqlite3_exec(database, "CREATE TEMP TABLE retry_cleanup_backup AS SELECT * FROM operations", nil, nil, nil) == SQLITE_OK)
+                let previousObserver = model.onSnapshotChange
+                model.onSnapshotChange = { deletionResolved = true; previousObserver?() }
+                model.managementCallbacks().onClearHistory(true)
+                try await eventually { deletionResolved }
+                model.onSnapshotChange = previousObserver
+                try #require(sqlite3_exec(database, "DROP TRIGGER retry_write_failure", nil, nil, nil) == SQLITE_OK)
+                model.managementCallbacks().onRetryHistorySave()
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .succeeded)
+                #expect(model.historyRetry.slot.unsavedResult == nil)
+                #expect(model.historyRecords.contains { $0.operation.sourceMarkdown == "Unsaved result" })
+                #expect(model.historyRecords.contains { $0.id == prepared.operationID }, "Keep the inline recovery entry reachable until its result is saved")
+                #expect(await fixture.http.imageRequests.count == 3)
+                if model.historyRetry.slot.unsavedResult != nil {
+                    // Assertions above already recorded the failure. Restore only the isolated fixture,
+                    // so model termination does not open an unsaved-result modal during a red run.
+                    try #require(sqlite3_exec(database, "INSERT OR IGNORE INTO operations SELECT * FROM retry_cleanup_backup", nil, nil, nil) == SQLITE_OK)
+                    model.managementCallbacks().onRetryHistorySave()
+                    try await eventually { !model.historyRetry.isRunning }
+                }
+                // A real file replacement must be rejected even after a previously valid preview.
+                try Data("replaced file".utf8).write(to: URL(fileURLWithPath: screenshot.path))
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .failed(code: "history_screenshot_unavailable"))
+                #expect(await fixture.http.imageRequests.count == 3)
+                #expect(model.historyRecords.count == 1)
+                #expect(try await store.operation(id: prepared.operationID)?.sourceMarkdown == "Unsaved result")
+            }
+            try await fixture.withModel { reopened in
+                try await eventually { reopened.historyRecords.count == 1 }
+                #expect(reopened.historyRecords.first?.id == prepared.operationID)
+                #expect(reopened.historyRecords.first?.operation.sourceMarkdown == "Unsaved result")
+                #expect(await fixture.http.imageRequests.count == 3, "Rebuilding the application never restarts history requests")
+            }
+        }
+    }
+
+    @Test
+    func historyRetrySurvivesWindowChangesAndRejectsLateDeletion() async throws {
+        try await withFixture { fixture in
+            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            let screenshot = try await screenshots.save(originalPNG: png)
+            let tenDaysAgo = Date().addingTimeInterval(-10 * 86_400)
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"),
+                now: { tenDaysAgo })
+            var identifiers: [UUID] = []
+            for text in ["Original retry target", "Unrelated record"] {
+                let prepared = try await store.prepareExtraction(screenshot: screenshot,
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "archived-model"))
+                try await store.finish(operationID: prepared.operationID,
+                    with: .succeeded(sourceMarkdown: text, translationMarkdown: nil))
+                identifiers.append(prepared.operationID)
+            }
+            let target = identifiers[0], other = identifiers[1]
+            await fixture.http.allowImageRequests()
+            try await fixture.withModel { model in
+                let controls = model.providerSettingsConfiguration()
+                model.credentialEditor.edit("fixture-window-key")
+                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false, operation: controls.onValidate))
+                try await eventually { model.providerSnapshot.phase == .selectingModel }
+                controls.onSelectModel("fixture-vision")
+                try await eventually { model.historyRetry.allowsStart }
+                let callbacks = model.managementCallbacks()
+                callbacks.onRetentionChange(.sevenDays)
+                try await eventually { model.settings.retentionShorteningRecordCount == 2 }
+                var database: OpaquePointer?
+                try #require(sqlite3_open(fixture.root.appendingPathComponent("history.sqlite").path, &database) == SQLITE_OK)
+                defer { sqlite3_close(database) }
+                try #require(sqlite3_exec(database, "CREATE TEMP TABLE late_cleanup_backup AS SELECT * FROM operations", nil, nil, nil) == SQLITE_OK)
+                let controller = ManagementCenterWindowController(records: model.historyRecords,
+                    selectedRecordID: target, callbacks: callbacks)
+                let window = try #require(controller.window)
+                defer { window.close(); model.onSnapshotChange = nil }
+                var publications = 0
+                model.onSnapshotChange = {
+                    publications += 1
+                    controller.update(records: model.historyRecords,
+                        selectedRecordID: model.selectedHistoryRecordID,
+                        selectedImage: model.selectedHistoryImage, cleanupFailureCount: model.cleanupFailureCount,
+                        retention: model.retention, settings: model.settings, providerSettings: nil)
+                }
+                controller.show(destination: .history)
+                callbacks.onSelectRecord(target)
+                try await eventually { model.selectedHistoryRecordID == target && model.selectedHistoryImage != nil }
+                // This callback represents confirmation of a delete dialog opened before Retry.
+                let confirmOldDeletion = { callbacks.onDelete(target) }
+                callbacks.onRetryRecord(target)
+                try await eventually { await fixture.http.imageRequests.count == 1 }
+                controller.hideForCapture()
+                #expect(!window.isVisible)
+                #expect(model.historyRetry.isRunning)
+                controller.show(destination: .history)
+                #expect(window.isVisible)
+                #expect(model.historyRetry.recordID == target)
+                callbacks.onSelectRecord(other)
+                try await eventually { model.selectedHistoryRecordID == other && model.selectedHistoryImage != nil }
+                let beforeDeletion = publications
+                confirmOldDeletion()
+                try await eventually { publications > beforeDeletion }
+                #expect(try await store.history(matching: HistoryQuery()).count == 2)
+                #expect(try await store.operation(id: target)?.sourceMarkdown == "Original retry target")
+                let beforeCleanup = publications
+                callbacks.onConfirmRetentionShortening()
+                try await eventually { publications > beforeCleanup }
+                let remaining = try await store.history(matching: HistoryQuery())
+                #expect(remaining.count == 2, "A late retention confirmation must not delete an active retry target")
+                // Recover only this isolated fixture after a red assertion, before completing HTTP.
+                if remaining.count != 2 {
+                    try #require(sqlite3_exec(database, "INSERT OR IGNORE INTO operations SELECT * FROM late_cleanup_backup", nil, nil, nil) == SQLITE_OK)
+                    try FileManager.default.createDirectory(at: URL(fileURLWithPath: screenshot.path).deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try png.write(to: URL(fileURLWithPath: screenshot.path))
+                }
+                callbacks.onCancelRetentionShortening()
+                try await eventually { model.settings.retentionShorteningRecordCount == nil }
+                try await fixture.http.finishImage(source: "Completed while viewing another record")
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.selectedHistoryRecordID == other)
+                #expect(try await store.operation(id: other)?.sourceMarkdown == "Unrelated record")
+                #expect(try await store.operation(id: target)?.sourceMarkdown == "Completed while viewing another record")
+                #expect(model.historyRecords.count == 2)
+                #expect(!NSApp.windows.contains { $0.isVisible && $0.windowController is ResultWorkspaceWindowController })
+
+                callbacks.onSelectRecord(target)
+                try await eventually { model.selectedHistoryRecordID == target }
+                callbacks.onRetryRecord(target)
+                try await eventually { await fixture.http.imageRequests.count == 2 }
+                window.performClose(nil)
+                #expect(!window.isVisible)
+                #expect(model.historyRetry.isRunning)
+                try await fixture.http.finishImage(source: "Completed while history was closed")
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(!window.isVisible, "Completion must not reopen or activate the management window")
+                controller.show(destination: .history)
+                #expect(try renderedText(in: window).lowercased().contains("completed while history was closed"))
+                #expect(model.historyRetry.recordID == target)
+                #expect(model.historyRecords.count == 2)
+                #expect(await fixture.http.imageRequests.count == 2)
+                // Protection ends after successful persistence; the same public delete now succeeds.
+                callbacks.onDelete(other)
+                try await eventually { model.historyRecords.count == 1 }
+                #expect(model.historyRecords.first?.id == target)
+                #expect(try await store.operation(id: target)?.sourceMarkdown == "Completed while history was closed")
+                callbacks.onRetentionChange(.sevenDays)
+                try await eventually { model.settings.retentionShorteningRecordCount != nil }
+                callbacks.onConfirmRetentionShortening()
+                try await eventually { model.settings.retentionShorteningRecordCount == nil }
+                #expect(try await store.history(matching: HistoryQuery()).isEmpty)
+            }
+        }
+    }
+
     @Test
     func modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() async throws {
         try await withFixture { fixture in
@@ -220,6 +601,8 @@ struct ProviderApplicationTests {
 
     @Test
     func nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() async throws {
+        let trace = NativeWaitTrace(name: "capture")
+        defer { trace.emit() }
         try await withFixture { fixture in
             fixture.permissionGranted = true
             await fixture.capture.provide(try syntheticDisplay())
@@ -239,13 +622,21 @@ struct ProviderApplicationTests {
                 }
                 let overlay = try #require(NSApp.windows.first { $0.isVisible && $0.level == .screenSaver })
                 pumpNativeEvents(overlay)
-                try drag(overlay, from: NSPoint(x: 100, y: 200), to: NSPoint(x: 300, y: 300))
+                trace.record("overlay-ready", window: overlay)
+                try drag(overlay, from: NSPoint(x: 100, y: 200), to: NSPoint(x: 300, y: 300), trace: trace)
                 try await eventually {
-                    NSApp.windows.contains { $0.isVisible && $0.contentView is NSHostingView<CaptureOperationToolbar> }
+                    trace.record("toolbar-wait", window: overlay)
+                    return NSApp.windows.contains { $0.isVisible && $0.contentView is NSHostingView<CaptureOperationToolbar> }
                 }
+                trace.record("toolbar-ready")
                 let toolbar = try #require(NSApp.windows.first {
                     $0.isVisible && $0.contentView is NSHostingView<CaptureOperationToolbar>
                 })
+                let completedReads = fixture.displayReads
+                fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                fixture.workspaceNotifications.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
+                #expect(fixture.displayReads == completedReads)
+                #expect(toolbar.isVisible)
                 try await eventually { model.providerSnapshot.activity == .capture }
                 model.credentialEditor.edit("fixture-during-selection")
                 let selectionBlocked = model.providerSettingsConfiguration()
@@ -341,6 +732,144 @@ struct ProviderApplicationTests {
         }
     }
 
+    @Test(arguments: DisplayChange.allCases)
+    func displayChangesCancelSelectionBeforeMouseUp(change: DisplayChange) async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                model.credentialEditor.edit("fixture-display-key")
+                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false,
+                    operation: model.providerSettingsConfiguration().onValidate))
+                try await eventually { model.providerReadiness == .pendingModel(.deepSeek) }
+                model.providerSettingsConfiguration().onSelectModel("fixture-vision")
+                try await eventually {
+                    model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
+                }
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver }
+                }
+                let overlay = try #require(NSApp.windows.first { $0.isVisible && $0.level == .screenSaver })
+                let reads = fixture.displayReads
+                try await eventually { model.providerSnapshot.activity == .capture }
+                fixture.displayGeometries = [display.geometry, changedGeometry(display.geometry, id: UInt32.max)]
+                fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                #expect(fixture.displayReads == reads + 1)
+                #expect(overlay.isVisible)
+                #expect(NSApp.windows.filter { $0.isVisible && $0.level == .screenSaver }.count == 1)
+                if change == .sleep {
+                    fixture.workspaceNotifications.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
+                } else {
+                    fixture.displayGeometries = change == .disconnect ? [] : [changedGeometry(
+                        display.geometry, scale: change == .scale, rotate: change == .rotate, move: change == .move
+                    )]
+                    fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                }
+                // Invalidation removes the native hit target synchronously,
+                // without waiting for a mouse-up or an actor completion.
+                #expect(!overlay.isVisible)
+                try await eventually { !overlay.isVisible && model.providerSnapshot.activity == nil }
+                #expect(overlay.contentView == nil)
+                #expect(model.historyRecords.isEmpty)
+                #expect(await fixture.http.imageRequests.isEmpty)
+                let stoppedReads = fixture.displayReads
+                fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                #expect(fixture.displayReads == stoppedReads)
+            }
+        }
+    }
+
+    @Test
+    func replacementAndEscapeRetireDisplaySubscriptions() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                model.credentialEditor.edit("fixture-display-lifecycle-key")
+                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false,
+                    operation: model.providerSettingsConfiguration().onValidate))
+                try await eventually { model.providerReadiness == .pendingModel(.deepSeek) }
+                model.providerSettingsConfiguration().onSelectModel("fixture-vision")
+                try await eventually {
+                    model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
+                }
+                var previous: NSWindow?
+                for _ in 0..<2 {
+                    try fixture.shortcuts.fire()
+                    try await eventually {
+                        model.providerSnapshot.activity == .capture && NSApp.windows.contains {
+                            $0.isVisible && $0.level == .screenSaver && $0 !== previous
+                        }
+                    }
+                    let overlay = try #require(NSApp.windows.first { $0.isVisible && $0.level == .screenSaver })
+                    if let previous {
+                        #expect(!previous.isVisible)
+                        #expect(previous.contentView == nil)
+                    }
+                    let reads = fixture.displayReads
+                    fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                    #expect(fixture.displayReads == reads + 1)
+                    #expect(overlay.isVisible)
+                    previous = overlay
+                }
+                let overlay = try #require(previous)
+                pumpNativeEvents(overlay)
+                overlay.sendEvent(try #require(NSEvent.keyEvent(with: .keyDown, location: .zero,
+                    modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: overlay.windowNumber, context: nil, characters: "\u{1b}",
+                    charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)))
+                try await eventually { !overlay.isVisible && model.providerSnapshot.activity == nil }
+                #expect(overlay.contentView == nil)
+                let reads = fixture.displayReads
+                fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                #expect(fixture.displayReads == reads)
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    model.providerSnapshot.activity == .capture && NSApp.windows.contains {
+                        $0.isVisible && $0.level == .screenSaver
+                    }
+                }
+                #expect(await model.prepareForTermination())
+                let terminatedReads = fixture.displayReads
+                fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                #expect(fixture.displayReads == terminatedReads)
+                #expect(!NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver })
+                #expect(model.historyRecords.isEmpty)
+            }
+        }
+    }
+
+    @Test
+    func displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.queuedDisplayGeometries = [[display.geometry], []]
+            fixture.displayGeometries = []
+            try await fixture.withModel { model in
+                model.credentialEditor.edit("fixture-display-race-key")
+                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false,
+                    operation: model.providerSettingsConfiguration().onValidate))
+                try await eventually { model.providerReadiness == .pendingModel(.deepSeek) }
+                model.providerSettingsConfiguration().onSelectModel("fixture-vision")
+                try await eventually {
+                    model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
+                }
+                try fixture.shortcuts.fire()
+                try await eventually { fixture.displayReads >= 2 && model.providerSnapshot.activity == nil }
+                #expect(!NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver })
+                #expect(model.historyRecords.isEmpty)
+                #expect(await fixture.http.imageRequests.isEmpty)
+            }
+        }
+    }
+
     @Test
     func credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() async throws {
         try await withFixture { fixture in
@@ -414,11 +943,8 @@ struct ProviderApplicationTests {
                 let onboardingContent = try #require(onboarding.contentView)
                 onboardingContent.layoutSubtreeIfNeeded()
                 // Point in the Provider row's trailing action in the fixed
-                // production onboarding layout; success requires actual routing.
-                try click(onboarding, at: NSPoint(
-                    x: onboardingContent.bounds.width - 65,
-                    y: onboardingContent.bounds.height - 250
-                ))
+                // production onboarding render; success requires actual routing.
+                try await openProviderFromOnboarding(onboarding)
                 try await eventually { !onboarding.isVisible }
                 let management = try #require(NSApp.windows.first {
                     $0.isVisible && $0 !== onboarding && $0.title == "VLMSnapper"
@@ -453,10 +979,7 @@ struct ProviderApplicationTests {
                 management.performClose(nil)
                 try await eventually { onboarding.isVisible && !management.isVisible }
                 pumpNativeEvents(onboarding)
-                try click(onboarding, at: NSPoint(
-                    x: onboardingContent.bounds.width - 65,
-                    y: onboardingContent.bounds.height - 250
-                ))
+                try await openProviderFromOnboarding(onboarding)
                 try await eventually {
                     pumpNativeEvents(management)
                     return management.isVisible && !onboarding.isVisible
@@ -637,7 +1160,10 @@ private func eventually(file: String = #fileID, line: Int = #line, _ condition: 
     }
 }
 
-private enum FixtureError: Error { case deadline(String, Int), unexpectedOperation, state(String) }
+private enum FixtureError: Error {
+    case deadline(String, Int), unexpectedOperation, state(String)
+    case cleanup(operation: any Error, release: any Error)
+}
 
 private func requireFixture<T>(_ value: T?) throws -> T {
     guard let value else { throw FixtureError.state("Required fixture value is missing") }
@@ -686,7 +1212,20 @@ private func openProviderFromOnboarding(_ window: NSWindow) async throws {
         return window.contentView?.bounds.width ?? 0 > 0
     }
     let content = try requireFixture(window.contentView)
-    try click(window, at: NSPoint(x: content.bounds.width - 65, y: content.bounds.height - 250))
+    let bitmap = try requireFixture(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+    content.cacheDisplay(in: content.bounds, to: bitmap)
+    let request = VNRecognizeTextRequest()
+    request.recognitionLanguages = ["en-US"]
+    request.recognitionLevel = .accurate
+    try VNImageRequestHandler(cgImage: requireFixture(bitmap.cgImage), options: [:]).perform([request])
+    // Locate the visible button, not an old coordinate or the routing callback.
+    let label = try requireFixture(request.results?.first {
+        $0.topCandidates(1).first?.string == "Provider Settings"
+    })
+    let rectangle = label.boundingBox
+    let local = NSPoint(x: rectangle.midX * content.bounds.width,
+                        y: (content.isFlipped ? 1 - rectangle.midY : rectangle.midY) * content.bounds.height)
+    try click(window, at: content.convert(local, to: nil))
     try await eventually { !window.isVisible }
 }
 
@@ -722,8 +1261,9 @@ private func click(_ window: NSWindow, at point: NSPoint) throws {
 }
 
 @MainActor
-private func drag(_ window: NSWindow, from start: NSPoint, to end: NSPoint) throws {
+private func drag(_ window: NSWindow, from start: NSPoint, to end: NSPoint, trace: NativeWaitTrace? = nil) throws {
     for (type, point) in [(NSEvent.EventType.leftMouseDown, start), (.leftMouseDragged, end), (.leftMouseUp, end)] {
+        trace?.record("before-mouse-\(type.rawValue)", window: window)
         window.sendEvent(try requireFixture(NSEvent.mouseEvent(
             with: type, location: point, modifierFlags: [],
             timestamp: ProcessInfo.processInfo.systemUptime,
@@ -731,6 +1271,36 @@ private func drag(_ window: NSWindow, from start: NSPoint, to end: NSPoint) thro
             eventNumber: 1, clickCount: 1, pressure: 1
         )))
         pumpNativeEvents(window)
+        trace?.record("after-mouse-\(type.rawValue)", window: window)
+    }
+}
+
+// Test-only, bounded state transitions. Never read titles, editor values,
+// pasteboard contents, captured pixels or external application names.
+@MainActor
+private final class NativeWaitTrace {
+    private let name: String
+    private let start = ProcessInfo.processInfo.systemUptime
+    private var previous = ""
+    private var entries: [String] = []
+
+    init(name: String) { self.name = name }
+
+    func record(_ stage: String, window: NSWindow? = nil) {
+        let windows = NSApp.windows.sorted { $0.windowNumber < $1.windowNumber }.map {
+            "id=\($0.windowNumber),visible=\($0.isVisible),key=\($0.isKeyWindow),canKey=\($0.canBecomeKey),level=\($0.level.rawValue),size=\($0.contentView?.bounds.size ?? .zero)"
+        }.joined(separator: ";")
+        let state = "stage=\(stage) target=\(window?.windowNumber ?? -1) active=\(NSApp.isActive) policy=\(NSApp.activationPolicy().rawValue) key=\(NSApp.keyWindow?.windowNumber ?? -1) main=\(NSApp.mainWindow?.windowNumber ?? -1) frontPID=\(NSWorkspace.shared.frontmostApplication?.processIdentifier ?? -1) windows=[\(windows)]"
+        guard state != previous else { return }
+        previous = state
+        if entries.count == 64 { entries.removeFirst() }
+        entries.append("t=\(ProcessInfo.processInfo.systemUptime - start) \(state)")
+    }
+
+    func emit() {
+        let header = "[NATIVE-DIAG] \(name) pid=\(ProcessInfo.processInfo.processIdentifier) elapsed=\(ProcessInfo.processInfo.systemUptime - start)"
+        let output = ([header] + entries).joined(separator: "\n") + "\n"
+        FileHandle.standardError.write(Data(output.utf8))
     }
 }
 
@@ -743,6 +1313,26 @@ private func clickRerun(_ window: NSWindow) throws {
 }
 
 @MainActor
+enum DisplayChange: CaseIterable {
+    case sleep, disconnect, scale, rotate, move
+}
+
+private func changedGeometry(
+    _ value: CaptureDisplayGeometry,
+    id: UInt32? = nil,
+    scale: Bool = false,
+    rotate: Bool = false,
+    move: Bool = false
+) -> CaptureDisplayGeometry {
+    CaptureDisplayGeometry(
+        displayID: id ?? value.displayID,
+        logicalX: value.logicalX + (move ? 100 : 0), logicalY: value.logicalY,
+        logicalWidth: value.logicalWidth, logicalHeight: value.logicalHeight,
+        pixelWidth: value.pixelWidth + (scale ? 100 : 0), pixelHeight: value.pixelHeight,
+        rotationDegrees: value.rotationDegrees + (rotate ? 90 : 0)
+    )
+}
+
 private func syntheticDisplay() throws -> FrozenCaptureDisplay {
     let screen = try #require(NSScreen.main)
     let number = try #require(screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)
@@ -774,7 +1364,49 @@ private func descendants(_ view: NSView) -> [NSView] {
 private func withFixture(_ operation: (ApplicationFixture) async throws -> Void) async throws {
     let fixture = try ApplicationFixture()
     defer { fixture.removeTemporaryState() }
-    try await operation(fixture)
+    do {
+        try await operation(fixture)
+    } catch {
+        let operationError = error
+        do {
+            try await fixture.waitForShortcutRelease()
+        } catch {
+            throw FixtureError.cleanup(operation: operationError, release: error)
+        }
+        throw error
+    }
+    try await fixture.waitForShortcutRelease()
+}
+
+@MainActor
+private final class FixtureShortcutLease: GlobalShortcutRegistrationBackend {
+    let backend: FixtureShortcuts
+    init(backend: FixtureShortcuts) { self.backend = backend }
+    func register(_ shortcut: GlobalShortcut, handler: @escaping @MainActor @Sendable () -> Void) throws -> any GlobalShortcutRegistration {
+        try backend.register(shortcut, handler: handler)
+    }
+}
+
+@MainActor
+private final class WeakShortcutLease {
+    weak var value: FixtureShortcutLease?
+    init(_ value: FixtureShortcutLease) { self.value = value }
+}
+
+@MainActor
+private func stopFixture(excluding existingWindows: Set<ObjectIdentifier>, stop: () -> Void) {
+    precondition(withUnsafeCurrentTask { $0 != nil }, "Fixture cleanup requires a Swift Task")
+    autoreleasepool {
+        // Keep this fixture's windows alive across stop(), which closes them.
+        let windows = NSApp.windows.filter { !existingWindows.contains(ObjectIdentifier($0)) }
+        stop()
+        for window in windows {
+            window.makeFirstResponder(nil)
+            window.contentViewController = nil
+            window.contentView = NSView()
+            window.orderOut(nil)
+        }
+    }
 }
 
 @MainActor
@@ -785,10 +1417,25 @@ private final class ApplicationFixture {
     let http = FixtureHTTP()
     let shortcuts = FixtureShortcuts()
     let capture = FixtureCapture()
+    let displayNotifications = NotificationCenter()
+    let workspaceNotifications = NotificationCenter()
+    var displayGeometries: [CaptureDisplayGeometry]?
+    var queuedDisplayGeometries: [[CaptureDisplayGeometry]] = []
+    var displayReads = 0
     let pasteboard = NSPasteboard.withUniqueName()
     var permissionGranted = false
     var updates: FixtureUpdates?
     private(set) var dependencyConstructions = 0
+    private var shortcutLeases: [WeakShortcutLease] = []
+
+    func waitForShortcutRelease() async throws {
+        // Cleanup must finish even when the operation's task was cancelled.
+        try await Task { @MainActor in
+            try await eventually {
+                return autoreleasepool { self.shortcutLeases.allSatisfy { $0.value == nil } }
+            }
+        }.value
+    }
 
     init() throws {
         _ = NSApplication.shared
@@ -798,11 +1445,6 @@ private final class ApplicationFixture {
 
     func withModel(_ operation: (VLMSnapperApplicationModel) async throws -> Void) async throws {
         let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
-        defer {
-            for window in NSApp.windows where !existingWindows.contains(ObjectIdentifier(window)) {
-                window.orderOut(nil)
-            }
-        }
         let defaults = try requireFixture(UserDefaults(suiteName: suite))
         await UserDefaultsApplicationLanguageStore(defaults: defaults).save(.english)
         let model = try VLMSnapperApplicationModel(
@@ -818,13 +1460,13 @@ private final class ApplicationFixture {
             await http.release()
             await capture.release()
             _ = await model.prepareForTermination()
-            model.stop()
+            stopFixture(excluding: existingWindows) { model.stop() }
             throw error
         }
         await http.release()
         await capture.release()
         let canTerminate = await model.prepareForTermination()
-        model.stop()
+        stopFixture(excluding: existingWindows) { model.stop() }
         guard canTerminate else { throw FixtureError.state("Model termination preparation was rejected") }
     }
 
@@ -839,6 +1481,7 @@ private final class ApplicationFixture {
     }
 
     func withApplication(_ operation: (VLMSnapperApplicationDelegate) async throws -> Void) async throws {
+        let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
         let defaults = try requireFixture(UserDefaults(suiteName: suite))
         await UserDefaultsApplicationLanguageStore(defaults: defaults).save(.english)
         let application = application()
@@ -853,13 +1496,13 @@ private final class ApplicationFixture {
             await http.release()
             await capture.release()
             _ = await application.prepareForTermination()
-            application.stop()
+            stopFixture(excluding: existingWindows) { application.stop() }
             throw error
         }
         await http.release()
         await capture.release()
         let canTerminate = await application.prepareForTermination()
-        application.stop()
+        stopFixture(excluding: existingWindows) { application.stop() }
         guard canTerminate else { throw FixtureError.state("Application termination preparation was rejected") }
     }
 
@@ -876,13 +1519,30 @@ private final class ApplicationFixture {
                 retentionPreferences: preferences.retention,
                 permissionChecker: FixturePermissions(granted: permissionGranted),
                 frozenDisplayCapturer: capture,
+                displayMonitor: CaptureDisplayMonitor(
+                    notifications: displayNotifications,
+                    workspaceNotifications: workspaceNotifications,
+                    readGeometries: {
+                        self.displayReads += 1
+                        if !self.queuedDisplayGeometries.isEmpty {
+                            return self.queuedDisplayGeometries.removeFirst()
+                        }
+                        return self.displayGeometries ?? CaptureDisplayMonitor.liveGeometries()
+                    }
+                ),
                 loginService: FixtureLogin(),
                 makeUpdateDriver: { handler in
                     let driver = FixtureUpdates(eventHandler: handler)
                     self.updates = driver
                     return driver
                 },
-                makeShortcutBackend: { self.shortcuts }
+                makeShortcutBackend: {
+                    // The real coordinator owns this external-adapter lease;
+                    // the fixture observes its release without retaining it.
+                    let lease = FixtureShortcutLease(backend: self.shortcuts)
+                    self.shortcutLeases.append(WeakShortcutLease(lease))
+                    return lease
+                }
         )
     }
 
@@ -963,10 +1623,12 @@ private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
         imageContinuation = pair.continuation
         return ProviderHTTPStreamResponse(statusCode: 200, headers: [:], body: pair.stream)
     }
-    func finishImage(source: String) throws {
+    func finishImage(source: String, translation: String? = nil) throws {
         // DeepSeek chat SSE shape used by ProviderAdapterRecordedContractTests;
         // use the real JSON decoder/stream contract, not normalized fake events.
-        let content = String(decoding: try JSONSerialization.data(withJSONObject: ["source": source]), as: UTF8.self)
+        var result = ["source": source]
+        if let translation { result["translation"] = translation }
+        let content = String(decoding: try JSONSerialization.data(withJSONObject: result, options: .sortedKeys), as: UTF8.self)
         let chunk = try JSONSerialization.data(withJSONObject: [
             "id": "fixture-image", "choices": [["index": 0, "delta": ["content": content], "finish_reason": "stop"]],
             "usage": ["prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15]

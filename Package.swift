@@ -95,6 +95,12 @@ let package = Package(
             ]
         ),
         .executableTarget(
+            name: "VLMSnapperAXFixture",
+            dependencies: ["VLMSnapperCore", "VLMSnapperUI"],
+            path: "Tests/AXFixture",
+            exclude: ["Info.plist"]
+        ),
+        .executableTarget(
             name: "VLMSnapperUIHarness",
             dependencies: ["VLMSnapperCore", "VLMSnapperUI"]
         ),

@@ -21,6 +21,10 @@ jobs:
         run: |
           python3 -m unittest discover -s Scripts/tests -p 'test_feature_checklist.py' -v
           python3 Scripts/verify-feature-checklist.py docs/.workings/v1-core/checklist.md
+      - name: Test completion gate regression
+        run: python3 -m unittest discover -s Scripts/tests -p 'test_swift_testing_log.py' -v
+      - name: Accessibility report gate regression (no desktop required)
+        run: python3 -m unittest discover -s Scripts/tests -p 'test_provider_accessibility.py' -v
       - name: Strict build
         run: >-
           /usr/bin/xcrun swift build
@@ -28,8 +32,11 @@ jobs:
           -Xcc -Wall -Xcc -Wextra -Xcc -Werror
       - name: Full test suite
         run: |
-          /usr/bin/xcrun swift test --skip ProviderApplicationTests
-          /usr/bin/xcrun swift test --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu
+          set -euo pipefail
+          /usr/bin/xcrun swift test --skip ProviderApplicationTests 2>&1 | tee "$RUNNER_TEMP/non-app-tests.log"
+          python3 Scripts/verify-swift-testing-log.py "$RUNNER_TEMP/non-app-tests.log"
+          /usr/bin/xcrun swift test --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu 2>&1 | tee "$RUNNER_TEMP/app-tests.log"
+          python3 Scripts/verify-swift-testing-log.py "$RUNNER_TEMP/app-tests.log"
       - name: Native Provider main-menu Paste (isolated process)
         timeout-minutes: 2
         run: |

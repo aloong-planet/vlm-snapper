@@ -1,6 +1,18 @@
 # Menu bar entry prototype
 
-This page presents the requested menu-bar-first entry surface. Its History and Settings Center actions navigate to different destinations inside the shared management-center shell.
+This page presents the requested menu-bar-first entry surface. The footer's left
+Provider action opens Provider configuration; its right Settings action opens
+General Settings inside the shared management-center shell. History remains a
+destination in the management-center sidebar, not a footer action.
+
+Updated on 2026-09-16: the menu shows up to five most recent records. If fewer
+than five exist, it shows only those records, without empty placeholder rows.
+The panel grows vertically while preserving its 300-point width and row styling;
+the full management-center history list is not limited to five records.
+
+The footer labels, destinations and destination-only sidebar selection were
+confirmed on 2026-09-14 with the request to synchronize the App. Prototype
+approval does not substitute for native interaction or installed-app acceptance.
 
 Confirmed on 2026-08-25 as the v1 entry structure.
 

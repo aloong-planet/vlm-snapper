@@ -13,6 +13,7 @@ public final class FrozenCaptureOverlayController {
 
     private var panels: [CaptureOverlayPanel] = []
     private var displayIDs: Set<UInt32> = []
+    private var panelsByDisplayID: [UInt32: CaptureOverlayPanel] = [:]
 
     public var presentedDisplayIDs: Set<UInt32> {
         displayIDs
@@ -39,6 +40,7 @@ public final class FrozenCaptureOverlayController {
         )
         var replacementPanels: [CaptureOverlayPanel] = []
         var replacementDisplayIDs: Set<UInt32> = []
+        var replacementByDisplayID: [UInt32: CaptureOverlayPanel] = [:]
         for display in displays {
             guard let screen = screensByDisplayID[display.geometry.displayID] else {
                 continue
@@ -70,6 +72,7 @@ public final class FrozenCaptureOverlayController {
             panel.contentView?.displayIfNeeded()
             replacementPanels.append(panel)
             replacementDisplayIDs.insert(display.geometry.displayID)
+            replacementByDisplayID[display.geometry.displayID] = panel
         }
         guard !replacementPanels.isEmpty else {
             return false
@@ -82,14 +85,26 @@ public final class FrozenCaptureOverlayController {
         let retiredPanels = panels
         panels = replacementPanels
         displayIDs = replacementDisplayIDs
+        panelsByDisplayID = replacementByDisplayID
         retire(retiredPanels)
         return true
+    }
+
+    public func invalidateDisplays(_ invalidated: [UInt32]) {
+        let retired = invalidated.compactMap { panelsByDisplayID.removeValue(forKey: $0) }
+        let retiredIDs = Set(retired.map(ObjectIdentifier.init))
+        panels.removeAll { retiredIDs.contains(ObjectIdentifier($0)) }
+        displayIDs.subtract(invalidated)
+        let lostKeyWindow = retired.contains { $0.isKeyWindow }
+        retire(retired)
+        if lostKeyWindow { panels.last?.makeKey() }
     }
 
     public func close() {
         let retiredPanels = panels
         panels.removeAll()
         displayIDs.removeAll()
+        panelsByDisplayID.removeAll()
         retire(retiredPanels)
     }
 

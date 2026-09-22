@@ -1153,3 +1153,214 @@ Session tests retain the real coordinator; only external model-list and storage 
 The first baseline red reports phase validating instead of ready. The second reports cached model/selection loss and stale validating completion after switching back (10 assertions across success/failure). Both are intended behavioral failures, followed by passing real-coordinator tests. Removed-model and application-observer cases extend regression coverage without claiming another baseline red. Compilation typos and the initial SDK/cache failure are setup failures, not regression evidence. Render PNG byte-count checks only establish render production; visual review is the separate evidence. Tests await the actual snapshot states and all four Swift command partitions exited 0 with nonzero completion counts.
 
 Final evidence: strict build; 331 non-App tests; 11 App tests; each isolated native XCTest reported Executed 1 test, with 0 failures; six Python cases; 58 ownership entries; shell syntax and git diff --check. Logs are listed in provider-refresh-tasklist.md. The final concurrent-activation case passed against the existing admission path; it is additional coverage, not a new reproduced bug or evidence that every scheduling permutation was tested.
+
+## 2026-09-08 — Visual alignment VA-01–04 test review
+
+### 1. Coverage
+
+| Changed verification | What it covers / limit |
+|---|---|
+| `ProviderVisualGeometryTests.modelControlGeometry` | Production ManagementCenter window, short model title, actual native width/height at 920×620. Not color or desktop occlusion. |
+| `ProviderVisualGeometryTests.selectionAndRefresh` | Selected item, refreshed menu IDs, placeholder, read-only refusal and re-enabled callback. Fixture now pairs model metadata and selecting/ready phase with its actual selection instead of inventing a ready-with-no-selection state. Direct native action is explicitly not a physical click. |
+| Application onboarding locator | OCR locates the rendered Provider Settings button before existing native event routing and downstream assertions. Replaces two stale hardcoded click positions; it does not call the routing callback directly. |
+| Existing render and dimension tests | Fresh bilingual light/dark production views; static dimensions only guard configuration and are not visual proof. All 20 affected surface images opened separately. Five Refresh state images sampled, not all permutations. |
+| Existing application partitions | 333 non-App tests; 11 App tests; closed-window native XCTest passes. Main-menu XCTest failed once before key-window acquisition and passed unchanged on independent rerun; no stability claim. |
+
+Current change does not alter external payload parsing. Model fixture values are synthetic identifiers and existing HTTP fixtures retain the recorded models-list shape. Onboarding visual fixtures cover incomplete setup; readiness logic is covered separately, but every ready/restart combination has not received new manual pixel review. Physical hover, installed-app keyboard/activation and browser pixel comparison remain explicit Ticket 23 work.
+
+### 2. Case design
+
+No private member cast, self-module mock, internal state mutation, or source-string assertion was added. Actual public window controls and observable selection callbacks are exercised. Localization is serialized through the existing coordinator. The native geometry test measures the control, not its outer row. XCTest count assertions prevent an empty Swift Testing run from masquerading as native coverage. OCR lookup requires the exact rendered action label and then the actual window transition; missing recognition fails rather than silently skipping.
+
+### 3. False-green audit
+
+The intended baseline geometry red reports 24 vs 32 points and 143 vs >450 points; the earlier sandbox cache error is not counted as red. A deliberate `button.isEnabled = true` mutation was compiled and caused selection/read-only assertions to fail at lines 77/80/89 in that revision; only that mutation was reverted. The final fixture consistency edit does not relax those assertions. Color/spacing changes use the declared pure-style TDD exemption and inspected renders, not a claim that constants or PNG existence prove parity. No assertions were relaxed after the key-window timeout: its first failure and unchanged passing rerun are both retained. Overall first-attempt gateway success is not claimed.
+
+## 2026-09-08 — Native lifetime correction test review
+
+Final gate correction: exit 0 was insufficient for the App partition; two logs ended after a started case without a suite completion. Both were rejected, not counted as 11 passes. Temporary exit tracing plus a no-nested-RunLoop control identified the new cleanup interaction, then tracing was removed. CI's added named/nonempty completion checks reject both incomplete archived logs, while the native completion check rejects the forced-retention failure. Final alternating App/native repetitions are recorded separately from the earlier native-only rounds.
+
+### 1. Coverage
+
+Enumerated three native methods: main-menu Paste/Validate, closed-window response/reopen, thrown-operation cleanup. The third runs both ordinary failure and cancellation after native input/Validate while the HTTP fixture is paused. The latter cancels only its child operation Task, not the XCTest runner. Each obtains a non-null native input container before observing weak release. The third asserts release before error propagation and preserves the content identity of a window created before the fixture. Both fixture constructors and all four success/error stop branches use the shared cleanup. Existing 11 App tests cover the model-only owner as well. Remaining gaps are listed in the test header: physical input, real accounts, OS occlusion and historical key-window/toolbar timeout causes. Synthetic credentials and existing recorded response shapes remain; this change does not add a payload parser.
+
+### 2. Case design
+
+Actual public AppKit controls and application composition remain active. Only external adapters are replaced. Weak adapter identity is intentionally coupled to test-lifecycle ownership, not an assertion about internal business-call counts. View identity is the property under test (do not replace an unrelated window's content), so identity comparison is not an aliased mutable-value expectation. Non-null capture precedes each weak-release assertion. Empty lifetime collections are allowed for startup paths that never construct a model; all three native cases independently reach real views before cleanup. Assertions and cleanup Tasks are awaited; no conditional environment return or disabled case was introduced.
+
+### 3. False-green audit
+
+- The rebuilt baseline and the uninstrumented no-detachment control aborted with the target deinitializer stack. Setup/cache permission errors are not counted as regression reds.
+- A temporary strong `WeakShortcutLease.value` rebuilt the actual App test module and made ordinary cleanup fail at `waitForShortcutRelease` after its five-second bound. This also exposed loss of the original error, which is now preserved in `FixtureError.cleanup`.
+- Repeating that strong-retention fault on the cancelled-operation path reported both `CancellationError` and release deadline, confirming cancellation does not skip the new cleanup Task. Logs: `/private/tmp/vlmsnapper-lifetime-retention-errors.log` and `/private/tmp/vlmsnapper-lifetime-cancel-retention-fault.log`. Only the strong keyword mutation and temporary loop selection were reverted. Normal cancellation tests had passed before the fix; they alone were not evidence of bounded cleanup under delayed release.
+- The earlier 10/10 round result predates the final cancellation/error-reporting changes and is not substituted for the final rerun. Named XCTest counts plus process exit are required; the coexisting Swift Testing `0 tests` footer is not native acceptance. No retry is permitted within the ten-round command.
+- A successful run is finite evidence on this runtime, not proof that all future scheduling or production destruction contexts are safe.
+
+## 2026-09-09 — Live display reconfiguration (scoped follow-up)
+
+### 1. Coverage inventory
+
+| Case | Boundary and evidence | Limit |
+|---|---|---|
+| `displayChangesCancelSelectionBeforeMouseUp` | Five inputs: sleep, disconnect, pixel-scale/resolution, rotation, position; native overlay visibility changes before mouse-up, content is detached and capture occupancy releases | Injected OS boundary; not hardware sleep/hot-plug |
+| Same parameterized case: unchanged + new ID snapshot | Existing overlay stays visible and no new panel appears | One real screen; does not prove two-screen focus transfer |
+| `displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost` | Complete snapshot followed by empty snapshot cancels without input; red before re-read | Deterministic geometry read sequence, not timing stress |
+| `replacementAndEscapeRetireDisplaySubscriptions` | Two captures replace/retire old native surfaces; subsequent config event delivered once; Escape and active-selection termination stop observation | Native event dispatch, not physical keyboard |
+| `nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive` | Real crop → toolbar; subsequent sleep/config events do not remove completed crop; existing request/history/rerun path still passes | Existing physical-focus gap retained |
+| Existing `invalidatesOnlyChangedDisplay`, `allDisplaysDisconnected`, `selectedDisplayChangeDuringCrop` | Core per-display availability, cancelled drag and suspended-crop race guards | Not a two-monitor native application acceptance |
+
+Pending-freeze termination is only code-reviewed here. Test-file header and issue 01 explicitly retain hardware notification delivery and multi-screen survivor/focus acceptance. No silent environment skip was added.
+
+### 2. Design and fixture review
+
+All setup goes through the real editor submission/model selection and registered shortcut callback. Only external HTTP/credential/capture/notification/geometry boundaries are isolated; internal sessions, native controller and workflow coordinator are real. Geometry shape comes from a real NSScreen/CGDisplay snapshot; synthetic pixels and fixture keys avoid user data. No private casts/state edits were added. The display-read count assertions observe an external subscription boundary (duplicate delivery/stop), not internal collaborator call order; the primary assertions remain native visibility, content retirement, activity and absent provider/history effects. The monitor is constructed in both live and isolated dependency factories, with no partial live fallback.
+
+An observed test failure initially read `.activity == nil` before the capture publication arrived. The test now establishes `.capture` before cancelling; it does not lengthen a deadline or relax the terminal assertion. This test synchronization mistake is not reported as a production bug.
+
+### 3. False-green audit
+
+- Original missing-sleep wiring failed at the intended pre-mouse-up deadline (exit 1). The registration-gap test independently failed because the lease/overlay remained active before the second-read fix.
+- Config-forwarding mutation rebuilt the App module and printed `DISPLAY-CONFIG-MUTATION reached`; four geometry/disconnect cases failed directly at `!overlay.isVisible`, not only a setup deadline. Only the callback mutation was undone and the full 14-test App suite then completed successfully.
+- Enumerated assertions: no empty-loop substitute for visibility, no expected geometry recomputed from implementation, no API-key/network use, no un-awaited callback assertion, no silent skip. Negative observer/read assertions include a prior delivered event as a positive control. Core per-display tests remain supplemental, not a substitute for missing physical composition evidence.
+- Final strict build, 333 non-App tests and 14 App tests pass with explicit completion. Native XCTest reports 3 tests / 1 failure at key-window acquisition before Paste, exit 1. The Swift Testing `0 tests` footer is rejected as native acceptance; no automatic retry and no overall-green claim. Failure is recorded in #24 without attributing it to the new display monitor (that test does not start a capture).
+
+## 2026-09-09 — Provider identity marks (scoped follow-up)
+
+### 1. Coverage
+Pure display mapping, TDD exemption; no new behavior test or gate introduced.
+Existing modelRefreshSurfacesRender covers 2 languages × 2 appearances × 2 widths
+× 3 refresh states (24 images), including all three Provider identities. All were
+regenerated; four inspected images span both languages/appearances/widths and all
+three states. Images reside under the system temporary
+vlmsnapper-provider-refresh-renders directory. No external fixture needed for
+static identity text. Live browser and installed-App checks require unlocking.
+
+### 2. Case design
+Rendering uses the production ManagementCenterView with isolated fake credentials,
+not a copied mark demo. The refreshed build compiled ManagementCenterView and the
+central icon/theme modules. Mark changes do not alter fixture setup or assertions.
+No new casts, mocks of private state, or assertion bypasses introduced.
+
+### 3. False-green audit
+The PNG-size assertion cannot detect the wrong mark, color or radius. Visual
+evidence is the inspected new images, not the rendering test's green status.
+No new automated parity claim or mutation-test claim. Strict build passed and
+333 non-App tests passed; App tests failed 1 of 14 at the existing toolbar wait.
+No retries or longer deadlines; original failure retained for Ticket 24.
+Known key-window tests were not run on a locked desktop; full gateway incomplete.
+
+## 2026-09-09 — Ticket 23 continuation: history-filter evidence audit
+
+Scope: the history-query evidence cited for US-10, Ticket08 rendering assertions,
+and the 58-row ownership gate. This is **not** the final all-test-suite review.
+
+- 覆盖：enumerated all HistoryQuery dimensions and compared them with the native
+  filter predicate. Kind/search/pinned have a UI path; status/Provider/model/
+  target-language/date do not. A store-level test cannot cover that missing path.
+  Required follow-up is a prototype-approved control-to-list test plus mixed
+  records and date boundaries. Physical display and #24 wait evidence stay open.
+- Case 设计：`pinningAndMetricsSurviveCompleteFilter` uses the public store API
+  with a temporary database, which is appropriate for persistence. It has just
+  one record matching every condition; it does not independently demonstrate
+  rejection by each optional predicate. `historyQueryCombinesTypeAndSearch`
+  supplies two records and targets its narrower type/search behavior. Neither
+  constructs a native filter selection. No private-state setup is needed for
+  the recommended production-boundary test.
+- 假通过：Ticket08's eight-image count/PNG-size assertions are render smoke checks,
+  not filter existence, hit testing or list-result assertions. The ownership
+  parser explicitly checks structural coverage only; all six parser tests and
+  58 rows passed in this continuation. No target mutation was performed here,
+  so the single-record test is marked insufficient evidence, not claimed to
+  have passed or failed a mutation check.
+
+No weakened assertion, synthetic event substitute or retry-until-green used.
+See `23-history-filter-audit.md` for the missing workflow and disposition.
+The independent final test-review task remains unchecked.
+
+Fresh result for this audit: 17 SQLiteHistoryStoreTests passed with explicit
+Swift Testing completion and exit 0 using CI's full Xcode DEVELOPER_DIR. The first
+default-toolchain attempt failed to import Testing before execution; both logs
+are named in `23-history-filter-audit.md`. This environment correction is not an
+unchanged failing-test retry or evidence that the missing UI controls work.
+
+## 2026-09-14 — #25 历史 UI 同步测试审查
+
+四个新增 case 全量枚举：historicalProviderFiltersList、queryWindowLifetime、combinedQueryAndSelection、historyRenders。复用 ProviderCredentialInteractionTests.windowCloseDiscardsDraft。数据为既有 HistoryRecord/StoredOperation 结构的脱敏合成值，混合提取/翻译与四个终态；不是外部模型协议或真实账户契约证据。
+
+- 【覆盖】Provider 本地选项及真实菜单 action → 列表数量/详情、隐藏保留与关闭重置、8 个中英明暗/920与1200宽原生渲染有当次证据。组合 case 在焦点/选择/导航边界未完成，未覆盖到的 Pinned 交集、搜索零匹配/译文、设置往返不抵扣；图片乱序、数据变化、键盘焦点/hover、历史打开重跑组合仍由 #25 补齐。文件头明确缺口与补测条件。
+- 【case 设计】不注入私有 SwiftUI 状态；通过生产窗口、NSTableView 可见行数、原生菜单 action 和字段编辑器观察。菜单 action 是程序化控件测试，不等于物理点击。鼠标组合中的坐标/事件可靠性未坐实，不能据此把产品手势改到凑绿。异步试验没有完整测试结束报告，已撤回；最终保持同步用例，避免持有共享本地化锁跨 await。
+- 【假通过】最初辅助功能只遍历空容器，已补子视图遍历，并以实际行数 2→1 作正反例；错误的 NSPopUpButton target/action 触发方式改为真实菜单项 action。Provider 缺失与关闭后旧筛选保留分别产生目标红，再有恢复绿。宽度断言测原生表格滚动区，不以 PNG 存在代替布局；其变异有效性尚未核实，视觉结论来自实际查看截图。组合测试失败不跳过，不弱化断言。只有 XCTest 的零测试摘要不算通过，必须读 Swift Testing 完整结束报告。
+
+清单门禁测试也发现真实假信号：新映射表使原先“替换第一个表格分隔行”的两个变异插入错误章节，门禁当然返回成功。改为定位 Spec requirement ownership 并断言锚点存在；再次运行 6 项全部通过。门禁本身仍仅核旧 US/FM 58 行，不能证明新稳定 ID 的 19 项映射或验收完成，新映射由本次逐行人工核对并在 checklist 留证。
+
+证据保留：/tmp/vlmsnapper-history-red-controls.log、history-red-lifetime.log、history-session-regression.log；测试夹具失败及试验见 /tmp/vlmsnapper-history-key-window.log、history-activation-events.log、history-gesture-check.log、history-async-interaction.log、history-row-hit-target.log。退出 0 但缺少最终测试摘要的试验不计绿。当前全量结果和每项缺口以 checklist 本轮验证历史为准。
+
+## 2026-09-14 记录栏视觉对齐测试审查
+
+- 【覆盖】逐项检查 historicalProviderFiltersList、queryWindowLifetime、combinedQueryAndSelection、historyRenders，以及 HistoryWindowNativeTests 现有三个窗口用例。最终实际执行通过前两项、historyRenders（中英×明暗×920/1200，8 图）和 testSingleClickSelectsAnotherHistoryRecord。其余窗口用例本轮仅适配检索，不宣称重跑通过；combinedQueryAndSelection 本轮无完成结果。真实 hover、键盘/VoiceOver、常驻滚动条及离屏行滚动仍是显式缺口。全部终态有 fixture，但像素自动断言只守行数及选中宽度，不能声称自动校验每种字体和颜色。
+- 【设计】不再断言私有 SwiftUI 类型或要求 NSTableView：在生产 NSHostingView 上捕获实际绘制，再由元信息蓝色定位可见行、检查选中填充和点击效果。fixture 全部可见是此 helper 的明确前提，不作通用列表枚举器；只用于本文件与原生窗口测试的固定样本。颜色/249pt 期望来自已确认原型，不导入生产颜色常量作同义反复。鼠标事件仍是 in-process NSEvent，不冒充物理鼠标交付。fixture 保留真实记录的原文/译文/状态/Provider/日期结构，字段值脱敏，无外部请求。
+- 【假绿】先要求实际行数为 4 再测宽；无空集合静默通过。内容宽度 259→260 的变异使渲染宽 249→250，8 个断言在 HistoryInteractionTests 的宽度条件失败，且当时 PNG 宽度独立可见。仅撤回变异，最终退出 0。最初的零行来自抓取子 ScrollView 空图及 ICC 二次转换的测试测量错误，未当作生产缺陷；helper 改为 hosting root → PNG → sRGB 后检出真实行。组合测试无完成结果不算绿。
+
+最终日志：/private/tmp/vlmsnapper-history-style-verified.log（XCTest 1 + Swift Testing 3，退出 0）。
+变异日志：/private/tmp/vlmsnapper-history-style-mutation.log（8 个预期宽度失败）。
+
+## 2026-09-14 记录栏视觉对齐测试审查
+
+- 【覆盖】核对 HistoryInteractionTests 四项及 HistoryWindowNativeTests 三项。最终执行通过 historicalProviderFiltersList、queryWindowLifetime、historyRenders（中英×明暗×920/1200共8图）、testSingleClickSelectsAnotherHistoryRecord。其他两个窗口测试仅适配行检索，不宣称本轮通过。combinedQueryAndSelection 无完成结果。物理hover、键盘/VoiceOver、常驻滚动条、离屏滚动仍待验收。
+- 【设计】读取生产hosting root实际渲染，不依赖NSTableView/SwiftUI私有类。按类型蓝色定位可见行，按独立的原型色值判选中，固定fixture都在视口内；此helper不是通用AX或虚拟列表枚举器。样本保留历史记录的原文/译文/状态/Provider/日期结构，字段用隔离值。NSEvent测试不冒充真实鼠标。
+- 【假绿】先断言4行，再测实际选中色横向宽。259→260列宽变异使行249→250，8项在预期宽度断言失败；当时PNG也显示宽度变化。只patch撤回变异，最终退出0。先前零行是子ScrollView缓存空图与ICC二次转换的测量错误，不是生产缺陷。自动像素断言不覆盖全部字体/状态色；渲染图人工检查与自动门禁分开记账。
+
+最终日志：/private/tmp/vlmsnapper-history-style-verified.log（XCTest 1 + Swift Testing 3，退出0）。
+变异日志：/private/tmp/vlmsnapper-history-style-mutation.log（8个预期宽度失败）。
+
+## 2026-09-15 历史详情重试测试审查
+
+- 【覆盖】枚举提取/翻译、当前模型与原目标语言、重复点击、配置刷新互斥、截断响应、原图替换、完成落库失败、只重试本地保存及源记录删除保护，均由真实应用回调→HTTP→临时 SQLite 驱动。原生首次详情加载、8组中英明暗/尺寸渲染单独验证；完成结果另经生产详情渲染 OCR 核对。物理鼠标/tooltip、关闭重开进行中窗口、退出未保存确认、自动清理时序仍未完成实机验收，不以源代码代替。
+- 【设计】只替换系统边界 adapter，不替换编辑器、配置协调器、workflow、runner、session 或 DB。HTTP fixture 参照现有记录型 DeepSeek chat SSE；翻译内容固定 source→translation 顺序，避免 Dictionary 无序使 fixture 自己违反流式契约。实际 SQLite trigger 使成功写入失败，DROP 后经正式 Retry Save 回调恢复；SQL 仅用于制造存储故障，结果断言经应用历史接口读取。HTTP 请求次数为外部副作用契约，并非内部方法调用次数。
+- 【假绿】初始红测卡在未发出图片请求，不是编译错误；删除保护红测在最终历史数 3≠4 上发现源记录被删除。早先依赖任意 publish 的即刻存在性检查不足以证明删除完成，已把源记录保留断言移到保存完成刷新之后。等待改成真实 allowsStart，终态断言改成实际 slot，不能仅等上游 phase 或超时。SwiftUI 虚拟按钮未出现在 NSView AX 枚举里，已撤掉不适用的文本存在性断言，不将其空结果归因于按钮不存在；按钮外观由原生截图核对，点击路径仍需安装版验收。
+
+初始加载变异与最终回归日志见 25-history-retry-verification.md。全套运行未完成，不计作全绿；专门用例通过不能覆盖该缺口。
+
+## 2026-09-16 AX 输入同步测试审查
+
+- 【覆盖】完整枚举本次四个新增方法：`accessibilityEditsReachBinding`、`accessibilityRejectsUnavailableFields`、`accessibilityClearingAndReload`、`accessibilityEditsWithSystemEditor`，各有密码/明文两个参数；原有 pasteNormalizationIsNarrow、visibilityPreservesSelection、standardPasteRoutes 均继续执行。外部四场景：密码、明文、跨 Provider 忙碌、丢弃结果反例。禁用值/隐藏字段测试不等于完全隐藏窗口后台可控性；物理键鼠和真实账户未覆盖。
+- 【设计】标准 AppKit setter 与既有 binding 回调是原生组件 seam；不 mock 自有 editor、不直接提交。外部场景采用生产 ManagementCenterView 和真实 ProviderCredentialEditor，只有网络/安全存储终点替换为精确假值回调。不得将测试回调标题当作真实模型验证。只读字段由公开原生 isEditable 状态构造，隐藏引用由正常显隐转换获取。
+- 【假绿】setter 测试先红于精确 UTF-8 结果而非编译；外部原始 step3 红已由实际同场景绿闭环。丢弃结果先断言进入该分支再期待成功，实际在最后一步失败，证明断言能拒绝动作成功但业务失败。期望字节是独立字面量，断言均在调用后执行，无条件跳过。保护移除变异被安全策略拒绝，未验证其变异敏感性；不混作通过。
+
+全量真实红：旧坐标测试 5 条失败保留，不以定向绿覆盖。详情、日志、版本和边界见 [验证记录](ax-input-sync-verification.md)。
+
+## 2026-09-16 Provider 旧坐标用例替换审查
+
+- 【覆盖】按源文件全量枚举 7 个方法：关闭重开、回到基线、非法 Return、菜单 Paste、4 参数编辑/粘贴/重发布、跨 Provider 锁定 Return、活动页导航。全部保留责任，3 个涉及坐标流程的方法改为诚实名称与键盘路径；按钮责任迁至 AX 14 个正向场景。8 组合覆盖 920/1200pt × 空/预填 × 密码/明文，以及清空重填、快照重发、成功后禁用；另有基本提交、两尺寸作业解锁、LF/CR/4097 字节边界。原真实样本形态来源是用户输入后 Validate 不可点击及前轮坐标复现，数值全部替换为非秘密字符串。没有复制一套 Provider 状态机作为被测实现。
+- 【设计】公开 production view / credential editor seam 不变；AppKit 输入/菜单/Return 与 AX 语义按钮动作互补，不把 AXSetValue 冒充粘贴或 AXPress 冒充真实鼠标。原非法坐标断言可能点空白假绿，现由同一按钮 enabled→disabled→enabled 加真实提交正对照取代。测试只控制外部公开 snapshot 与提交回调，不调用按钮内部业务函数来冒充点击。其他测试的真实命中区域断言不删除。
+- 【假绿】新增 drop-result 先看见回调已到达但效果被丢弃，再在 step_6 的成功结果断言 wait_timeout，前 5 步与清理必须成功；正常路径同样精确值通过。7 个报告门禁测试拒绝缺步骤、错误阶段、错误原因、非预期绿、退出码矛盾、清理失败；python -O 实测仍拒绝反例。每个正常 AX case 都要走生产 Validate 并观察精确值回调，不以“操作返回成功”代替结果。原生键盘测试的提交断言在操作后执行，保留精确数组与零提交要求，没有减少参数或放宽断言。
+
+边界：AX 测试不证明真实账户、硬件键鼠、完全隐藏窗口或焦点超时根因；固定 Runner 的权限缺失明确失败。完整本地门禁包含该组，托管 CI 只跑无桌面依赖的报告门禁，不冒称覆盖 AX 实机。
+
+## 2026-09-16 菜单最近记录五条
+
+- 【覆盖】新增一个参数化用例，0、2、5、6 条历史，经 SQLite 公开写入接口及生产 model.menuView 渲染，OCR 验证每个可见标题、最新五条截断和底部入口；model 保留全部记录。原有浅/深色、中/英文渲染样本补足五条。没有改点击、持久化或网络行为，不声称本例重测这些路径。
+- 【设计】临时 fixture 采用当前真实历史的持久化结构，含原文、操作、时间、终态、丢失截图占位。期望标题集独立列明，不按生产 prefix 算法计算，不调用私有列表或替换菜单实现。
+- 【假绿】修改生产前，6 条样本准确红于第四、第五条不可见，0/2 正常；修改后隔离运行通过。混跑语言渲染 suite 曾因全局语言被切换而红于英文 Settings 文案，不是菜单数量错误；遵循现有完整回归脚本把 App suite 与语言渲染 suite 分进程执行，没有弱化断言。
+- 【验证边界】浏览器策略拒绝本地 HTML 自动预览，未绕过；原型仅做源码数量/样式核对，不算浏览器视觉通过。原生 PNG 已实际查看五行与底部，生产渲染 OCR 使用自适应窗口高度而非扩大截图伪装可见性。相关日志在 `/private/tmp/vlmsnapper-recent-five-*.log`。
+
+## 2026-09-16 历史重试身份修复接续
+
+### 维度一：覆盖
+
+枚举本轮用例：historyRetryUpdatesOriginalRecord（提取/翻译）、historyRetrySurvivesWindowChangesAndRejectsLateDeletion、HistoryRetryIdentityTests 全部六个测试函数及其参数、原 runner/session 的当前结果重跑与原图归属回归、HistoryWindowNativeTests 的首开尺寸/双击。逐 AC 映射追加于 checklist 的“接续核销”。恢复测试使用真实 SQLite 与生产 model、session、runner；App HTTP fixture 遵循已有 Provider SSE/模型列表解析形态，不以 mock 自有 runner 代替。Core 测试的短 PNG 字节只验证存储身份，App 测试另用有效 PNG；不据此声称模型视觉理解能力通过。真实硬件、账户、断电与安装版物理交互仍单列。
+
+### 维度二：设计
+
+从公开 prepare/finish 接口种入记录，按公开 history/operation 查询读回；请求计数是外部 HTTP 边界，不是私有函数调用次数。两个 ID 验证目标归属；10 天前记录进入 7 天保留期删除分支，且最终清理真实删除，避免负例因未过期恒绿。SQLite trigger 只用于注入外部存储故障；临时 SQL 备份只供已经红了的 fixture 收尾，不是产品备份，不替代公开查询验收。生产回调代表接线测试，不冒充真实鼠标操作。
+
+### 维度三：假绿/红归因
+
+- 身份测试红在条数 2/3/4 与原 ID 旧内容；不是依赖编译错误。连续重试及应用重建读回避免只测内存。
+- retention 测试红在实际行数 0≠2；正文测试使用仅正文出现的第二段文字，避免命中列表/标题而误报可读。
+- 首开窗口 red 为旧 1200×812 frame 不等于 screen.visibleFrame；双击 red 为打开回调收到 ID，而非空标题等无关断言。
+- 一次生命周期测试误把未取消的原生 retention sheet 当作窗口关闭失败；补齐真实取消后再关闭，不修改产品关闭逻辑迎合错误操作序列。
+- CLT 构建缺 Testing module 不计业务红；使用 Xcode 后验证。先前 AX 首次 launch 失败保留；本轮完整 gate 一次退出 0，15 AX 场景含预期失败反例通过。
+- 移除旧“关闭独立历史结果返回”的测试和孤立 callback 转发测试，因为用户已取消该入口；保留双击不打开、右侧重试及关闭/重开持久化的替代验证，不是删失败测试求绿。
+
+正式门禁：`/private/tmp/history-retry-full-closeout.log`；340 非 App Swift Testing、17 App Swift Testing、XCTest、两个独立原生用例、15 AX 场景均通过。测试头已更新物理交互缺口；未声称全 feature 人工验收通过。

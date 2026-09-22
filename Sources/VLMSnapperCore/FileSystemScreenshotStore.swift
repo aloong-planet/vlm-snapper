@@ -22,7 +22,7 @@ public actor FileSystemScreenshotStore: ScreenshotPersisting, ManagedScreenshotL
         calendar: Calendar = .current,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
-        self.rootDirectory = rootDirectory.standardizedFileURL
+        self.rootDirectory = URL(fileURLWithPath: rootDirectory.standardizedFileURL.path, isDirectory: true)
         self.calendar = calendar
         self.now = now
     }

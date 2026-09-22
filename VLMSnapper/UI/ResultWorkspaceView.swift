@@ -186,7 +186,8 @@ public struct ResultWorkspaceView: View {
                         )
                     }
                 }
-                Text(VLMSnapperStrings.persistenceFailed)
+                Text(slot.persistenceFailureCode.map(VLMSnapperStrings.failureMessage(code:))
+                     ?? VLMSnapperStrings.persistenceFailed)
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
                 Button(VLMSnapperStrings.retrySave, action: onRetrySave)
                     .disabled(!allowsOperationStart)

@@ -31,7 +31,7 @@ struct MenuBarPanelActionButtonTests {
         hostingView.layoutSubtreeIfNeeded()
 
         try click(window: window, at: NSPoint(x: 235, y: 22))
-
+        try #require(waitForNativeCondition(timeout: 0.01) { actionCount == 1 })
         #expect(actionCount == 1)
     }
 
@@ -59,6 +59,5 @@ struct MenuBarPanelActionButtonTests {
             )
             window.sendEvent(event)
         }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.01))
     }
 }

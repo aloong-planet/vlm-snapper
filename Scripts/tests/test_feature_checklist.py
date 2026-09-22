@@ -12,7 +12,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class FeatureChecklistTests(unittest.TestCase):
     def insert_row(self, document, row):
-        return document.replace("|---|---|---|---|", "|---|---|---|---|\n" + row, 1)
+        prefix, heading, section = document.partition("## Spec requirement ownership\n")
+        self.assertTrue(heading, "Mutation must reach the checked ownership section")
+        original = next(line for line in section.splitlines() if line.startswith("| US-01 |"))
+        return prefix + heading + section.replace(original, original + "\n" + row, 1)
 
     def run_gate(self, document):
         with tempfile.TemporaryDirectory(prefix="vlmsnapper-checklist-") as directory:

@@ -143,6 +143,9 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
             }
             controller.performAfterHiding(action)
         }
+        model.onRestoreManagementCenter = { [weak self] in
+            self?.managementController?.resumeAfterResult()
+        }
         model.onRetireCaptureSources = { [weak self] in
             self?.menuController?.hideForCapture()
             self?.managementController?.hideForCapture()

@@ -92,9 +92,13 @@ public enum ShortcutSettingsFailure: Equatable, Sendable {
     case registrationFailed
 }
 
+@MainActor
 public struct ManagementCenterCallbacks {
+    public let historyRetry: HistoryRetryPresentation
+    public let onRetryHistorySave: () -> Void
     public let onSelectRecord: (UUID) -> Void
     public let onOpenRecord: (UUID) -> Void
+    public let onRetryRecord: (UUID) -> Void
     public let onSetPinned: (UUID, Bool) -> Void
     public let onDelete: (UUID) -> Void
     public let onClearHistory: (Bool) -> Void
@@ -115,8 +119,11 @@ public struct ManagementCenterCallbacks {
     public let onExportDiagnostics: () -> Void
 
     public init(
+        historyRetry: HistoryRetryPresentation = HistoryRetryPresentation(),
+        onRetryHistorySave: @escaping () -> Void = {},
         onSelectRecord: @escaping (UUID) -> Void = { _ in },
         onOpenRecord: @escaping (UUID) -> Void = { _ in },
+        onRetryRecord: @escaping (UUID) -> Void = { _ in },
         onSetPinned: @escaping (UUID, Bool) -> Void = { _, _ in },
         onDelete: @escaping (UUID) -> Void = { _ in },
         onClearHistory: @escaping (Bool) -> Void = { _ in },
@@ -136,8 +143,11 @@ public struct ManagementCenterCallbacks {
         onInstallUpdate: @escaping () -> Void = {},
         onExportDiagnostics: @escaping () -> Void = {}
     ) {
+        self.historyRetry = historyRetry
+        self.onRetryHistorySave = onRetryHistorySave
         self.onSelectRecord = onSelectRecord
         self.onOpenRecord = onOpenRecord
+        self.onRetryRecord = onRetryRecord
         self.onSetPinned = onSetPinned
         self.onDelete = onDelete
         self.onClearHistory = onClearHistory
@@ -160,8 +170,12 @@ public struct ManagementCenterCallbacks {
 }
 
 public struct ManagementCenterView: View {
+    @ObservedObject private var historyRetry: HistoryRetryPresentation
+    private let requestedDestination: ManagementCenterDestination
+    private let navigationRequestID: UUID?
     private let records: [HistoryRecord]
     private let selectedImage: NSImage?
+    private let imageRecordID: UUID?
     private let cleanupFailureCount: Int
     private let callbacks: ManagementCenterCallbacks
     private let settings: GeneralSettingsSnapshot
@@ -169,6 +183,7 @@ public struct ManagementCenterView: View {
     @ObservedObject private var credentialEditor: ProviderCredentialEditor
     @State private var destination: ManagementCenterDestination
     @State private var kind: HistoryOperationKindFilter = .all
+    @State private var historyProviderID: String?
     @State private var searchText: String
     @State private var selectedRecordID: UUID?
     @State private var retention: HistoryRetentionPeriod
@@ -182,6 +197,7 @@ public struct ManagementCenterView: View {
 
     public init(
         destination: ManagementCenterDestination,
+        navigationRequestID: UUID? = nil,
         records: [HistoryRecord],
         selectedRecordID: UUID? = nil,
         selectedImage: NSImage? = nil,
@@ -193,10 +209,14 @@ public struct ManagementCenterView: View {
         providerSettings: ProviderSettingsConfiguration? = nil,
         callbacks: ManagementCenterCallbacks = ManagementCenterCallbacks()
     ) {
+        self.requestedDestination = destination
+        self.navigationRequestID = navigationRequestID
         self.records = records
         self.selectedImage = selectedImage
+        self.imageRecordID = selectedRecordID ?? records.first?.id
         self.cleanupFailureCount = cleanupFailureCount
         self.callbacks = callbacks
+        _historyRetry = ObservedObject(wrappedValue: callbacks.historyRetry)
         self.settings = settings
         self.providerSettings = providerSettings
         _credentialEditor = ObservedObject(wrappedValue: providerSettings?.credentialEditor ?? ProviderCredentialEditor())
@@ -231,9 +251,15 @@ public struct ManagementCenterView: View {
         }
         .background(VLMSnapperTheme.window)
         .frame(minWidth: 920, minHeight: 620)
-        .onChange(of: kind) { _, _ in selectFirstVisibleRecord() }
-        .onChange(of: searchText) { _, _ in selectFirstVisibleRecord() }
-        .onChange(of: pinnedOnly) { _, _ in selectFirstVisibleRecord() }
+        .onChange(of: filteredRecords.map(\.id), initial: true) { _, _ in reconcileHistorySelection() }
+        .onChange(of: selectedRecordID, initial: true) { _, value in
+            if let value { callbacks.onSelectRecord(value) }
+        }
+        .onChange(of: navigationRequestID) { _, _ in
+            destination = requestedDestination
+            showGeneralSettings = requestedDestination == .settings
+            if requestedDestination == .providerSettings { openInitialProviderIfNeeded() }
+        }
         .confirmationDialog(
             VLMSnapperStrings.historyDeleteConfirm,
             isPresented: Binding(
@@ -308,17 +334,17 @@ public struct ManagementCenterView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 6) {
-            navButton(VLMSnapperStrings.menuHistory, icon: .history, selected: destination == .history && !pinnedOnly) {
+            sidebarHeading(VLMSnapperStrings.historyLibrary)
+            navButton(VLMSnapperStrings.menuHistory, icon: .history, count: records.count, selected: destination == .history && !pinnedOnly) {
                 destination = .history
                 pinnedOnly = false
             }
-            navButton(VLMSnapperStrings.historyPinned, icon: .pinned, selected: destination == .history && pinnedOnly) {
+            navButton(VLMSnapperStrings.historyPinned, icon: .pinned, count: records.filter(\.isPinned).count, selected: destination == .history && pinnedOnly) {
                 destination = .history
-                kind = .all
                 pinnedOnly = true
             }
-            Divider().padding(.vertical, 6)
-            navButton(VLMSnapperStrings.historyProviderSettings, icon: .providerList, selected: destination == .providerSettings) {
+            sidebarHeading(VLMSnapperStrings.menuSettings)
+            navButton(VLMSnapperStrings.historyProviderSettings, icon: .providerList, count: ProviderID.allCases.count, selected: destination == .providerSettings) {
                 destination = .providerSettings
                 showGeneralSettings = false
                 openInitialProviderIfNeeded()
@@ -329,29 +355,40 @@ public struct ManagementCenterView: View {
             }
             Spacer()
         }
-        .padding(12)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 12)
         .frame(width: ManagementCenterMetrics.sidebarWidth)
         .background(VLMSnapperTheme.subtleSurface)
     }
 
     private var contentToolbar: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             if destination == .history {
-                Picker(VLMSnapperStrings.operationSelector, selection: $kind) {
-                    Text(VLMSnapperStrings.historyAll).tag(HistoryOperationKindFilter.all)
-                    Text(VLMSnapperStrings.extract).tag(HistoryOperationKindFilter.extract)
-                    Text(VLMSnapperStrings.translate).tag(HistoryOperationKindFilter.translate)
+                HStack(spacing: 2) {
+                    historyTypeButton(VLMSnapperStrings.historyAll, kind: .all)
+                    historyTypeButton(VLMSnapperStrings.historyExtract, kind: .extract)
+                    historyTypeButton(VLMSnapperStrings.translate, kind: .translate)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 286)
-                Spacer()
+                .padding(3)
+                .background(VLMSnapperTheme.subtleSurface, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(VLMSnapperStrings.operationSelector)
+                Picker(VLMSnapperStrings.historyProviderSettings, selection: $historyProviderID) {
+                    Text(VLMSnapperStrings.historyAllProviders).tag(String?.none)
+                    ForEach(historyProviderOptions, id: \.self) { providerID in
+                        Text(historyProviderName(providerID)).tag(Optional(providerID))
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 145)
                 HStack(spacing: 7) {
                     VLMSnapperIcon.search.image.foregroundStyle(VLMSnapperTheme.secondaryText)
                     TextField(VLMSnapperStrings.historySearch, text: $searchText)
                         .textFieldStyle(.plain)
                 }
                 .padding(.horizontal, 9)
-                .frame(width: 290, height: 31)
+                .frame(minWidth: 110, maxWidth: .infinity)
+                .frame(height: 31)
                 .background(VLMSnapperTheme.surface, in: RoundedRectangle(cornerRadius: 7))
                 .overlay(RoundedRectangle(cornerRadius: 7).stroke(VLMSnapperTheme.border))
             } else {
@@ -360,7 +397,24 @@ public struct ManagementCenterView: View {
             }
         }
         .padding(.horizontal, 16)
-        .frame(height: ManagementCenterMetrics.titlebarHeight)
+        .frame(height: destination == .history ? 58 : ManagementCenterMetrics.titlebarHeight)
+    }
+
+    private func historyTypeButton(_ title: String, kind value: HistoryOperationKindFilter) -> some View {
+        Button(title) { kind = value }
+            .buttonStyle(HistoryTypeButtonStyle(isSelected: kind == value))
+            .accessibilityAddTraits(kind == value ? .isSelected : [])
+    }
+
+    private var historyProviderOptions: [String] {
+        var values = Set(records.map { $0.operation.selection.providerID })
+        // Keep an active filter visible if its last record is removed.
+        if let historyProviderID { values.insert(historyProviderID) }
+        return values.sorted()
+    }
+
+    private func historyProviderName(_ id: String) -> String {
+        ProviderID(rawValue: id).map(VLMSnapperStrings.providerName) ?? id
     }
 
     private var historyContent: some View {
@@ -382,28 +436,45 @@ public struct ManagementCenterView: View {
                         description: Text(VLMSnapperStrings.historyEmptyBody)
                     )
                 } else {
-                    List(filteredRecords, selection: $selectedRecordID) { record in
-                        historyRow(record)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .onTapGesture(count: 2) {
-                                callbacks.onOpenRecord(record.id)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 5) {
+                                ForEach(filteredRecords) { record in
+                                    Button { selectedRecordID = record.id } label: {
+                                        historyRow(record)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .modifier(HistoryRecordSurface(isSelected: selectedRecordID == record.id))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .id(record.id)
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityIdentifier("history-record-\(record.id)")
+                                    .accessibilityAddTraits(selectedRecordID == record.id ? .isSelected : [])
+                                    .accessibilityAction { selectedRecordID = record.id }
+                                }
                             }
-                            .tag(record.id)
-                    }
-                    .onChange(of: selectedRecordID) { _, value in
-                        if let value { callbacks.onSelectRecord(value) }
+                            .padding(5)
+                        }
+                        .background(VLMSnapperTheme.historySurface)
+                        .onMoveCommand { direction in
+                            guard direction == .up || direction == .down,
+                                  let index = filteredRecords.firstIndex(where: { $0.id == selectedRecordID }) else { return }
+                            let next = max(0, min(filteredRecords.count - 1, index + (direction == .down ? 1 : -1)))
+                            selectedRecordID = filteredRecords[next].id
+                            proxy.scrollTo(filteredRecords[next].id)
+                        }
                     }
                 }
                 Divider()
                 Button(VLMSnapperStrings.historyClear) { showingClearConfirmation = true }
                     .buttonStyle(.plain)
+                    .disabled(historyRetry.preventsDiscard)
                     .foregroundStyle(VLMSnapperTheme.destructive)
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(width: 330)
-            Divider()
+            .frame(width: 259)
+            Rectangle().fill(VLMSnapperTheme.historyDivider).frame(width: 1)
             detail
         }
     }
@@ -550,15 +621,7 @@ public struct ManagementCenterView: View {
                 }
             } label: {
                 HStack(spacing: 14) {
-                    VLMSnapperIcon.provider.image
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(VLMSnapperTheme.accent)
-                        .frame(
-                            width: ManagementCenterMetrics.providerMarkSize,
-                            height: ManagementCenterMetrics.providerMarkSize
-                        )
-                        .background(VLMSnapperTheme.accent.opacity(0.09))
-                        .clipShape(RoundedRectangle(cornerRadius: 9))
+                    ProviderIdentityMark(provider: provider)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(VLMSnapperStrings.providerName(provider))
                             .font(.headline)
@@ -598,7 +661,7 @@ public struct ManagementCenterView: View {
         if let providerSettings,
            providerSettings.snapshot.selectedProvider == provider {
             let presentation = providerCredentialPresentation(provider)
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
                 if providerSettings.snapshot.blocksConfigurationChanges,
                    providerSettings.snapshot.refreshingProvider == nil,
                    providerSettings.snapshot.phase != .recovering,
@@ -625,22 +688,25 @@ public struct ManagementCenterView: View {
                         Button(VLMSnapperStrings.providerRemove, role: .destructive) {
                             providerPendingRemoval = provider
                         }
+                        .buttonStyle(SetupActionButtonStyle(isDestructive: true))
                         .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
                     }
                     Spacer()
                     if providerSettings.currentProvider == provider {
                         Text(VLMSnapperStrings.providerCurrent)
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(VLMSnapperTheme.secondaryText)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(VLMSnapperTheme.success)
                     } else if providerIsReady(provider) {
                         Button(VLMSnapperStrings.providerSetCurrent) {
                             providerSettings.onSetCurrentProvider(provider)
                         }
+                        .buttonStyle(SetupActionButtonStyle(horizontalPadding: 12))
                         .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
                     }
                 }
+                .frame(minHeight: 32)
             }
             .padding(16)
             .background(VLMSnapperTheme.subtleSurface)
@@ -659,17 +725,9 @@ public struct ManagementCenterView: View {
         if providerSettings.snapshot.availableModelIDs.isEmpty {
             providerCredentialField(providerSettings, presentation: presentation)
         } else {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 14) {
-                    providerCredentialField(providerSettings, presentation: presentation)
-                        .frame(width: 400, alignment: .top)
-                    providerModelField(providerSettings)
-                        .frame(width: 400, alignment: .top)
-                }
-                VStack(alignment: .leading, spacing: 14) {
-                    providerCredentialField(providerSettings, presentation: presentation)
-                    providerModelField(providerSettings)
-                }
+            ProviderFieldLayout {
+                providerCredentialField(providerSettings, presentation: presentation)
+                providerModelField(providerSettings)
             }
         }
     }
@@ -678,9 +736,11 @@ public struct ManagementCenterView: View {
         _ providerSettings: ProviderSettingsConfiguration,
         presentation: ProviderInlineCredentialPresentation
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(VLMSnapperStrings.apiKey).font(.headline)
+                Text(VLMSnapperStrings.apiKey)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
                 Spacer()
                 Label(
                     providerCredentialStatusText(presentation.status),
@@ -689,6 +749,7 @@ public struct ManagementCenterView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(providerCredentialStatusColor(presentation.status))
             }
+            .frame(height: 18)
             HStack(spacing: 0) {
                 ProviderAPIKeyField(
                     text: providerAPIKeyBinding,
@@ -777,19 +838,18 @@ public struct ManagementCenterView: View {
         let isRefreshing = providerSettings.snapshot.refreshingProvider
             == providerSettings.snapshot.selectedProvider
         let refreshFailed = providerSettings.snapshot.modelRefreshFailure != nil
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(VLMSnapperStrings.currentModel).font(.headline)
-            HStack(spacing: 10) {
-                Picker(
-                    VLMSnapperStrings.currentModel,
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(VLMSnapperStrings.currentModel).font(.system(size: 13))
+                .frame(height: 18)
+            HStack(spacing: 8) {
+                ProviderModelPicker(
+                    modelIDs: providerSettings.snapshot.availableModelIDs,
                     selection: providerModelBinding
-                ) {
-                    Text(VLMSnapperStrings.chooseModel).tag(String?.none)
-                    ForEach(providerSettings.snapshot.availableModelIDs, id: \.self) {
-                        Text($0).tag(Optional($0))
-                    }
-                }
-                .labelsHidden()
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: 32)
+                .background(VLMSnapperTheme.surface, in: RoundedRectangle(cornerRadius: 7))
+                .overlay(RoundedRectangle(cornerRadius: 7).stroke(VLMSnapperTheme.border))
                 .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
                 Button(action: providerSettings.onRefresh) {
@@ -801,8 +861,9 @@ public struct ManagementCenterView: View {
                              ? VLMSnapperStrings.refreshingModels
                              : (refreshFailed ? VLMSnapperStrings.retryModelRefresh : VLMSnapperStrings.refresh))
                     }
-                    .frame(width: 104, height: 24)
+                    .frame(width: 128)
                 }
+                    .buttonStyle(SetupActionButtonStyle())
                     .disabled(providerSettings.snapshot.blocksConfigurationChanges
                                   || credentialEditor.isSubmitting || credentialEditor.isLoading)
             }
@@ -1156,11 +1217,18 @@ public struct ManagementCenterView: View {
                     Divider()
                     VStack(alignment: .leading, spacing: 18) {
                         screenshot(record)
-                        resultSection(VLMSnapperStrings.historyOriginal, text: record.operation.sourceMarkdown)
-                        if record.operation.kind == .translate {
-                            resultSection(VLMSnapperStrings.historyTranslation, text: record.operation.translationMarkdown)
+                        if historyRetry.recordID == record.id {
+                            historyRetryContent
+                            if historyRetry.slot.attempt == .succeeded { metrics(record) }
                         }
-                        metrics(record)
+                        if historyRetry.recordID != record.id || (!historyRetry.isRunning
+                            && historyRetry.slot.attempt != .succeeded && historyRetry.slot.unsavedResult == nil) {
+                            resultSection(VLMSnapperStrings.historyOriginal, text: record.operation.sourceMarkdown)
+                            if record.operation.kind == .translate {
+                                resultSection(VLMSnapperStrings.historyTranslation, text: record.operation.translationMarkdown)
+                            }
+                            metrics(record)
+                        }
                     }
                     .padding(15)
                 }
@@ -1188,21 +1256,79 @@ public struct ManagementCenterView: View {
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
             }
             Spacer()
+            Button { callbacks.onRetryRecord(record.id) } label: {
+                Group {
+                    if historyRetry.isRunning && historyRetry.recordID == record.id {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        VLMSnapperIcon.retry.image
+                    }
+                }
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .disabled(!historyRetry.allowsStart || historyRetry.isRunning
+                      || record.operation.status.isActive || selectedImage == nil || imageRecordID != record.id)
+            .help(VLMSnapperStrings.retry)
+            .accessibilityLabel(VLMSnapperStrings.retry)
+            .accessibilityIdentifier("history-retry")
             Button {
                 callbacks.onSetPinned(record.id, !record.isPinned)
             } label: {
                 (record.isPinned ? VLMSnapperIcon.pinned : VLMSnapperIcon.pin).image
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             Button(role: .destructive) { pendingDeletion = record } label: {
                 VLMSnapperIcon.delete.image
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .disabled(record.operation.status.isActive)
+            .disabled(record.operation.status.isActive || historyRetry.preventsDiscard)
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 8)
         .frame(minHeight: 46)
+    }
+
+    private var historyRetryContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(VLMSnapperStrings.retry).font(.headline)
+                Spacer()
+                Text(historyRetry.providerSummary).font(.caption)
+                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+            }
+            switch historyRetry.slot.attempt {
+            case .neverStarted, .preparing:
+                Text(VLMSnapperStrings.preparing)
+            case .streaming:
+                Text(VLMSnapperStrings.streaming)
+                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.sourceDelta)
+                resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.translationDelta)
+            case .succeeded:
+                Text(VLMSnapperStrings.menuStatusSucceeded).foregroundStyle(VLMSnapperTheme.success)
+                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.committedResult?.sourceMarkdown)
+                resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.committedResult?.translationMarkdown)
+            case let .failed(code):
+                Text(code == "history_screenshot_unavailable" ? VLMSnapperStrings.historyScreenshotUnavailable
+                     : VLMSnapperStrings.failureMessage(code: code))
+                    .foregroundStyle(VLMSnapperTheme.destructive)
+            case .canceled:
+                Text(VLMSnapperStrings.canceled)
+            case .resultPersistenceFailed:
+                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.unsavedResult?.sourceMarkdown)
+                resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.unsavedResult?.translationMarkdown)
+                Text(historyRetry.slot.persistenceFailureCode.map(VLMSnapperStrings.failureMessage(code:))
+                     ?? VLMSnapperStrings.persistenceFailed).foregroundStyle(VLMSnapperTheme.destructive)
+                Button(VLMSnapperStrings.retrySave, action: callbacks.onRetryHistorySave)
+                    .disabled(historyRetry.isRunning)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var filteredRecords: [HistoryRecord] {
@@ -1214,6 +1340,7 @@ public struct ManagementCenterView: View {
             let searchable = [record.operation.sourceMarkdown, record.operation.translationMarkdown]
                 .compactMap { $0 }.joined(separator: "\n").lowercased()
             return kindMatches && (!pinnedOnly || record.isPinned)
+                && (historyProviderID == nil || record.operation.selection.providerID == historyProviderID)
                 && (query.isEmpty || searchable.contains(query))
         }
     }
@@ -1222,36 +1349,97 @@ public struct ManagementCenterView: View {
         filteredRecords.first { $0.id == selectedRecordID } ?? filteredRecords.first
     }
 
-    private func navButton(_ title: String, icon: VLMSnapperIcon, selected: Bool, action: @escaping () -> Void) -> some View {
+    private func sidebarHeading(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(VLMSnapperTheme.secondaryText)
+            .padding(.horizontal, 9)
+            .padding(.top, 14)
+    }
+
+    private func navButton(_ title: String, icon: VLMSnapperIcon, count: Int? = nil, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: icon.rawValue)
+            HStack(spacing: 6) {
+                Label(title, systemImage: icon.rawValue)
+                Spacer(minLength: 0)
+                if let count {
+                    Text(count, format: .number)
+                        .font(.caption)
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                }
+            }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
                 .frame(height: 34)
+                .contentShape(Rectangle())
                 .background(selected ? VLMSnapperTheme.accent.opacity(0.15) : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: VLMSnapperUIConstants.compactCornerRadius))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func historyRow(_ record: HistoryRecord) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(record.operation.sourceMarkdown ?? VLMSnapperStrings.failed).fontWeight(.semibold).lineLimit(1)
-                Spacer()
-                if record.isPinned { VLMSnapperIcon.pinned.image.foregroundStyle(VLMSnapperTheme.accent) }
+        VStack(alignment: .leading, spacing: 0) {
+            Text(record.operation.sourceMarkdown ?? VLMSnapperStrings.failed)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(VLMSnapperTheme.historyTitle)
+                .lineLimit(1)
+                .padding(.bottom, 6)
+            Text(historySummary(record))
+                .font(.system(size: 11))
+                .foregroundStyle(VLMSnapperTheme.historySummary)
+                .lineLimit(1)
+                .padding(.bottom, 7)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    historyRowTags(record).fixedSize()
+                    Spacer(minLength: 10)
+                    historyRowDate(record).fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 5) {
+                    historyRowTags(record)
+                    historyRowDate(record).frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
-            Text(record.operation.translationMarkdown ?? record.operation.normalizedErrorCode ?? record.operation.selection.modelID)
-                .font(.caption).foregroundStyle(VLMSnapperTheme.secondaryText).lineLimit(2)
-            Text(record.createdAt.formatted(date: .abbreviated, time: .shortened))
-                .font(.caption2).foregroundStyle(VLMSnapperTheme.secondaryText)
+            .font(.system(size: 10))
         }
-        .padding(.vertical, 5)
+    }
+
+    private func historySummary(_ record: HistoryRecord) -> String {
+        if let translation = record.operation.translationMarkdown, !translation.isEmpty { return translation }
+        if let source = record.operation.sourceMarkdown, !source.isEmpty { return source }
+        return historyStatus(record.operation.status).text
+    }
+
+    private func historyRowTags(_ record: HistoryRecord) -> some View {
+        HStack(spacing: 7) {
+            Text(record.operation.kind == .extract ? VLMSnapperStrings.historyExtract : VLMSnapperStrings.translate)
+                .foregroundStyle(VLMSnapperTheme.historyType)
+            Text(historyStatus(record.operation.status).text)
+                .foregroundStyle(historyStatus(record.operation.status).color)
+        }
+    }
+
+    private func historyRowDate(_ record: HistoryRecord) -> some View {
+        Text(record.createdAt.formatted(date: .abbreviated, time: .shortened))
+            .foregroundStyle(VLMSnapperTheme.historyDate)
+            .multilineTextAlignment(.trailing)
+    }
+
+    private func historyStatus(_ status: OperationStatus) -> (text: String, color: Color) {
+        switch status {
+        case .succeeded: (VLMSnapperStrings.menuStatusSucceeded, VLMSnapperTheme.historySucceeded)
+        case .canceled: (VLMSnapperStrings.menuStatusCanceled, VLMSnapperTheme.historyCanceled)
+        case .interrupted: (VLMSnapperStrings.historyInterrupted, VLMSnapperTheme.historyFailed)
+        case .failed, .resultPersistenceFailed: (VLMSnapperStrings.menuStatusFailed, VLMSnapperTheme.historyFailed)
+        case .preparing, .uploading, .streaming: (VLMSnapperStrings.menuStatusActive, VLMSnapperTheme.secondaryText)
+        }
     }
 
     @ViewBuilder
     private func screenshot(_ record: HistoryRecord) -> some View {
-        if let selectedImage {
+        if let selectedImage, imageRecordID == record.id {
             Image(nsImage: selectedImage).resizable().scaledToFit()
                 .frame(maxHeight: 210)
                 .frame(maxWidth: .infinity)
@@ -1315,8 +1503,10 @@ public struct ManagementCenterView: View {
             ?? VLMSnapperStrings.historyUnavailable
     }
 
-    private func selectFirstVisibleRecord() {
-        selectedRecordID = filteredRecords.first?.id
+    private func reconcileHistorySelection() {
+        if !filteredRecords.contains(where: { $0.id == selectedRecordID }) {
+            selectedRecordID = filteredRecords.first?.id
+        }
     }
 
     private var retentionShorteningTitle: String {
