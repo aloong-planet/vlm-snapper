@@ -214,6 +214,10 @@
 "history.totalLatency" = "总耗时";
 "history.tokenUsage" = "Token 用量";
 "history.unavailable" = "不可用";
+"history.viewOriginal" = "点击查看原图";
+"history.actualSize" = "100% 原尺寸";
+"history.fitImage" = "适应窗口";
+"history.zoomHint" = "滚轮缩放 · 拖动平移";
 "history.delete" = "永久删除";
 "history.clear" = "清空历史";
 "history.retryCleanup" = "立即重试清理";

@@ -263,6 +263,23 @@ struct ProviderApplicationTests {
                     return !model.historyRetry.isRunning || count == 1
                 }
                 try #require(await fixture.http.imageRequests.count == 1, "Retry ended before HTTP: \(model.historyRetry.slot.attempt)")
+                #expect(model.historyRetry.recordID == prepared.operationID)
+                let progressWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 780),
+                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                progressWindow.isReleasedWhenClosed = false
+                progressWindow.contentView = NSHostingView(rootView: ManagementCenterView(
+                    destination: .history, records: model.historyRecords,
+                    selectedRecordID: prepared.operationID, selectedImage: NSImage(data: png),
+                    callbacks: model.managementCallbacks()))
+                progressWindow.orderFront(nil)
+                defer { progressWindow.close() }
+                try await eventually { try renderedText(in: progressWindow).lowercased().contains("preparing") }
+                let progressText = try renderedText(in: progressWindow).lowercased()
+                #expect(progressText.contains("preparing"), "The pending request must remain visible")
+                #expect(!progressText.split(separator: "\n").contains {
+                    $0.trimmingCharacters(in: .whitespacesAndNewlines) == "retry"
+                }, "An active retry must not add a Retry heading above the original text")
+                progressWindow.close()
                 try await fixture.http.finishImage(source: "Retried result\n\nRetained historical paragraph.", translation: kind == .translate ? "Translated result" : nil)
                 try await eventually { !model.historyRetry.isRunning }
                 #expect(model.historyRetry.slot.attempt == .succeeded)
@@ -287,6 +304,11 @@ struct ProviderApplicationTests {
                 defer { preview.close() }
                 let visibleResult = try renderedText(in: preview).lowercased()
                 #expect(visibleResult.contains("retried result"), "The production detail must render the completed retry, not only store it")
+                let visibleLines = visibleResult.split(separator: "\n").map {
+                    $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                #expect(!visibleLines.contains("retry"), "A completed retry must not leave a redundant section heading")
+                #expect(!visibleLines.contains("done"), "The completed detail must not leave a separate success status")
                 if kind == .translate { #expect(visibleResult.contains("translated result")) }
                 preview.close()
                 await fixture.http.pause()

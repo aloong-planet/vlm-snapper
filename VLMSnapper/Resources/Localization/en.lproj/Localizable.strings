@@ -214,6 +214,10 @@
 "history.totalLatency" = "Total Time";
 "history.tokenUsage" = "Token Usage";
 "history.unavailable" = "Unavailable";
+"history.viewOriginal" = "View original image";
+"history.actualSize" = "100% actual size";
+"history.fitImage" = "Fit to window";
+"history.zoomHint" = "Scroll to zoom · Drag to pan";
 "history.delete" = "Delete Permanently";
 "history.clear" = "Clear History";
 "history.retryCleanup" = "Retry Cleanup Now";
