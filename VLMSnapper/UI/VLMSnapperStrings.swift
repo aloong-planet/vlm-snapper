@@ -207,6 +207,10 @@ enum VLMSnapperStrings {
     static var historyTotalLatency: String { localized("history.totalLatency") }
     static var historyTokenUsage: String { localized("history.tokenUsage") }
     static var historyUnavailable: String { localized("history.unavailable") }
+    static var historyViewOriginal: String { localized("history.viewOriginal") }
+    static var historyActualSize: String { localized("history.actualSize") }
+    static var historyFitImage: String { localized("history.fitImage") }
+    static var historyZoomHint: String { localized("history.zoomHint") }
     static var historyDelete: String { localized("history.delete") }
     static var historyClear: String { localized("history.clear") }
     static var historyRetryCleanup: String { localized("history.retryCleanup") }
