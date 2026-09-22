@@ -60,8 +60,21 @@ final class HistoryWindowNativeTests: XCTestCase {
         let visibleFrame = try XCTUnwrap(window.screen).visibleFrame
         XCTAssertEqual(window.frame, visibleFrame)
         XCTAssertFalse(window.styleMask.contains(.fullScreen))
-        window.setContentSize(NSSize(width: 1100, height: 700))
+        // An oversized fixture is constrained by AppKit when the window is shown again.
+        let availableContentSize = window.contentRect(forFrameRect: visibleFrame).size
+        let resizedContentSize = NSSize(
+            width: min(1100, availableContentSize.width - 40),
+            height: min(700, availableContentSize.height)
+        )
+        guard resizedContentSize.width >= window.contentMinSize.width,
+              resizedContentSize.height >= window.contentMinSize.height else {
+            return XCTFail("The test display must support a smaller window above the content minimum")
+        }
+        window.setContentSize(resizedContentSize)
         let resizedFrame = window.frame
+        XCTAssertEqual(window.contentRect(forFrameRect: resizedFrame).size, resizedContentSize)
+        XCTAssertTrue(visibleFrame.contains(resizedFrame))
+        XCTAssertNotEqual(resizedFrame, visibleFrame)
         controller.hideForCapture()
         controller.show(destination: .settings)
         window.layoutIfNeeded()
