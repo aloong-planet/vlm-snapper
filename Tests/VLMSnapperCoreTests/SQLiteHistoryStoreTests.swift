@@ -301,7 +301,7 @@ struct SQLiteHistoryStoreTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let databaseURL = directory.appendingPathComponent("history.sqlite")
-        try makeDatabase(at: databaseURL, schemaVersion: 4)
+        try makeDatabase(at: databaseURL, schemaVersion: 5)
         let bytesBeforeOpen = try Data(contentsOf: databaseURL)
 
         do {
@@ -309,7 +309,7 @@ struct SQLiteHistoryStoreTests {
             Issue.record("Expected a newer schema to block the history store")
         } catch {
             #expect(
-                error as? SQLiteHistoryStoreError == .schemaTooNew(found: 4, supported: 3)
+                error as? SQLiteHistoryStoreError == .schemaTooNew(found: 5, supported: 4)
             )
         }
         #expect(try Data(contentsOf: databaseURL) == bytesBeforeOpen)
@@ -358,6 +358,38 @@ struct SQLiteHistoryStoreTests {
 
         #expect(operation?.kind == .extract)
         #expect(operation?.targetLanguage == nil)
+    }
+
+    @Test("version-three translations migrate without inventing alignment")
+    func versionThreeTranslationMigratesWithoutInventingAlignment() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("history.sqlite")
+        let id = UUID()
+        try makeDatabase(at: url, schemaVersion: 3, operationsSQL: """
+            id TEXT PRIMARY KEY NOT NULL, screenshot_path TEXT NOT NULL, screenshot_sha256 TEXT NOT NULL,
+            provider_id TEXT NOT NULL, model_id TEXT NOT NULL, status TEXT NOT NULL,
+            source_markdown TEXT, translation_markdown TEXT, normalized_error_code TEXT,
+            operation_kind TEXT NOT NULL DEFAULT 'extract', target_language TEXT,
+            created_at REAL NOT NULL DEFAULT 0, is_pinned INTEGER NOT NULL DEFAULT 0,
+            first_text_latency_ms INTEGER, total_latency_ms INTEGER,
+            input_tokens INTEGER, output_tokens INTEGER, total_tokens INTEGER
+            """)
+        try executeSQL("""
+            INSERT INTO operations (id,screenshot_path,screenshot_sha256,provider_id,model_id,status,
+            operation_kind,target_language,source_markdown,translation_markdown,is_pinned,created_at)
+            VALUES ('\(id.uuidString)','/Pictures/old.png','sha','gemini','archived','succeeded',
+            'translate','zh-Hans','Hello','你好',1,1234)
+            """, at: url)
+        let store = try SQLiteHistoryStore(databaseURL: url)
+        let row = try #require(try await store.historyRecord(id: id))
+        #expect(row.operation.sourceMarkdown == "Hello")
+        #expect(row.operation.translationMarkdown == "你好")
+        #expect(row.operation.segments == nil)
+        #expect(row.isPinned)
+        #expect(row.createdAt == Date(timeIntervalSince1970: 1234))
+        #expect(try await store.history(matching: HistoryQuery(searchText: "你好")).map(\.id) == [id])
     }
 
     @Test("a corrupted database is blocked without changing its bytes")

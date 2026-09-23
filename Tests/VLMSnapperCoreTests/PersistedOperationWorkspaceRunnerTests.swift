@@ -4,6 +4,36 @@ import Testing
 
 @Suite("Persisted operation workspace runner")
 struct PersistedOperationWorkspaceRunnerTests {
+    @Test("aligned translation survives persistence and a fresh workspace restore")
+    func alignedTranslationSurvivesRestore() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("history.sqlite")
+        let history = try SQLiteHistoryStore(databaseURL: url)
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(), historyStore: history,
+            provider: RunnerProviderProbe(events: [
+                .translationSegments([
+                    TranslationSegment(id: "a", block: "p1", kind: .paragraph, source: "Hello. ", translation: "你好。"),
+                    TranslationSegment(id: "b", block: "p1", kind: .paragraph, source: "Help?", translation: "需要帮助？"),
+                ]),
+                .metadata(ProviderResponseMetadata(requestID: nil, usage: nil)), .completed,
+            ])
+        )
+        _ = try await collect(await runner.run(originalPNG: Data([1]),
+            operation: .translate(targetLanguage: "zh-Hans"),
+            selection: ProviderSelection(providerID: "gemini", modelID: "vision")))
+        let reopened = try SQLiteHistoryStore(databaseURL: url)
+        let rows = try await reopened.history(matching: HistoryQuery())
+        #expect(rows.count == 1)
+        let row = try #require(rows.first)
+        let restored = OperationWorkspaceSnapshot(restoring: row.operation)
+        #expect(restored.translate.committedResult?.sourceMarkdown == "Hello. Help?")
+        #expect(restored.translate.committedResult?.segments?.map(\.id) == ["a", "b"])
+        #expect(restored.translate.committedResult?.segments?.last?.translation == "需要帮助？")
+    }
+
     @Test("terminal history includes first text total latency and provider usage")
     func terminalHistoryIncludesMetrics() async throws {
         let history = RunnerHistoryProbe()

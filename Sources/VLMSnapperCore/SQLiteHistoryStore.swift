@@ -23,7 +23,7 @@ public enum OperationProgress: String, CaseIterable, Equatable, Sendable {
 }
 
 public enum PersistedOperationOutcome: Equatable, Sendable {
-    case succeeded(sourceMarkdown: String, translationMarkdown: String?)
+    case succeeded(sourceMarkdown: String, translationMarkdown: String?, segments: [TranslationSegment]? = nil)
     case failed(normalizedErrorCode: String)
 }
 
@@ -49,6 +49,7 @@ public struct StoredOperation: Equatable, Sendable {
     public let normalizedErrorCode: String?
     public let kind: PersistedOperationKind
     public let targetLanguage: String?
+    public let segments: [TranslationSegment]?
 
     public init(
         id: UUID,
@@ -59,7 +60,8 @@ public struct StoredOperation: Equatable, Sendable {
         translationMarkdown: String? = nil,
         normalizedErrorCode: String? = nil,
         kind: PersistedOperationKind = .extract,
-        targetLanguage: String? = nil
+        targetLanguage: String? = nil,
+        segments: [TranslationSegment]? = nil
     ) {
         self.id = id
         self.screenshot = screenshot
@@ -70,6 +72,7 @@ public struct StoredOperation: Equatable, Sendable {
         self.normalizedErrorCode = normalizedErrorCode
         self.kind = kind
         self.targetLanguage = targetLanguage
+        self.segments = segments
     }
 }
 
@@ -80,7 +83,7 @@ public enum SQLiteHistoryStoreError: Error, Equatable {
 }
 
 public actor SQLiteHistoryStore: HistoryPersisting {
-    private static let supportedSchemaVersion = 3
+    private static let supportedSchemaVersion = 4
     private nonisolated(unsafe) let database: OpaquePointer
     private let now: @Sendable () -> Date
 
@@ -116,7 +119,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                     on: connection
                 )
                 try Self.execute(
-                    "INSERT INTO metadata (key, value) VALUES ('schema_version', 3)",
+                    "INSERT INTO metadata (key, value) VALUES ('schema_version', 4)",
                     on: connection
                 )
                 try Self.execute(
@@ -140,6 +143,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                         , input_tokens INTEGER
                         , output_tokens INTEGER
                         , total_tokens INTEGER
+                        , translation_segments TEXT
                     )
                     """,
                     on: connection
@@ -224,7 +228,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         let sql = """
             SELECT screenshot_path, screenshot_sha256, provider_id, model_id, status,
                    source_markdown, translation_markdown, normalized_error_code,
-                   operation_kind, target_language
+                   operation_kind, target_language, translation_segments
             FROM operations WHERE id = ?
             """
         var statement: OpaquePointer?
@@ -265,7 +269,8 @@ public actor SQLiteHistoryStore: HistoryPersisting {
             translationMarkdown: Self.text(at: 6, from: statement),
             normalizedErrorCode: Self.text(at: 7, from: statement),
             kind: kind,
-            targetLanguage: Self.text(at: 9, from: statement)
+            targetLanguage: Self.text(at: 9, from: statement),
+            segments: try Self.decodeSegments(Self.text(at: 10, from: statement))
         )
     }
 
@@ -341,7 +346,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                    source_markdown, translation_markdown, normalized_error_code,
                    operation_kind, target_language, created_at, is_pinned,
                    first_text_latency_ms, total_latency_ms,
-                   input_tokens, output_tokens, total_tokens
+                   input_tokens, output_tokens, total_tokens, translation_segments
             FROM operations\(whereClause)
             ORDER BY created_at DESC, id DESC
             """
@@ -401,7 +406,8 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                         translationMarkdown: Self.text(at: 7, from: statement),
                         normalizedErrorCode: Self.text(at: 8, from: statement),
                         kind: kind,
-                        targetLanguage: Self.text(at: 10, from: statement)
+                        targetLanguage: Self.text(at: 10, from: statement),
+                        segments: try Self.decodeSegments(Self.text(at: 18, from: statement))
                     ),
                     createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 11)),
                     isPinned: sqlite3_column_int(statement, 12) != 0,
@@ -482,24 +488,27 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         let sourceMarkdown: String?
         let translationMarkdown: String?
         let normalizedErrorCode: String?
+        let segmentsJSON: String?
         switch outcome {
-        case let .succeeded(source, translation):
+        case let .succeeded(source, translation, segments):
             status = .succeeded
             sourceMarkdown = source
             translationMarkdown = translation
             normalizedErrorCode = nil
+            segmentsJSON = try Self.encodeSegments(segments)
         case let .failed(errorCode):
             status = .failed
             sourceMarkdown = nil
             translationMarkdown = nil
             normalizedErrorCode = errorCode
+            segmentsJSON = nil
         }
 
         let sql = """
             UPDATE operations
             SET status = ?, source_markdown = ?, translation_markdown = ?,
                 normalized_error_code = ?, first_text_latency_ms = ?,
-                total_latency_ms = ?, input_tokens = ?, output_tokens = ?, total_tokens = ?
+                total_latency_ms = ?, input_tokens = ?, output_tokens = ?, total_tokens = ?, translation_segments = ?
             WHERE id = ?
             """
         var statement: OpaquePointer?
@@ -518,7 +527,8 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         try Self.bind(metrics.usage?.inputTokens, at: 7, to: statement)
         try Self.bind(metrics.usage?.outputTokens, at: 8, to: statement)
         try Self.bind(metrics.usage?.totalTokens, at: 9, to: statement)
-        try Self.bind(operationID.uuidString, at: 10, to: statement)
+        try Self.bind(segmentsJSON, at: 10, to: statement)
+        try Self.bind(operationID.uuidString, at: 11, to: statement)
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
@@ -548,24 +558,27 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         let sourceMarkdown: String?
         let translationMarkdown: String?
         let normalizedErrorCode: String?
+        let segmentsJSON: String?
         switch outcome {
-        case let .succeeded(source, translation):
+        case let .succeeded(source, translation, segments):
             status = .succeeded
             sourceMarkdown = source
             translationMarkdown = translation
             normalizedErrorCode = nil
+            segmentsJSON = try Self.encodeSegments(segments)
         case let .failed(errorCode):
             status = .failed
             sourceMarkdown = nil
             translationMarkdown = nil
             normalizedErrorCode = errorCode
+            segmentsJSON = nil
         }
         let sql = """
             UPDATE operations
             SET provider_id = ?, model_id = ?, status = ?, source_markdown = ?,
                 translation_markdown = ?, normalized_error_code = ?,
                 operation_kind = ?, target_language = ?, first_text_latency_ms = ?,
-                total_latency_ms = ?, input_tokens = ?, output_tokens = ?, total_tokens = ?
+                total_latency_ms = ?, input_tokens = ?, output_tokens = ?, total_tokens = ?, translation_segments = ?
             WHERE id = ?
             """
         var statement: OpaquePointer?
@@ -588,7 +601,8 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         try Self.bind(metrics.usage?.inputTokens, at: 11, to: statement)
         try Self.bind(metrics.usage?.outputTokens, at: 12, to: statement)
         try Self.bind(metrics.usage?.totalTokens, at: 13, to: statement)
-        try Self.bind(operationID.uuidString, at: 14, to: statement)
+        try Self.bind(segmentsJSON, at: 14, to: statement)
+        try Self.bind(operationID.uuidString, at: 15, to: statement)
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
@@ -733,8 +747,20 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                 throw error
             }
         }
+        if schemaVersion == 3 {
+            try execute("BEGIN IMMEDIATE", on: database)
+            do {
+                try execute("ALTER TABLE operations ADD COLUMN translation_segments TEXT", on: database)
+                try execute("UPDATE metadata SET value = 4 WHERE key = 'schema_version'", on: database)
+                try execute("COMMIT", on: database)
+                schemaVersion = 4
+            } catch {
+                try? execute("ROLLBACK", on: database)
+                throw error
+            }
+        }
         guard schemaVersion == supportedSchemaVersion,
-              try hasRequiredOperationColumns(on: database, schemaVersion: 3) else {
+              try hasRequiredOperationColumns(on: database, schemaVersion: 4) else {
             throw SQLiteHistoryStoreError.databaseFailure
         }
     }
@@ -778,6 +804,7 @@ public actor SQLiteHistoryStore: HistoryPersisting {
                 "input_tokens", "output_tokens", "total_tokens",
             ])
         }
+        if schemaVersion >= 4 { requiredColumns.insert("translation_segments") }
         let sql = "PRAGMA table_info(operations)"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -799,6 +826,14 @@ public actor SQLiteHistoryStore: HistoryPersisting {
             }
             foundColumns.insert(columnName)
         }
+    }
+
+    private static func encodeSegments(_ value: [TranslationSegment]?) throws -> String? {
+        try value.map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) }
+    }
+
+    private static func decodeSegments(_ value: String?) throws -> [TranslationSegment]? {
+        try value.map { try JSONDecoder().decode([TranslationSegment].self, from: Data($0.utf8)) }
     }
 
     private static func bind(

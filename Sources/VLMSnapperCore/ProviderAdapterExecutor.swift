@@ -124,6 +124,8 @@ public struct ProviderAdapterExecutor: Sendable {
 private extension ProviderStreamEvent {
     var containsText: Bool {
         switch self {
+        case let .translationSegments(segments):
+            return segments.contains { !$0.source.isEmpty || !$0.translation.isEmpty }
         case let .sourceDelta(delta), let .translationDelta(delta):
             return !delta.isEmpty
         case .metadata, .completed:

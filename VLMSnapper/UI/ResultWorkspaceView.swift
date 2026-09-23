@@ -140,26 +140,12 @@ public struct ResultWorkspaceView: View {
         case .streaming:
             VStack(alignment: .leading, spacing: 14) {
                 progressState(VLMSnapperStrings.streaming)
-                resultSection(VLMSnapperStrings.historyOriginal, text: slot.sourceDelta)
-                if operation == .translate {
-                    Divider()
-                    resultSection(VLMSnapperStrings.historyTranslation, text: slot.translationDelta)
-                }
+                resultBody(source: slot.sourceDelta, translation: slot.translationDelta, segments: slot.segments)
             }
         case .succeeded:
             if let committed = slot.committedResult {
                 VStack(alignment: .leading, spacing: 18) {
-                    resultSection(
-                        VLMSnapperStrings.historyOriginal,
-                        text: committed.sourceMarkdown
-                    )
-                    if let translation = committed.translationMarkdown {
-                        Divider()
-                        resultSection(
-                            VLMSnapperStrings.historyTranslation,
-                            text: translation
-                        )
-                    }
+                    resultBody(source: committed.sourceMarkdown, translation: committed.translationMarkdown, segments: committed.segments)
                     Button(VLMSnapperStrings.rerun) { onStart(operation) }
                         .disabled(!allowsOperationStart)
                 }
@@ -174,17 +160,7 @@ public struct ResultWorkspaceView: View {
         case .resultPersistenceFailed:
             VStack(alignment: .leading, spacing: 14) {
                 if let unsaved = slot.unsavedResult {
-                    resultSection(
-                        VLMSnapperStrings.historyOriginal,
-                        text: unsaved.sourceMarkdown
-                    )
-                    if let translation = unsaved.translationMarkdown {
-                        Divider()
-                        resultSection(
-                            VLMSnapperStrings.historyTranslation,
-                            text: translation
-                        )
-                    }
+                    resultBody(source: unsaved.sourceMarkdown, translation: unsaved.translationMarkdown, segments: unsaved.segments)
                 }
                 Text(slot.persistenceFailureCode.map(VLMSnapperStrings.failureMessage(code:))
                      ?? VLMSnapperStrings.persistenceFailed)
@@ -192,6 +168,16 @@ public struct ResultWorkspaceView: View {
                 Button(VLMSnapperStrings.retrySave, action: onRetrySave)
                     .disabled(!allowsOperationStart)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func resultBody(source: String, translation: String?, segments: [TranslationSegment]?) -> some View {
+        if operation == .translate {
+            BilingualResultView(source: source, translation: translation ?? "", segments: segments, onCopy: onCopy)
+                .padding(.horizontal, -22)
+        } else {
+            resultSection(VLMSnapperStrings.historyOriginal, text: source)
         }
     }
 
@@ -206,14 +192,7 @@ public struct ResultWorkspaceView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
                 Spacer()
-                if !text.isEmpty {
-                    Button {
-                        onCopy(text)
-                    } label: {
-                        Label(VLMSnapperStrings.copy, systemImage: VLMSnapperIcon.copy.rawValue)
-                    }
-                    .buttonStyle(.borderless)
-                }
+                ResultCopyButton(text: text, onCopy: onCopy)
             }
             markdown(text)
         }

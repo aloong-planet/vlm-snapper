@@ -11,18 +11,22 @@ public struct OrderedStructuredOutputParser: Sendable {
     private var buffer = ""
     private var emittedSource = ""
     private var emittedTranslation = ""
+    private var alignedParser: AlignedTranslationParser?
 
     public init(operation: ProviderOperation) {
         self.operation = operation
         acceptedSourceKeys = ["source"]
+        if case .translate = operation { alignedParser = AlignedTranslationParser() }
     }
 
     init(operation: ProviderOperation, acceptedSourceKeys: Set<String>) {
         self.operation = operation
         self.acceptedSourceKeys = acceptedSourceKeys
+        if case .translate = operation { alignedParser = AlignedTranslationParser() }
     }
 
     public mutating func consume(_ delta: String) throws -> [ProviderStreamEvent] {
+        if alignedParser != nil { return try alignedParser!.consume(delta) }
         buffer.append(delta)
         let snapshot = try parseSnapshot()
         var events: [ProviderStreamEvent] = []
@@ -58,6 +62,7 @@ public struct OrderedStructuredOutputParser: Sendable {
     }
 
     public func finish() throws {
+        if let alignedParser { return try alignedParser.finish() }
         guard try parseSnapshot().objectComplete else {
             throw OrderedStructuredOutputParserError.incompleteOutput
         }

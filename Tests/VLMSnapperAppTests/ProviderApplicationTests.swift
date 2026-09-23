@@ -231,6 +231,119 @@ struct ProviderApplicationTests {
         }
     }
 
+    @Test
+    func historyImageDoesNotReportFailureBeforeLoadingCompletes() async throws {
+        try await withFixture { fixture in
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            let prepared = try await store.prepareOperation(
+                screenshot: ManagedScreenshot(path: "/not-read-yet.png", sha256: "fixture"),
+                selection: ProviderSelection(providerID: "deepseek", modelID: "fixture"), operation: .extractText)
+            try await store.finish(operationID: prepared.operationID, with: .succeeded(sourceMarkdown: "Saved text remains readable", translationMarkdown: nil))
+            let records = try await store.history(matching: HistoryQuery())
+            VLMSnapperLocalization.configure(effectiveLanguage: .english)
+            // No callback has completed a read. A nil image is not evidence of failure.
+            let controller = ManagementCenterWindowController(records: records)
+            let window = try #require(controller.window)
+            defer { controller.close() }
+            controller.show(destination: .history)
+            let visible = try renderedText(in: window).lowercased()
+            #expect(visible.contains("saved text remains readable"))
+            #expect(!visible.contains("moved, deleted"))
+            #expect(!visible.contains("loading"))
+        }
+    }
+
+    @Test
+    func historyImageRemainsVisibleWhileSameRecordReloads() async throws {
+        try await withFixture { fixture in
+            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+            let loader = ControlledHistoryImages(store: screenshots)
+            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            let screenshot = try await screenshots.save(originalPNG: #require(bitmap.representation(using: .png, properties: [:])))
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            let record = try await store.prepareOperation(screenshot: screenshot,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "fixture"), operation: .extractText)
+            try await store.finish(operationID: record.operationID, with: .succeeded(sourceMarkdown: "Original", translationMarkdown: nil))
+            try await fixture.withModel(historyImageLoader: loader) { model in
+                model.managementCallbacks().onSelectRecord(record.operationID)
+                try await eventually { model.selectedHistoryImage != nil }
+                await loader.pause()
+                model.managementCallbacks().onSelectRecord(record.operationID)
+                try await eventually { await loader.pendingCount == 1 }
+                #expect(model.selectedHistoryImage != nil, "A same-record refresh must retain the validated image during IO")
+                await loader.releaseAll()
+                try await eventually { model.selectedHistoryImage != nil }
+            }
+        }
+    }
+
+    @Test
+    func historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() async throws {
+        try await withFixture { fixture in
+            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+            let loader = ControlledHistoryImages(store: screenshots)
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            var ids: [UUID] = [], images: [ManagedScreenshot] = [], pngs: [Data] = []
+            for width in [4, 8] {
+                let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: 4,
+                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+                let png = try #require(bitmap.representation(using: .png, properties: [:]))
+                let image = try await screenshots.save(originalPNG: png)
+                let record = try await store.prepareOperation(screenshot: image,
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "fixture"), operation: .extractText)
+                try await store.finish(operationID: record.operationID, with: .succeeded(sourceMarkdown: "Saved text", translationMarkdown: nil))
+                ids.append(record.operationID); images.append(image); pngs.append(png)
+            }
+            try await fixture.withModel(historyImageLoader: loader) { model in
+                await loader.pause()
+                model.managementCallbacks().onSelectRecord(ids[0])
+                try await eventually { await loader.pendingCount == 1 }
+                #expect(!model.selectedHistoryImageLoadFailed)
+                model.managementCallbacks().onSelectRecord(ids[1])
+                try await eventually { await loader.pendingCount == 2 }
+                #expect(model.selectedHistoryImage == nil)
+                model.managementCallbacks().onSelectRecord(ids[0])
+                try await eventually { await loader.pendingCount == 3 }
+                await loader.release(at: 2)
+                try await eventually { model.selectedHistoryImage?.size.width == 4 }
+                // The original A read now fails after the newer A read succeeded.
+                try FileManager.default.removeItem(atPath: images[0].path)
+                await loader.releaseAll()
+                try await eventually { await loader.finishedCount == 3 }
+                let deadline = ContinuousClock.now.advanced(by: .milliseconds(100))
+                repeat {
+                    #expect(model.selectedHistoryRecordID == ids[0])
+                    #expect(model.selectedHistoryImage?.size.width == 4)
+                    #expect(!model.selectedHistoryImageLoadFailed)
+                    await Task.yield()
+                } while ContinuousClock.now < deadline
+
+                model.managementCallbacks().onSelectRecord(ids[0])
+                try await eventually { model.selectedHistoryImageLoadFailed }
+                #expect(model.selectedHistoryImage == nil)
+                let controller = ManagementCenterWindowController(records: model.historyRecords,
+                    selectedRecordID: ids[0], selectedImage: model.selectedHistoryImage,
+                    selectedImageLoadFailed: model.selectedHistoryImageLoadFailed)
+                defer { controller.close() }
+                controller.show(destination: .history)
+                let failedText = try renderedText(in: #require(controller.window)).lowercased()
+                #expect(failedText.contains("moved, deleted"))
+                #expect(failedText.contains("saved text"))
+
+                try pngs[0].write(to: URL(fileURLWithPath: images[0].path))
+                model.managementCallbacks().onSelectRecord(ids[0])
+                try await eventually { model.selectedHistoryImage?.size.width == 4 }
+                #expect(!model.selectedHistoryImageLoadFailed)
+                model.managementCallbacks().onSelectRecord(ids[1])
+                try await eventually { model.selectedHistoryImage?.size.width == 8 }
+                #expect(model.selectedHistoryRecordID == ids[1])
+            }
+        }
+    }
+
     @Test(arguments: [PersistedOperationKind.extract, .translate])
     func historyRetryUpdatesOriginalRecord(kind: PersistedOperationKind) async throws {
         try await withFixture { fixture in
@@ -263,6 +376,23 @@ struct ProviderApplicationTests {
                     return !model.historyRetry.isRunning || count == 1
                 }
                 try #require(await fixture.http.imageRequests.count == 1, "Retry ended before HTTP: \(model.historyRetry.slot.attempt)")
+                #expect(model.historyRetry.recordID == prepared.operationID)
+                let progressWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 780),
+                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                progressWindow.isReleasedWhenClosed = false
+                progressWindow.contentView = NSHostingView(rootView: ManagementCenterView(
+                    destination: .history, records: model.historyRecords,
+                    selectedRecordID: prepared.operationID, selectedImage: NSImage(data: png),
+                    callbacks: model.managementCallbacks()))
+                progressWindow.orderFront(nil)
+                defer { progressWindow.close() }
+                try await eventually { try renderedText(in: progressWindow).lowercased().contains("preparing") }
+                let progressText = try renderedText(in: progressWindow).lowercased()
+                #expect(progressText.contains("preparing"), "The pending request must remain visible")
+                #expect(!progressText.split(separator: "\n").contains {
+                    $0.trimmingCharacters(in: .whitespacesAndNewlines) == "retry"
+                }, "An active retry must not add a Retry heading above the original text")
+                progressWindow.close()
                 try await fixture.http.finishImage(source: "Retried result\n\nRetained historical paragraph.", translation: kind == .translate ? "Translated result" : nil)
                 try await eventually { !model.historyRetry.isRunning }
                 #expect(model.historyRetry.slot.attempt == .succeeded)
@@ -274,6 +404,7 @@ struct ProviderApplicationTests {
                 if kind == .translate {
                     #expect(model.historyRecords.first { $0.id == prepared.operationID }?.operation.targetLanguage == "ja")
                     #expect(model.historyRetry.slot.committedResult?.translationMarkdown == "Translated result")
+                    #expect(try await store.operation(id: prepared.operationID)?.segments?.first?.translation == "Translated result")
                 }
                 #expect(!NSApp.windows.contains { $0.isVisible && $0.windowController is ResultWorkspaceWindowController })
                 let preview = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 780),
@@ -287,6 +418,11 @@ struct ProviderApplicationTests {
                 defer { preview.close() }
                 let visibleResult = try renderedText(in: preview).lowercased()
                 #expect(visibleResult.contains("retried result"), "The production detail must render the completed retry, not only store it")
+                let visibleLines = visibleResult.split(separator: "\n").map {
+                    $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                #expect(!visibleLines.contains("retry"), "A completed retry must not leave a redundant section heading")
+                #expect(!visibleLines.contains("done"), "The completed detail must not leave a separate success status")
                 if kind == .translate { #expect(visibleResult.contains("translated result")) }
                 preview.close()
                 await fixture.http.pause()
@@ -332,6 +468,10 @@ struct ProviderApplicationTests {
                 try await eventually { !model.historyRetry.isRunning }
                 #expect(model.historyRetry.slot.attempt == .resultPersistenceFailed)
                 #expect(model.historyRetry.slot.unsavedResult?.sourceMarkdown == "Unsaved result")
+                if kind == .translate {
+                    #expect(model.historyRetry.slot.unsavedResult?.segments?.first?.translation == "Unsaved translation")
+                    #expect(try await store.operation(id: prepared.operationID)?.segments?.first?.translation == "Translated result")
+                }
                 #expect(!model.historyRetry.allowsStart)
                 model.managementCallbacks().onRetryRecord(prepared.operationID)
                 #expect(!model.historyRetry.isRunning)
@@ -371,6 +511,9 @@ struct ProviderApplicationTests {
                 try await eventually { reopened.historyRecords.count == 1 }
                 #expect(reopened.historyRecords.first?.id == prepared.operationID)
                 #expect(reopened.historyRecords.first?.operation.sourceMarkdown == "Unsaved result")
+                if kind == .translate {
+                    #expect(reopened.historyRecords.first?.operation.segments?.first?.translation == "Unsaved translation")
+                }
                 #expect(await fixture.http.imageRequests.count == 3, "Rebuilding the application never restarts history requests")
             }
         }
@@ -1409,6 +1552,28 @@ private func stopFixture(excluding existingWindows: Set<ObjectIdentifier>, stop:
     }
 }
 
+private actor ControlledHistoryImages: ManagedScreenshotLoading {
+    let store: FileSystemScreenshotStore
+    private var paused = false
+    private var pending: [CheckedContinuation<Void, Never>] = []
+    private(set) var finishedCount = 0
+    var pendingCount: Int { pending.count }
+    init(store: FileSystemScreenshotStore) { self.store = store }
+    func pause() { paused = true }
+    func release(at index: Int) { pending.remove(at: index).resume() }
+    func releaseAll() {
+        paused = false
+        let continuations = pending
+        pending.removeAll()
+        continuations.forEach { $0.resume() }
+    }
+    func loadIfOwned(_ screenshot: ManagedScreenshot) async throws -> Data {
+        defer { finishedCount += 1 }
+        if paused { await withCheckedContinuation { pending.append($0) } }
+        return try await store.loadIfOwned(screenshot)
+    }
+}
+
 @MainActor
 private final class ApplicationFixture {
     let root: URL
@@ -1443,7 +1608,8 @@ private final class ApplicationFixture {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     }
 
-    func withModel(_ operation: (VLMSnapperApplicationModel) async throws -> Void) async throws {
+    func withModel(historyImageLoader: ControlledHistoryImages? = nil,
+                   _ operation: (VLMSnapperApplicationModel) async throws -> Void) async throws {
         let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
         let defaults = try requireFixture(UserDefaults(suiteName: suite))
         await UserDefaultsApplicationLanguageStore(defaults: defaults).save(.english)
@@ -1451,18 +1617,21 @@ private final class ApplicationFixture {
             applicationSupportRoot: root,
             languageStore: UserDefaultsApplicationLanguageStore(defaults: defaults),
             defaults: defaults,
-            dependencies: dependencies()
+            dependencies: dependencies(),
+            historyImageLoader: historyImageLoader
         )
         do {
             try await model.start()
             try await operation(model)
         } catch {
+            await historyImageLoader?.releaseAll()
             await http.release()
             await capture.release()
             _ = await model.prepareForTermination()
             stopFixture(excluding: existingWindows) { model.stop() }
             throw error
         }
+        await historyImageLoader?.releaseAll()
         await http.release()
         await capture.release()
         let canTerminate = await model.prepareForTermination()
@@ -1626,8 +1795,11 @@ private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
     func finishImage(source: String, translation: String? = nil) throws {
         // DeepSeek chat SSE shape used by ProviderAdapterRecordedContractTests;
         // use the real JSON decoder/stream contract, not normalized fake events.
-        var result = ["source": source]
-        if let translation { result["translation"] = translation }
+        var result: [String: Any] = ["source": source]
+        if let translation {
+            result = ["segments": [["id": "s1", "block": "p1", "kind": "paragraph",
+                                     "source": source, "translation": translation]]]
+        }
         let content = String(decoding: try JSONSerialization.data(withJSONObject: result, options: .sortedKeys), as: UTF8.self)
         let chunk = try JSONSerialization.data(withJSONObject: [
             "id": "fixture-image", "choices": [["index": 0, "delta": ["content": content], "finish_reason": "stop"]],

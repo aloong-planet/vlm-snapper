@@ -30,6 +30,7 @@ public struct ProviderResponseMetadata: Equatable, Sendable {
 public enum ProviderStreamEvent: Equatable, Sendable {
     case sourceDelta(String)
     case translationDelta(String)
+    case translationSegments([TranslationSegment])
     case metadata(ProviderResponseMetadata)
     case completed
 }
@@ -38,15 +39,18 @@ public struct ProviderCompletedOutput: Equatable, Sendable {
     public let source: String
     public let translation: String?
     public let metadata: ProviderResponseMetadata
+    public let segments: [TranslationSegment]?
 
     public init(
         source: String,
         translation: String?,
-        metadata: ProviderResponseMetadata
+        metadata: ProviderResponseMetadata,
+        segments: [TranslationSegment]? = nil
     ) {
         self.source = source
         self.translation = translation
         self.metadata = metadata
+        self.segments = segments
     }
 }
 
@@ -69,6 +73,7 @@ public struct ProviderStreamAccumulator: Sendable {
     private var source = ""
     private var translation = ""
     private var metadata: ProviderResponseMetadata?
+    private var segments: [TranslationSegment]?
 
     public init(operation: ProviderOperation) {
         self.operation = operation
@@ -78,6 +83,15 @@ public struct ProviderStreamAccumulator: Sendable {
         _ event: ProviderStreamEvent
     ) throws -> ProviderCompletedOutput? {
         switch event {
+        case let .translationSegments(value):
+            guard case .translate = operation, phase == .source || phase == .translation else {
+                throw ProviderStreamContractError.invalidEventOrder
+            }
+            phase = .translation
+            segments = value
+            source = TranslationSegment.text(value, translated: false)
+            translation = TranslationSegment.text(value, translated: true)
+            return nil
         case let .sourceDelta(delta):
             guard phase == .source else {
                 throw ProviderStreamContractError.invalidEventOrder
@@ -109,17 +123,18 @@ public struct ProviderStreamAccumulator: Sendable {
             metadata = responseMetadata
             return nil
         case .completed:
-            guard phase == .metadata, let metadata, !source.isEmpty else {
+            guard phase == .metadata, let metadata, !source.isEmpty || segments == [] else {
                 throw ProviderStreamContractError.incompleteOutput
             }
-            if case .translate = operation, translation.isEmpty {
+            if case .translate = operation, translation.isEmpty, segments != [] {
                 throw ProviderStreamContractError.incompleteOutput
             }
             phase = .completed
             return ProviderCompletedOutput(
                 source: source,
                 translation: operation.translationValue(translation),
-                metadata: metadata
+                metadata: metadata,
+                segments: segments
             )
         }
     }

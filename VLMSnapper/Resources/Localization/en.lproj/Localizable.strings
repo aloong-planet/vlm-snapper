@@ -7,6 +7,7 @@
 "action.rerun" = "Run Again";
 "action.retrySave" = "Retry Save";
 "action.copy" = "Copy";
+"action.copied" = "Copied";
 "result.originalScreenshot" = "Original Screenshot";
 "result.title" = "Result";
 "result.neverStarted" = "This operation has not been run";
@@ -214,6 +215,10 @@
 "history.totalLatency" = "Total Time";
 "history.tokenUsage" = "Token Usage";
 "history.unavailable" = "Unavailable";
+"history.viewOriginal" = "View original image";
+"history.actualSize" = "100% actual size";
+"history.fitImage" = "Fit to window";
+"history.zoomHint" = "Scroll to zoom · Drag to pan";
 "history.delete" = "Delete Permanently";
 "history.clear" = "Clear History";
 "history.retryCleanup" = "Retry Cleanup Now";

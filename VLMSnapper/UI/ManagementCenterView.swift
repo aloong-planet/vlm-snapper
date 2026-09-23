@@ -175,6 +175,7 @@ public struct ManagementCenterView: View {
     private let navigationRequestID: UUID?
     private let records: [HistoryRecord]
     private let selectedImage: NSImage?
+    private let selectedImageLoadFailed: Bool
     private let imageRecordID: UUID?
     private let cleanupFailureCount: Int
     private let callbacks: ManagementCenterCallbacks
@@ -194,6 +195,7 @@ public struct ManagementCenterView: View {
     @State private var expandedProvider: ProviderID?
     @State private var showsAPIKey = false
     @State private var providerPendingRemoval: ProviderID?
+    @State private var previewImage: HistoryPreviewImage?
 
     public init(
         destination: ManagementCenterDestination,
@@ -201,6 +203,7 @@ public struct ManagementCenterView: View {
         records: [HistoryRecord],
         selectedRecordID: UUID? = nil,
         selectedImage: NSImage? = nil,
+        selectedImageLoadFailed: Bool = false,
         cleanupFailureCount: Int = 0,
         searchText: String = "",
         showsGeneralSettings: Bool? = nil,
@@ -213,6 +216,7 @@ public struct ManagementCenterView: View {
         self.navigationRequestID = navigationRequestID
         self.records = records
         self.selectedImage = selectedImage
+        self.selectedImageLoadFailed = selectedImageLoadFailed
         self.imageRecordID = selectedRecordID ?? records.first?.id
         self.cleanupFailureCount = cleanupFailureCount
         self.callbacks = callbacks
@@ -251,6 +255,9 @@ public struct ManagementCenterView: View {
         }
         .background(VLMSnapperTheme.window)
         .frame(minWidth: 920, minHeight: 620)
+        .sheet(item: $previewImage) { item in
+            HistoryImagePreview(image: item.image)
+        }
         .onChange(of: filteredRecords.map(\.id), initial: true) { _, _ in reconcileHistorySelection() }
         .onChange(of: selectedRecordID, initial: true) { _, value in
             if let value { callbacks.onSelectRecord(value) }
@@ -1217,16 +1224,15 @@ public struct ManagementCenterView: View {
                     Divider()
                     VStack(alignment: .leading, spacing: 18) {
                         screenshot(record)
+                        Divider()
                         if historyRetry.recordID == record.id {
-                            historyRetryContent
+                            historyRetryContent(record)
                             if historyRetry.slot.attempt == .succeeded { metrics(record) }
                         }
                         if historyRetry.recordID != record.id || (!historyRetry.isRunning
                             && historyRetry.slot.attempt != .succeeded && historyRetry.slot.unsavedResult == nil) {
-                            resultSection(VLMSnapperStrings.historyOriginal, text: record.operation.sourceMarkdown)
-                            if record.operation.kind == .translate {
-                                resultSection(VLMSnapperStrings.historyTranslation, text: record.operation.translationMarkdown)
-                            }
+                            historyResult(record, source: record.operation.sourceMarkdown,
+                                          translation: record.operation.translationMarkdown, segments: record.operation.segments)
                             metrics(record)
                         }
                     }
@@ -1256,6 +1262,7 @@ public struct ManagementCenterView: View {
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
             }
             Spacer()
+            HStack(spacing: 0) {
             Button { callbacks.onRetryRecord(record.id) } label: {
                 Group {
                     if historyRetry.isRunning && historyRetry.recordID == record.id {
@@ -1288,31 +1295,26 @@ public struct ManagementCenterView: View {
             }
             .buttonStyle(.borderless)
             .disabled(record.operation.status.isActive || historyRetry.preventsDiscard)
+            }
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 8)
         .frame(minHeight: 46)
     }
 
-    private var historyRetryContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(VLMSnapperStrings.retry).font(.headline)
-                Spacer()
-                Text(historyRetry.providerSummary).font(.caption)
-                    .foregroundStyle(VLMSnapperTheme.secondaryText)
-            }
+    private func historyRetryContent(_ record: HistoryRecord) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
             switch historyRetry.slot.attempt {
             case .neverStarted, .preparing:
                 Text(VLMSnapperStrings.preparing)
             case .streaming:
                 Text(VLMSnapperStrings.streaming)
-                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.sourceDelta)
-                resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.translationDelta)
+                historyResult(record, source: historyRetry.slot.sourceDelta,
+                              translation: historyRetry.slot.translationDelta, segments: historyRetry.slot.segments)
             case .succeeded:
-                Text(VLMSnapperStrings.menuStatusSucceeded).foregroundStyle(VLMSnapperTheme.success)
-                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.committedResult?.sourceMarkdown)
-                resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.committedResult?.translationMarkdown)
+                historyResult(record, source: historyRetry.slot.committedResult?.sourceMarkdown,
+                              translation: historyRetry.slot.committedResult?.translationMarkdown,
+                              segments: historyRetry.slot.committedResult?.segments)
             case let .failed(code):
                 Text(code == "history_screenshot_unavailable" ? VLMSnapperStrings.historyScreenshotUnavailable
                      : VLMSnapperStrings.failureMessage(code: code))
@@ -1320,8 +1322,9 @@ public struct ManagementCenterView: View {
             case .canceled:
                 Text(VLMSnapperStrings.canceled)
             case .resultPersistenceFailed:
-                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.unsavedResult?.sourceMarkdown)
-                resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.unsavedResult?.translationMarkdown)
+                historyResult(record, source: historyRetry.slot.unsavedResult?.sourceMarkdown,
+                              translation: historyRetry.slot.unsavedResult?.translationMarkdown,
+                              segments: historyRetry.slot.unsavedResult?.segments)
                 Text(historyRetry.slot.persistenceFailureCode.map(VLMSnapperStrings.failureMessage(code:))
                      ?? VLMSnapperStrings.persistenceFailed).foregroundStyle(VLMSnapperTheme.destructive)
                 Button(VLMSnapperStrings.retrySave, action: callbacks.onRetryHistorySave)
@@ -1440,23 +1443,56 @@ public struct ManagementCenterView: View {
     @ViewBuilder
     private func screenshot(_ record: HistoryRecord) -> some View {
         if let selectedImage, imageRecordID == record.id {
-            Image(nsImage: selectedImage).resizable().scaledToFit()
-                .frame(maxHeight: 210)
-                .frame(maxWidth: .infinity)
-                .background(VLMSnapperTheme.subtleSurface)
-                .clipShape(RoundedRectangle(cornerRadius: VLMSnapperUIConstants.cardCornerRadius))
+            Button { previewImage = HistoryPreviewImage(image: selectedImage) } label: {
+                Image(nsImage: selectedImage).resizable().scaledToFit()
+                    .frame(maxHeight: 100)
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(HistoryImageButtonStyle())
+            .help(VLMSnapperStrings.historyViewOriginal)
+            .accessibilityLabel(VLMSnapperStrings.historyViewOriginal)
+            .accessibilityIdentifier("history-image-preview")
         } else {
-            Label(VLMSnapperStrings.historyScreenshotUnavailable, systemImage: VLMSnapperIcon.warning.rawValue)
+            ZStack {
+                Color.clear
+                if selectedImageLoadFailed && imageRecordID == record.id {
+                    Label(VLMSnapperStrings.historyScreenshotUnavailable, systemImage: VLMSnapperIcon.warning.rawValue)
+                }
+            }
                 .foregroundStyle(VLMSnapperTheme.secondaryText)
                 .frame(maxWidth: .infinity, minHeight: 100)
                 .background(VLMSnapperTheme.subtleSurface)
                 .clipShape(RoundedRectangle(cornerRadius: VLMSnapperUIConstants.cardCornerRadius))
+                .overlay {
+                    RoundedRectangle(cornerRadius: VLMSnapperUIConstants.cardCornerRadius)
+                        .strokeBorder(VLMSnapperTheme.historyImageBorder, lineWidth: 1)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func historyResult(_ record: HistoryRecord, source: String?, translation: String?, segments: [TranslationSegment]?) -> some View {
+        if record.operation.kind == .translate {
+            BilingualResultView(source: source ?? "", translation: translation ?? "", segments: segments)
+                .id(record.id)
+                .padding(.horizontal, -15)
+        } else {
+            resultSection(VLMSnapperStrings.historyOriginal, text: source)
         }
     }
 
     private func resultSection(_ title: String, text: String?) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(.headline)
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Text(title).font(.system(size: 15, weight: .semibold))
+                Spacer()
+                ResultCopyButton(text: text ?? "") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString($0, forType: .string)
+                }
+            }
             Text(text ?? VLMSnapperStrings.historyUnavailable).textSelection(.enabled)
         }
     }

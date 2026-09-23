@@ -224,6 +224,11 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             for try await event in stream {
                 try Task.checkCancellation()
                 switch event {
+                case let .translationSegments(segments):
+                    if firstTextAt == nil, segments.contains(where: { !$0.source.isEmpty || !$0.translation.isEmpty }) {
+                        firstTextAt = now()
+                    }
+                    continuation.yield(.translationSegments(segments))
                 case let .sourceDelta(delta):
                     if firstTextAt == nil, !delta.isEmpty { firstTextAt = now() }
                     continuation.yield(.sourceDelta(delta))
@@ -236,11 +241,13 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                 if let output = try accumulator.consume(event) {
                     let result = WorkspaceCommittedResult(
                         sourceMarkdown: output.source,
-                        translationMarkdown: output.translation
+                        translationMarkdown: output.translation,
+                        segments: output.segments
                     )
                     let outcome = PersistedOperationOutcome.succeeded(
                         sourceMarkdown: output.source,
-                        translationMarkdown: output.translation
+                        translationMarkdown: output.translation,
+                        segments: output.segments
                     )
                     let metrics = PersistedOperationMetrics(
                         firstTextLatencyMilliseconds: firstTextAt.map {

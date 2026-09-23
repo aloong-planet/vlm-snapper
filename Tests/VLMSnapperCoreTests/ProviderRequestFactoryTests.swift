@@ -4,6 +4,17 @@ import Testing
 
 @Suite("Provider request factory")
 struct ProviderRequestFactoryTests {
+    @Test("translation requests ask for identified sentence pairs rather than whole-document ordering", arguments: ProviderID.allCases)
+    func translationRequestsRequirePairs(provider: ProviderID) throws {
+        let request = try ProviderRequestFactory().makeRequest(provider: provider, modelID: "vision",
+            apiKey: "fixture", originalPNG: Data([1]), operation: .translate(targetLanguage: "ja"))
+        let body = String(decoding: try #require(request.httpBody), as: UTF8.self)
+        #expect(body.contains("segments"))
+        #expect(body.contains("listItem"))
+        #expect(body.contains("prompt v2"))
+        #expect(!body.contains("source before translation"))
+    }
+
     @Test("OpenAI request sends the original PNG in one structured streaming request")
     func openAIRequestUsesOriginalPNGAndStructuredStream() throws {
         let png = Data([0x89, 0x50, 0x4E, 0x47])

@@ -48,11 +48,24 @@ class ReportGateTests(unittest.TestCase):
 
     def test_every_positive_case_requires_business_result(self):
         scenarios = list(gate.cases())
-        self.assertEqual(len(scenarios), 15)
-        self.assertEqual(len({case[0] for case in scenarios}), 15)
+        self.assertEqual(len(scenarios), len({case[0] for case in scenarios}))
+        self.assertIn("history-image", {case[0] for case in scenarios})
         for name, arguments, steps, expected_failure in scenarios:
             with self.subTest(name=name):
                 if expected_failure:
+                    continue
+                if name == "bilingual-descriptions":
+                    self.assertEqual(steps, [
+                        gate.wait({"AXIdentifier": "bilingual-source"}, "AXDescription", "Original"),
+                        gate.wait({"AXIdentifier": "bilingual-translation"}, "AXDescription", "Translation"),
+                    ])
+                    continue
+                if "--history-image" in arguments:
+                    self.assertIn(gate.press("View original image"), steps)
+                    self.assertIn(gate.press("100% actual size"), steps)
+                    self.assertIn(gate.wait(gate.button("Fit to window")), steps)
+                    self.assertEqual(steps.count(gate.press("Close")), 2)
+                    self.assertEqual(steps[-1], gate.result("AX fixture ready"))
                     continue
                 self.assertIn(gate.result(), steps)
                 self.assertIn(gate.press("Validate"), steps)

@@ -3,16 +3,16 @@ import Testing
 
 @Suite("Ordered structured output parser")
 struct OrderedStructuredOutputParserTests {
-    @Test("translation JSON streams source before translation across arbitrary chunks")
+    @Test("translation JSON streams sentence pairs across arbitrary chunks")
     func translationStreamsInOrderAcrossChunks() throws {
         var parser = OrderedStructuredOutputParser(
             operation: .translate(targetLanguage: "es")
         )
         let chunks = [
-            #"{"sou"#,
+            #"{"segments":[{"id":"s1","block":"p1","kind":"paragraph","sou"#,
             #"rce":"Hello\nwo"#,
             #"rld","translation":"Hola "#,
-            #"mundo"}"#,
+            #"mundo"}]}"#,
         ]
         var events: [ProviderStreamEvent] = []
 
@@ -21,28 +21,11 @@ struct OrderedStructuredOutputParserTests {
         }
         try parser.finish()
 
-        let source = events.compactMap { event -> String? in
-            guard case let .sourceDelta(delta) = event else { return nil }
-            return delta
-        }.joined()
-        let translation = events.compactMap { event -> String? in
-            guard case let .translationDelta(delta) = event else { return nil }
-            return delta
-        }.joined()
-        #expect(source == "Hello\nworld")
-        #expect(translation == "Hola mundo")
-        let firstTranslationIndex = try #require(
-            events.firstIndex { event in
-                if case .translationDelta = event { return true }
-                return false
-            }
-        )
-        #expect(
-            events[..<firstTranslationIndex].allSatisfy { event in
-                if case .sourceDelta = event { return true }
-                return false
-            }
-        )
+        guard case let .translationSegments(segments) = try #require(events.last) else {
+            Issue.record("Expected a paired translation"); return
+        }
+        #expect(segments.first?.source == "Hello\nworld")
+        #expect(segments.first?.translation == "Hola mundo")
     }
 
     @Test("Unicode escape and surrogate boundaries do not emit malformed text")
@@ -57,7 +40,7 @@ struct OrderedStructuredOutputParserTests {
         #expect(events == [.sourceDelta("A"), .sourceDelta("😀B")])
     }
 
-    @Test("translation rejects reordered keys")
+    @Test("translation rejects the obsolete unpaired envelope")
     func translationRejectsReorderedKeys() {
         var parser = OrderedStructuredOutputParser(
             operation: .translate(targetLanguage: "es")

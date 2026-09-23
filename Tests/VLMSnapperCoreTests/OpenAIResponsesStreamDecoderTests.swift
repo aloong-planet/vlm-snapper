@@ -3,15 +3,15 @@ import Testing
 
 @Suite("OpenAI Responses stream decoder")
 struct OpenAIResponsesStreamDecoderTests {
-    @Test("a recorded completed response produces ordered translation events")
+    @Test("a completed response envelope carries paired translation fixtures")
     func completedResponseProducesOrderedTranslation() throws {
         var decoder = OpenAIResponsesStreamDecoder(
             operation: .translate(targetLanguage: "es")
         )
         let payloads = [
             #"{"type":"response.created","response":{"id":"resp_123","status":"in_progress"}}"#,
-            #"{"type":"response.output_text.delta","delta":"{\"source\":\"Hello\""}"#,
-            #"{"type":"response.output_text.delta","delta":",\"translation\":\"Hola\"}"}"#,
+            #"{"type":"response.output_text.delta","delta":"{\"segments\":[{\"id\":\"s1\",\"block\":\"p1\",\"kind\":\"paragraph\",\"source\":\"Hello\""}"#,
+            #"{"type":"response.output_text.delta","delta":",\"translation\":\"Hola\"}]}"}"#,
             #"{"type":"response.completed","response":{"id":"resp_123","status":"completed","usage":{"input_tokens":15,"output_tokens":9,"total_tokens":24}}}"#,
         ]
         var events: [ProviderStreamEvent] = []
@@ -23,8 +23,8 @@ struct OpenAIResponsesStreamDecoderTests {
 
         #expect(
             events == [
-                .sourceDelta("Hello"),
-                .translationDelta("Hola"),
+                .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "")]),
+                .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "Hola")]),
                 .metadata(
                     ProviderResponseMetadata(
                         requestID: "resp_123",

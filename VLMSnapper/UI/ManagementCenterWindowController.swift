@@ -7,6 +7,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
     private var records: [HistoryRecord]
     private var selectedRecordID: UUID?
     private var selectedImage: NSImage?
+    private var selectedImageLoadFailed: Bool
     private var cleanupFailureCount: Int
     private var retention: HistoryRetentionPeriod
     private var settings: GeneralSettingsSnapshot
@@ -23,6 +24,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
         records: [HistoryRecord],
         selectedRecordID: UUID? = nil,
         selectedImage: NSImage? = nil,
+        selectedImageLoadFailed: Bool = false,
         cleanupFailureCount: Int = 0,
         retention: HistoryRetentionPeriod = .thirtyDays,
         settings: GeneralSettingsSnapshot = GeneralSettingsSnapshot(),
@@ -33,6 +35,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
         self.records = records
         self.selectedRecordID = selectedRecordID
         self.selectedImage = selectedImage
+        self.selectedImageLoadFailed = selectedImageLoadFailed
         self.cleanupFailureCount = cleanupFailureCount
         self.retention = retention
         self.settings = settings
@@ -112,6 +115,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
             records: records,
             selectedRecordID: selectedRecordID,
             selectedImage: selectedImage,
+            selectedImageLoadFailed: selectedImageLoadFailed,
             cleanupFailureCount: cleanupFailureCount,
             retention: retention,
             settings: settings,
@@ -131,6 +135,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
         records: [HistoryRecord],
         selectedRecordID: UUID?,
         selectedImage: NSImage?,
+        selectedImageLoadFailed: Bool = false,
         cleanupFailureCount: Int,
         retention: HistoryRetentionPeriod,
         settings: GeneralSettingsSnapshot,
@@ -139,6 +144,7 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
         self.records = records
         self.selectedRecordID = selectedRecordID
         self.selectedImage = selectedImage
+        self.selectedImageLoadFailed = selectedImageLoadFailed
         self.cleanupFailureCount = cleanupFailureCount
         self.retention = retention
         self.settings = settings
