@@ -231,6 +231,161 @@ final class HistoryInteractionTests: XCTestCase {
         XCTAssertEqual(width, 400, accuracy: 2)
     }
 
+    func test07ArrowKeysSelectHistoryAndRespectSearchFocus() async throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        let application = NSApplication.shared
+        let previousPolicy = application.activationPolicy()
+        let previousDelegate = application.delegate
+        application.delegate = nil
+        defer {
+            application.delegate = previousDelegate
+            _ = application.setActivationPolicy(previousPolicy)
+        }
+        XCTAssertTrue(application.setActivationPolicy(.accessory))
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let fixtures = [
+            record("deepseek", source: "First source", kind: .extract),
+            record("deepseek", source: "Second source", kind: .extract, pinned: false),
+            record("openai", source: "Third source", kind: .extract),
+        ]
+        var selected: UUID?
+        var opened: UUID?
+        var retried: UUID?
+        let controller = ManagementCenterWindowController(records: fixtures, callbacks: ManagementCenterCallbacks(
+            onSelectRecord: { selected = $0 }, onOpenRecord: { opened = $0 }, onRetryRecord: { retried = $0 }
+        ))
+        let window = try XCTUnwrap(controller.window)
+        defer { window.close() }
+        controller.show(destination: .history)
+        try await settle(in: window) { window.isKeyWindow }
+        let content = try XCTUnwrap(window.contentView)
+        try await settle(in: window) { historyRenderedRows(in: content).count == 3 }
+        let row = window.convertFromScreen(historyRenderedRows(in: content)[0].screenFrame())
+        try click(window, at: NSPoint(x: row.midX, y: row.midY))
+        XCTAssertEqual(selected, fixtures[0].id)
+        try pressArrow(.downArrow, in: window)
+        try await settle(in: window) { selected == fixtures[1].id }
+        XCTAssertTrue(historyRenderedRows(in: content)[1].isSelected())
+        controller.update(records: fixtures, selectedRecordID: fixtures[1].id, selectedImage: nil,
+                          cleanupFailureCount: 0, retention: .thirtyDays,
+                          settings: GeneralSettingsSnapshot(), providerSettings: nil)
+        pump(window)
+        try pressArrow(.downArrow, in: window, modifiers: .shift)
+        XCTAssertEqual(selected, fixtures[1].id, "Modified arrows must not navigate records")
+        try pressArrow(.downArrow, in: window)
+        try await settle(in: window) { selected == fixtures[2].id }
+        try pressArrow(.downArrow, in: window)
+        XCTAssertEqual(selected, fixtures[2].id)
+        try pressArrow(.upArrow, in: window)
+        try await settle(in: window) { selected == fixtures[1].id }
+        try pressArrow(.upArrow, in: window)
+        try await settle(in: window) { selected == fixtures[0].id }
+        try pressArrow(.upArrow, in: window)
+        XCTAssertEqual(selected, fixtures[0].id)
+        try enterSearch("source", in: window)
+        try pressArrow(.downArrow, in: window)
+        XCTAssertEqual(selected, fixtures[0].id, "Search owns arrow keys while editing")
+        XCTAssertNil(opened, "Navigation must not open a result window")
+        XCTAssertNil(retried, "Navigation must not send a provider request")
+
+        // Pinned is an intersection of the same visible list, not all history.
+        try click(window, at: NSPoint(x: 90, y: content.bounds.height - 101))
+        try await settle(in: window) { historyRenderedRows(in: content).count == 2 }
+        let pinnedRow = window.convertFromScreen(historyRenderedRows(in: content)[0].screenFrame())
+        try click(window, at: NSPoint(x: pinnedRow.midX, y: pinnedRow.midY))
+        try pressArrow(.downArrow, in: window)
+        try await settle(in: window) { selected == fixtures[2].id }
+        XCTAssertTrue(historyRenderedRows(in: content)[1].isSelected())
+        try pressArrow(.downArrow, in: window)
+        XCTAssertEqual(selected, fixtures[2].id)
+
+        let picker = try XCTUnwrap(descendants(content).compactMap { $0 as? NSPopUpButton }.first)
+        try XCTUnwrap(picker.menu).performActionForItem(at: picker.indexOfItem(withTitle: "DeepSeek"))
+        try await settle(in: window) { historyRenderedRows(in: content).count == 1 && selected == fixtures[0].id }
+        let onlyRow = window.convertFromScreen(historyRenderedRows(in: content)[0].screenFrame())
+        try click(window, at: NSPoint(x: onlyRow.midX, y: onlyRow.midY))
+        try pressArrow(.downArrow, in: window)
+        try pressArrow(.upArrow, in: window)
+        XCTAssertEqual(selected, fixtures[0].id)
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            window.appearance = NSAppearance(named: appearance)
+            pump(window)
+            let bitmap = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+            content.cacheDisplay(in: content.bounds, to: bitmap)
+            let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+            try png.write(to: FileManager.default.temporaryDirectory
+                .appendingPathComponent("history-arrow-focus-\(appearance.rawValue).png"))
+        }
+        try enterSearch("no matching record", in: window)
+        try await settle(in: window) { historyRenderedRows(in: content).isEmpty }
+        try pressArrow(.downArrow, in: window)
+        XCTAssertTrue(historyRenderedRows(in: content).isEmpty)
+    }
+
+    func test08ArrowSelectionScrollsAndKeyboardCanEnterList() async throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        let application = NSApplication.shared
+        let previousPolicy = application.activationPolicy()
+        let previousDelegate = application.delegate
+        application.delegate = nil
+        defer {
+            application.delegate = previousDelegate
+            _ = application.setActivationPolicy(previousPolicy)
+        }
+        XCTAssertTrue(application.setActivationPolicy(.accessory))
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let fixtures = (1...18).map { record("deepseek", source: "History entry \($0)", kind: .extract) }
+        var selected: UUID?
+        let controller = ManagementCenterWindowController(records: fixtures,
+            callbacks: ManagementCenterCallbacks(onSelectRecord: { selected = $0 }))
+        let window = try XCTUnwrap(controller.window)
+        defer { window.close() }
+        controller.show(destination: .history)
+        window.setContentSize(NSSize(width: 920, height: 620))
+        try await settle(in: window) { window.isKeyWindow }
+        let content = try XCTUnwrap(window.contentView)
+        try await settle(in: window) { !historyRenderedRows(in: content).isEmpty }
+        try enterSearch("History entry", in: window)
+        // Tab follows the actual key-view loop from search into the record pane.
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            window.sendEvent(try XCTUnwrap(NSEvent.keyEvent(
+                with: type, location: .zero, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, characters: "\t", charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48
+            )))
+        }
+        pump(window)
+        try pressArrow(.downArrow, in: window)
+        try await settle(in: window) { selected == fixtures[1].id }
+        let scroll = try XCTUnwrap(historyRenderedRows(in: content).first?.scroll)
+        let initialOffset = scroll.contentView.bounds.origin.y
+        for record in fixtures.dropFirst(2) {
+            try pressArrow(.downArrow, in: window)
+            try await settle(in: window) { selected == record.id }
+        }
+        try await settle(in: window) {
+            scroll.contentView.bounds.origin.y > initialOffset && historyRenderedRows(in: content).contains { $0.isSelected() }
+        }
+        XCTAssertEqual(selected, fixtures[17].id)
+        XCTAssertTrue(accessibleText(content).contains("History entry 18"))
+    }
+
+    private func pressArrow(_ key: KeyEquivalent, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) throws {
+        let down = key == .downArrow
+        let characters = String(UnicodeScalar(down ? NSDownArrowFunctionKey : NSUpArrowFunctionKey)!)
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            window.sendEvent(try XCTUnwrap(NSEvent.keyEvent(
+                with: type, location: .zero, modifierFlags: modifiers.union([.function, .numericPad]),
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, characters: characters, charactersIgnoringModifiers: characters,
+                isARepeat: false, keyCode: down ? 125 : 126
+            )))
+        }
+        pump(window)
+    }
+
     private func enterSearch(_ text: String, in window: NSWindow) throws {
         let content = try XCTUnwrap(window.contentView)
         let field = try XCTUnwrap(descendants(content).compactMap { $0 as? NSTextField }
@@ -297,7 +452,8 @@ final class HistoryInteractionTests: XCTestCase {
 
     private struct NativeConditionTimeout: Error {}
 
-    private func settle(in window: NSWindow, until predicate: () -> Bool) async throws {
+    private func settle(in window: NSWindow, file: StaticString = #filePath, line: UInt = #line,
+                        until predicate: () -> Bool) async throws {
         let deadline = ProcessInfo.processInfo.systemUptime + 2
         while true {
             if let event = NSApp.nextEvent(matching: .appKitDefined, until: Date(), inMode: .default, dequeue: true) {
@@ -307,7 +463,7 @@ final class HistoryInteractionTests: XCTestCase {
             if predicate() { return }
             let remaining = deadline - ProcessInfo.processInfo.systemUptime
             guard remaining > 0 else {
-                XCTFail("Native condition did not settle")
+                XCTFail("Native condition did not settle", file: file, line: line)
                 throw NativeConditionTimeout()
             }
             try await Task.sleep(for: .seconds(min(0.01, remaining)))

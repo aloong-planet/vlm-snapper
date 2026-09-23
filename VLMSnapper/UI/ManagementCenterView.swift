@@ -187,6 +187,7 @@ public struct ManagementCenterView: View {
     @State private var historyProviderID: String?
     @State private var searchText: String
     @State private var selectedRecordID: UUID?
+    @FocusState private var historyListFocused: Bool
     @State private var retention: HistoryRetentionPeriod
     @State private var pinnedOnly = false
     @State private var showGeneralSettings = false
@@ -447,28 +448,39 @@ public struct ManagementCenterView: View {
                         ScrollView {
                             LazyVStack(spacing: 5) {
                                 ForEach(filteredRecords) { record in
-                                    Button { selectedRecordID = record.id } label: {
+                                    Button {
+                                        selectedRecordID = record.id
+                                        historyListFocused = true
+                                    } label: {
                                         historyRow(record)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .modifier(HistoryRecordSurface(isSelected: selectedRecordID == record.id))
                                     }
                                     .buttonStyle(.plain)
+                                    .focusable(false)
                                     .id(record.id)
                                     .accessibilityElement(children: .combine)
                                     .accessibilityIdentifier("history-record-\(record.id)")
                                     .accessibilityAddTraits(selectedRecordID == record.id ? .isSelected : [])
-                                    .accessibilityAction { selectedRecordID = record.id }
+                                    .accessibilityAction {
+                                        selectedRecordID = record.id
+                                        historyListFocused = true
+                                    }
                                 }
                             }
                             .padding(5)
                         }
                         .background(VLMSnapperTheme.historySurface)
-                        .onMoveCommand { direction in
-                            guard direction == .up || direction == .down,
-                                  let index = filteredRecords.firstIndex(where: { $0.id == selectedRecordID }) else { return }
-                            let next = max(0, min(filteredRecords.count - 1, index + (direction == .down ? 1 : -1)))
+                        .focusable()
+                        .focusEffectDisabled()
+                        .focused($historyListFocused)
+                        .onKeyPress(keys: [.upArrow, .downArrow], phases: [.down, .repeat]) { press in
+                            guard press.modifiers.intersection([.shift, .control, .option, .command]).isEmpty,
+                                  let index = filteredRecords.firstIndex(where: { $0.id == selectedRecordID }) else { return .ignored }
+                            let next = max(0, min(filteredRecords.count - 1, index + (press.key == .downArrow ? 1 : -1)))
                             selectedRecordID = filteredRecords[next].id
                             proxy.scrollTo(filteredRecords[next].id)
+                            return .handled
                         }
                     }
                 }

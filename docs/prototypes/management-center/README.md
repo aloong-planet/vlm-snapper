@@ -23,6 +23,28 @@ that evidence does not retrospectively validate every settings state.
 
 ## Bilingual history preview — 2026-09-23
 
+### Keyboard record navigation — confirmed 2026-09-23
+
+In History and Pinned, clicking a row or tabbing into the list gives the record
+list keyboard focus. Unmodified Up/Down selects the previous/next visible record
+and updates the detail pane immediately, scrolling the selected row into view.
+Navigation respects the current search, type, Provider and pinned filters; the
+first and last rows do not wrap. Empty and single-record lists cannot advance.
+Search, filter controls and detail text keep their own arrow-key behavior.
+Image completion preserves list focus; selection never triggers Retry or changes
+pin state. The existing selected/hover surfaces and geometry are unchanged.
+The user confirmed this prototype for native implementation on 2026-09-23.
+At the user's request, record rows suppress the outer keyboard-focus ring only;
+their selected surface and keyboard focus remain. Other controls retain focus indicators.
+Browser checks verified History h1 → h2 with matching detail, the first-row
+boundary, Pinned h1 → h3 → h6 with the last-row boundary, search focus isolation,
+and single/empty filtered lists. The selected surface still resolves to
+rgb(220, 230, 245) in the light theme. Native window tests now cover click/Tab
+focus entry, arrow selection and scrolling, Pinned/filter boundaries, search
+focus isolation and same-record refresh. Native light/dark renders preserve the
+selected background without an outer ring. Synthetic events do not substitute
+for installed-app physical-keyboard or VoiceOver acceptance.
+
 ### Image availability — confirmed 2026-09-23
 
 The user explicitly rejected loading messages after the local-read measurement.
