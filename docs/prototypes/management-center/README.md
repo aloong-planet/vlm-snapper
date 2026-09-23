@@ -17,8 +17,63 @@ The earlier fixed-window revision was approved and installed in build 31.
 On 2026-09-15 the user explicitly requested implementing the top-right Retry
 button and its real operation. That entry now runs in the native detail pane;
 fill-screen and no-extra-action double-click are now synchronized to the native App; installed-app acceptance remains separate.
-Browser automation was previously denied by URL policy;
-this revision has not been visually verified by the agent.
+Browser automation for that earlier revision was denied by URL policy.
+The history-only bilingual revision below was inspected in the in-app browser;
+that evidence does not retrospectively validate every settings state.
+
+## Bilingual history preview — 2026-09-23
+
+### Image availability — confirmed 2026-09-23
+
+The user explicitly rejected loading messages after the local-read measurement.
+Image selection leaves the existing 100 px bordered image region blank until the
+read completes, with no loading text or spinner. Switching records clears the
+previous image; completion reveals the selected image or the existing unavailable
+message. Rendering the same record, including retry progress, retains its loaded
+image. Text remains readable; image preview and Retry require an available image.
+
+The bottom loading/completed/read-failure controls are fixture-only harness controls,
+not product buttons. The automatic 900 ms delay only makes switching observable;
+it is not a production delay requirement. Actual availability must come from local
+reading, ownership/hash validation and image decoding. This UI preview does not
+prove that the native first-load bug or Provider retry failure is fixed.
+
+The earlier browser check covered the now-rejected loading message; it does not
+serve as acceptance of this revision. Native regression checks distinguish a
+pending read from a failed read and cover same-record retention and late results.
+The existing theme border/surface and image geometry are unchanged. Provider
+request failures are a separate concern and are not solved by image presentation.
+
+The user confirmed continuous paragraphs and linked sentence highlighting in
+the standalone bilingual preview. History now uses that same shared reading
+surface inside its existing detail card, below the screenshot. Original is on
+the left and translation on the right; header and body dividers share the same
+column geometry. Hover previews both matching fragments, while click or native
+text selection gives the selected pair precedence. Extraction stays single-column.
+The history list, filters, screenshot viewer and Retry/Pin/Delete controls remain.
+
+The bottom **Stream preview** control is test-only: synthetic interleaved deltas
+fill both columns without API calls or history writes. Switching records or
+ending the preview restores the saved fixture, and stale callbacks do not write
+into the next record. Paragraph boundaries and correspondence are authored in
+the fixtures, not inferred or verified against a model. The standalone page and
+history page declare the `bilingual-result` shared block and load its CSS and JS.
+
+Browser checks covered both hosts, bidirectional click/hover, a wrapped sentence's
+actual text fragment, extraction, image viewer, replay completion and record
+switch isolation, plus English/dark/minimum-window layout. Header/body divider
+offset was 0 px at the full and minimum history window sizes. Automated waits
+for the full replay twice hit the tool deadline; subsequent page observations
+confirmed the completed state. This is not a timing benchmark or native App
+acceptance. The user confirmed the integrated composition, copy icons and compact
+action spacing on 2026-09-23; native installed-app acceptance remains separate.
+
+Each bilingual column has a 30 × 30 Copy icon button in its heading, using the
+existing copy glyph with localized hover text and an accessible action name. Clicking copies
+only that column's currently displayed text, preserving paragraph breaks and list
+numbers, with brief success/failure feedback beside the unchanged icon. Empty columns disable Copy; during
+stream preview Copy takes a snapshot of the text already displayed. Unlike the
+mock retry/delete controls, these buttons write the fixture text to the clipboard.
 
 - `#history` opens History with a dedicated content toolbar: left-aligned type filters, right-aligned search, then the history list and detail below.
 - History rows retain rounded, separated surfaces: pale blue when selected, pale gray on hover, and selected color wins when both apply. These styles have been synchronized to the native App; installed-app interaction acceptance remains separate.

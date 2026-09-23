@@ -175,6 +175,7 @@ public struct ManagementCenterView: View {
     private let navigationRequestID: UUID?
     private let records: [HistoryRecord]
     private let selectedImage: NSImage?
+    private let selectedImageLoadFailed: Bool
     private let imageRecordID: UUID?
     private let cleanupFailureCount: Int
     private let callbacks: ManagementCenterCallbacks
@@ -202,6 +203,7 @@ public struct ManagementCenterView: View {
         records: [HistoryRecord],
         selectedRecordID: UUID? = nil,
         selectedImage: NSImage? = nil,
+        selectedImageLoadFailed: Bool = false,
         cleanupFailureCount: Int = 0,
         searchText: String = "",
         showsGeneralSettings: Bool? = nil,
@@ -214,6 +216,7 @@ public struct ManagementCenterView: View {
         self.navigationRequestID = navigationRequestID
         self.records = records
         self.selectedImage = selectedImage
+        self.selectedImageLoadFailed = selectedImageLoadFailed
         self.imageRecordID = selectedRecordID ?? records.first?.id
         self.cleanupFailureCount = cleanupFailureCount
         self.callbacks = callbacks
@@ -1228,11 +1231,8 @@ public struct ManagementCenterView: View {
                         }
                         if historyRetry.recordID != record.id || (!historyRetry.isRunning
                             && historyRetry.slot.attempt != .succeeded && historyRetry.slot.unsavedResult == nil) {
-                            resultSection(VLMSnapperStrings.historyOriginal, text: record.operation.sourceMarkdown)
-                            if record.operation.kind == .translate {
-                                Divider()
-                                resultSection(VLMSnapperStrings.historyTranslation, text: record.operation.translationMarkdown)
-                            }
+                            historyResult(record, source: record.operation.sourceMarkdown,
+                                          translation: record.operation.translationMarkdown, segments: record.operation.segments)
                             metrics(record)
                         }
                     }
@@ -1262,6 +1262,7 @@ public struct ManagementCenterView: View {
                     .foregroundStyle(VLMSnapperTheme.secondaryText)
             }
             Spacer()
+            HStack(spacing: 0) {
             Button { callbacks.onRetryRecord(record.id) } label: {
                 Group {
                     if historyRetry.isRunning && historyRetry.recordID == record.id {
@@ -1294,6 +1295,7 @@ public struct ManagementCenterView: View {
             }
             .buttonStyle(.borderless)
             .disabled(record.operation.status.isActive || historyRetry.preventsDiscard)
+            }
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 8)
@@ -1307,17 +1309,12 @@ public struct ManagementCenterView: View {
                 Text(VLMSnapperStrings.preparing)
             case .streaming:
                 Text(VLMSnapperStrings.streaming)
-                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.sourceDelta)
-                if record.operation.kind == .translate {
-                    Divider()
-                    resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.translationDelta)
-                }
+                historyResult(record, source: historyRetry.slot.sourceDelta,
+                              translation: historyRetry.slot.translationDelta, segments: historyRetry.slot.segments)
             case .succeeded:
-                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.committedResult?.sourceMarkdown)
-                if record.operation.kind == .translate {
-                    Divider()
-                    resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.committedResult?.translationMarkdown)
-                }
+                historyResult(record, source: historyRetry.slot.committedResult?.sourceMarkdown,
+                              translation: historyRetry.slot.committedResult?.translationMarkdown,
+                              segments: historyRetry.slot.committedResult?.segments)
             case let .failed(code):
                 Text(code == "history_screenshot_unavailable" ? VLMSnapperStrings.historyScreenshotUnavailable
                      : VLMSnapperStrings.failureMessage(code: code))
@@ -1325,11 +1322,9 @@ public struct ManagementCenterView: View {
             case .canceled:
                 Text(VLMSnapperStrings.canceled)
             case .resultPersistenceFailed:
-                resultSection(VLMSnapperStrings.historyOriginal, text: historyRetry.slot.unsavedResult?.sourceMarkdown)
-                if record.operation.kind == .translate {
-                    Divider()
-                    resultSection(VLMSnapperStrings.historyTranslation, text: historyRetry.slot.unsavedResult?.translationMarkdown)
-                }
+                historyResult(record, source: historyRetry.slot.unsavedResult?.sourceMarkdown,
+                              translation: historyRetry.slot.unsavedResult?.translationMarkdown,
+                              segments: historyRetry.slot.unsavedResult?.segments)
                 Text(historyRetry.slot.persistenceFailureCode.map(VLMSnapperStrings.failureMessage(code:))
                      ?? VLMSnapperStrings.persistenceFailed).foregroundStyle(VLMSnapperTheme.destructive)
                 Button(VLMSnapperStrings.retrySave, action: callbacks.onRetryHistorySave)
@@ -1460,7 +1455,12 @@ public struct ManagementCenterView: View {
             .accessibilityLabel(VLMSnapperStrings.historyViewOriginal)
             .accessibilityIdentifier("history-image-preview")
         } else {
-            Label(VLMSnapperStrings.historyScreenshotUnavailable, systemImage: VLMSnapperIcon.warning.rawValue)
+            ZStack {
+                Color.clear
+                if selectedImageLoadFailed && imageRecordID == record.id {
+                    Label(VLMSnapperStrings.historyScreenshotUnavailable, systemImage: VLMSnapperIcon.warning.rawValue)
+                }
+            }
                 .foregroundStyle(VLMSnapperTheme.secondaryText)
                 .frame(maxWidth: .infinity, minHeight: 100)
                 .background(VLMSnapperTheme.subtleSurface)
@@ -1472,9 +1472,27 @@ public struct ManagementCenterView: View {
         }
     }
 
+    @ViewBuilder
+    private func historyResult(_ record: HistoryRecord, source: String?, translation: String?, segments: [TranslationSegment]?) -> some View {
+        if record.operation.kind == .translate {
+            BilingualResultView(source: source ?? "", translation: translation ?? "", segments: segments)
+                .id(record.id)
+                .padding(.horizontal, -15)
+        } else {
+            resultSection(VLMSnapperStrings.historyOriginal, text: source)
+        }
+    }
+
     private func resultSection(_ title: String, text: String?) -> some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(title).font(.system(size: 15, weight: .semibold))
+            HStack {
+                Text(title).font(.system(size: 15, weight: .semibold))
+                Spacer()
+                ResultCopyButton(text: text ?? "") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString($0, forType: .string)
+                }
+            }
             Text(text ?? VLMSnapperStrings.historyUnavailable).textSelection(.enabled)
         }
     }

@@ -54,6 +54,12 @@ class ReportGateTests(unittest.TestCase):
             with self.subTest(name=name):
                 if expected_failure:
                     continue
+                if name == "bilingual-descriptions":
+                    self.assertEqual(steps, [
+                        gate.wait({"AXIdentifier": "bilingual-source"}, "AXDescription", "Original"),
+                        gate.wait({"AXIdentifier": "bilingual-translation"}, "AXDescription", "Translation"),
+                    ])
+                    continue
                 if "--history-image" in arguments:
                     self.assertIn(gate.press("View original image"), steps)
                     self.assertIn(gate.press("100% actual size"), steps)

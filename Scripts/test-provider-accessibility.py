@@ -45,6 +45,10 @@ def result(title="AX fixture validated exact value 1"):
 
 
 def cases():
+    yield "bilingual-descriptions", ["--history-image", "--missing-image"], [
+        wait({"AXIdentifier": "bilingual-source"}, "AXDescription", "Original"),
+        wait({"AXIdentifier": "bilingual-translation"}, "AXDescription", "Translation"),
+    ], None
     yield "history-image-missing", ["--history-image", "--missing-image"], [
         result("AX fixture ready"), wait(button("View original image")),
     ], "step_2"

@@ -18,6 +18,7 @@ public enum WorkspaceAttemptState: Equatable, Sendable {
 public enum OperationWorkspaceRunEvent: Equatable, Sendable {
     case sourceDelta(String)
     case translationDelta(String)
+    case translationSegments([TranslationSegment])
     case succeeded(WorkspaceCommittedResult)
     case resultPersistenceFailed(WorkspaceCommittedResult, code: String? = nil)
 }
@@ -96,13 +97,16 @@ public actor ActiveOperationGate: OperationActivityGating {
 public struct WorkspaceCommittedResult: Equatable, Sendable {
     public let sourceMarkdown: String
     public let translationMarkdown: String?
+    public let segments: [TranslationSegment]?
 
     public init(
         sourceMarkdown: String,
-        translationMarkdown: String?
+        translationMarkdown: String?,
+        segments: [TranslationSegment]? = nil
     ) {
         self.sourceMarkdown = sourceMarkdown
         self.translationMarkdown = translationMarkdown
+        self.segments = segments
     }
 }
 
@@ -113,6 +117,7 @@ public struct WorkspaceOperationSlot: Equatable, Sendable {
     public let sourceDelta: String
     public let translationDelta: String
     public let persistenceFailureCode: String?
+    public let segments: [TranslationSegment]?
 
     public init(
         attempt: WorkspaceAttemptState = .neverStarted,
@@ -120,7 +125,8 @@ public struct WorkspaceOperationSlot: Equatable, Sendable {
         unsavedResult: WorkspaceCommittedResult? = nil,
         sourceDelta: String = "",
         translationDelta: String = "",
-        persistenceFailureCode: String? = nil
+        persistenceFailureCode: String? = nil,
+        segments: [TranslationSegment]? = nil
     ) {
         self.attempt = attempt
         self.committedResult = committedResult
@@ -128,6 +134,7 @@ public struct WorkspaceOperationSlot: Equatable, Sendable {
         self.sourceDelta = sourceDelta
         self.translationDelta = translationDelta
         self.persistenceFailureCode = persistenceFailureCode
+        self.segments = segments
     }
 }
 
@@ -164,7 +171,8 @@ private extension WorkspaceOperationSlot {
         let committedResult = operation.sourceMarkdown.map {
             WorkspaceCommittedResult(
                 sourceMarkdown: $0,
-                translationMarkdown: operation.translationMarkdown
+                translationMarkdown: operation.translationMarkdown,
+                segments: operation.segments
             )
         }
         let attempt: WorkspaceAttemptState = switch operation.status {
@@ -461,6 +469,14 @@ public actor OperationWorkspaceSession {
             return
         }
         switch event {
+        case let .translationSegments(segments):
+            setSlot(WorkspaceOperationSlot(
+                attempt: .streaming,
+                committedResult: current.committedResult,
+                sourceDelta: TranslationSegment.text(segments, translated: false),
+                translationDelta: TranslationSegment.text(segments, translated: true),
+                segments: segments
+            ), for: kind)
         case let .sourceDelta(delta):
             setSlot(
                 WorkspaceOperationSlot(

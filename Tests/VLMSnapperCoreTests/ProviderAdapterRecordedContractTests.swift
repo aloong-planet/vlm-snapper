@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Recorded provider adapter contract")
 struct ProviderAdapterRecordedContractTests {
-    @Test("all providers produce the same ordered translation contract", arguments: fixtures)
+    @Test("all recorded transport envelopes carry the same synthetic paired translation contract", arguments: fixtures)
     func allProvidersProduceOrderedTranslation(fixture: AdapterFixture) async throws {
         let transport = FixtureStreamingTransport(body: fixture.body)
         let executor = ProviderAdapterExecutor(transport: transport)
@@ -21,8 +21,8 @@ struct ProviderAdapterRecordedContractTests {
         }
 
         #expect(events == [
-            .sourceDelta("Hello"),
-            .translationDelta("Hola"),
+            .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "")]),
+            .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "Hola")]),
             .metadata(
                 ProviderResponseMetadata(
                     requestID: fixture.requestID,
@@ -41,8 +41,8 @@ struct ProviderAdapterRecordedContractTests {
             requestID: "resp_contract",
             usage: ProviderTokenUsage(inputTokens: 10, outputTokens: 5, totalTokens: 15),
             payloads: [
-                #"{"type":"response.output_text.delta","delta":"{\"source\":\"Hello\""}"#,
-                #"{"type":"response.output_text.delta","delta":",\"translation\":\"Hola\"}"}"#,
+                #"{"type":"response.output_text.delta","delta":"{\"segments\":[{\"id\":\"s1\",\"block\":\"p1\",\"kind\":\"paragraph\",\"source\":\"Hello\""}"#,
+                #"{"type":"response.output_text.delta","delta":",\"translation\":\"Hola\"}]}"}"#,
                 #"{"type":"response.completed","response":{"id":"resp_contract","status":"completed","usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}}"#,
             ]
         ),
@@ -52,8 +52,8 @@ struct ProviderAdapterRecordedContractTests {
             requestID: "gem_contract",
             usage: ProviderTokenUsage(inputTokens: 10, outputTokens: 5, totalTokens: 15),
             payloads: [
-                #"{"responseId":"gem_contract","candidates":[{"index":0,"content":{"parts":[{"text":"{\"source\":\"Hello\""}]}}]}"#,
-                #"{"responseId":"gem_contract","candidates":[{"index":0,"content":{"parts":[{"text":",\"translation\":\"Hola\"}"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":5,"totalTokenCount":15}}"#,
+                #"{"responseId":"gem_contract","candidates":[{"index":0,"content":{"parts":[{"text":"{\"segments\":[{\"id\":\"s1\",\"block\":\"p1\",\"kind\":\"paragraph\",\"source\":\"Hello\""}]}}]}"#,
+                #"{"responseId":"gem_contract","candidates":[{"index":0,"content":{"parts":[{"text":",\"translation\":\"Hola\"}]}"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":5,"totalTokenCount":15}}"#,
             ]
         ),
         AdapterFixture(
@@ -62,8 +62,8 @@ struct ProviderAdapterRecordedContractTests {
             requestID: "chat_contract",
             usage: ProviderTokenUsage(inputTokens: 10, outputTokens: 5, totalTokens: 15),
             payloads: [
-                #"{"id":"chat_contract","choices":[{"index":0,"delta":{"content":"{\"source\":\"Hello\""},"finish_reason":null}]}"#,
-                #"{"id":"chat_contract","choices":[{"index":0,"delta":{"content":",\"translation\":\"Hola\"}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}"#,
+                #"{"id":"chat_contract","choices":[{"index":0,"delta":{"content":"{\"segments\":[{\"id\":\"s1\",\"block\":\"p1\",\"kind\":\"paragraph\",\"source\":\"Hello\""},"finish_reason":null}]}"#,
+                #"{"id":"chat_contract","choices":[{"index":0,"delta":{"content":",\"translation\":\"Hola\"}]}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}"#,
                 "[DONE]",
             ]
         ),

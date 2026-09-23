@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VLMSnapper · 统一管理中心</title>
   <link rel="stylesheet" href="../_shared/vlmsnapper-shell.css">
+  <link rel="stylesheet" href="../_shared/bilingual-result.css?v=copy-icon">
+  <script src="../_shared/bilingual-result.js?v=copy-icon"></script>
   <!-- Demo harness: theme, credential fixtures, updater fixtures and Refresh A
        states/language are not product UI. Refresh A previews stable layout only;
        real progress is driven by the model-list request. All keys are dummy data.
@@ -14,13 +16,18 @@
        History results are inert text fixtures, never user data; copy/delete and
        retry feedback never call a Provider or persist a record.
        Screenshot thumbnails and enlarged originals share one inline image fixture.
+       Image-state harness holds loading/success/failure fixtures, not product UI.
+       Real image availability comes from local reading, ownership validation and decoding.
        Enlarged preview: wheel zooms around the pointer; dragging pans the image.
        The retry indicator stays in the header; result sections keep their names.
        Reloading the document models a new Management Center window session.
        The ordinary window fills the available desktop by default, not a macOS
        fullscreen Space. The minimum-size demo retains 920 x 620 of content.
        The preview adds its 46px titlebar and 1px border outside that content.
-       All destinations share a 180px sidebar; the history list remains 260px. -->
+       All destinations share a 180px sidebar; the history list remains 260px.
+       Translation bodies share the confirmed bilingual reader. Paragraph and
+       sentence alignment are fixture-authored, not model-validated. Stream
+       preview uses synthetic timings, never a network request or saved retry. -->
   <style>
     .menu-entry { width: 27px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; color: var(--accent-text); background: var(--surface-selected); }
     .capture-mark { width: 14px; height: 12px; border: 1.7px solid currentColor; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--menubar); }
@@ -103,6 +110,7 @@
     .hf-detail-heading { min-width: 0; }
     .hf-detail-actions { display: flex; gap: 4px; align-items: center; }
     .hf-action-wrap { position: relative; display: flex; width: 30px; height: 30px; }
+    .hf-detail-actions > .hf-action-wrap + .hf-action-wrap { margin-left: -4px; }
     .hf-detail-actions .icon-button:disabled { color: var(--text-tertiary); background: transparent; cursor: not-allowed; }
     .hf-pin[aria-pressed="true"] { color: var(--accent-text); }
     .hf-pin[aria-pressed="true"] .icon > path:last-child { fill: currentColor; }
@@ -139,6 +147,14 @@
     .hf-preview + .text-section { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
     .page-history .text-section + .text-section { margin-top: 18px; padding-top: 18px; }
     .page-history .text-section > h3 { margin-bottom: 9px; font-size: 15px; font-weight: 650; }
+    .page-history [data-shared-block="bilingual-result"] {
+      --bt-surface: var(--surface); --bt-text: var(--text); --bt-muted: var(--text-secondary);
+      --bt-line: var(--line); --bt-hover: var(--surface-hover); --bt-selected: var(--surface-selected);
+      --bt-focus: var(--accent); --bt-selection: var(--surface-selected);
+      margin-top: 18px; border-top: 1px solid var(--line);
+    }
+    [data-hf-harness] { display: contents; }
+    [data-hf-harness] button:disabled { opacity: .45; cursor: default; }
     .hf-lightbox { width: min(1280px, calc(100vw - 64px)); max-width: none; max-height: calc(100vh - 64px); padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; color: var(--text); background: var(--surface); box-shadow: 0 12px 40px var(--shadow); }
     .hf-lightbox::backdrop { background: var(--shadow); }
     .hf-lightbox > header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -832,11 +848,17 @@
       Object.assign(copy.en, { enlarge:'View original image', closePreview:'Close preview', originalSize:'100% actual size', fitImage:'Fit to window' });
       Object.assign(copy['zh-Hans'], { wheelHint:'滚轮缩放 · 拖动平移' });
       Object.assign(copy.en, { wheelHint:'Scroll to zoom · Drag to pan' });
+      Object.assign(copy['zh-Hans'], { stream:'流式回放', stopStream:'结束回放', streamNotice:'演示：模拟双栏增量展示，未调用模型；切换记录会结束回放。', alignmentNote:'句子与段落对应关系为样例标注，尚未验证模型自动还原。' });
+      Object.assign(copy.en, { stream:'Stream preview', stopStream:'End preview', streamNotice:'Demo: synthetic bilingual deltas, no model request. Switching records ends the preview.', alignmentNote:'Sentence and paragraph alignment is fixture-authored, not model-validated.' });
+      Object.assign(copy['zh-Hans'], { copyText:'复制', copyDone:'已复制', copyFailed:'复制失败' });
+      Object.assign(copy.en, { copyText:'Copy', copyDone:'Copied', copyFailed:'Copy failed' });
       if (Object.keys(copy.en).sort().join() !== Object.keys(copy['zh-Hans']).sort().join()) throw Error('History copy keys differ');
       let language = 'zh-Hans', zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const region = navigator.language;
       let zoneOverride = false, pinned = false, emptyFixture = false, selected = 'h1', notice = '';
       let retryingRecordID = null;
+      let imageRecordID = null, imagePhase = 'loading', imageTimer;
+      let bilingualView = null, streamEpoch = 0, streamActive = false;
       const records = [
         {id:'h1',kind:'translate',status:'success',provider:'DeepSeek',model:'deepseek-v4-flash-vision-exp',target:'en',date:'2026-09-03T16:30:00Z',pinned:true,source:'优秀的工具软件保留上下文。',translation:'Good utility software preserves context.',title:'Designing Calm Software'},
         {id:'h2',kind:'extract',status:'success',provider:'OpenAI',model:'gpt-4.1',target:'',date:'2026-09-03T15:59:59Z',pinned:false,source:'Vision API integration guide — multimodal input.',translation:'',title:'Vision API integration guide'},
@@ -845,6 +867,21 @@
         {id:'h5',kind:'translate',status:'interrupted',provider:'OpenAI',model:'shared-vision-preview',target:'zh-Hans',date:'2026-09-02T08:00:00Z',pinned:false,source:'',translation:'',title:'Interrupted translation'},
         {id:'h6',kind:'translate',status:'success',provider:'DeepSeek',model:'retired-vision-model-with-a-long-historical-identifier',target:'ja',date:'2026-09-01T01:00:00Z',pinned:true,source:'Long identifiers remain searchable in local history.',translation:'長い識別子はローカル履歴から検索できます。',title:'Archived model',missing:true}
       ];
+      // Multiple sentences remain in each paragraph. Fixtures carry explicit
+      // correspondence; the UI never splits or aligns arbitrary saved text.
+      const aligned = {
+        h1: [
+          {id:'calm-1',block:'intro',kind:'sentence',source:'优秀的工具软件保留上下文。',translation:'Good utility software preserves context.'},
+          {id:'calm-2',block:'intro',kind:'sentence',source:'它减少不必要的步骤，让下一步操作清晰可见。',translation:'It reduces unnecessary steps and makes the next action clear.'},
+          {id:'calm-3',block:'reading',kind:'sentence',source:'原文和译文各自保持完整段落。',translation:'The original and translation each remain continuous paragraphs.'},
+          {id:'calm-4',block:'reading',kind:'sentence',source:'即使句子自然换行，也只高亮对应文字。',translation:'Even when a sentence wraps naturally, only the corresponding text is highlighted.'}
+        ],
+        h6: [{id:'archive-1',block:'intro',kind:'sentence',source:records[5].source,translation:records[5].translation}]
+      };
+      for (const record of records) if (aligned[record.id]) {
+        const blocks = [...new Set(aligned[record.id].map(g=>g.block))];
+        for (const field of ['source','translation']) record[field] = blocks.map(block=>aligned[record.id].filter(g=>g.block===block).map(g=>g[field]).join(record.id==='h1'&&field==='translation'?' ':'')).join('\n\n');
+      }
       const t = () => copy[language];
       const toolbar=document.querySelector('.content-toolbar');
       const provider=document.createElement('select'); provider.id='hf-provider'; provider.className='hf-provider-control'; toolbar.querySelector('.toolbar-right').prepend(provider);
@@ -852,8 +889,13 @@
       const footer=document.createElement('footer'); footer.className='hf-list-footer'; footer.innerHTML='<button class="hf-clear"></button>'; pane.append(footer);
       const status=document.createElement('div'); status.className='hf-status'; status.setAttribute('role','status'); footer.append(status);
       const note=document.createElement('div'); note.className='hf-note'; document.body.append(note);
-      const harness=document.createElement('span'); harness.dataset.hfHarness=''; harness.innerHTML='<span class="harness-label">演示·历史</span><button id="hf-language">English</button><button id="hf-size">920 × 620</button><button id="hf-zone-demo">时区：系统</button><button id="hf-empty-demo">空历史</button>'; document.querySelector('.harness').prepend(harness);
+      const harness=document.createElement('span'); harness.dataset.hfHarness=''; harness.innerHTML='<span class="harness-label">演示·历史</span><button id="hf-language">English</button><button id="hf-size">920 × 620</button><button id="hf-zone-demo">时区：系统</button><button id="hf-empty-demo">空历史</button><button id="hf-stream-demo"></button>'; document.querySelector('.harness').prepend(harness);
       const get = id => document.querySelector('#hf-'+id);
+      for (const [phase,label] of [['loading','图片加载中'],['ready','加载完成'],['unavailable','读取失败']]) {
+        const control=document.createElement('button');control.textContent=label;control.dataset.imageDemo=phase;
+        control.addEventListener('click',()=>{window.clearTimeout(imageTimer);imageRecordID=selected;imagePhase=phase;render();});
+        harness.append(control);
+      }
       const option = (value,label) => new Option(label,value);
       const choices = (id, values) => {const control=get(id), value=control.value;control.replaceChildren(option('',t().allProviders),...values.map(([v,l])=>option(v,l)));control.value=[...control.options].some(o=>o.value===value)?value:'';};
       function setChoices() {
@@ -866,8 +908,9 @@
         const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
         svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('width','1200');svg.setAttribute('height','300');svg.setAttribute('viewBox','0 0 1200 300');
         const background=document.createElementNS(svg.namespaceURI,'rect');background.setAttribute('width','1200');background.setAttribute('height','300');background.setAttribute('fill','#ffffff');svg.append(background);
-        for(const [index,line] of [record.title,record.source||record.title].entries()) {
-          const text=document.createElementNS(svg.namespaceURI,'text');text.setAttribute('x','48');text.setAttribute('y',String(105+index*85));text.setAttribute('fill','#34322e');text.setAttribute('font-family','Arial, sans-serif');text.setAttribute('font-size',index===0?'32':'26');text.setAttribute('font-weight',index===0?'600':'400');text.textContent=line;svg.append(text);
+        const lines=aligned[record.id]?[record.title,...aligned[record.id].map(g=>g.source)]:[record.title,record.source||record.title];
+        for(const [index,line] of lines.entries()) {
+          const text=document.createElementNS(svg.namespaceURI,'text');text.setAttribute('x','48');text.setAttribute('y',String(55+index*48));text.setAttribute('fill','#34322e');text.setAttribute('font-family','Arial, sans-serif');text.setAttribute('font-size',index===0?'32':'26');text.setAttribute('font-weight',index===0?'600':'400');text.textContent=line;svg.append(text);
         }
         return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
       }
@@ -910,6 +953,7 @@
         header.append(title,hint,size,close);dialog.append(header,scroll);document.body.append(dialog);dialog.showModal();image.src=source;close.focus();
       }
       function detail(record) {
+        bilingualView?.destroy(); bilingualView = null;
         const area=document.querySelector('.page-history .detail'); area.replaceChildren();
         if(!record){const empty=document.createElement('div');empty.className='hf-detail-empty';empty.textContent=t().none;area.append(empty);return;}
         const card=document.createElement('article');card.className='detail-card';
@@ -925,25 +969,42 @@
           const hint=document.createElement('span');hint.className='hf-action-tip';hint.id='hf-tip-'+name;hint.setAttribute('role','tooltip');hint.textContent=tip;button.setAttribute('aria-describedby',hint.id);
           wrap.append(button,hint);actions.append(wrap);return button;
         };
-        const retry=action('retry',t().retry,'<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',record.missing?t().missing:retryingRecordID?t().active:t().retry);
-        retry.disabled=Boolean(record.missing||retryingRecordID);
+        const imageAvailable=imagePhase==='ready';
+        const retry=action('retry',t().retry,'<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',imagePhase==='unavailable'?t().missing:retryingRecordID?t().active:t().retry);
+        retry.disabled=Boolean(!imageAvailable||retryingRecordID);
         if(retryingRecordID===record.id){retry.innerHTML='<span class="spinner" aria-hidden="true"></span>';retry.setAttribute('aria-label',t().retrying);}
-        retry.addEventListener('click',()=>{if(record.missing||retryingRecordID)return;retryingRecordID=record.id;notice=t().retryDemo;render();window.setTimeout(()=>{retryingRecordID=null;notice=t().retryEnded;render();},1800);});
+        retry.addEventListener('click',()=>{if(!imageAvailable||retryingRecordID)return;retryingRecordID=record.id;notice=t().retryDemo;render();window.setTimeout(()=>{retryingRecordID=null;notice=t().retryEnded;render();},1800);});
         const pin=action('pin',record.pinned?t().unpin:t().pin,'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>');
         pin.setAttribute('aria-pressed',String(record.pinned));pin.addEventListener('click',()=>{record.pinned=!record.pinned;languageLabels();});
         const remove=action('delete',t().delete,'<path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>');
         remove.addEventListener('click',()=>{notice=t().deleteDemo;render();});
         head.append(heading,actions);
-        const preview=document.createElement('button');preview.type='button';preview.className='hf-preview';preview.disabled=Boolean(record.missing);
-        if(record.missing){preview.textContent=t().missing;}else{const source=screenshotFixture(record),image=document.createElement('img');image.src=source;image.alt=record.title;preview.setAttribute('aria-label',t().enlarge);preview.title=t().enlarge;preview.append(image);preview.addEventListener('click',()=>showOriginal(source,record,preview));}content.append(preview);
-        for(const [label,value] of [[t().original,record.source],[t().translation,record.translation]]){if(!value)continue;const section=document.createElement('section');section.className='text-section';const heading=document.createElement('h3');heading.textContent=label;const p=document.createElement('p');p.className='hf-detail-text';p.textContent=value;section.append(heading,p);content.append(section);}
+        const preview=document.createElement('button');preview.type='button';preview.className='hf-preview';preview.disabled=!imageAvailable;
+        preview.dataset.imageState=imagePhase;preview.setAttribute('aria-busy',String(imagePhase==='loading'));
+        if(!imageAvailable){preview.textContent=imagePhase==='loading'?'':t().missing;}else{const source=screenshotFixture(record),image=document.createElement('img');image.src=source;image.alt=record.title;preview.setAttribute('aria-label',t().enlarge);preview.title=t().enlarge;preview.append(image);preview.addEventListener('click',()=>showOriginal(source,record,preview));}content.append(preview);
+        if(record.kind==='translate' && aligned[record.id]) {
+          const reader=document.createElement('div');content.append(reader);
+          bilingualView=BilingualResult.mount(reader,[t().original,t().translation,t().copyText,t().copyDone,t().copyFailed],record.id==='h1'?{source:'',translation:' '}:{source:' ',translation:''});
+          for(const group of aligned[record.id]) for(const field of ['source','translation']) bilingualView.update(group,field,group[field]);
+        } else {
+          for(const [label,value] of [[t().original,record.source],[t().translation,record.translation]]){if(!value)continue;const section=document.createElement('section');section.className='text-section';const heading=document.createElement('h3');heading.textContent=label;const p=document.createElement('p');p.className='hf-detail-text';p.textContent=value;section.append(heading,p);content.append(section);}
+        }
         if(!record.source&&!record.translation){const p=document.createElement('p');p.textContent=t()[record.status];content.append(p);}
         card.append(head,content);area.append(card);
       }
       function render() {
+        streamEpoch++; streamActive=false;
         const q=draft();
         const visible=emptyFixture?[]:records.filter(r=>matches(r,q));
         if(!visible.some(r=>r.id===selected))selected=visible[0]?.id;
+        if(imageRecordID!==selected){
+          window.clearTimeout(imageTimer);imageRecordID=selected;imagePhase='loading';
+          const pendingID=selected;
+          if(pendingID)imageTimer=window.setTimeout(()=>{
+            if(selected!==pendingID||imageRecordID!==pendingID)return;
+            imagePhase=records.find(r=>r.id===pendingID)?.missing?'unavailable':'ready';render();
+          },900);
+        }
         historyList.classList.remove('is-empty');historyList.replaceChildren();
         for(const r of visible){
           const row=document.createElement('button');row.className='history-item hf-row'+(r.id===selected?' is-selected':'');row.dataset.recordId=r.id;row.setAttribute('aria-pressed',String(r.id===selected));
@@ -961,7 +1022,8 @@
         detail(visible.find(r=>r.id===selected));
         status.textContent=[notice,t().count(visible.length)].filter(Boolean).join(' · ');
         provider.setAttribute('aria-label',t().provider);
-        footer.querySelector('button').textContent=t().clear;note.textContent=t().note;
+        footer.querySelector('button').textContent=t().clear;note.textContent=t().note+' '+t().alignmentNote;
+        get('stream-demo').textContent=t().stream;get('stream-demo').disabled=!bilingualView||Boolean(retryingRecordID);
         document.querySelectorAll('[data-filter-button]').forEach(button=>button.textContent=t()[button.dataset.filterButton]);searchInput.placeholder=t().search;searchInput.setAttribute('aria-label',t().search);
         const historyIsActive=body.dataset.page==='history';
         historyNav.classList.toggle('is-selected',historyIsActive&&!pinned);pinnedNav.classList.toggle('is-selected',historyIsActive&&pinned);
@@ -975,6 +1037,21 @@
       get('language').addEventListener('click',()=>{language=language==='en'?'zh-Hans':'en';notice='';get('language').textContent=language==='en'?'中文':'English';languageLabels();});
       get('size').addEventListener('click',()=>{body.dataset.hfMinimum=body.dataset.hfMinimum==='true'?'false':'true';get('size').textContent=body.dataset.hfMinimum==='true'?'铺满窗口':'920 × 620';});
       get('empty-demo').addEventListener('click',()=>{emptyFixture=!emptyFixture;get('empty-demo').textContent=emptyFixture?'恢复历史':'空历史';render();});
+      get('stream-demo').addEventListener('click',()=>{
+        if(streamActive){notice='';render();return;}
+        if(!bilingualView||retryingRecordID)return;
+        const run=++streamEpoch, view=bilingualView, recordID=selected;
+        streamActive=true;view.reset();get('stream-demo').textContent=t().stopStream;status.textContent=t().streamNotice;
+        const events=[];
+        for(const group of aligned[recordID]) {
+          for(const ratio of [.5,1]) for(const field of ['source','translation']) events.push({group,field,text:group[field].slice(0,Math.ceil(group[field].length*ratio)),pending:ratio<1});
+        }
+        events.forEach((event,index)=>window.setTimeout(()=>{
+          if(run!==streamEpoch||view!==bilingualView||!view.root.isConnected)return;
+          view.update(event.group,event.field,event.text,event.pending);
+          if(index===events.length-1){streamActive=false;get('stream-demo').textContent=t().stream;status.textContent=t().retryEnded;}
+        },index*250));
+      });
       get('zone-demo').addEventListener('click',()=>{zoneOverride=true;zone=zone==='America/Los_Angeles'?'Asia/Shanghai':'America/Los_Angeles';get('zone-demo').textContent=zone;render();});
       window.addEventListener('focus',()=>{if(!zoneOverride){zone=Intl.DateTimeFormat().resolvedOptions().timeZone;render();}});
       window.applyExtendedHistoryFilter=render;

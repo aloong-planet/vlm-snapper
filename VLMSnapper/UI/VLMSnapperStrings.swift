@@ -11,6 +11,7 @@ enum VLMSnapperStrings {
     static var rerun: String { localized("action.rerun") }
     static var retrySave: String { localized("action.retrySave") }
     static var copy: String { localized("action.copy") }
+    static var copied: String { localized("action.copied") }
     static var originalScreenshot: String { localized("result.originalScreenshot") }
     static var result: String { localized("result.title") }
     static var neverStarted: String { localized("result.neverStarted") }

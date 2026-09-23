@@ -25,7 +25,12 @@ final class HistoryImageZoomTests: XCTestCase {
             XCTAssertGreaterThan(scroll.magnification, initial)
             let after = scroll.contentView.convert(point, to: nil)
             XCTAssertEqual(after.x, windowPoint.x, accuracy: 1)
-            XCTAssertEqual(after.y, windowPoint.y, accuracy: 1)
+            // The image still fits vertically, so it stays centered in the
+            // current viewport. An appearing scroller can change that viewport.
+            let zoomedImage = scroll.convert(document.bounds, from: document)
+            let zoomedViewport = scroll.convert(scroll.contentView.bounds, from: scroll.contentView)
+            XCTAssertLessThan(zoomedImage.height, zoomedViewport.height)
+            XCTAssertEqual(zoomedImage.midY, zoomedViewport.midY, accuracy: 1)
             try capture(host, name: "zoom")
             scroll.scrollWheel(with: try wheel(delta: -2, at: windowPoint, window: scroll.window!))
             XCTAssertEqual(scroll.magnification, initial, accuracy: 0.001)

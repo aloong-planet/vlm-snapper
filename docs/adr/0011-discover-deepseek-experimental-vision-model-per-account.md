@@ -36,3 +36,9 @@ DeepSeek adapter 必须把实验模型的流式协议归一化为应用统一的
 - [DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion)
 - [DeepSeek V4 vision statement](https://api-docs.deepseek.com/quick_start/agent_integrations/github_copilot/)
 - Canonical provider 调研：`~/research/macos-screenshot-ocr-translator/provider-contracts-2026-08-25.md`
+
+## 2026-09-23 双语契约演进
+
+用户确认连续段落的双语对照及对应片段流式展示，见 [v1-core「连续段落的双语对照」](../specs/v1-core.md#v1-coreus-002-连续段落的双语对照)。上文 2026-09-02 的原文后译文顺序及顶层 `source`/`translation` 记录的是旧契约；本次翻译统一改为 `segments` 中逐片段的原文/译文，元数据与完成事件仍在最终结构校验后发布。提取路径及 DeepSeek 的 `text` 别名、私有推理活动边界不变。
+
+旧真实契约结果不能证明新翻译协议的账户兼容性。三 Provider 的传输封装 fixture 与本地回归只证明适配器行为；新协议仍须受保护真实账户验收，未通过前不得据旧证据宣称发布就绪。单请求、无自动重试和当前账户模型发现的决策不变。

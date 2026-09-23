@@ -9,8 +9,8 @@ struct GeminiStreamDecoderTests {
             operation: .translate(targetLanguage: "es")
         )
         let payloads = [
-            #"{"responseId":"gem_123","candidates":[{"index":0,"content":{"parts":[{"text":"{\"source\":\"Hello\""}]}}]}"#,
-            #"{"responseId":"gem_123","candidates":[{"index":0,"content":{"parts":[{"text":",\"translation\":\"Hola\"}"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":11,"candidatesTokenCount":7,"totalTokenCount":18}}"#,
+            #"{"responseId":"gem_123","candidates":[{"index":0,"content":{"parts":[{"text":"{\"segments\":[{\"id\":\"s1\",\"block\":\"p1\",\"kind\":\"paragraph\",\"source\":\"Hello\""}]}}]}"#,
+            #"{"responseId":"gem_123","candidates":[{"index":0,"content":{"parts":[{"text":",\"translation\":\"Hola\"}]}"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":11,"candidatesTokenCount":7,"totalTokenCount":18}}"#,
         ]
         var events: [ProviderStreamEvent] = []
 
@@ -22,8 +22,8 @@ struct GeminiStreamDecoderTests {
 
         #expect(
             events == [
-                .sourceDelta("Hello"),
-                .translationDelta("Hola"),
+                .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "")]),
+                .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "Hola")]),
                 .metadata(
                     ProviderResponseMetadata(
                         requestID: "gem_123",

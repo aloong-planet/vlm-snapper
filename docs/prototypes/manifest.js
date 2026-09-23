@@ -2,6 +2,13 @@ window.PROTOTYPES = [
   {
     module: "core-result",
     type: "ui",
+    id: "bilingual",
+    name: "Bilingual sentence alignment · candidate",
+    path: "core-result/prototype-bilingual.html"
+  },
+  {
+    module: "core-result",
+    type: "ui",
     id: "hybrid-card-workbench",
     name: "Hybrid card workbench",
     path: "core-result/prototype-layout-directions.html"

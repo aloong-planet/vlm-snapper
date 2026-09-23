@@ -1,0 +1,61 @@
+<!doctype html>
+<!-- Candidate bilingual result UI. Not production code. The bottom demo controls
+     replay a captured synthetic-input response and switch mock boundary states;
+     they are not product controls. No network, credentials, or persistence.
+     Chinese and English UI covered; arbitrary content languages, Markdown
+     rendering, tables, and native AppKit selection are not validated here.
+     Paragraph/list metadata is fixture-authored, not returned by the prior API
+     trial. The previous per-row layout is superseded by continuous columns. -->
+<html lang="zh-Hans" data-theme="light"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Bilingual result prototype</title>
+<style>
+:root{color-scheme:light;--bt-window:#f1f3f6;--bt-surface:#fff;--bt-text:#202329;--bt-muted:#646b75;--bt-line:#dfe2e7;--bt-hover:#e8ecf1;--bt-selected:#dce6f5;--bt-accent:#1553b2;--bt-success:#20835b;--bt-warning:#a96609;--bt-focus:#276bd8;--bt-selection:#b7d0f9}
+html[data-theme=dark]{color-scheme:dark;--bt-window:#24282e;--bt-surface:#2b2f36;--bt-text:#f2f3f5;--bt-muted:#b4bac3;--bt-line:#454b54;--bt-hover:#343a43;--bt-selected:#314361;--bt-accent:#9bc0ff;--bt-success:#62c596;--bt-warning:#efb45f;--bt-focus:#6ba3f7;--bt-selection:#405d87}
+*{box-sizing:border-box}body{margin:0;background:var(--bt-window);color:var(--bt-text);font:15px -apple-system,BlinkMacSystemFont,sans-serif}button,select{font:inherit;color:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible,.bt-sentence:focus-visible{outline:2px solid var(--bt-focus);outline-offset:-2px}::selection{background:var(--bt-selection)}
+.bt-window{margin:24px;border:1px solid var(--bt-line);border-radius:14px;background:var(--bt-surface);overflow:hidden;height:calc(100vh - 112px);min-height:470px;display:flex;flex-direction:column}
+.bt-titlebar{height:48px;display:flex;align-items:center;padding:0 22px;border-bottom:1px solid var(--bt-line);font-weight:650;flex-shrink:0}.bt-body{display:grid;grid-template-columns:180px minmax(0,1fr);min-height:0;flex:1}.bt-nav{background:var(--bt-window);border-right:1px solid var(--bt-line);padding:24px 14px}.bt-nav p{font-size:12px;color:var(--bt-muted);padding:0 12px}.bt-nav div{padding:10px 12px;border-radius:8px;margin:4px 0}.bt-nav .bt-current{background:var(--bt-selected);color:var(--bt-accent)}
+.bt-main{min-width:0;overflow:auto}.bt-header{padding:14px 16px 12px;border-bottom:1px solid var(--bt-line)}.bt-header h1{font-size:22px;margin:0 0 5px;line-height:1.35}.bt-meta,.bt-note{color:var(--bt-muted);font-size:12px;line-height:1.5}.bt-note{margin:6px 0 0}
+/* Match the native history detail's type scale and card surface. Both column
+   rows use the same zero-gap grid; padding belongs to cells, not the grid. */
+:root{--bt-line:rgba(56,63,73,.15)}html[data-theme=dark]{--bt-line:rgba(229,233,240,.13)}
+body{font-size:13px}
+.bt-titlebar{height:36px;padding:0 16px}
+.bt-nav{padding:12px 9px}.bt-nav p{font-size:10px;font-weight:700;padding:0 9px;margin:14px 0 6px}.bt-nav div{padding:0 10px;height:34px;display:flex;align-items:center;margin:2px 0;border-radius:7px}.bt-nav .bt-current{color:var(--bt-text)}
+.bt-main{padding:16px;background:var(--bt-window)}
+.bt-card{border:1px solid var(--bt-line);border-radius:11px;background:var(--bt-surface);overflow:clip}
+.bt-header{padding:8px 13px;min-height:46px}.bt-header h1{font-size:17px;font-weight:700;margin:0 0 4px}.bt-meta{font-size:13px}
+.bt-note{font-size:11px;margin:12px 0 0}
+.bt-footer{padding:8px 15px 12px;font-size:11px;border-top:1px solid var(--bt-line)}
+.bt-footer{color:var(--bt-success)}.bt-footer[data-state=stopped]{color:var(--bt-warning)}
+.bt-demo{position:fixed;left:0;right:0;bottom:16px;margin-inline:auto;width:fit-content;max-width:calc(100vw - 24px);display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#191d25;color:#f5f6f8;padding:10px 14px;border-radius:18px;font-size:12px}.bt-demo button,.bt-demo select{background:#303846;border:1px solid #59616f;border-radius:8px;padding:6px 10px;color:#fff}.bt-demo button:hover{background:#445068}.bt-demo label{display:flex;gap:6px;align-items:center}
+@media(max-width:850px){.bt-window{margin:12px;height:calc(100vh - 124px)}.bt-body{grid-template-columns:130px minmax(0,1fr)}.bt-main{padding:12px}}
+</style>
+<link rel="stylesheet" href="../_shared/bilingual-result.css?v=copy-icon">
+<script src="../_shared/bilingual-result.js?v=copy-icon"></script>
+<div class="bt-window"><div class="bt-titlebar">VLMSnapper</div><div class="bt-body"><aside class="bt-nav"><p data-label="library"></p><div class="bt-current" data-label="history"></div><div data-label="pinned"></div><p data-label="settings"></p><div>Provider</div><div data-label="general"></div></aside><main class="bt-main"><article class="bt-card"><header class="bt-header"><h1>Support and feedback</h1><div class="bt-meta">Gemini · gemini-3.8-flash</div></header><div class="bt-columns"><strong data-label="source"></strong><strong data-label="translation"></strong></div><div class="bt-reading" id="reading"><section class="bt-flow" data-field="source" dir="auto"></section><section class="bt-flow" data-field="translation" dir="auto"></section></div><div class="bt-footer" id="status" aria-live="polite"></div></article><p class="bt-note" data-label="note"></p></main></div></div>
+<div class="bt-demo" data-demo-harness><span data-label="demo"></span><button id="replay" data-label="replay"></button><button id="stop" data-label="stop"></button><button id="complete" data-label="complete"></button><button id="boundary" data-label="boundary"></button><button id="theme" data-label="theme"></button><label><span data-label="language"></span><select id="language"><option value="zh">中文</option><option value="en">English</option></select></label></div>
+<script>
+const labels={zh:{library:'资料库',history:'历史记录',pinned:'已钉住',settings:'设置中心',general:'通用设置',source:'原文',translation:'译文',note:'点击任一句，或拖选文字，对照高亮两侧。候选原型：真实模型结果回放；不调用 API。',demo:'演示 · 非产品控件',replay:'原速回放',stop:'停止',complete:'完整结果',boundary:'长句边界样例',theme:'明暗',language:'语言',running:'处理中…',finished:'完成 · 5 组对应内容',stopped:'回放已停止 · 未写入历史',pending:'等待对应译文',mock:'模拟边界样例 · 非模型实测结果'},en:{library:'Library',history:'History',pinned:'Pinned',settings:'Settings Center',general:'General Settings',source:'Original',translation:'Translation',note:'Click a sentence or select text to highlight its counterpart. Candidate prototype: captured model response replay; no API calls.',demo:'Demo · Not product controls',replay:'Replay at 1×',stop:'Stop',complete:'Complete result',boundary:'Long-sentence fixture',theme:'Appearance',language:'Language',running:'Processing…',finished:'Done · 5 aligned groups',stopped:'Replay stopped · No history saved',pending:'Waiting for translation',mock:'Synthetic boundary fixture · Not a live model result'}};
+let language='zh',epoch=0,state='finished';
+Object.assign(labels.zh,{copy:'复制',copied:'已复制',copyFailed:'复制失败'});
+Object.assign(labels.en,{copy:'Copy',copied:'Copied',copyFailed:'Copy failed'});
+const columnLabels=()=>{const l=labels[language];return [l.source,l.translation,l.copy,l.copied,l.copyFailed]};
+const bilingualRoot=document.createElement('div');
+document.querySelector('.bt-columns').before(bilingualRoot);
+document.querySelector('.bt-columns').remove();document.getElementById('reading').remove();
+const bilingual=BilingualResult.mount(bilingualRoot,columnLabels());
+const groups=[{id:'s001',block:'title',kind:'heading',source:'Support and feedback',translation:'支持与反馈'},{id:'s002',block:'help',kind:'sentence',source:'Need help?',translation:'需要帮助？'},{id:'s003',block:'help',kind:'sentence',source:'Contact our support team.',translation:'请联系我们的支持团队。'},{id:'s004',block:'feedback',kind:'sentence',source:'Want to give us feedback?',translation:'想向我们提供反馈？'},{id:'s005',block:'feedback',kind:'sentence',source:'Tell us what you think.',translation:'告诉我们您的想法。'}];
+// Times measured from one real request, in milliseconds. Multiple fields may
+// arrive in one provider chunk; this replay does not invent a typewriter effect.
+const timeline=[{ms:5065,id:'s001',field:'source',text:'Support and feedback',complete:true},{ms:5065,id:'s001',field:'translation',text:'支持与反馈',complete:true},{ms:5065,id:'s002',field:'source',text:'Need help?',complete:true},{ms:5065,id:'s002',field:'translation',text:'需要帮助？',complete:false},{ms:5207,id:'s002',field:'translation',text:'需要帮助？',complete:true},{ms:5385,id:'s003',field:'source',text:'Contact our support team.',complete:true},{ms:5385,id:'s003',field:'translation',text:'请联系我们的支持团队。',complete:true},{ms:5722,id:'s004',field:'source',text:'Want to give us feedback?',complete:true},{ms:5722,id:'s004',field:'translation',text:'想向我们提供反馈？',complete:true},{ms:5890,id:'s005',field:'source',text:'Tell us what you think.',complete:true},{ms:5890,id:'s005',field:'translation',text:'告诉我们您的想法。',complete:true}];
+const boundary=[{id:'b000',block:'title',kind:'heading',source:'Release notes',translation:'更新说明'},{id:'b001',block:'intro',kind:'sentence',source:'Dr. Smith checked v2.5 at 3.14 seconds.',translation:'史密斯博士在 3.14 秒时检查了 v2.5。'},{id:'b002',block:'intro',kind:'sentence',source:'This long sentence continues across a visual line break, but it should remain one source sentence.',translation:'这个长句在截图里跨越了视觉换行。但它仍应作为一个原文句子，与这两句译文一起组成对应组。'},{id:'b003',block:'retry',kind:'sentence',source:'Try again.',translation:'请重试。'},{id:'b004',block:'retry',kind:'sentence',source:'Try again.',translation:'请重试。'},{id:'b005',block:'item1',list:'steps',kind:'list_item',source:'Keep the value "A\\B" unchanged.',translation:'保持值“A\\B”不变。'},{id:'b006',block:'item2',list:'steps',kind:'list_item',source:'Save your changes before closing the window.',translation:'关闭窗口前保存更改。'}];
+labels.zh.note='连续段落 · 点击或选中文字，仅高亮对应句子。段落归属为原型标注，尚未验证模型自动还原。';labels.en.note='Continuous paragraphs · Select text to highlight matching sentences. Paragraph grouping is fixture-authored, not model-validated.';
+labels.zh.boundary='段落与列表样例';labels.en.boundary='Paragraph/list fixture';
+function localize(){document.documentElement.lang=language==='zh'?'zh-Hans':'en';document.querySelectorAll('[data-label]').forEach(e=>e.textContent=labels[language][e.dataset.label]);bilingual.setLabels(columnLabels());statusText(state)}
+function statusText(value){state=value;const s=document.getElementById('status');s.dataset.state=value;s.textContent=labels[language][value]}
+function clear(){bilingual.reset()}
+function update(e){bilingual.update(groups.find(g=>g.id===e.id),e.field,e.text,!e.complete)}
+function showAll(data=groups){epoch++;clear();for(const g of data)for(const field of ['source','translation'])bilingual.update(g,field,g[field]);document.querySelector('.bt-header h1').textContent=data===groups?'Support and feedback':'Release notes';statusText(data===groups?'finished':'mock')}
+document.getElementById('replay').onclick=()=>{const run=++epoch;clear();document.querySelector('.bt-header h1').textContent='Support and feedback';statusText('running');for(const e of timeline)setTimeout(()=>{if(run===epoch)update(e)},e.ms);setTimeout(()=>{if(run===epoch)statusText('finished')},5957)};
+document.getElementById('stop').onclick=()=>{epoch++;statusText('stopped')};document.getElementById('complete').onclick=()=>showAll();document.getElementById('boundary').onclick=()=>showAll(boundary);document.getElementById('theme').onclick=()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==='light'?'dark':'light'};document.getElementById('language').onchange=e=>{language=e.target.value;localize()};showAll();localize();
+</script></html>

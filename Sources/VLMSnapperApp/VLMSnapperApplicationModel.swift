@@ -37,6 +37,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private(set) var historyRecords: [HistoryRecord] = []
     private(set) var selectedHistoryRecordID: UUID?
     private(set) var selectedHistoryImage: NSImage?
+    private(set) var selectedHistoryImageLoadFailed = false
+    private var historyImageLoadGeneration: UUID?
     let historyRetry = HistoryRetryPresentation()
     private var historyRetrySession: OperationWorkspaceSession?
     private var historyRetryTask: Task<Void, Never>?
@@ -67,6 +69,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private let historyStore: SQLiteHistoryStore
     private let diagnosticStore: DiagnosticLogStore
     private let screenshotStore: FileSystemScreenshotStore
+    private let historyImageLoader: any ManagedScreenshotLoading
     private let providerStreamer: ProviderPreparedOperationStreamer
     private let historyDeletionCoordinator: HistoryDeletionCoordinator
     private let historyCleanupCoordinator: HistoryCleanupCoordinator
@@ -130,7 +133,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
         applicationSupportRoot: URL,
         languageStore: UserDefaultsApplicationLanguageStore,
         defaults: UserDefaults,
-        dependencies: ApplicationModelDependencies
+        dependencies: ApplicationModelDependencies,
+        historyImageLoader: (any ManagedScreenshotLoading)? = nil
     ) throws {
         self.defaults = defaults
         self.dependencies = dependencies
@@ -169,6 +173,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         screenshotStore = FileSystemScreenshotStore(
             rootDirectory: dependencies.screenshotRoot
         )
+        self.historyImageLoader = historyImageLoader ?? screenshotStore
         providerStreamer = ProviderPreparedOperationStreamer(
             credentialStore: credentialStore,
             executor: ProviderAdapterExecutor(transport: dependencies.operationHTTP)
@@ -667,6 +672,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     /// Final resource release after termination has been committed, not during
     /// preparation (which is also used before an update installation attempt).
     func stop() {
+        historyImageLoadGeneration = nil
         dependencies.displayMonitor.stop()
         cleanupTask?.cancel()
         cleanupTask = nil
@@ -715,17 +721,24 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func selectHistoryRecord(_ id: UUID) async {
+        if selectedHistoryRecordID == id, historyImageLoadGeneration != nil { return }
+        let generation = UUID()
+        historyImageLoadGeneration = generation
+        if selectedHistoryRecordID != id { selectedHistoryImage = nil }
         selectedHistoryRecordID = id
-        selectedHistoryImage = nil
-        guard let record = try? await historyStore.historyRecord(id: id),
-              let data = try? await screenshotStore.loadIfOwned(record.operation.screenshot)
-        else {
-            guard selectedHistoryRecordID == id else { return }
-            publish()
-            return
+        selectedHistoryImageLoadFailed = false
+        publish()
+        let image: NSImage?
+        if let record = try? await historyStore.historyRecord(id: id),
+           let data = try? await historyImageLoader.loadIfOwned(record.operation.screenshot) {
+            image = NSImage(data: data)
+        } else {
+            image = nil
         }
-        guard selectedHistoryRecordID == id else { return }
-        selectedHistoryImage = NSImage(data: data)
+        guard selectedHistoryRecordID == id, historyImageLoadGeneration == generation else { return }
+        historyImageLoadGeneration = nil
+        selectedHistoryImage = image
+        selectedHistoryImageLoadFailed = image == nil
         publish()
     }
 
@@ -885,6 +898,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
         if let selectedID = selectedHistoryRecordID, ids.contains(selectedID) {
             self.selectedHistoryRecordID = nil
             selectedHistoryImage = nil
+            selectedHistoryImageLoadFailed = false
+            historyImageLoadGeneration = nil
         }
         await refreshHistory()
     }

@@ -18,6 +18,8 @@ struct HistoryRetryIdentityTests {
             #expect(await provider.operations == [.translate(targetLanguage: "ja")])
             #expect(updated.operation.sourceMarkdown == "New source")
             #expect(updated.operation.translationMarkdown == "New translation")
+            #expect(updated.operation.segments?.map(\.id) == ["replacement"])
+            #expect(updated.operation.segments?.first?.translation == "New translation")
             #expect(updated.operation.selection.providerID == "gemini")
             #expect(updated.operation.selection.modelID == "new-model")
             #expect(updated.createdAt == Date(timeIntervalSince1970: 1_800_000_000))
@@ -67,7 +69,9 @@ struct HistoryRetryIdentityTests {
             #expect(snapshot.translate.attempt == .resultPersistenceFailed)
             #expect(snapshot.translate.persistenceFailureCode == "history_record_unavailable")
             #expect(snapshot.translate.unsavedResult?.sourceMarkdown == "New source")
+            #expect(snapshot.translate.unsavedResult?.segments?.map(\.id) == ["replacement"])
             #expect(snapshot.translate.committedResult?.sourceMarkdown == "Archived source")
+            #expect(snapshot.translate.committedResult?.segments?.map(\.id) == ["archived"])
             await #expect(throws: (any Error).self) { try await session.retrySavingSelectedResult() }
             #expect(try await store.history(matching: HistoryQuery()).isEmpty)
             #expect(await provider.operations.count == 1)
@@ -100,6 +104,7 @@ struct HistoryRetryIdentityTests {
                 .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
                 .appendingPathComponent("history.sqlite"))
             #expect(try await reopened.operation(id: record.id)?.sourceMarkdown == "New source")
+            #expect(try await reopened.operation(id: record.id)?.segments?.map(\.id) == ["replacement"])
             #expect(try await screenshots.loadIfOwned(record.operation.screenshot) == png)
             let imageDirectory = URL(fileURLWithPath: record.operation.screenshot.path).deletingLastPathComponent()
             #expect(try FileManager.default.contentsOfDirectory(atPath: imageDirectory.path).filter { $0.hasSuffix(".png") }.count == 1)
@@ -135,6 +140,7 @@ struct HistoryRetryIdentityTests {
                 #expect(try await store.historyRecord(id: record.id) == original)
                 #expect(try await store.history(matching: HistoryQuery()).count == 1)
                 #expect(await session.snapshot().translate.committedResult?.sourceMarkdown == original.operation.sourceMarkdown)
+                #expect(await session.snapshot().translate.committedResult?.segments == original.operation.segments)
                 #expect(try await store.recoverUnfinishedOperations() == 0)
                 #expect(await provider.operations.count == 1)
             }
@@ -157,7 +163,9 @@ private func withHistory(
         selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"),
         operation: .translate(targetLanguage: "ja"))
     try await store.finish(operationID: prepared.operationID,
-        with: .succeeded(sourceMarkdown: "Archived source", translationMarkdown: "Archived translation"))
+        with: .succeeded(sourceMarkdown: "Archived source", translationMarkdown: "Archived translation", segments: [
+            TranslationSegment(id: "archived", block: "p", kind: .paragraph, source: "Archived source", translation: "Archived translation")
+        ]))
     try await store.setPinned(true, operationID: prepared.operationID)
     let record = try #require(try await store.historyRecord(id: prepared.operationID))
     try await body(store, screenshots, record, png)
@@ -183,9 +191,12 @@ private actor RetryProvider: PreparedOperationStreaming {
         do { try await beforeCompletion() }
         catch { return AsyncThrowingStream { $0.finish(throwing: error) } }
         return AsyncThrowingStream { continuation in
-            continuation.yield(.sourceDelta("New source"))
             if case .translate = preparedOperation.operation {
-                continuation.yield(.translationDelta("New translation"))
+                continuation.yield(.translationSegments([
+                    TranslationSegment(id: "replacement", block: "p", kind: .paragraph, source: "New source", translation: "New translation")
+                ]))
+            } else {
+                continuation.yield(.sourceDelta("New source"))
             }
             continuation.yield(.metadata(ProviderResponseMetadata(requestID: nil,
                 usage: ProviderTokenUsage(inputTokens: 7, outputTokens: 3, totalTokens: 10))))

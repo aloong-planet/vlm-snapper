@@ -7,6 +7,7 @@
 "action.rerun" = "重新执行";
 "action.retrySave" = "重试保存";
 "action.copy" = "复制";
+"action.copied" = "已复制";
 "result.originalScreenshot" = "原始截图";
 "result.title" = "结果";
 "result.neverStarted" = "尚未执行此操作";

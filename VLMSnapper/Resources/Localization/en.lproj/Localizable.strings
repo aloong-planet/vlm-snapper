@@ -7,6 +7,7 @@
 "action.rerun" = "Run Again";
 "action.retrySave" = "Retry Save";
 "action.copy" = "Copy";
+"action.copied" = "Copied";
 "result.originalScreenshot" = "Original Screenshot";
 "result.title" = "Result";
 "result.neverStarted" = "This operation has not been run";

@@ -3,14 +3,14 @@ import Testing
 
 @Suite("DeepSeek Chat stream decoder")
 struct DeepSeekChatStreamDecoderTests {
-    @Test("a recorded stop and DONE stream produces ordered translation events")
+    @Test("a stop and DONE stream envelope carries paired translation fixtures")
     func stopAndDoneProduceOrderedTranslation() throws {
         var decoder = DeepSeekChatStreamDecoder(
             operation: .translate(targetLanguage: "es")
         )
         let payloads = [
-            #"{"id":"chat_123","choices":[{"index":0,"delta":{"content":"{\"source\":\"Hello\""},"finish_reason":null}]}"#,
-            #"{"id":"chat_123","choices":[{"index":0,"delta":{"content":",\"translation\":\"Hola\"}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":13,"completion_tokens":6,"total_tokens":19}}"#,
+            #"{"id":"chat_123","choices":[{"index":0,"delta":{"content":"{\"segments\":[{\"id\":\"s1\",\"block\":\"p1\",\"kind\":\"paragraph\",\"source\":\"Hello\""},"finish_reason":null}]}"#,
+            #"{"id":"chat_123","choices":[{"index":0,"delta":{"content":",\"translation\":\"Hola\"}]}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":13,"completion_tokens":6,"total_tokens":19}}"#,
             "[DONE]",
         ]
         var events: [ProviderStreamEvent] = []
@@ -22,8 +22,8 @@ struct DeepSeekChatStreamDecoderTests {
 
         #expect(
             events == [
-                .sourceDelta("Hello"),
-                .translationDelta("Hola"),
+                .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "")]),
+                .translationSegments([TranslationSegment(id: "s1", block: "p1", kind: .paragraph, source: "Hello", translation: "Hola")]),
                 .metadata(
                     ProviderResponseMetadata(
                         requestID: "chat_123",
