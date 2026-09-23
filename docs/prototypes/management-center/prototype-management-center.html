@@ -96,6 +96,8 @@
     .hf-clear { padding: 4px 0; border: 0; color: var(--danger); background: transparent; }
     .hf-clear:hover { text-decoration: underline; }
     .hf-row { display: block; width: calc(100% - 10px); text-align: left; color: var(--text); background: var(--surface); cursor: pointer; }
+    /* Record selection supplies the visual cue; keep keyboard focus without an outer ring. */
+    .hf-row:focus-visible { outline: none; }
     .hf-row strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 6px; }
     .hf-row p { margin: 0 0 7px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-secondary); font-size: 11px; }
     .hf-row .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 10px; margin-top: 6px; }
@@ -993,6 +995,7 @@
         card.append(head,content);area.append(card);
       }
       function render() {
+        const restoreRowFocus=historyList.contains(document.activeElement);
         streamEpoch++; streamActive=false;
         const q=draft();
         const visible=emptyFixture?[]:records.filter(r=>matches(r,q));
@@ -1008,6 +1011,7 @@
         historyList.classList.remove('is-empty');historyList.replaceChildren();
         for(const r of visible){
           const row=document.createElement('button');row.className='history-item hf-row'+(r.id===selected?' is-selected':'');row.dataset.recordId=r.id;row.setAttribute('aria-pressed',String(r.id===selected));
+          row.tabIndex=r.id===selected?0:-1;
           const name=document.createElement('strong');name.textContent=r.title;
           const snippet=document.createElement('p');snippet.textContent=r.translation||r.source||t()[r.status];
           const meta=document.createElement('span');meta.className='meta';
@@ -1016,7 +1020,7 @@
           const state=document.createElement('span');state.className='hf-row-state';state.dataset.status=r.status;state.textContent=t()[r.status];
           const date=document.createElement('time');date.className='hf-row-date';date.dateTime=r.date;date.textContent=new Intl.DateTimeFormat(region,{timeZone:zone,dateStyle:'medium',timeStyle:'short'}).format(new Date(r.date));
           tags.append(kind,state);meta.append(tags,date);row.append(name,snippet,meta);
-          row.addEventListener('click',()=>{selected=r.id;render();});historyList.append(row);
+          row.addEventListener('click',()=>{selected=r.id;render();focusSelectedRow();});historyList.append(row);
         }
         if(!visible.length){const empty=document.createElement('div');empty.className='hf-detail-empty';const strong=document.createElement('strong');strong.textContent=t().none;const p=document.createElement('p');p.textContent=t().help;empty.append(strong,p);historyList.append(empty);}
         detail(visible.find(r=>r.id===selected));
@@ -1027,7 +1031,26 @@
         document.querySelectorAll('[data-filter-button]').forEach(button=>button.textContent=t()[button.dataset.filterButton]);searchInput.placeholder=t().search;searchInput.setAttribute('aria-label',t().search);
         const historyIsActive=body.dataset.page==='history';
         historyNav.classList.toggle('is-selected',historyIsActive&&!pinned);pinnedNav.classList.toggle('is-selected',historyIsActive&&pinned);
+        if(restoreRowFocus)focusSelectedRow();
       }
+      function focusSelectedRow() {
+        const row=historyList.querySelector('.is-selected');
+        row?.focus({preventScroll:true});
+        row?.scrollIntoView({block:'nearest',inline:'nearest'});
+      }
+      // Scope navigation to the focused record list; search, filters and reading
+      // surfaces keep their own arrow-key behavior. Use only the visible rows.
+      historyList.addEventListener('keydown',event=>{
+        if(!event.target.matches('.hf-row')||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
+        if(event.key!=='ArrowUp'&&event.key!=='ArrowDown')return;
+        const rows=[...historyList.querySelectorAll('.hf-row')];
+        const index=rows.findIndex(row=>row.dataset.recordId===selected);
+        if(index<0)return;
+        event.preventDefault();
+        const next=Math.max(0,Math.min(rows.length-1,index+(event.key==='ArrowDown'?1:-1)));
+        if(next!==index){selected=rows[next].dataset.recordId;render();}
+        focusSelectedRow();
+      });
       const navs=document.querySelectorAll('.sidebar .nav-item'), historyNav=navs[0], pinnedNav=navs[1];
       function labelNav(button,key,count){const svg=button.querySelector('svg');button.replaceChildren(svg,document.createTextNode(t()[key]));const n=document.createElement('span');n.className='nav-count';n.textContent=count;button.append(n);}
       function languageLabels(){setChoices();labelNav(historyNav,'history',records.length);labelNav(pinnedNav,'pinned',records.filter(r=>r.pinned).length);render();}
