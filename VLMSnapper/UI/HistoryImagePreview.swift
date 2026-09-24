@@ -35,6 +35,65 @@ struct HistoryImagePreview: View {
         .background(VLMSnapperTheme.surface)
         .frame(width: min(1000, (NSScreen.main?.visibleFrame.width ?? 1024) - 80),
                height: min(640, (NSScreen.main?.visibleFrame.height ?? 768) - 100))
+        .background(PreviewBackdropDismissal(onDismiss: { dismiss() }))
+    }
+}
+
+// Native sheets block their parent's controls but do not dismiss on backdrop clicks.
+// Observe only this sheet's parent, and consume the entire click before dismissal.
+private struct PreviewBackdropDismissal: NSViewRepresentable {
+    let onDismiss: () -> Void
+
+    func makeNSView(context: Context) -> BackdropObserverView { BackdropObserverView() }
+    func updateNSView(_ view: BackdropObserverView, context: Context) { view.onDismiss = onDismiss }
+    static func dismantleNSView(_ view: BackdropObserverView, coordinator: ()) { view.stopObserving() }
+}
+
+private final class BackdropObserverView: NSView {
+    var onDismiss: (() -> Void)?
+    private var monitor: Any?
+    private var clickStart: NSPoint?
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        stopObserving()
+        guard window != nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { [weak self] event in
+            let consumed = MainActor.assumeIsolated {
+                guard let self else { return false }
+                return self.handle(event) == nil
+            }
+            return consumed ? nil : event
+        }
+    }
+
+    func stopObserving() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        clickStart = nil
+    }
+
+    private func handle(_ event: NSEvent) -> NSEvent? {
+        guard let sheet = window, let parent = sheet.sheetParent,
+              parent.attachedSheet === sheet, sheet.isVisible else {
+            clickStart = nil
+            return event
+        }
+        let outside = event.window === parent
+            && parent.contentLayoutRect.contains(event.locationInWindow)
+            && !sheet.frame.contains(parent.convertPoint(toScreen: event.locationInWindow))
+        if event.type == .leftMouseDown {
+            clickStart = outside ? event.locationInWindow : nil
+            return outside ? nil : event
+        }
+        guard let start = clickStart else { return event }
+        clickStart = nil
+        if outside, hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y) < 4 {
+            onDismiss?()
+        }
+        return nil
     }
 }
 
