@@ -4,6 +4,23 @@ import Testing
 
 @Suite("Provider request factory")
 struct ProviderRequestFactoryTests {
+    @Test("DeepSeek JSON mode explicitly instructs JSON in the user message", arguments: [ProviderOperation.extractText, .translate(targetLanguage: "fr")])
+    func deepSeekJSONModeRequiresPromptInstruction(operation: ProviderOperation) throws {
+        let request = try ProviderRequestFactory().makeRequest(
+            provider: .deepSeek, modelID: "deepseek-flash", apiKey: "fixture",
+            originalPNG: Data([1]), operation: operation
+        )
+        let body = try #require(request.httpBody)
+        let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let format = try #require(json["response_format"] as? [String: Any])
+        #expect(format["type"] as? String == "json_object")
+        let messages = try #require(json["messages"] as? [[String: Any]])
+        let content = try #require(messages.first?["content"] as? [[String: Any]])
+        let instruction = try #require(content.first { $0["type"] as? String == "text" }?["text"] as? String)
+        // DeepSeek requires the word in a message, not only in response_format.
+        #expect(instruction.lowercased().contains("json"))
+    }
+
     @Test("translation requests ask for identified sentence pairs rather than whole-document ordering", arguments: ProviderID.allCases)
     func translationRequestsRequirePairs(provider: ProviderID) throws {
         let request = try ProviderRequestFactory().makeRequest(provider: provider, modelID: "vision",

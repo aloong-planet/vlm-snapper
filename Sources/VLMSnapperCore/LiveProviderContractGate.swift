@@ -138,10 +138,12 @@ public struct LiveProviderContractGate: Sendable {
 
     public func run(
         configurations: [ProviderID: LiveProviderContractConfiguration],
-        originalPNG: Data
+        originalPNG: Data,
+        expectedSource: String? = nil,
+        providers: [ProviderID] = ProviderID.allCases
     ) async -> [LiveProviderContractReport] {
         var reports: [LiveProviderContractReport] = []
-        for provider in ProviderID.allCases {
+        for provider in ProviderID.allCases where providers.contains(provider) {
             for operation in LiveProviderContractOperation.allCases {
                 guard let configuration = configurations[provider],
                       configuration.hasRequiredValues else {
@@ -149,7 +151,7 @@ public struct LiveProviderContractGate: Sendable {
                         LiveProviderContractReport(
                             provider: provider,
                             operation: operation,
-                            modelID: nil,
+                            modelID: configurations[provider]?.modelID,
                             stage: .configuration,
                             outcome: .blocked,
                             durationMilliseconds: 0,
@@ -164,7 +166,8 @@ public struct LiveProviderContractGate: Sendable {
                     provider: provider,
                     operation: operation,
                     configuration: configuration,
-                    originalPNG: originalPNG
+                    originalPNG: originalPNG,
+                    expectedSource: expectedSource
                 ))
             }
         }
@@ -175,7 +178,8 @@ public struct LiveProviderContractGate: Sendable {
         provider: ProviderID,
         operation: LiveProviderContractOperation,
         configuration: LiveProviderContractConfiguration,
-        originalPNG: Data
+        originalPNG: Data,
+        expectedSource: String?
     ) async -> LiveProviderContractReport {
         let startedAt = nowMilliseconds()
         do {
@@ -200,7 +204,8 @@ public struct LiveProviderContractGate: Sendable {
                         modelID: configuration.modelID,
                         stage: .validation,
                         startedAt: startedAt,
-                        status: "malformed_output"
+                        status: (error as? ProviderStreamContractError) == .incompleteOutput
+                            ? "incomplete_response" : "malformed_output"
                     )
                 }
             }
@@ -212,6 +217,21 @@ public struct LiveProviderContractGate: Sendable {
                     stage: .validation,
                     startedAt: startedAt,
                     status: "incomplete_response"
+                )
+            }
+            if let expectedSource,
+               expectedSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || normalizedSource(completedOutput.source, operation: operation) != normalizedText(expectedSource) {
+                return failureReport(
+                    provider: provider, operation: operation, modelID: configuration.modelID,
+                    stage: .validation, startedAt: startedAt, status: "source_mismatch"
+                )
+            }
+            if operation == .translate,
+               completedOutput.translation?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+                return failureReport(
+                    provider: provider, operation: operation, modelID: configuration.modelID,
+                    stage: .validation, startedAt: startedAt, status: "empty_translation"
                 )
             }
             return LiveProviderContractReport(
@@ -280,6 +300,21 @@ public struct LiveProviderContractGate: Sendable {
     private func redactRequestID(_ requestID: String) -> String {
         let digest = SHA256.hash(data: Data(requestID.utf8))
         return "sha256:" + digest.prefix(6).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func normalizedText(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    private func normalizedSource(_ source: String, operation: LiveProviderContractOperation) -> String {
+        // Extraction permits Markdown styling; translation segments carry plain text.
+        guard operation == .extract,
+              let text = try? AttributedString(markdown: source, options: .init(
+                interpretedSyntax: .inlineOnlyPreservingWhitespace
+              )) else {
+            return normalizedText(source)
+        }
+        return normalizedText(String(text.characters))
     }
 }
 

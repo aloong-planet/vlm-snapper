@@ -1,6 +1,29 @@
 #!/bin/bash
-# Full local gate. Native AppKit tests may activate their isolated windows.
+# Offline gate plus an explicitly selected live gate. Native tests may activate windows.
 set -euo pipefail
+live_provider=""
+live_model=""
+credential_args=()
+if [[ $# -eq 1 && ( "$1" == --help || "$1" == -h ) ]]; then
+    echo "Usage: $0 [--offline | --live-provider <provider> --live-model <model> [--keychain]]"
+    echo "Default: offline only. Live mode adds two paid model requests, without retries."
+    exit 0
+fi
+if [[ $# -eq 1 && "$1" == --offline ]]; then
+    shift
+elif [[ $# -gt 0 ]]; then
+    if [[ $# -lt 4 || $# -gt 5 || "$1" != --live-provider || "$3" != --live-model ]]; then
+        echo "Invalid arguments; use --help." >&2; exit 64
+    fi
+    live_provider="$2"
+    live_model="$4"
+    case "$live_provider" in openai|gemini|deepseek) ;; *) exit 64 ;; esac
+    if [[ -z "${live_model//[[:space:]]/}" || "$live_model" == --* ]]; then exit 64; fi
+    if [[ $# -eq 5 ]]; then
+        [[ "$5" == --keychain ]] || exit 64
+        credential_args=(--keychain)
+    fi
+fi
 export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
@@ -31,4 +54,11 @@ rg -F 'Executed 1 test, with 0 failures' "$evidence/native-paste.log"
 run_stage native-closed swift test --filter ProviderApplicationTestsNativeMenu.testValidationCompletesWhileManagementRemainsClosed
 rg -F 'Executed 1 test, with 0 failures' "$evidence/native-closed.log"
 run_stage accessibility python3 Scripts/test-provider-accessibility.py
-echo "Full local regression passed. Evidence: $evidence"
+echo "Offline regression passed. Evidence: $evidence"
+if [[ -n "$live_provider" ]]; then
+    run_stage live-provider bash Scripts/test-live-provider.sh "$live_provider" "$live_model" \
+        "$evidence/live-provider.json" "${credential_args[@]}"
+    echo "Offline and selected live Provider regression passed. Evidence: $evidence"
+else
+    echo "Live Provider regression NOT RUN; no claim of model/account compatibility."
+fi
