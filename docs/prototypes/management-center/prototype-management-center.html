@@ -256,6 +256,8 @@
     .switch[aria-checked="true"] { background: var(--accent); }
     .switch[aria-checked="true"]::after { left: 19px; }
     .update-status { min-height: 88px; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 13px 14px; border-top: 1px solid var(--line); background: var(--surface-subtle); }
+    .update-status[data-state="current"],
+    .update-status[data-state="checking"] { min-height: 52px; padding-block: 8px; }
     .status-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: var(--success); background: var(--success-soft); }
     .status-icon .icon { width: 16px; height: 16px; }
     .update-status[data-state="checking"] .status-icon { color: var(--accent-text); background: var(--accent-soft); }
@@ -264,6 +266,8 @@
     .update-status[data-state="ready"] .status-icon { color: var(--accent-text); background: var(--accent-soft); }
     .update-status[data-state="failed"] .status-icon { color: var(--danger); background: var(--danger-soft); }
     .status-copy strong { display: block; margin-bottom: 4px; font-size: 12px; }
+    .status-current .status-copy strong,
+    .status-checking .status-copy strong { margin-bottom: 0; }
     .status-copy span { display: block; color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
     .status-actions { display: flex; align-items: center; gap: 8px; }
     .status-view { display: none; }
@@ -408,12 +412,12 @@
                   <div class="update-status" id="update-status" data-state="current">
                     <div class="status-view status-current">
                       <div class="status-icon"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></div>
-                      <div class="status-copy"><div class="version-line"><strong>VLMSnapper 1.0.0</strong></div><span>已是最新版本 · 今天 14:30 检查</span></div>
+                      <div class="status-copy"><strong>VLMSnapper 已是最新版本</strong></div>
                       <div class="status-actions"><button class="secondary-button" data-check-updates>检查更新</button></div>
                     </div>
                     <div class="status-view status-checking">
                       <div class="status-icon"><span class="spinner" aria-hidden="true"></span></div>
-                      <div class="status-copy"><strong>正在检查更新…</strong><span>你可以继续使用 VLMSnapper。</span></div>
+                      <div class="status-copy"><strong>正在检查更新…</strong></div>
                       <div class="status-actions"></div>
                     </div>
                     <div class="status-view status-available">
@@ -839,6 +843,8 @@
   </script>
   <script>
     // History-only UI prototype. All fixtures and selections live in this page.
+    // Text conversion is a UI fixture, not a model request or persistence proof.
+    // Conversion outcome/reset controls belong only to the floating demo harness.
     (() => {
       const copy = {
         'zh-Hans': { all:'全部', extract:'提取', translate:'翻译', provider:'Provider', allProviders:'全部 Provider', model:'模型', target:'目标语言', modelReset:'模型条件已重置为“全部”。', count:n=>`${n} 条记录`, none:'没有匹配的记录', help:'尝试切换 Provider、类型或修改搜索词。', original:'原文', translation:'译文', history:'历史记录', pinned:'已钉住', clear:'清空历史', success:'完成', failed:'失败', canceled:'已取消', interrupted:'意外中断', search:'搜索原文或译文', fullHistory:'全部历史', copied:'演示：已触发复制，不写入剪贴板。', deleteDemo:'演示：清理流程不在本原型范围内，数据未删除。', note:'演示数据日期：2026-09-01 至 09-04；重载页面模拟关闭重开。旧设置页仍为中文，不属于本轮语言预览。', preview:'原始截图预览', missing:'原图不可用；已保存文字仍可查看。', scope:'范围', retry:'重试', retrying:'重试中…', active:'已有操作进行中，请等待完成。', retryDemo:'演示：正在右侧重试，未调用 Provider。', retryEnded:'演示结束：结果仍为示例，未创建或修改历史。', noTarget:'未指定' },
@@ -854,6 +860,8 @@
       Object.assign(copy.en, { stream:'Stream preview', stopStream:'End preview', streamNotice:'Demo: synthetic bilingual deltas, no model request. Switching records ends the preview.', alignmentNote:'Sentence and paragraph alignment is fixture-authored, not model-validated.' });
       Object.assign(copy['zh-Hans'], { copyText:'复制', copyDone:'已复制', copyFailed:'复制失败' });
       Object.assign(copy.en, { copyText:'Copy', copyDone:'Copied', copyFailed:'Copy failed' });
+      Object.assign(copy['zh-Hans'], { convert:'翻译原文', converting:'正在翻译 · 简体中文', cancelConvert:'取消翻译', converted:'翻译完成；已更新当前记录。', convertFailed:'翻译失败，原提取结果已保留。', convertCanceled:'已取消翻译，原提取结果已保留。', convertFiltered:'已切换到“全部”，保持当前记录可见。', convertNote:'演示：翻译已有原文，仅更新内存；目标语言为简体中文。所选记录转换成功时，提取筛选切换到全部；之后重试仍重新读取原截图。' });
+      Object.assign(copy.en, { convert:'Translate original', converting:'Translating · Simplified Chinese', cancelConvert:'Cancel translation', converted:'Translation complete; current record updated.', convertFailed:'Translation failed. The extraction was preserved.', convertCanceled:'Translation canceled. The extraction was preserved.', convertFiltered:'Switched to All to keep this record visible.', convertNote:'Demo: translates existing text in memory only, into Simplified Chinese. Successful conversion of the selected record switches Extract to All. Subsequent Retry still rereads the original screenshot.' });
       if (Object.keys(copy.en).sort().join() !== Object.keys(copy['zh-Hans']).sort().join()) throw Error('History copy keys differ');
       let language = 'zh-Hans', zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const region = navigator.language;
@@ -861,9 +869,10 @@
       let retryingRecordID = null;
       let imageRecordID = null, imagePhase = 'loading', imageTimer;
       let bilingualView = null, streamEpoch = 0, streamActive = false;
+      let textConversion = null, conversionOutcome = 'success';
       const records = [
         {id:'h1',kind:'translate',status:'success',provider:'DeepSeek',model:'deepseek-v4-flash-vision-exp',target:'en',date:'2026-09-03T16:30:00Z',pinned:true,source:'优秀的工具软件保留上下文。',translation:'Good utility software preserves context.',title:'Designing Calm Software'},
-        {id:'h2',kind:'extract',status:'success',provider:'OpenAI',model:'gpt-4.1',target:'',date:'2026-09-03T15:59:59Z',pinned:false,source:'Vision API integration guide — multimodal input.',translation:'',title:'Vision API integration guide'},
+        {id:'h2',kind:'extract',status:'success',provider:'OpenAI',model:'gpt-4.1',target:'',date:'2026-09-03T15:59:59Z',pinned:false,source:'Vision API integration guide — multimodal input. Send an image to extract its text.',translation:'',title:'Vision API integration guide'},
         {id:'h3',kind:'translate',status:'failed',provider:'Gemini',model:'gemini-2.5-flash',target:'de',date:'2026-09-03T00:00:00Z',pinned:true,source:'',translation:'',title:'Provider request failed'},
         {id:'h4',kind:'extract',status:'canceled',provider:'DeepSeek',model:'shared-vision-preview',target:'',date:'2026-09-02T23:59:59Z',pinned:false,source:'',translation:'',title:'Quarterly model latency'},
         {id:'h5',kind:'translate',status:'interrupted',provider:'OpenAI',model:'shared-vision-preview',target:'zh-Hans',date:'2026-09-02T08:00:00Z',pinned:false,source:'',translation:'',title:'Interrupted translation'},
@@ -885,6 +894,10 @@
         for (const field of ['source','translation']) record[field] = blocks.map(block=>aligned[record.id].filter(g=>g.block===block).map(g=>g[field]).join(record.id==='h1'&&field==='translation'?' ':'')).join('\n\n');
       }
       const t = () => copy[language];
+      const conversionFixture = [
+        {id:'vision-1',block:'intro',kind:'sentence',source:'Vision API integration guide — multimodal input. ',translation:'视觉 API 接入指南——多模态输入。'},
+        {id:'vision-2',block:'intro',kind:'sentence',source:'Send an image to extract its text.',translation:'发送一张图片以提取其中的文字。'}
+      ];
       const toolbar=document.querySelector('.content-toolbar');
       const provider=document.createElement('select'); provider.id='hf-provider'; provider.className='hf-provider-control'; toolbar.querySelector('.toolbar-right').prepend(provider);
       const pane=document.createElement('div'); pane.className='hf-list-pane'; historyList.before(pane); pane.append(historyList);
@@ -893,6 +906,30 @@
       const note=document.createElement('div'); note.className='hf-note'; document.body.append(note);
       const harness=document.createElement('span'); harness.dataset.hfHarness=''; harness.innerHTML='<span class="harness-label">演示·历史</span><button id="hf-language">English</button><button id="hf-size">920 × 620</button><button id="hf-zone-demo">时区：系统</button><button id="hf-empty-demo">空历史</button><button id="hf-stream-demo"></button>'; document.querySelector('.harness').prepend(harness);
       const get = id => document.querySelector('#hf-'+id);
+      for (const outcome of ['success','failed']) {
+        const control=document.createElement('button');control.textContent=outcome==='success'?'翻译成功场景':'翻译失败场景';
+        control.addEventListener('click',()=>{conversionOutcome=outcome;notice=outcome==='success'?'演示：下一次翻译成功':'演示：下一次翻译失败';render();});harness.append(control);
+      }
+      const resetConversion=document.createElement('button');resetConversion.textContent='重置提取样例';
+      resetConversion.addEventListener('click',()=>{textConversion=null;const record=records.find(r=>r.id==='h2');record.kind='extract';record.translation='';record.target='';delete aligned.h2;selected=record.id;body.dataset.filter='all';notice='';languageLabels();});harness.append(resetConversion);
+      function convertText(record) {
+        if(textConversion||retryingRecordID||record.id!=='h2')return;
+        const run={recordID:record.id,parts:conversionFixture.map(part=>({...part,translation:''})),outcome:conversionOutcome};
+        textConversion=run;notice='';render();
+        const events=conversionFixture.flatMap((part,index)=>[.4,.7,1].map(ratio=>({index,text:part.translation.slice(0,Math.ceil(part.translation.length*ratio))})));
+        events.forEach((event,index)=>window.setTimeout(()=>{
+          if(textConversion!==run)return;
+          run.parts[event.index].translation=event.text;
+          if(selected===record.id&&bilingualView)bilingualView.update(run.parts[event.index],'translation',event.text,index<events.length-1);
+          if(index===events.length-1){
+            if(run.outcome==='success'){
+              aligned[record.id]=run.parts;record.translation=run.parts.map(part=>part.translation).join('');record.kind='translate';record.target='zh-Hans';notice=t().converted;
+              if(selected===record.id&&body.dataset.filter==='extract'){body.dataset.filter='all';notice+=' '+t().convertFiltered;}
+            }else{notice=t().convertFailed;}
+            textConversion=null;render();
+          }
+        },700+index*450));
+      }
       for (const [phase,label] of [['loading','图片加载中'],['ready','加载完成'],['unavailable','读取失败']]) {
         const control=document.createElement('button');control.textContent=label;control.dataset.imageDemo=phase;
         control.addEventListener('click',()=>{window.clearTimeout(imageTimer);imageRecordID=selected;imagePhase=phase;render();});
@@ -972,22 +1009,33 @@
           wrap.append(button,hint);actions.append(wrap);return button;
         };
         const imageAvailable=imagePhase==='ready';
+        if(record.kind==='extract'&&record.source){
+          const translate=action('convert',t().convert,'<path d="m5 8 4 4m-6 2 6-6 2-3M4 5h8M13 19l4-10 4 10m-6-4h4"/>');
+          translate.disabled=Boolean(textConversion||retryingRecordID);
+          translate.addEventListener('click',()=>convertText(record));
+        }
         const retry=action('retry',t().retry,'<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',imagePhase==='unavailable'?t().missing:retryingRecordID?t().active:t().retry);
-        retry.disabled=Boolean(!imageAvailable||retryingRecordID);
+        retry.disabled=Boolean(!imageAvailable||retryingRecordID||textConversion);
         if(retryingRecordID===record.id){retry.innerHTML='<span class="spinner" aria-hidden="true"></span>';retry.setAttribute('aria-label',t().retrying);}
         retry.addEventListener('click',()=>{if(!imageAvailable||retryingRecordID)return;retryingRecordID=record.id;notice=t().retryDemo;render();window.setTimeout(()=>{retryingRecordID=null;notice=t().retryEnded;render();},1800);});
         const pin=action('pin',record.pinned?t().unpin:t().pin,'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>');
         pin.setAttribute('aria-pressed',String(record.pinned));pin.addEventListener('click',()=>{record.pinned=!record.pinned;languageLabels();});
         const remove=action('delete',t().delete,'<path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>');
         remove.addEventListener('click',()=>{notice=t().deleteDemo;render();});
+        remove.disabled=Boolean(textConversion);
         head.append(heading,actions);
         const preview=document.createElement('button');preview.type='button';preview.className='hf-preview';preview.disabled=!imageAvailable;
         preview.dataset.imageState=imagePhase;preview.setAttribute('aria-busy',String(imagePhase==='loading'));
         if(!imageAvailable){preview.textContent=imagePhase==='loading'?'':t().missing;}else{const source=screenshotFixture(record),image=document.createElement('img');image.src=source;image.alt=record.title;preview.setAttribute('aria-label',t().enlarge);preview.title=t().enlarge;preview.append(image);preview.addEventListener('click',()=>showOriginal(source,record,preview));}content.append(preview);
-        if(record.kind==='translate' && aligned[record.id]) {
+        const converting=textConversion?.recordID===record.id;
+        if(converting){
+          const progress=document.createElement('p');progress.setAttribute('role','status');progress.textContent=t().converting+' ';
+          const cancel=document.createElement('button');cancel.textContent=t().cancelConvert;cancel.addEventListener('click',()=>{textConversion=null;notice=t().convertCanceled;render();});progress.append(cancel);content.append(progress);
+        }
+        if(converting || (record.kind==='translate' && aligned[record.id])) {
           const reader=document.createElement('div');content.append(reader);
-          bilingualView=BilingualResult.mount(reader,[t().original,t().translation,t().copyText,t().copyDone,t().copyFailed],record.id==='h1'?{source:'',translation:' '}:{source:' ',translation:''});
-          for(const group of aligned[record.id]) for(const field of ['source','translation']) bilingualView.update(group,field,group[field]);
+          bilingualView=BilingualResult.mount(reader,[t().original,t().translation,t().copyText,t().copyDone,t().copyFailed],record.id==='h1'?{source:'',translation:' '}:record.id==='h2'?{source:'',translation:''}:{source:' ',translation:''});
+          for(const group of (converting?textConversion.parts:aligned[record.id])) for(const field of ['source','translation']) bilingualView.update(group,field,group[field]);
         } else {
           for(const [label,value] of [[t().original,record.source],[t().translation,record.translation]]){if(!value)continue;const section=document.createElement('section');section.className='text-section';const heading=document.createElement('h3');heading.textContent=label;const p=document.createElement('p');p.className='hf-detail-text';p.textContent=value;section.append(heading,p);content.append(section);}
         }
@@ -1026,9 +1074,9 @@
         detail(visible.find(r=>r.id===selected));
         status.textContent=[notice,t().count(visible.length)].filter(Boolean).join(' · ');
         provider.setAttribute('aria-label',t().provider);
-        footer.querySelector('button').textContent=t().clear;note.textContent=t().note+' '+t().alignmentNote;
-        get('stream-demo').textContent=t().stream;get('stream-demo').disabled=!bilingualView||Boolean(retryingRecordID);
-        document.querySelectorAll('[data-filter-button]').forEach(button=>button.textContent=t()[button.dataset.filterButton]);searchInput.placeholder=t().search;searchInput.setAttribute('aria-label',t().search);
+        footer.querySelector('button').textContent=t().clear;note.textContent=t().note+' '+t().alignmentNote+' '+t().convertNote;
+        get('stream-demo').textContent=t().stream;get('stream-demo').disabled=!bilingualView||Boolean(retryingRecordID||textConversion);
+        document.querySelectorAll('[data-filter-button]').forEach(button=>{button.textContent=t()[button.dataset.filterButton];button.classList.toggle('is-selected',button.dataset.filterButton===body.dataset.filter);button.setAttribute('aria-pressed',String(button.dataset.filterButton===body.dataset.filter));});searchInput.placeholder=t().search;searchInput.setAttribute('aria-label',t().search);
         const historyIsActive=body.dataset.page==='history';
         historyNav.classList.toggle('is-selected',historyIsActive&&!pinned);pinnedNav.classList.toggle('is-selected',historyIsActive&&pinned);
         if(restoreRowFocus)focusSelectedRow();

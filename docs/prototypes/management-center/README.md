@@ -21,6 +21,46 @@ Browser automation for that earlier revision was denied by URL policy.
 The history-only bilingual revision below was inspected in the in-app browser;
 that evidence does not retrospectively validate every settings state.
 
+## Extraction-to-translation preview — confirmed 2026-09-24
+
+The requested icon action is shown before Retry in an extraction record's detail
+header, in both History and Pinned. It reuses the previously approved translation
+glyph and the existing 30 × 30 action geometry. The `Vision API integration guide`
+fixture demonstrates it; extraction records without text do not offer this action.
+
+The submitted decision form selected converting the current record, not creating
+another. It conditionally selected translating saved text if linked highlighting
+remains possible. The current renderer links source/translation by segment IDs,
+independently of images, so the proposed flow translates the saved source. Real
+implementation still needs stable source segmentation and validated correspondence;
+this authored fixture does not prove model alignment or source fidelity.
+
+Starting conversion immediately changes the reading area to the existing two-column
+layout: the full source stays on the left and translated fragments appear on the
+right. Success converts the same in-memory record; ID, date and pin state remain.
+Failure/cancellation discard the draft translation and retain the extraction.
+Image unavailability does not disable this text-only action. Retry and Delete remain
+visible but disabled during conversion. The prototype does not call a Provider or
+write history. Provider/model metadata remains fixture data, not request evidence.
+
+Confirmed: when the selected record completes under the Extract filter,
+switch to All and retain selection. This prevents the converted record disappearing.
+The working scope is History/Pinned; fresh-capture results are not changed here.
+The intended target is the current translation-language setting; the demo is fixed
+to Simplified Chinese. The floating success/failure/reset controls are harness only.
+
+After conversion, the translation icon disappears. The existing Retry action
+reloads the original screenshot and performs screenshot translation using the
+saved target language; unlike the initial text conversion, it requires the image.
+
+Browser checks verified success with six records before/after, Extract-to-All filter
+state, unchanged source text, failure/cancel retention, Pinned access, and translation
+despite unavailable image. Clicking an actual wrapped source text fragment colored
+both matching spans rgb(220, 230, 245). Header/body column boundaries both measured
+x=720 at a 1000 px viewport. English/dark/920 × 620 content preview retained a
+30 × 30 translation action with a successful center-point hit test. These checks
+validate this UI fixture, not native behavior or a live translation request.
+
 ## Bilingual history preview — 2026-09-23
 
 ### Keyboard record navigation — confirmed 2026-09-23
@@ -71,7 +111,8 @@ the standalone bilingual preview. History now uses that same shared reading
 surface inside its existing detail card, below the screenshot. Original is on
 the left and translation on the right; header and body dividers share the same
 column geometry. Hover previews both matching fragments, while click or native
-text selection gives the selected pair precedence. Extraction stays single-column.
+text selection gives the selected pair precedence. Extraction stays single-column
+unless the extraction-to-translation action above is running or completes.
 The history list, filters, screenshot viewer and Retry/Pin/Delete controls remain.
 
 The bottom **Stream preview** control is test-only: synthetic interleaved deltas

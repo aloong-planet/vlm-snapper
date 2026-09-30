@@ -72,7 +72,9 @@ struct AlignedTranslationParser: Sendable {
         }
         var snapshot = segments
         var partial = fields
-        if state == .fieldValue, !token.isEmpty {
+        // Only content strings may stream. An unfinished id/block/kind is not
+        // an identity and must never enter a published correspondence snapshot.
+        if state == .fieldValue, !token.isEmpty, key == "source" || key == "translation" {
             partial[key] = try decodePrefix(token)
         }
         if let segment = makeSegment(partial), !segment.source.isEmpty || !segment.translation.isEmpty {

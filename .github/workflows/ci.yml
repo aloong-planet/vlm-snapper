@@ -51,10 +51,11 @@ jobs:
           grep -F 'Executed 1 test, with 0 failures' "$RUNNER_TEMP/provider-closed.log"
       - name: Release script syntax
         run: bash -n Scripts/*.sh
+      - name: Release version contracts
+        run: python3 -m unittest discover -s Scripts/tests -p 'test_release_version.py' -v
       - name: Three-architecture development packages
         env:
-          VERSION: 0.0.0-ci
-          BUILD_VERSION: ${{ github.run_number }}
+          VERSION: 0.0.0
           APPCAST_BASE_URL: https://ci.invalid/vlmsnapper
           SPARKLE_PUBLIC_ED_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
           OUTPUT_ROOT: ${{ runner.temp }}/vlmsnapper-development-dmgs

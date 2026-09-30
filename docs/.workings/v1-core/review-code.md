@@ -1,3 +1,18 @@
+# 2026-09-30 单一版本号代码审查
+
+范围：无票 spec 增量 `v1-core::REQ-004`；参考 `850f64d` + 当前未提交修改。仅审本轮版本参数、清单、校验与 CI 接线，不把原有双语/历史改动当作本轮修改。保留以下历史原始报告。
+
+| 层 | 本轮核对与结论 |
+| --- | --- |
+| ① 底层前提 | 实测当前依赖 Sparkle 2.9.6 默认比较器，三段数字递增、同版本相等、0.1.1 小于旧 51；生产 updater 的 delegate 为 nil，没有自定义比较器。不能承诺旧整数自动升级。 |
+| ② 可运行性 | 全部 build/verify/release 调用点与两个 workflow 已移除独立参数；实际 arm64 App 两字段均为 0.1.1。ReleaseManifest 保留 Codable 的 buildVersion 字段以读取旧数据，但构造时派生同值，发布校验拒绝旧不一致值；不做历史序列化字段删除。 |
+| ③ 安全正确性 | 版本先校验再构建/凭据操作，workflow 输入经环境变量传参；签名、公证、HTTPS、EdDSA、架构门禁原样保留。发现 enclosure 版本属性可优先于 item 元素：新增真实反例先红，修正为同时查元素/属性并拒绝重复和不一致，防止错误更新版本逃逸到整版发布。 |
+| ④ 一致性 | 三架构共享同一版本，CI 使用合法的 0.0.0 非发布样本，不引入 CI run number 作为另一版本。LiveProviderGate 自身的工具 Bundle 编号不属于发行 App，未改。spec、features、CONTEXT 口径同步；无界面或字典新增。 |
+
+故障逃逸：非法输入/版本冲突必须终止本次构建或整版产物发布，不允许产生另一版本；appcast 失败在原子公开输出之前。审查未遗留本轮代码缺陷或待重构项。正式三架构公证与公开更新链路未运行，不由本地门禁代证。
+
+证据：`/tmp/vlmsnapper-version-final-targeted.log`、`/tmp/vlmsnapper-single-version.sSHyyl/{build,signing,verification,invalid-build,invalid-display}.log`；安装状态以同 feature `final-regression.md` 本轮条目为准。
+
 # VLMSnapper v1 — Ticket 01 code review
 
 审查范围：Swift Package 核心模块与 `ExtractionCoordinator` 第一纵切。
@@ -1407,3 +1422,23 @@ The independent final code-review task remains unchecked.
 - 【④ 一致性】从 spec/CONTEXT/features/原型 README 中清理双击打开独立结果、1200×780 默认窗口及提示词持久化的过时现行描述；施工历史保留并追加取代记录。双击只保留普通行选择；首次铺满 visibleFrame，非 macOS fullscreen，后续保留用户尺寸。类级目录 URL 比较 load/discard 两处已同步验证。未增加与本次无关的重构。
 
 证据：`/private/tmp/history-retry-boundaries-current-red.log`、`history-retry-failed-body-red.log`、`history-retry-complete-targeted.log`、`history-retry-full-closeout.log`。完整门禁退出 0。程序化回调/渲染与真实安装版操作区分记录，不把人工验收标成完成。
+
+## 2026-09-24 历史原文翻译
+
+版本：`850f64d01641922f6b2ece6458a121081a823789` + 本轮未提交修改。范围：[v1-core::US-003](../../specs/v1-core.md) 和所触及共享规则；不是全 v1 收口。
+
+- 【① 底层前提】逐 Provider 枚举 OpenAI/Gemini/DeepSeek 三个请求构造器：文字输入均无图片字段，图片路径维持原契约。Foundation 分句的前导空白曾产生空白片段，已用保留字符的切片及非空句范围修复，重复句、Markdown、多段、组合 Unicode 样本验证精确字节。原文身份在本地确定，未把模型回传的 source 当真值。真实模型文字契约尚未执行，不声称账户兼容。
+- 【② 可运行性】检查 preparing→streaming→succeeded/failed/canceled/save-failed→retry-save；原执行结果在成功事务之前不改动。取消只停外层 Task 的假设被生产回调测试推翻，已同时关闭捕获的 session，避免继续占用全局活动（上层逃逸）；准备期取消曾显示普通失败，精确断言先红后绿。退出现有历史任务同样调用 session.close，枚举另一取消入口后未见同类遗漏。切换记录、保存失败、过滤改变使用原应用生命周期和 UI 选择协调；原生测试覆盖转换目标与其他选中项两种分支。
+- 【③ 安全正确性】文字入口不读取截图，不绕开 Provider 凭据和活动门禁。转换前后核对原记录，保存使用既有 UPDATE，不恢复已删除目标；Pin 单独持久化，旧快照不覆盖它。只有完整顺序/身份/原文字节一致且译文非空才提交。重试仍经 loadIfOwned 与 PNG 解码，测试对实际 HTTP 体核对原图 base64；缺图无请求。未新增 schema、凭据落盘、原始响应或用户内容日志。
+- 【④ 一致性】复用既有双栏、30pt 图标、主题、本地化与事务接口，不替换新截图流程。首次文字转换和后续图片重试在 spec/CONTEXT/ADR 补充说明中明确区分。隐私说明原只提截图，改为显式对应截图或原文；属于本轮必要事实校正。SF Symbols 沿用项目原生约定，Provider 的已确认字母标识不在本次更改范围；无新字符图标。未引入需要另开重构的改动。
+
+测试途中 fixture 缺 DeepSeek SSE id 与原生测试错误枚举名属于测试搭建错误，修正 fixture/测试，不记作产品修复红。具体逐项证据与安装结果见本轮 checklist 和 final-regression 追加记录。
+
+## 2026-09-24 流式元数据前缀误判修复
+
+- 【① 底层前提】真实 JSON 可任意字段顺序；复现响应的 block 最后到达。保存的完整响应及 expected source 对读相等，但 chunk1174 发布 block=s。最小逐 scalar 样本同样红，修复后的原响应回放绿，排除本次复现的 JSON 语法/原文字节不同。
+- 【② 可运行性】状态机的 start/fieldValue/fieldEnd/segmentEnd/done 未变；仅 text field 可以进入 decodePrefix。id/block/kind 在 acceptString 后才进入 fields，缺元数据的快照不发布；后续正确完整片段仍能发布。错误原会中止整个请求（上层逃逸），本轮当场修复。
+- 【③ 安全正确性】不修补截断、不猜配、无额外网络请求；完整 JSON/重复 ID/类型/源文相等/数量的最终守卫均保留。真实测试使用合成文字与既有签名 Keychain 权限，保存前剔除 reasoning_content，无用户原文和 API Key。原失败响应未留存，不声称已核验用户那一包。
+- 【④ 一致性】全库枚举 OpenAIResponsesStreamDecoder、GeminiStreamDecoder、DeepSeekChatStreamDecoder 均走同一 OrderedStructuredOutputParser/AlignedTranslationParser；三处均受修复，无独立同类元数据前缀实现。提取 parser 的前缀仅用于正文，无需修改。没有界面/模型切换/持久化策略变化，不引入新抽象或顺手重构。
+
+归因复盘与规格测试边界已同步；安装版同记录重验仍待用户，不把样本 live 通过当所有账户保证。

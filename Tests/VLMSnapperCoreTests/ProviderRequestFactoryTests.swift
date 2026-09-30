@@ -4,6 +4,26 @@ import Testing
 
 @Suite("Provider request factory")
 struct ProviderRequestFactoryTests {
+    @Test("Saved-source translation sends only text and stable segment identities", arguments: ProviderID.allCases)
+    func savedSourceRequest(provider: ProviderID) throws {
+        let request = try ProviderRequestFactory().makeRequest(provider: provider,
+            modelID: "fixture-model", apiKey: "fixture", originalPNG: Data([1, 2, 3]),
+            operation: .translate(targetLanguage: "ja"), sourceSegments: [
+                TranslationSegment(id: "saved-1", block: "saved", kind: .paragraph,
+                    source: "Need help? ", translation: ""),
+                TranslationSegment(id: "saved-2", block: "saved", kind: .paragraph,
+                    source: "Contact us.", translation: "")
+            ])
+        let body = String(decoding: try #require(request.httpBody), as: UTF8.self)
+        #expect(!body.contains("image_url"))
+        #expect(!body.contains("input_image"))
+        #expect(!body.contains("inlineData"))
+        #expect(body.contains("saved-1"))
+        #expect(body.contains("Need help?"))
+        #expect(body.contains("Contact us."))
+        #expect(body.contains("JSON"))
+    }
+
     @Test("DeepSeek JSON mode explicitly instructs JSON in the user message", arguments: [ProviderOperation.extractText, .translate(targetLanguage: "fr")])
     func deepSeekJSONModeRequiresPromptInstruction(operation: ProviderOperation) throws {
         let request = try ProviderRequestFactory().makeRequest(

@@ -99,6 +99,8 @@ public struct ManagementCenterCallbacks {
     public let onSelectRecord: (UUID) -> Void
     public let onOpenRecord: (UUID) -> Void
     public let onRetryRecord: (UUID) -> Void
+    public let onTranslateRecord: (UUID) -> Void
+    public let onCancelHistoryOperation: () -> Void
     public let onSetPinned: (UUID, Bool) -> Void
     public let onDelete: (UUID) -> Void
     public let onClearHistory: (Bool) -> Void
@@ -124,6 +126,8 @@ public struct ManagementCenterCallbacks {
         onSelectRecord: @escaping (UUID) -> Void = { _ in },
         onOpenRecord: @escaping (UUID) -> Void = { _ in },
         onRetryRecord: @escaping (UUID) -> Void = { _ in },
+        onTranslateRecord: @escaping (UUID) -> Void = { _ in },
+        onCancelHistoryOperation: @escaping () -> Void = {},
         onSetPinned: @escaping (UUID, Bool) -> Void = { _, _ in },
         onDelete: @escaping (UUID) -> Void = { _ in },
         onClearHistory: @escaping (Bool) -> Void = { _ in },
@@ -148,6 +152,8 @@ public struct ManagementCenterCallbacks {
         self.onSelectRecord = onSelectRecord
         self.onOpenRecord = onOpenRecord
         self.onRetryRecord = onRetryRecord
+        self.onTranslateRecord = onTranslateRecord
+        self.onCancelHistoryOperation = onCancelHistoryOperation
         self.onSetPinned = onSetPinned
         self.onDelete = onDelete
         self.onClearHistory = onClearHistory
@@ -187,6 +193,7 @@ public struct ManagementCenterView: View {
     @State private var historyProviderID: String?
     @State private var searchText: String
     @State private var selectedRecordID: UUID?
+    @State private var handledConversionID: UUID?
     @FocusState private var historyListFocused: Bool
     @State private var retention: HistoryRetentionPeriod
     @State private var pinnedOnly = false
@@ -260,6 +267,7 @@ public struct ManagementCenterView: View {
             HistoryImagePreview(image: item.image)
         }
         .onChange(of: filteredRecords.map(\.id), initial: true) { _, _ in reconcileHistorySelection() }
+        .onChange(of: historyRetry.slot.attempt) { _, _ in reconcileHistorySelection() }
         .onChange(of: selectedRecordID, initial: true) { _, value in
             if let value { callbacks.onSelectRecord(value) }
         }
@@ -1160,14 +1168,16 @@ public struct ManagementCenterView: View {
             updateStatusIcon.frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 3) {
                 Text(updateStatusTitle).fontWeight(.semibold)
-                Text(updateStatusDetail)
-                    .font(.caption)
-                    .foregroundStyle(VLMSnapperTheme.secondaryText)
+                if let detail = updateStatusDetail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(VLMSnapperTheme.secondaryText)
+                }
             }
             Spacer()
             updateStatusAction
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, updateStatusDetail == nil ? 0 : 8)
     }
 
     @ViewBuilder
@@ -1216,10 +1226,9 @@ public struct ManagementCenterView: View {
         }
     }
 
-    private var updateStatusDetail: String {
+    private var updateStatusDetail: String? {
         switch settings.updateState {
-        case .idle, .current: VLMSnapperStrings.updateAutomaticChecksHint
-        case .checking: VLMSnapperStrings.updateAutomaticChecksHint
+        case .idle, .current, .checking: nil
         case .available: VLMSnapperStrings.updateAvailableDetail
         case .downloading: VLMSnapperStrings.updateDownloadingDetail
         case .readyToInstall: VLMSnapperStrings.updateReadyDetail
@@ -1275,9 +1284,26 @@ public struct ManagementCenterView: View {
             }
             Spacer()
             HStack(spacing: 0) {
+            if record.operation.kind == .extract,
+               !(record.operation.sourceMarkdown ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button { callbacks.onTranslateRecord(record.id) } label: {
+                    Group {
+                        if historyRetry.isTextConversion && historyRetry.isRunning && historyRetry.recordID == record.id {
+                            ProgressView().controlSize(.small)
+                        } else { VLMSnapperIcon.translate.image }
+                    }
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .disabled(!historyRetry.allowsStart || historyRetry.preventsDiscard || record.operation.status.isActive)
+                .help(VLMSnapperStrings.historyTranslateOriginal)
+                .accessibilityLabel(VLMSnapperStrings.historyTranslateOriginal)
+                .accessibilityIdentifier("history-translate-original")
+            }
             Button { callbacks.onRetryRecord(record.id) } label: {
                 Group {
-                    if historyRetry.isRunning && historyRetry.recordID == record.id {
+                    if !historyRetry.isTextConversion && historyRetry.isRunning && historyRetry.recordID == record.id {
                         ProgressView().controlSize(.small)
                     } else {
                         VLMSnapperIcon.retry.image
@@ -1319,14 +1345,18 @@ public struct ManagementCenterView: View {
             switch historyRetry.slot.attempt {
             case .neverStarted, .preparing:
                 Text(VLMSnapperStrings.preparing)
+                if historyRetry.isTextConversion {
+                    historyResult(record, source: historyRetry.originalSource, translation: "", segments: nil, asTranslation: true)
+                }
             case .streaming:
                 Text(VLMSnapperStrings.streaming)
                 historyResult(record, source: historyRetry.slot.sourceDelta,
-                              translation: historyRetry.slot.translationDelta, segments: historyRetry.slot.segments)
+                              translation: historyRetry.slot.translationDelta, segments: historyRetry.slot.segments,
+                              asTranslation: historyRetry.isTextConversion)
             case .succeeded:
                 historyResult(record, source: historyRetry.slot.committedResult?.sourceMarkdown,
                               translation: historyRetry.slot.committedResult?.translationMarkdown,
-                              segments: historyRetry.slot.committedResult?.segments)
+                              segments: historyRetry.slot.committedResult?.segments, asTranslation: historyRetry.isTextConversion)
             case let .failed(code):
                 Text(code == "history_screenshot_unavailable" ? VLMSnapperStrings.historyScreenshotUnavailable
                      : VLMSnapperStrings.failureMessage(code: code))
@@ -1336,11 +1366,15 @@ public struct ManagementCenterView: View {
             case .resultPersistenceFailed:
                 historyResult(record, source: historyRetry.slot.unsavedResult?.sourceMarkdown,
                               translation: historyRetry.slot.unsavedResult?.translationMarkdown,
-                              segments: historyRetry.slot.unsavedResult?.segments)
+                              segments: historyRetry.slot.unsavedResult?.segments, asTranslation: historyRetry.isTextConversion)
                 Text(historyRetry.slot.persistenceFailureCode.map(VLMSnapperStrings.failureMessage(code:))
                      ?? VLMSnapperStrings.persistenceFailed).foregroundStyle(VLMSnapperTheme.destructive)
                 Button(VLMSnapperStrings.retrySave, action: callbacks.onRetryHistorySave)
                     .disabled(historyRetry.isRunning)
+            }
+            if historyRetry.isTextConversion && historyRetry.isRunning && historyRetry.slot.unsavedResult == nil {
+                Button(VLMSnapperStrings.cancel, action: callbacks.onCancelHistoryOperation)
+                    .accessibilityIdentifier("history-cancel-conversion")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1485,8 +1519,8 @@ public struct ManagementCenterView: View {
     }
 
     @ViewBuilder
-    private func historyResult(_ record: HistoryRecord, source: String?, translation: String?, segments: [TranslationSegment]?) -> some View {
-        if record.operation.kind == .translate {
+    private func historyResult(_ record: HistoryRecord, source: String?, translation: String?, segments: [TranslationSegment]?, asTranslation: Bool = false) -> some View {
+        if asTranslation || record.operation.kind == .translate {
             BilingualResultView(source: source ?? "", translation: translation ?? "", segments: segments)
                 .id(record.id)
                 .padding(.horizontal, -15)
@@ -1552,6 +1586,11 @@ public struct ManagementCenterView: View {
     }
 
     private func reconcileHistorySelection() {
+        if historyRetry.isTextConversion, historyRetry.slot.attempt == .succeeded,
+           let id = historyRetry.recordID, handledConversionID != id {
+            handledConversionID = id
+            if selectedRecordID == id, kind == .extract { kind = .all }
+        }
         if !filteredRecords.contains(where: { $0.id == selectedRecordID }) {
             selectedRecordID = filteredRecords.first?.id
         }

@@ -327,6 +327,13 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 Task { await self?.openHistoryRecord(id) }
             },
             onRetryRecord: { [weak self] id in self?.startHistoryRetry(id) },
+            onTranslateRecord: { [weak self] id in self?.startHistoryRetry(id, convertingSavedText: true) },
+            onCancelHistoryOperation: { [weak self] in
+                guard let self else { return }
+                self.historyRetryTask?.cancel()
+                let session = self.historyRetrySession
+                Task { _ = await session?.close() }
+            },
             onSetPinned: { [weak self] id, pinned in
                 Task { await self?.setHistoryPinned(id: id, pinned: pinned) }
             },
@@ -742,10 +749,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
         publish()
     }
 
-    private func startHistoryRetry(_ id: UUID) {
+    private func startHistoryRetry(_ id: UUID, convertingSavedText: Bool = false) {
         guard !historyRetry.isRunning, historyRetry.slot.unsavedResult == nil else { return }
         historyRetry.isRunning = true
         historyRetry.recordID = id
+        historyRetry.isTextConversion = convertingSavedText
+        historyRetry.originalSource = convertingSavedText
+            ? historyRecords.first(where: { $0.id == id })?.operation.sourceMarkdown ?? "" : ""
+        let targetLanguage = selectedTargetLanguageCode
         historyRetrySession = nil
         historyRetry.providerSummary = ""
         historyRetry.slot = WorkspaceOperationSlot(attempt: .preparing)
@@ -764,18 +775,31 @@ final class VLMSnapperApplicationModel: ObservableObject {
                           !record.operation.status.isActive else {
                         throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
                     }
-                    guard let png = try? await screenshotStore.loadIfOwned(record.operation.screenshot),
-                          NSImage(data: png) != nil else {
-                        throw OperationWorkspaceRunFailure(code: "history_screenshot_unavailable")
+                    let png: Data
+                    if convertingSavedText {
+                        guard record.operation.kind == .extract,
+                              let source = record.operation.sourceMarkdown,
+                              !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                            throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+                        }
+                        historyRetry.originalSource = source
+                        png = Data()
+                    } else {
+                        guard let original = try? await screenshotStore.loadIfOwned(record.operation.screenshot),
+                              NSImage(data: original) != nil else {
+                            throw OperationWorkspaceRunFailure(code: "history_screenshot_unavailable")
+                        }
+                        png = original
                     }
                     try Task.checkCancellation()
                     let runner = PersistedOperationWorkspaceRunner(screenshotStore: screenshotStore,
-                        historyStore: historyStore, provider: providerStreamer, restoring: record.operation)
+                        historyStore: historyStore, provider: providerStreamer, restoring: record.operation,
+                        convertingSavedText: convertingSavedText)
                     let session = OperationWorkspaceSession(originalPNG: png, runner: runner,
                         activeGate: operationGate, restoring: record.operation)
                     historyRetrySession = session
                     historyRetry.providerSummary = providerSummary(for: selection)
-                    let kind: WorkspaceOperationKind = record.operation.kind == .extract ? .extract : .translate
+                    let kind: WorkspaceOperationKind = convertingSavedText || record.operation.kind == .translate ? .translate : .extract
                     await session.select(kind)
                     let observation = Task { @MainActor in
                         while !Task.isCancelled {
@@ -788,7 +812,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     defer { observation.cancel() }
                     do {
                         try await session.startSelectedOperation(selection: selection,
-                            targetLanguage: record.operation.targetLanguage ?? selectedTargetLanguageCode)
+                            targetLanguage: convertingSavedText ? targetLanguage : record.operation.targetLanguage ?? targetLanguage)
                     } catch {
                         let snapshot = await session.snapshot()
                         historyRetry.slot = kind == .extract ? snapshot.extract : snapshot.translate
@@ -802,7 +826,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 if !admitted { historyRetry.slot = WorkspaceOperationSlot(attempt: .failed(code: "operation_busy")) }
             } catch {
                 if historyRetry.slot.attempt == .preparing || historyRetry.slot.attempt == .neverStarted {
-                    historyRetry.slot = WorkspaceOperationSlot(attempt: .failed(
+                    historyRetry.slot = WorkspaceOperationSlot(attempt: error is CancellationError ? .canceled : .failed(
                         code: (error as? OperationWorkspaceRunFailure)?.code ?? "operation_failed"))
                 }
             }

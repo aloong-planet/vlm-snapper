@@ -4,6 +4,7 @@ import VLMSnapperCore
 enum VLMSnapperStrings {
     static var extract: String { localized("operation.extract") }
     static var translate: String { localized("operation.translate") }
+    static var historyTranslateOriginal: String { localized("history.translateOriginal") }
     static var operationSelector: String { localized("operation.selector") }
     static var targetLanguageSearch: String { localized("operation.targetLanguageSearch") }
     static var cancel: String { localized("action.cancel") }

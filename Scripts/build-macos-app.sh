@@ -2,18 +2,18 @@
 
 set -euo pipefail
 
-if [[ $# -ne 6 ]]; then
-    echo "Usage: $0 <universal|arm64|x64> <version> <build-version> <feed-url> <sparkle-public-key> <output-app>" >&2
+if [[ $# -ne 5 ]]; then
+    echo "Usage: $0 <universal|arm64|x64> <version> <feed-url> <sparkle-public-key> <output-app>" >&2
     exit 64
 fi
 
 architecture="$1"
 version="$2"
-build_version="$3"
-feed_url="$4"
-sparkle_public_key="$5"
-output_app="$6"
+feed_url="$3"
+sparkle_public_key="$4"
+output_app="$5"
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
+/bin/bash "$project_root/Scripts/validate-release-version.sh" "$version"
 scratch_path="${VLMSNAPPER_SCRATCH_PATH:-$project_root/.build}"
 
 case "$architecture" in
@@ -128,7 +128,7 @@ fi
 
 cp "$project_root/Distribution/Info.plist" "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build_version" "$app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :SUFeedURL $feed_url" "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :SUPublicEDKey $sparkle_public_key" "$app/Contents/Info.plist"
 printf 'APPL????' > "$app/Contents/PkgInfo"

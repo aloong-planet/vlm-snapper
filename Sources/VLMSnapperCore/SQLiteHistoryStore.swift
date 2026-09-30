@@ -37,6 +37,7 @@ public struct PreparedOperation: Equatable, Sendable {
     public let screenshot: ManagedScreenshot
     public let selection: ProviderSelection
     public let operation: ProviderOperation
+    public var sourceSegments: [TranslationSegment]? = nil
 }
 
 public struct StoredOperation: Equatable, Sendable {
