@@ -1,5 +1,57 @@
 # VLMSnapper v1 — Documentation regression
 
+## 2026-09-30 单一三段版本号
+
+范围：直接按 spec 实施 v1-core::REQ-004/AC-01–04，不是旧票或全 feature 收口。参考 commit `850f64d01641922f6b2ece6458a121081a823789` 加当前未提交修改；本机产物版本 `0.1.1`。需求映射复用 [checklist](checklist.md#2026-09-30-单一三段版本号来源与设计核对)。
+
+核对范围：根 AGENTS/CONTEXT、docs（含隐藏/忽略的施工记录）、Scripts、Distribution、.github、相关 Sources/Tests 及其引用。构建产物不作为现行文档，已单独核查实际 Bundle 和 Sparkle 比较器；无关历史产品结论保留，不把本轮通过扩张为旧票通过。
+
+### 阶段一 · 逐句核真
+
+| 声明面 / 对照端 | 结论 |
+|---|---|
+| spec REQ-004 ↔ 脚本与 ReleaseManifest | 一个三段数字输入；所有生产 App 构建/校验入口移除独立构建号。保留 Codable 字段但要求与 version 同值，未删除历史序列化字段 |
+| spec ↔ features | 用户只需递增三段版本；相同版本不作为新更新。features 不把内部字段或本地安装写成产品功能 |
+| CONTEXT ↔ 实现 | 单一版本不变量已持久化；默认 Sparkle 比较不变，旧整数迁移不绕过降级保护 |
+| Distribution / CI ↔ 规则 | Bundle 模板两字段均为 0.0.0；CI 开发版本从带后缀值改为 0.0.0；正式 workflow 删除 buildVersion 输入并在联网步骤前拒绝非法版本 |
+| 原型 / 本地化 ↔ 变化 | 纯版本数据及发布输入变化，没有新增控件、布局或文案。i18n 已启用，无新增翻译键；无需新原型 |
+
+### 阶段二 · 关系对读
+
+| 关系 | 结论 |
+|---|---|
+| 构建/校验脚本 ↔ 全部调用者 | 本地开发、正式三架构流水线、CI 与 provisioning 测试参数同步；LiveProviderGate 的独立工具元数据不属于生产 App 版本 |
+| 单一版本规则 ↔ 测试与产物门禁 | 6 个脚本测试、10 个聚焦 Swift 测试通过；真实 App 两个版本字段各自变异均被拒绝；XML 覆盖元素及 enclosure 属性，修复审查发现的属性覆盖绕过 |
+| 默认更新规则 ↔ Sparkle | 实际 SUStandardVersionComparator 验证数字递增、同版本相等和 0.1.1 小于旧整数 51；未增加自定义比较器 |
+| 文件 ↔ 索引 / 模板 | spec/features 文件名和功能摘要未变，无新增索引项；未修改 skill 或需求模板 |
+| ADR / 签名规则 ↔ 发布接线 | 架构 feed、EdDSA、公证、Developer ID/profile 既有边界不变；本轮本地签名和验证不等于执行全部正式发布链 |
+
+### 阶段三 · 事件核销
+
+| 事件 | 结论 |
+|---|---|
+| 新版本通则 | 正本为 spec REQ-004 与 CONTEXT；不只存于脚本或施工记录 |
+| 枚举 / Pending | 未增删 Provider、语言、架构或渠道；已有硬件、真实账户和正式发布 Pending 未被本轮核销 |
+| 验证出现 AX 失败 | 两次整套运行分别在启动和 AX 读取处失败；之后独立 AX 18 场景通过。未改产品焦点、放宽断言或隐藏失败；测试稳定性不因此被宣称解决 |
+| 本机旧整数迁移 | 正常退出 0.1.0 (51)，覆盖安装 0.1.1；两个 Bundle 字段读回均为 0.1.1，安装后签名/profile 校验通过，启动 PID 75725。未备份、未清理用户数据 |
+| 用户验收 / 发布 | 等待用户验收新安装版本；未提交、推送、合并、发布 feed 或执行公共旧版升级。不关闭原有票 |
+
+### 验证证据与边界
+
+- `/tmp/vlmsnapper-version-final-targeted.log`：10 个聚焦 Swift 测试通过；脚本版本测试 6 项通过。红灯证据为 `/tmp/vlmsnapper-single-version-red.log` 和 `/tmp/vlmsnapper-version-manifest-red.log`。
+- `/tmp/vlmsnapper-version-regression-final.log`，明细 `vlmsnapper-full-regression.OAw1B8`：严格构建、脚本、清单、shell、374 个非 App Swift Testing、22 个 App 测试、两个独立原生测试通过；AX 阶段退出 1。更早失败保留于 `/tmp/vlmsnapper-version-regression.log`（GfaiqC）。
+- `/tmp/vlmsnapper-version-ax-final.log`：独立 AX 回归退出 0，18 场景通过；明细 `vlmsnapper-ax-regression-9k12ts8x`。这是各分组最终证据齐备，不是单次完整网关退出 0，亦不是稳定性修复。
+- `/tmp/vlmsnapper-single-version.sSHyyl/`：build.log、signing.log、verification.log、installed-verification.log；invalid-build.log 与 invalid-display.log 分别证明两个版本字段错误会阻断。
+- 本轮只做 arm64 本地签名安装；三架构公证、真实生成/发布 appcast 和公开更新往返未执行。没有新模型付费调用。
+
+范围复核：上述同步对象已与改后规则及执行结果回查；本轮范围内无待改文档冲突。安装版人工验收与未发生的正式发布验证保留，不把文档同步完成解释为整个 v1 已收口。
+
+### 提交与公开前复验
+
+2026-09-30 用户明确要求提交、推送、发布、仓库改为 public 并运行 CI，且确认 0.1.1 版本说明。最新完整离线网关 `/tmp/vlmsnapper-prepublish-regression.log`（OjmINz）退出 0：严格构建、脚本、清单、shell、374 个非 App Swift Testing、22 个 App 测试、两个独立原生用例、18 个 AX 场景通过。此前失败仍是原始历史证据，不因此宣称稳定性缺陷已根除。
+
+完整 Git refs 历史与拟提交树分别经 gitleaks 扫描，两次均只命中 provisioning 测试的两处公开 Keychain access-group 标识；人工核实不是凭据。扫描不能保证不存在任何隐私资料。仓库可见性已核实为 PUBLIC。正式发布尚缺云端签名、公证、Sparkle 和部分真实 Provider 门禁配置；没有创建 tag/Release 或发布未经公证的安装包。
+
 ## 2026-08-26 — Ticket 02
 
 ### 阶段一：逐句核真
@@ -1769,3 +1821,91 @@ separate tracked limitations. No claim of full-feature convergence or PR readine
 | 其他 Pending | 真实显示器硬件和 Provider 发布契约仍待验；本轮不解除、不关 #23/#25、不发布 |
 
 队列中上述改后文本已重新与关系端核对；本次文档核对完成。完整回归退出 0，证据 `/private/tmp/history-retry-full-closeout.log` 及其 d2Y48V 明细目录。安装记录追加在 [本轮 tasklist](history-retry-identity-tasklist.md)，安装版用户验收未替代为自动化通过。
+
+## 2026-09-24 历史原文翻译
+
+版本：850f64d + 本轮未提交修改。增量范围 [v1-core::US-003](../../specs/v1-core.md)，逐 AC 证据引用 [checklist 的历史原文翻译实现查证](checklist.md#2026-09-24-历史原文翻译实现查证)，不另建映射。本轮不是 #23 全 feature 收口。
+
+### 阶段一 · 逐句核真
+
+| 声明面 / 对照端 | 结论 |
+|---|---|
+| spec ↔ 实现 | AC-01–09 均接线；首次只发文字、下一次 Retry 必须发图分开验证。去掉到期“未接原生”的 Pending，其余发布/硬件 Pending 保留 |
+| features ↔ spec | 补文字转换、同记录成功提交、缺图例外、失败/保存/过滤和后继图片 Retry；新截图行为不变 |
+| CONTEXT ↔ spec / 实现 | 增加历史原文翻译术语，截图直传限定截图操作；无 OCR / 第二独立模型引入 |
+| ADR-0002 / 0006 ↔ 实现 | 已接受 ADR 正文不改，只追加显式文字输入及原记录事务范围说明；未改存储、安全权限或自动上传规则 |
+| management-center 原型 / README ↔ 原生 | 已确认图标、双栏、高亮、过滤和取消；删除待确认注记，原型与原生字体/图标不要求共用代码；中英×明暗 920×620 渲染查看通过 |
+| 两语言字典 ↔ 实现 | 新 key 成对，隐私说明区分图/文字，拒绝处理文案不再误称文字为截图；既有本地化门禁通过 |
+| onboarding 原型 ↔ 隐私文案 | 同步所有三方案同事实表述，纯文案例外，不新增状态或布局；原生隐私浅色截图已查看 |
+
+### 阶段二 · 关系对读
+
+| 关系目录行 | 结论 |
+|---|---|
+| 文件 ↔ 索引 | features/README 与 specs/README 加历史原文翻译；spec 状态写明待实机/模型验收。ADR 无新编号或状态变化 |
+| 规则 ↔ 模板及生成说明 | 不修改 skill、需求编号或模板规则，无生成模板变更；清单使用既有完整标识和相对 spec 链接 |
+| 同一事实 ↔ 其他声明 | 检索 `only.*screenshot / only.*PNG / 模型操作时 / 点击模型操作时` 覆盖 CONTEXT、spec/features、onboarding 原型、全部字典，修正旧“只上传截图”表述；历史工作记录保留不当现状 |
+| 规则 ↔ 门禁 | 三 Provider 请求无图，完整对应拒绝改写，事务与取消测试各有红；过滤及 sourcePrefix 变异准确红。离线门禁不检模型实际契约，明确保留真实调用缺口 |
+
+### 阶段三 · 事件核销
+
+| 事件 | 结论 |
+|---|---|
+| 新增显式文字请求入口 | 不新增持久化 kind、Provider 或语言成员；输入范围变化已回写隐私说明与领域词汇，未发用户历史内容测试请求 |
+| Pending 到期 | `rg -n 'Pending:' docs/specs/v1-core.md` 仅剩硬件验收、Provider 发布条件；原生转换 Pending 移除，未把未测真实模型写通过 |
+| 新规则归宿 | 转换后 Retry 读图、首次文字转换允许缺图正本为 spec US-003/AC-02、09，CONTEXT 定义区分；不只留原型/对话 |
+| 前台变化中止 AX | 首轮失败保留；未放宽 AX 保护。最终完整运行 exit 0：368 非 App、22 App、31 XCTest、两个独立原生和18 AX通过 |
+| 验收/安装 | 自动化和渲染完成；真实模型与安装版人工操作未验，不合并、不关闭旧票。构建/安装记录随后追加 |
+
+受影响关系端已回查；上述三表范围内无文档冲突。实机与真实模型仍是验证缺口，不把文档一致性完成等同发布就绪。
+
+### 本地安装与证据边界补记
+
+- arm64 Release 0.1.0 (48) 构建成功；产物、build.log、signing.log、signing.plist 位于 `/tmp/vlmsnapper-conversion-install.Ev5S9e`。Developer ID 签名、provisioning profile、Keychain allowlist 和安装后严格校验均通过。
+- 正常退出旧 App 后，直接覆盖 `/Applications/VLMSnapper.app`，没有备份、清理历史/截图/设置或修改凭据。已启动，Info.plist 为 0.1.0 / 48，进程 PID 11819；不等同新入口人工验收。
+- 额外查看旧 Ticket07 onboarding 渲染时发现画布裁切：夹具固定宽 680，而生产 `OnboardingMetrics.width` 为 900（基线 HEAD 已如此）。该截图只证明生成成功，不能作为 onboarding 完整视觉通过证据；独立 privacy 渲染已查看，新转换界面的四张中英明暗渲染不受此画布差异影响。本轮未改旧夹具或扩大到引导页布局，建议后续校准旧渲染夹具；目前记录为验证限制，尚未建票，需用户决定是否纳入后续任务。
+- 新文字入口的真实模型调用未执行；没有把离线 SSE fixture 的通过记成实际 Provider 通过。未提交、推送或合并。
+
+## 2026-09-24 流式元数据前缀误判修复
+
+本轮在同一未提交工作区修复 US-003 的合法响应误拒，非全 feature 收口；映射复用 checklist 本轮增量，不另建票。
+
+### 阶段一 · 逐句核真
+
+| 声明面 / 对照端 | 结论 |
+|---|---|
+| spec Testing Decisions ↔ parser/tests | 明确任意字段顺序、身份字段完整才发布；正文安全前缀仍逐步显示。真实 metadata-last 样本及 App 同记录落库路径红绿成立 |
+| features / 原型 ↔ 当前实现 | 对外仍是双栏流式、对应高亮、成功转换同记录、失败保留；仅修复未达到既有承诺的实现，本次无需新功能描述或新原型 |
+| CONTEXT / ADR ↔ 实现 | 稳定片段身份、单次显式请求、完整结果才保存不变；没有自动修复请求、数据迁移或新模型策略，不产生新 ADR |
+| 本地化文案 ↔ 行为 | 项目 i18n 已启用；未新增文案，错误真正发生时仍使用原文案。修复消除合法片段的误报，不将真正坏 JSON 冒充成功 |
+| 复盘 ↔ 复现资料 | 明确用户原响应未留存；已复现同类故障而非证明原包一致。真正根因和旧测试盲点有红绿、App 变异和真实回放证据 |
+
+### 阶段二 · 关系对读
+
+| 关系目录行 | 结论 |
+|---|---|
+| 文件 ↔ 索引 | postmortems 目录无 README 索引；新增复盘由 checklist/review 引用。spec/features 标题与功能范围不变，索引无需再次改写 |
+| 规则 ↔ 模板 | 不修改任何 skill 或模板，没有生成说明需同步 |
+| 同一事实 ↔ 多入口 | `rg -n 'OrderedStructuredOutputParser\(|AlignedTranslationParser\(|decodePrefix\(' Sources` 枚举三个 Provider，均共享修复；提取路径无对应元数据，不适用 |
+| 规则 ↔ 门禁 | parser 三种后置元数据、App 两种图片可用性补守卫；旧非法 JSON/截断/改写拒绝测试保留。不把 HTTP200 本身视为模型通过 |
+
+### 阶段三 · 事件核销
+
+| 事件 | 结论 |
+|---|---|
+| 原生之外首次真实文字验证 | 两次授权请求已用完：第一份故障响应经修复后回放完整通过；第二次 live HTTP200、四段 source 精确一致且译文非空、正常完成。仅证明该模型当前合成样本，不推广其它账户/Provider |
+| 新规则归宿 | 身份字段须完整才发布落入 spec Testing Decisions；因果和旧测试形态盲点落 postmortems，不只留注释 |
+| Pending | 本轮不满足所有 Provider 真实契约/硬件发布条件，原 Pending 不撤销；用户原记录实机仍待重验 |
+| 验证不稳定 | 首轮 tX93Nx 的既有 waitForShortcutRelease 超时，次轮 KDH2HY 的 native-paste 取 keyWindow 超时均保留；新转换测试两轮均通过。未改焦点、超时或放宽断言求绿，最终结果后补 |
+
+上述范围内关系对读无新的文档冲突；最终门禁和安装未在本段提前标绿。
+
+### 最终验证追加
+
+`/tmp/vlm-metadata-full-final.log` 对应 nLfqDu 完整网关退出 0：369 非 App Swift Testing、31 原生 XCTest、22 App Swift Testing、2 个独立原生用例、18 AX，以及严格构建、脚本、清单和 shell 语法全部通过。前两轮失败不删除、不计作绿，也不声称此次顺利完成已消除原生环境不稳定。
+
+离线脚本的 `Live Provider regression NOT RUN` 仍属实：本轮两次真实文字验证通过独立限额探针执行，没有运行该脚本的图片提取+翻译付费模式。第一份真实失败响应回放与第二次真实调用各自完整校验通过，不混成“所有 Provider 通过”。规格索引已从“待真实模型验收”改为准确的 DeepSeek 合成文字验证范围，安装版用户重验仍保留；索引 ↔ 规格关系再次核对一致。
+
+### 安装阻断
+
+0.1.0 (49) arm64 Release 构建退出 0，产物与 build.log 在 `/tmp/vlmsnapper-metadata-install.hFsMyG`。Developer ID 签名首次和一次原样重试均在 Sparkle Downloader.xpc 的 secure timestamp 步骤失败：`The timestamp service is not available.`，日志分别 signing.log / signing-retry.log。没有关闭时间戳校验、降级签名或安装失败产物。当前 `/Applications/VLMSnapper.app` 仍为 0.1.0 (48)，数据、配置和凭据未动；外部签名服务恢复后尚需重新签名/严格校验/覆盖安装，不得把构建成功写成已交付本地修复版。未提交、推送或合并。

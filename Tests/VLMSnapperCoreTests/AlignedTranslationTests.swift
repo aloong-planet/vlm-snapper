@@ -3,6 +3,35 @@ import Testing
 
 @Suite("Aligned translation")
 struct AlignedTranslationTests {
+    // Live DeepSeek response placed block after translated text. Its first "s"
+    // was incorrectly published as a complete block identity.
+    @Test("saved translation metadata is atomic at every stream boundary", arguments: [
+        #"{"id":"saved-1","kind":"paragraph","source":"Hello. ","translation":"你好。 ","block":"saved"}"#,
+        #"{"block":"saved","kind":"paragraph","source":"Hello. ","translation":"你好。 ","id":"saved-1"}"#,
+        #"{"block":"saved","id":"saved-1","source":"Hello. ","translation":"你好。 ","kind":"paragraph"}"#,
+    ])
+    func metadataIsNeverPublishedAsAPrefix(segment: String) throws {
+        let plan = try SavedTextTranslation(source: "Hello. ")
+        var parser = OrderedStructuredOutputParser(operation: .translate(targetLanguage: "zh-Hans"))
+        var latest: [TranslationSegment] = []
+        var eventCount = 0
+        for scalar in ("{\"segments\":[" + segment + "]}").unicodeScalars {
+            for event in try parser.consume(String(scalar)) {
+                if case let .translationSegments(segments) = event {
+                    eventCount += 1
+                    latest = try plan.merging(segments, complete: false)
+                    #expect(segments.map(\.id) == ["saved-1"])
+                    #expect(segments.map(\.block) == ["saved"])
+                }
+            }
+        }
+        try parser.finish()
+        let result = try plan.merging(latest, complete: true)
+        #expect(eventCount > 0)
+        #expect(result.map(\.source) == ["Hello. "])
+        #expect(result.map(\.translation) == ["你好。 "])
+    }
+
     @Test("escaped Unicode survives every scalar chunk boundary with any field order")
     func unicodeAndKeyOrder() throws {
         let json = #"{"segments":[{"translation":"\u4f60\u597d","source":"\ud83d\udc69\u200d\ud83d\udcbb Cafe\u0301. ","kind":"heading","block":"title","id":"a"},{"id":"b","block":"p","kind":"paragraph","source":"שלום","translation":"和平"}]}"#

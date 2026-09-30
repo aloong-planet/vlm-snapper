@@ -2,20 +2,20 @@
 
 set -euo pipefail
 
-if [[ $# -ne 6 && $# -ne 8 ]]; then
-    echo "Usage: $0 <app> <universal|arm64|x64> <version> <build-version> <feed-url> <sparkle-public-key> [<signing-metadata> <signing-identity>]" >&2
+if [[ $# -ne 5 && $# -ne 7 ]]; then
+    echo "Usage: $0 <app> <universal|arm64|x64> <version> <feed-url> <sparkle-public-key> [<signing-metadata> <signing-identity>]" >&2
     exit 64
 fi
 
 app="$1"
 architecture="$2"
 version="$3"
-build_version="$4"
-feed_url="$5"
-sparkle_public_key="$6"
-signing_metadata="${7:-}"
-signing_identity="${8:-}"
+feed_url="$4"
+sparkle_public_key="$5"
+signing_metadata="${6:-}"
+signing_identity="${7:-}"
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
+/bin/bash "$project_root/Scripts/validate-release-version.sh" "$version"
 info="$app/Contents/Info.plist"
 executable="$app/Contents/MacOS/VLMSnapperApp"
 
@@ -37,7 +37,7 @@ assert_plist_value() {
 
 assert_plist_value CFBundleIdentifier com.loong.vlmsnapper
 assert_plist_value CFBundleShortVersionString "$version"
-assert_plist_value CFBundleVersion "$build_version"
+assert_plist_value CFBundleVersion "$version"
 assert_plist_value LSMinimumSystemVersion 14.4
 assert_plist_value LSUIElement true
 assert_plist_value \

@@ -32,7 +32,8 @@ public struct ProviderPreparedOperationStreamer: PreparedOperationStreaming {
                 modelID: preparedOperation.selection.modelID,
                 apiKey: credential.apiKey,
                 originalPNG: originalPNG,
-                operation: preparedOperation.operation
+                operation: preparedOperation.operation,
+                sourceSegments: preparedOperation.sourceSegments
             )
         } catch {
             return failedStream(error)

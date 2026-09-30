@@ -78,6 +78,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private let historyStore: any OperationHistoryWriting
     private let provider: any PreparedOperationStreaming
     private let now: @Sendable () -> Date
+    private let conversionRecord: StoredOperation?
     private var managedScreenshot: ManagedScreenshot?
     private var preparedOperations: [OperationSlot: PreparedOperation] = [:]
     private var pendingPersistence: PendingPersistence?
@@ -87,12 +88,14 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         historyStore: any OperationHistoryWriting,
         provider: any PreparedOperationStreaming,
         restoring operation: StoredOperation? = nil,
+        convertingSavedText: Bool = false,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.screenshotStore = screenshotStore
         self.historyStore = historyStore
         self.provider = provider
         self.now = now
+        self.conversionRecord = convertingSavedText ? operation : nil
         if let operation {
             managedScreenshot = operation.screenshot
             let restoredOperation: ProviderOperation = operation.kind == .extract
@@ -154,13 +157,32 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         var replacesExistingResult = false
         var unownedScreenshot: ManagedScreenshot?
         do {
-            let persisted = try await persistedScreenshot(for: originalPNG)
+            let textPlan: SavedTextTranslation?
+            let persisted: (screenshot: ManagedScreenshot, isNew: Bool)
+            if let conversionRecord {
+                guard conversionRecord.kind == .extract, case let .translate(language) = operation,
+                      !language.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      !conversionRecord.status.isActive,
+                      try await historyStore.operation(id: conversionRecord.id) == conversionRecord else {
+                    throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+                }
+                textPlan = try SavedTextTranslation(source: conversionRecord.sourceMarkdown ?? "")
+                persisted = (conversionRecord.screenshot, false)
+            } else {
+                textPlan = nil
+                persisted = try await persistedScreenshot(for: originalPNG)
+            }
             if persisted.isNew {
                 unownedScreenshot = persisted.screenshot
             }
             let slot = Self.slot(for: operation)
             let newPrepared: PreparedOperation
-            if let existing = preparedOperations[slot] {
+            if let conversionRecord, let textPlan {
+                newPrepared = PreparedOperation(operationID: conversionRecord.id,
+                    screenshot: conversionRecord.screenshot, selection: selection, operation: operation,
+                    sourceSegments: textPlan.segments)
+                replacesExistingResult = true
+            } else if let existing = preparedOperations[slot] {
                 guard let stored = try await historyStore.operation(id: existing.operationID),
                       stored.screenshot == existing.screenshot,
                       !stored.status.isActive else {
@@ -209,8 +231,9 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                 )
             }
             try Task.checkCancellation()
+            if let textPlan { continuation.yield(.translationSegments(textPlan.segments)) }
             let stream = await provider.stream(
-                originalPNG: originalPNG,
+                originalPNG: textPlan == nil ? originalPNG : Data(),
                 preparedOperation: newPrepared
             )
             if !replacesExistingResult {
@@ -221,11 +244,27 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             }
             var accumulator = ProviderStreamAccumulator(operation: newPrepared.operation)
             var completed = false
+            var receivedSegments: [TranslationSegment] = []
             for try await event in stream {
                 try Task.checkCancellation()
-                switch event {
+                let displayEvent: ProviderStreamEvent
+                if let textPlan {
+                    switch event {
+                    case let .translationSegments(segments):
+                        receivedSegments = segments
+                        displayEvent = .translationSegments(try textPlan.merging(segments, complete: false))
+                    case .completed:
+                        _ = try textPlan.merging(receivedSegments, complete: true)
+                        displayEvent = event
+                    case .sourceDelta, .translationDelta:
+                        throw ProviderStreamContractError.incompleteOutput
+                    case .metadata:
+                        displayEvent = event
+                    }
+                } else { displayEvent = event }
+                switch displayEvent {
                 case let .translationSegments(segments):
-                    if firstTextAt == nil, segments.contains(where: { !$0.source.isEmpty || !$0.translation.isEmpty }) {
+                    if firstTextAt == nil, segments.contains(where: { (textPlan == nil && !$0.source.isEmpty) || !$0.translation.isEmpty }) {
                         firstTextAt = now()
                     }
                     continuation.yield(.translationSegments(segments))
@@ -238,7 +277,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                 case .metadata, .completed:
                     break
                 }
-                if let output = try accumulator.consume(event) {
+                if let output = try accumulator.consume(displayEvent) {
                     let result = WorkspaceCommittedResult(
                         sourceMarkdown: output.source,
                         translationMarkdown: output.translation,
@@ -359,6 +398,10 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         replacesExistingResult: Bool
     ) async throws {
         if replacesExistingResult {
+            if let conversionRecord,
+               try await historyStore.operation(id: conversionRecord.id) != conversionRecord {
+                throw OperationWorkspaceRunFailure(code: "history_record_unavailable")
+            }
             do {
                 try await historyStore.replace(
                     operationID: preparedOperation.operationID,

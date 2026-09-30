@@ -372,6 +372,66 @@ final class HistoryInteractionTests: XCTestCase {
         XCTAssertTrue(accessibleText(content).contains("History entry 18"))
     }
 
+    func test09ConversionPreservesQueryAndDoesNotStealAnotherSelection() async throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        let application = NSApplication.shared
+        let previousPolicy = application.activationPolicy()
+        let previousDelegate = application.delegate
+        application.delegate = nil
+        defer {
+            application.delegate = previousDelegate
+            _ = application.setActivationPolicy(previousPolicy)
+        }
+        XCTAssertTrue(application.setActivationPolicy(.accessory))
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        for keepTargetSelected in [true, false] {
+            var fixtures = [record("deepseek", source: "First source", kind: .extract),
+                            record("deepseek", source: "Second source", kind: .extract),
+                            record("deepseek", source: "Unpinned source", kind: .extract, pinned: false),
+                            record("openai", source: "Other source", kind: .extract)]
+            let target = fixtures[0]
+            let presentation = HistoryRetryPresentation()
+            var selected: UUID?
+            let controller = ManagementCenterWindowController(records: fixtures,
+                callbacks: ManagementCenterCallbacks(historyRetry: presentation, onSelectRecord: { selected = $0 }))
+            let window = try XCTUnwrap(controller.window)
+            defer { window.close() }
+            controller.show(destination: .history)
+            try await settle(in: window) { window.isKeyWindow }
+            let content = try XCTUnwrap(window.contentView)
+            try click(window, at: NSPoint(x: 330, y: content.bounds.height - 29))
+            try click(window, at: NSPoint(x: 90, y: content.bounds.height - 101))
+            let picker = try XCTUnwrap(descendants(content).compactMap { $0 as? NSPopUpButton }.first)
+            try XCTUnwrap(picker.menu).performActionForItem(at: picker.indexOfItem(withTitle: "DeepSeek"))
+            try enterSearch("source", in: window)
+            try await settle(in: window) { historyRenderedRows(in: content).count == 2 }
+            let row = window.convertFromScreen(historyRenderedRows(in: content)[keepTargetSelected ? 0 : 1].screenFrame())
+            try click(window, at: NSPoint(x: row.midX, y: row.midY))
+            let expectedSelection = keepTargetSelected ? target.id : fixtures[1].id
+            try await settle(in: window) { selected == expectedSelection }
+            presentation.recordID = target.id
+            presentation.isTextConversion = true
+            presentation.slot = WorkspaceOperationSlot(attempt: .streaming)
+            pump(window)
+            presentation.slot = WorkspaceOperationSlot(attempt: .succeeded)
+            fixtures[0] = HistoryRecord(operation: StoredOperation(id: target.id,
+                screenshot: target.operation.screenshot, selection: target.operation.selection,
+                status: .succeeded, sourceMarkdown: "First source", translationMarkdown: "第一个原文", kind: .translate),
+                createdAt: target.createdAt, isPinned: true)
+            controller.update(records: fixtures, selectedRecordID: expectedSelection, selectedImage: nil,
+                cleanupFailureCount: 0, retention: .thirtyDays, settings: GeneralSettingsSnapshot(), providerSettings: nil)
+            try await settle(in: window) {
+                historyRenderedRows(in: content).count == (keepTargetSelected ? 2 : 1)
+            }
+            XCTAssertEqual(selected, expectedSelection)
+            XCTAssertEqual(picker.titleOfSelectedItem, "DeepSeek")
+            XCTAssertEqual(descendants(content).compactMap { $0 as? NSTextField }.first { $0.isEditable }?.stringValue, "source")
+            XCTAssertTrue(historyRenderedRows(in: content).contains { $0.isSelected() })
+            window.close()
+        }
+    }
+
     private func pressArrow(_ key: KeyEquivalent, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) throws {
         let down = key == .downArrow
         let characters = String(UnicodeScalar(down ? NSDownArrowFunctionKey : NSUpArrowFunctionKey)!)

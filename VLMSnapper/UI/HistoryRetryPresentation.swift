@@ -9,6 +9,8 @@ public final class HistoryRetryPresentation: ObservableObject {
     @Published public var isRunning = false
     @Published public var allowsStart = false
     @Published public var providerSummary = ""
+    @Published public var isTextConversion = false
+    @Published public var originalSource = ""
 
     public var preventsDiscard: Bool { isRunning || slot.unsavedResult != nil }
 

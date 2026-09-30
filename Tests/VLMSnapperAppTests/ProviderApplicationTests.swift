@@ -344,6 +344,161 @@ struct ProviderApplicationTests {
         }
     }
 
+    @Test(arguments: [false, true])
+    func savedExtractionConvertsThroughProductionCallback(missingImage: Bool) async throws {
+        try await withFixture { fixture in
+            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            let screenshot = try await screenshots.save(originalPNG: png)
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            let prepared = try await store.prepareOperation(screenshot: screenshot,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"), operation: .extractText)
+            try await store.finish(operationID: prepared.operationID,
+                with: .succeeded(sourceMarkdown: "Need help? Contact us.", translationMarkdown: nil))
+            try await store.setPinned(true, operationID: prepared.operationID)
+            let before = try #require(try await store.historyRecord(id: prepared.operationID))
+            if missingImage { try FileManager.default.removeItem(atPath: screenshot.path) }
+            UserDefaults(suiteName: fixture.suite)?.set("ja", forKey: "targetLanguageCode")
+            await fixture.http.allowImageRequests()
+            try await fixture.withModel { model in
+                let controls = model.providerSettingsConfiguration()
+                model.credentialEditor.edit("fixture-conversion-key")
+                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false, operation: controls.onValidate))
+                try await eventually { model.providerSnapshot.phase == .selectingModel }
+                controls.onSelectModel("fixture-vision")
+                try await eventually { model.historyRetry.allowsStart }
+                model.managementCallbacks().onTranslateRecord(prepared.operationID)
+                model.managementCallbacks().onTranslateRecord(prepared.operationID)
+                try await eventually {
+                    let count = await fixture.http.imageRequests.count
+                    return !model.historyRetry.isRunning || count == 1
+                }
+                let request = try #require(await fixture.http.imageRequests.first,
+                    "Text conversion must work even with a missing image: \(model.historyRetry.slot.attempt)")
+                let body = String(decoding: try #require(request.httpBody), as: UTF8.self)
+                #expect(!body.contains("image_url"))
+                #expect(body.contains("Need help?"))
+                #expect(body.contains("saved-2"))
+                try await fixture.http.sendTranslationContent(#"{"segments":[{"id":"saved-1","block":"saved","kind":"paragraph","source":"Need help? ","translation":"需要"#, finish: false)
+                try await eventually { model.historyRetry.slot.translationDelta == "需要" }
+                #expect(model.historyRetry.slot.sourceDelta == "Need help? Contact us.")
+                #expect(try await store.operation(id: prepared.operationID)?.kind == .extract)
+                // Match live metadata-last output split across SSE events.
+                try await fixture.http.sendTranslationContent(#"帮助？"},{"id":"saved-2","kind":"paragraph","source":"Contact us.","translation":"联系我们。","block":"s"#, finish: false)
+                try await fixture.http.sendTranslationContent(#"aved"}]}"#, finish: true)
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .succeeded)
+                let after = try #require(try await store.historyRecord(id: prepared.operationID))
+                #expect(after.operation.kind == .translate)
+                #expect(after.operation.sourceMarkdown == "Need help? Contact us.")
+                #expect(after.operation.translationMarkdown == "需要帮助？联系我们。")
+                #expect(after.operation.segments?.map(\.id) == ["saved-1", "saved-2"])
+                #expect(after.operation.selection.modelID == "fixture-vision")
+                #expect(after.operation.targetLanguage == "ja")
+                #expect(after.createdAt == before.createdAt)
+                #expect(after.isPinned)
+                #expect(after.operation.screenshot == before.operation.screenshot)
+                #expect(try await store.history(matching: HistoryQuery()).count == 1)
+                #expect(await fixture.http.imageRequests.count == 1)
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                if missingImage {
+                    try await eventually { !model.historyRetry.isRunning }
+                    #expect(model.historyRetry.slot.attempt == .failed(code: "history_screenshot_unavailable"))
+                    #expect(await fixture.http.imageRequests.count == 1)
+                } else {
+                    try await eventually { await fixture.http.imageRequests.count == 2 }
+                    let retry = try #require(await fixture.http.imageRequests.last?.httpBody)
+                    let json = try #require(JSONSerialization.jsonObject(with: retry) as? [String: Any])
+                    let messages = try #require(json["messages"] as? [[String: Any]])
+                    let content = try #require(messages.first?["content"] as? [[String: Any]])
+                    let image = try #require(content.last?["image_url"] as? [String: Any])
+                    #expect(image["url"] as? String == "data:image/png;base64,\(png.base64EncodedString())")
+                    #expect((content.first?["text"] as? String)?.contains("into ja") == true)
+                    try await fixture.http.finishImage(source: "Freshly read screenshot", translation: "新译文")
+                    try await eventually { !model.historyRetry.isRunning }
+                    #expect(model.historyRetry.slot.attempt == .succeeded)
+                    #expect(try await store.operation(id: prepared.operationID)?.sourceMarkdown == "Freshly read screenshot")
+                    #expect(try await store.history(matching: HistoryQuery()).count == 1)
+                }
+            }
+            let reloaded = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            #expect(try await reloaded.operation(id: prepared.operationID)?.kind == .translate)
+        }
+    }
+
+    @Test func savedConversionPreservesOriginalOnFailureAndRetriesOnlyLocalSave() async throws {
+        try await withFixture { fixture in
+            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+            let screenshot = try await screenshots.save(originalPNG: Data([1, 2, 3]))
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            let prepared = try await store.prepareOperation(screenshot: screenshot,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"), operation: .extractText)
+            try await store.finish(operationID: prepared.operationID,
+                with: .succeeded(sourceMarkdown: "Need help? Contact us.", translationMarkdown: nil))
+            let before = try #require(try await store.historyRecord(id: prepared.operationID))
+            await fixture.http.allowImageRequests()
+            try await fixture.withModel { model in
+                let controls = model.providerSettingsConfiguration()
+                model.credentialEditor.edit("fixture-conversion-key")
+                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false, operation: controls.onValidate))
+                try await eventually { model.providerSnapshot.phase == .selectingModel }
+                controls.onSelectModel("fixture-vision")
+                try await eventually { model.historyRetry.allowsStart }
+                let callbacks = model.managementCallbacks()
+                callbacks.onTranslateRecord(prepared.operationID)
+                callbacks.onCancelHistoryOperation()
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .canceled)
+                #expect(await fixture.http.imageRequests.isEmpty)
+                #expect(try await store.historyRecord(id: prepared.operationID) == before)
+                for mode in 0..<3 {
+                    callbacks.onTranslateRecord(prepared.operationID)
+                    try await eventually { await fixture.http.imageRequests.count == mode + 1 }
+                    if mode == 0 {
+                        try await fixture.http.finishImage(source: "Model rewrote the source", translation: "改写")
+                    } else if mode == 1 {
+                        callbacks.onCancelHistoryOperation()
+                    } else {
+                        try await fixture.http.sendTranslationContent(#"{"segments":["#, finish: true)
+                    }
+                    try await eventually { !model.historyRetry.isRunning }
+                    #expect(model.historyRetry.slot.attempt != .succeeded)
+                    if mode == 1 {
+                        #expect(model.historyRetry.slot.attempt == .canceled)
+                        await fixture.http.release()
+                    }
+                    #expect(try await store.historyRecord(id: prepared.operationID) == before)
+                }
+                var database: OpaquePointer?
+                try #require(sqlite3_open(fixture.root.appendingPathComponent("history.sqlite").path, &database) == SQLITE_OK)
+                defer { sqlite3_close(database) }
+                try #require(sqlite3_exec(database, "CREATE TRIGGER conversion_write_failure BEFORE UPDATE ON operations WHEN NEW.status = 'succeeded' BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END", nil, nil, nil) == SQLITE_OK)
+                callbacks.onTranslateRecord(prepared.operationID)
+                try await eventually { await fixture.http.imageRequests.count == 4 }
+                try await fixture.http.finishSavedTranslation()
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .resultPersistenceFailed)
+                #expect(model.historyRetry.slot.unsavedResult?.sourceMarkdown == "Need help? Contact us.")
+                #expect(model.historyRetry.slot.unsavedResult?.translationMarkdown == "需要帮助？联系我们。")
+                #expect(try await store.historyRecord(id: prepared.operationID) == before)
+                callbacks.onDelete(prepared.operationID)
+                callbacks.onTranslateRecord(prepared.operationID)
+                #expect(!model.historyRetry.isRunning)
+                try #require(sqlite3_exec(database, "DROP TRIGGER conversion_write_failure", nil, nil, nil) == SQLITE_OK)
+                callbacks.onRetryHistorySave()
+                try await eventually { !model.historyRetry.isRunning }
+                #expect(model.historyRetry.slot.attempt == .succeeded)
+                #expect(model.historyRetry.slot.unsavedResult == nil)
+                #expect(try await store.operation(id: prepared.operationID)?.kind == .translate)
+                #expect(try await store.history(matching: HistoryQuery()).count == 1)
+                #expect(await fixture.http.imageRequests.count == 4)
+            }
+        }
+    }
+
     @Test(arguments: [PersistedOperationKind.extract, .translate])
     func historyRetryUpdatesOriginalRecord(kind: PersistedOperationKind) async throws {
         try await withFixture { fixture in
@@ -1808,6 +1963,26 @@ private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
         imageContinuation?.yield(Data("data: ".utf8) + chunk + Data("\n\ndata: [DONE]\n\n".utf8))
         imageContinuation?.finish()
         imageContinuation = nil
+    }
+
+    func finishSavedTranslation() throws {
+        let content = #"{"segments":[{"id":"saved-1","block":"saved","kind":"paragraph","source":"Need help? ","translation":"需要帮助？"},{"id":"saved-2","block":"saved","kind":"paragraph","source":"Contact us.","translation":"联系我们。"}]}"#
+        try sendTranslationContent(content, finish: true)
+    }
+
+    func sendTranslationContent(_ content: String, finish: Bool) throws {
+        var choice: [String: Any] = ["index": 0, "delta": ["content": content]]
+        if finish { choice["finish_reason"] = "stop" }
+        let chunk = try JSONSerialization.data(withJSONObject: [
+            "id": "fixture-saved-text",
+            "choices": [choice]
+        ])
+        imageContinuation?.yield(Data("data: ".utf8) + chunk + Data("\n\n".utf8))
+        if finish {
+            imageContinuation?.yield(Data("data: [DONE]\n\n".utf8))
+            imageContinuation?.finish()
+            imageContinuation = nil
+        }
     }
 }
 

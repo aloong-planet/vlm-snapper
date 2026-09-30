@@ -27,7 +27,7 @@
 "failure.rateLimited" = "Provider 暂时限制了请求，请稍后手动重试。";
 "failure.insufficientBalance" = "Provider 账户余额或额度不足。";
 "failure.providerUnavailable" = "Provider 服务暂时不可用，请稍后手动重试。";
-"failure.contentBlocked" = "Provider 拒绝处理这张截图。";
+"failure.contentBlocked" = "Provider 拒绝处理此内容。";
 "failure.imageUnsupported" = "当前模型不支持图片输入。";
 "failure.imageTooLarge" = "截图超过当前 Provider 或模型的大小限制。";
 "failure.timeout" = "等待 Provider 响应超时，请检查网络后手动重试。";
@@ -44,7 +44,7 @@
 "onboarding.permission.missing" = "尚未授权";
 "onboarding.permission.restart" = "需要重启";
 "onboarding.permission.ready" = "已授权";
-"onboarding.privacy.description" = "模型操作时才会上传当前截图；截图和文字记录保存在这台 Mac 上，未钉住记录默认 30 天后永久删除。";
+"onboarding.privacy.description" = "仅在你发起操作时发送对应截图或原文；历史保存在这台 Mac 上，未钉住记录默认 30 天后永久删除。";
 "onboarding.privacy.important" = "重要说明";
 "onboarding.privacy.note" = "“存储与隐私”是重要说明，不影响开始使用。";
 "onboarding.gate.ready.title" = "准备完成，可以开始使用";
@@ -190,7 +190,7 @@
 "edit.emojiAndSymbols" = "表情与符号";
 "privacy.title" = "存储与隐私详情";
 "privacy.upload.title" = "发送到在线 Provider";
-"privacy.upload.body" = "只有在你点击提取文字或翻译后，原始 PNG 截图才会发送到当前选择的在线 Provider。";
+"privacy.upload.body" = "截图提取、翻译和重试会将原始 PNG 发送到当前 Provider；历史中的“翻译原文”仅发送该条已保存原文，不发送截图。仅在你点击相应操作后才发送。";
 "privacy.storage.title" = "本地保存位置";
 "privacy.storage.body" = "原始图片保存在 图片/VLMSnapper/YYYY-MM/，提取文字、翻译结果和历史记录保存在这台 Mac 上，并受 macOS 用户权限保护。API Key 存储在 Apple Keychain 中；启用 FileVault 后，本地数据还会受到系统磁盘加密保护。";
 "privacy.retention.title" = "自动清理";
@@ -279,3 +279,4 @@
 "providerSetup.recovering" = "正在恢复";
 "providerSetup.storageFailure" = "安全存储错误";
 "providerSetup.storageReadFailure" = "无法读取已保存的 Provider 配置。请收起后重新展开此卡片重试；若仍失败，请检查应用安装和本地存储权限。";
+"history.translateOriginal" = "翻译原文";

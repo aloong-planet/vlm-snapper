@@ -3,10 +3,10 @@
 set -euo pipefail
 
 version="${VERSION:-0.1.0}"
-build_version="${BUILD_VERSION:-1}"
 feed_base_url="${APPCAST_BASE_URL:-https://development.invalid/vlmsnapper}"
 sparkle_public_key="${SPARKLE_PUBLIC_ED_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}"
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
+/bin/bash "$project_root/Scripts/validate-release-version.sh" "$version"
 output_root="${OUTPUT_ROOT:-$project_root/release/$version-development}"
 
 mkdir -p "$output_root"
@@ -19,7 +19,6 @@ for architecture in arm64 x64 universal; do
     "$project_root/Scripts/build-macos-app.sh" \
         "$architecture" \
         "$version" \
-        "$build_version" \
         "$feed_url" \
         "$sparkle_public_key" \
         "$app"
@@ -27,7 +26,6 @@ for architecture in arm64 x64 universal; do
         "$app" \
         "$architecture" \
         "$version" \
-        "$build_version" \
         "$feed_url" \
         "$sparkle_public_key"
 

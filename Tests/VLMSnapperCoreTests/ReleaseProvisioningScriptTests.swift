@@ -17,7 +17,6 @@ struct ReleaseProvisioningScriptTests {
         process.arguments = [
             repositoryRoot.appendingPathComponent("Scripts/release-macos.sh").path,
             "1.0.0",
-            "1",
             "https://updates.aloongplanet.com/vlmsnapper",
             "https://downloads.aloongplanet.com/vlmsnapper",
             "public-key",

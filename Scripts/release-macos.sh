@@ -2,18 +2,18 @@
 
 set -euo pipefail
 
-if [[ $# -ne 6 ]]; then
-    echo "Usage: $0 <version> <build-version> <appcast-base-url> <download-base-url> <sparkle-public-key> <output-directory>" >&2
+if [[ $# -ne 5 ]]; then
+    echo "Usage: $0 <version> <appcast-base-url> <download-base-url> <sparkle-public-key> <output-directory>" >&2
     exit 64
 fi
 
 version="$1"
-build_version="$2"
-appcast_base_url="${3%/}"
-download_base_url="${4%/}"
-sparkle_public_key="$5"
-output_root="$6"
+appcast_base_url="${2%/}"
+download_base_url="${3%/}"
+sparkle_public_key="$4"
+output_root="$5"
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
+/bin/bash "$project_root/Scripts/validate-release-version.sh" "$version"
 scratch_path="${VLMSNAPPER_SCRATCH_PATH:-$project_root/.build}"
 signing_identity="${MACOS_SIGNING_IDENTITY:-}"
 notary_profile="${MACOS_NOTARY_PROFILE:-}"
@@ -165,7 +165,6 @@ verify_final_dmg() {
             "$mountpoint/VLMSnapper.app" \
             "$architecture" \
             "$version" \
-            "$build_version" \
             "$feed_url" \
             "$sparkle_public_key" \
             "$signing_metadata" \
@@ -188,7 +187,6 @@ for architecture in arm64 x64 universal; do
     "$project_root/Scripts/build-macos-app.sh" \
         "$architecture" \
         "$version" \
-        "$build_version" \
         "$feed_url" \
         "$sparkle_public_key" \
         "$app"
@@ -223,6 +221,7 @@ for architecture in arm64 x64 universal; do
         "$architecture" \
         "$appcast_directory"
     appcast="$appcast_directory/appcast-$architecture.xml"
+    python3 "$project_root/Scripts/verify-appcast-version.py" "$appcast" "$version"
     enclosure_url="$(/usr/bin/xmllint --xpath \
         'string(//*[local-name()="enclosure"]/@url)' "$appcast")"
     enclosure_signature="$(/usr/bin/xmllint --xpath \

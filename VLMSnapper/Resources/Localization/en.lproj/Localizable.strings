@@ -27,7 +27,7 @@
 "failure.rateLimited" = "The Provider is temporarily limiting requests. Retry manually later.";
 "failure.insufficientBalance" = "The Provider account has insufficient balance or quota.";
 "failure.providerUnavailable" = "The Provider is temporarily unavailable. Retry manually later.";
-"failure.contentBlocked" = "The Provider refused to process this screenshot.";
+"failure.contentBlocked" = "The Provider refused to process this content.";
 "failure.imageUnsupported" = "The current model does not support image input.";
 "failure.imageTooLarge" = "The screenshot exceeds the current Provider or model size limit.";
 "failure.timeout" = "The Provider response timed out. Check the network and retry manually.";
@@ -44,7 +44,7 @@
 "onboarding.permission.missing" = "Not authorized";
 "onboarding.permission.restart" = "Restart required";
 "onboarding.permission.ready" = "Authorized";
-"onboarding.privacy.description" = "Only model operations upload the current screenshot. Screenshots and text stay on this Mac; unpinned records are permanently deleted after 30 days by default.";
+"onboarding.privacy.description" = "Only your explicit actions send the corresponding screenshot or source text. History stays on this Mac; unpinned records are permanently deleted after 30 days by default.";
 "onboarding.privacy.important" = "Important information";
 "onboarding.privacy.note" = "Storage and privacy is informational and does not block getting started.";
 "onboarding.gate.ready.title" = "Ready to get started";
@@ -190,7 +190,7 @@
 "edit.emojiAndSymbols" = "Emoji & Symbols";
 "privacy.title" = "Storage and Privacy Details";
 "privacy.upload.title" = "Sent to Online Providers";
-"privacy.upload.body" = "The original PNG screenshot is sent to the selected online Provider only after you choose Extract Text or Translate.";
+"privacy.upload.body" = "Screenshot extraction, translation and Retry send the original PNG to the current Provider. Translate original in history sends only that entry's saved source text, without the image. Content is sent only after you choose the corresponding action.";
 "privacy.storage.title" = "Local Storage";
 "privacy.storage.body" = "Original images are saved in Pictures/VLMSnapper/YYYY-MM/. Extracted text, translations, and history remain on this Mac under macOS user permissions. API keys are stored in Apple Keychain. When FileVault is enabled, local data also receives system disk encryption.";
 "privacy.retention.title" = "Automatic Cleanup";
@@ -279,3 +279,4 @@
 "providerSetup.recovering" = "Recovering";
 "providerSetup.storageFailure" = "Secure Storage Error";
 "providerSetup.storageReadFailure" = "The saved Provider configuration could not be read. Collapse and reopen this card to retry. If this persists, check the app installation and local storage permissions.";
+"history.translateOriginal" = "Translate original";

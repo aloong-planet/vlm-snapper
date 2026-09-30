@@ -4,10 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Marketing version
-        required: true
-      buildVersion:
-        description: Monotonic build version
+        description: App and update version (MAJOR.MINOR.PATCH)
         required: true
       appcastBaseURL:
         description: Public HTTPS appcast directory
@@ -26,6 +23,10 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
     steps:
       - uses: actions/checkout@v6
+      - name: Validate release version before network operations
+        env:
+          VERSION: ${{ inputs.version }}
+        run: bash Scripts/validate-release-version.sh "$VERSION"
       - name: Verify live Provider contracts
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -88,6 +89,9 @@ jobs:
             --keychain "$RUNNER_TEMP/build.keychain-db"
       - name: Build and verify formal release
         env:
+          VERSION: ${{ inputs.version }}
+          APPCAST_BASE_URL: ${{ inputs.appcastBaseURL }}
+          DOWNLOAD_BASE_URL: ${{ inputs.downloadBaseURL }}
           MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
           MACOS_NOTARY_PROFILE: vlmsnapper-notary
           SPARKLE_PRIVATE_KEY_FILE: ${{ runner.temp }}/sparkle-private-key
@@ -95,10 +99,9 @@ jobs:
           MACOS_PROVISIONING_PROFILE: ${{ runner.temp }}/VLMSnapper.provisionprofile
         run: |
           Scripts/release-macos.sh \
-            "${{ inputs.version }}" \
-            "${{ inputs.buildVersion }}" \
-            "${{ inputs.appcastBaseURL }}" \
-            "${{ inputs.downloadBaseURL }}" \
+            "$VERSION" \
+            "$APPCAST_BASE_URL" \
+            "$DOWNLOAD_BASE_URL" \
             "$SPARKLE_PUBLIC_KEY" \
             "$RUNNER_TEMP/formal-release"
       - uses: actions/upload-artifact@v4

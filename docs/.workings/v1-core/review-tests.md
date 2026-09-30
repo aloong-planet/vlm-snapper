@@ -1,3 +1,15 @@
+# 2026-09-30 单一版本号测试审查
+
+范围：无票 spec 增量 `v1-core::REQ-004`；参考 `850f64d` + 当前未提交修改。以下为本轮独立审查，不替代后文历史报告。
+
+| 维度 | 结论 |
+| --- | --- |
+| 覆盖 | 6 项 Python CLI/XML 测试覆盖合法三段、各入口早拒绝、空/缺段/多段/前导零/后缀/换行、缺失/重复/不同命名空间及 enclosure 覆盖；10 项 Swift 定向测试覆盖清单、旧 Codable、凭据阻断和真实 Sparkle 比较器（其中非法版本参数化 7 例）。App 两个字段分别用错误临时产物验证拒绝。 |
+| case 设计 | 实际子进程、真实 XML 文件和公开 Codable/校验 API，无私有状态或项目内 mock。XML 形态核对 Sparkle 的 Resources/SampleAppcast.xml、Tests/SUAppcastTest.swift 与实际 parser 的 enclosure 优先规则。期望版本为独立字面量。 |
+| 假通过 | 旧六参数入口红在 exit64≠78；旧清单红在预期抛错却未抛；版本输入红在应 exit64 却进入配置检查；enclosure 覆盖反例红在错误 XML 被接受。修改后均绿。新 App 的独立临时副本先读回 51/0.1.0，再分别被精确字段错误拦住；未修改正式待安装产物。 |
+
+验证边界：比较器通过不等于联网更新安装通过；单架构 App 不等于三架构公证。XML 不验证签名，生产正式流程仍在其后验证 EdDSA，原有验证未移除。完整离线两次在 AX 启动/读取失败，记录保留，不将前面的零 XCTest 误记为 Swift Testing 通过；当前整套状态见 `final-regression.md`。
+
 # VLMSnapper v1 — Ticket 01 test review
 
 审查范围：`ExtractionCoordinatorTests` 的 6 个公开行为用例。
@@ -1364,3 +1376,38 @@ unchanged failing-test retry or evidence that the missing UI controls work.
 - 移除旧“关闭独立历史结果返回”的测试和孤立 callback 转发测试，因为用户已取消该入口；保留双击不打开、右侧重试及关闭/重开持久化的替代验证，不是删失败测试求绿。
 
 正式门禁：`/private/tmp/history-retry-full-closeout.log`；340 非 App Swift Testing、17 App Swift Testing、XCTest、两个独立原生用例、15 AX 场景均通过。测试头已更新物理交互缺口；未声称全 feature 人工验收通过。
+
+## 2026-09-24 历史原文翻译
+
+版本：850f64d + 未提交修改，需求 [v1-core::US-003](../../specs/v1-core.md)。与实现自审分开执行。
+
+### 维度一：覆盖
+
+用例全集：ProviderRequestFactoryTests.savedSourceRequest（三 Provider）；SavedTextTranslationTests 的 sourceIsPartitioned、leadingWhitespace、partialTranslation、finalMappingRejects（六形态）与 markdownUnicodeAndRepeatedSentences；ProviderApplicationTests.savedExtractionConverts（有图/缺图）及 savedConversionPreserves（准备期取消、流式取消、改写、截断、存储失败）；HistoryInteractionTests.test09（目标仍选中/已换其他项，Pinned+Provider+搜索）；HistoryTranslationRenderingTests（中英×明暗、完整左栏、右栏增量、等宽及实际选区联动）。
+
+覆盖同 ID/条数/日期/Pin/图引用、当前目标语言、文本请求无图、后继 Retry 有原图或缺图拒绝、重开数据库、重复点击不重发、SQLite 保存失败仅重试本地保存。已有全量回归继续守 Provider 互斥、历史删除/清理、退出/未保存保护和既有双栏长文/复制。没有把复用代码的检查宣称为新的转换专属实机验收：关闭/重开后转换进度、实际点击新图标及真实模型语义仍需安装版检查。
+
+### 维度二：设计
+
+最高层经正式 App 回调进入真实 runner、adapter、JSON/SSE 解码和临时 SQLite；只替换外部 HTTP。请求次数是外部副作用需求，不断言内部调用序列。结果经公开 historyRecord/operation 查询；SQLite trigger 只用于制造真实存储故障，撤除后验证本地保存。fixture 的多段、Markdown、URL 形态来自用户历史截图，重复句与组合字符是独立边界补充。渲染测试驱动公开 presentation 的可达状态，仅证明展示，不冒充业务端到端或物理点击。
+
+### 维度三：假绿与变异
+
+- 首次文字转换旧实现红在缺图禁止执行/记录未转换；取消红在任务超时及 `.failed(operation_failed) != .canceled`，不是编译红。日志 `/tmp/vlm-conversion-app-boundaries.log`、`/tmp/vlm-conversion-early-cancel-red.log`，修复绿见 `...early-cancel-green.log`。
+- 临时去掉完整原文字节相等验证，同时把类型筛选切换条件改错；本次 rebuild 日志明确编译 SavedTextTranslation 和 ManagementCenterView。`/tmp/vlm-conversion-mutations.log` 红在 sourcePrefix 未抛错及 test09 目标应保留两行的等待，归因与预期一致。仅用逆向 patch 撤销两处变异，未 git restore/reset，正式改动保留。
+- 图片 Retry 检查请求中精确 base64，而非只断言“有请求”；文字请求分别检查三种图片字段均不存在。保存失败用四次实际请求配合最后本地保存仍为四次，防网络重试冒充恢复。
+- 渲染图已人工查看四种语言/主题，程序化选区和截图不替代安装版交互。首轮 AX 因 foreground_changed 中止，保留失败，不改超时或保护求绿；最终门禁结果另行记录。
+
+## 2026-09-24 流式元数据前缀误判修复
+
+### 维度一：覆盖
+
+本轮新增一项三参数测试（id/block/kind 各后置、逐 scalar 边界），修改一个生产回调测试的 SSE 切块（有图/缺图两参数）。旧 AlignedTranslationTests 的非法 JSON 九样本、Unicode/转义和即时译文；SavedTextTranslationTests 的六种错误映射继续作为不放宽安全守卫的回归。原真实响应回放覆盖四片段不同字段顺序；第二次 live 新请求验证完整四段返回。三 Provider 共用解析器，但本轮真实网络只测 DeepSeek，不声称另两个账户通过。
+
+### 维度二：设计
+
+经公开 parser→SavedTextTranslation 校验，以及生产 App callback→HTTP SSE→runner→SQLite historyRecord 查询；不 mock 内部组件。夹具结构来源是这次真实 API 返回的 metadata-last，而非提示词期望顺序。输出原文/译文使用独立字面量，eventCount>0 防止空事件序列假绿。身份类别后置例属于防御性回归，旧代码恰好也可通过，不把它计作红证据。
+
+### 维度三：假绿
+
+`/tmp/vlm-metadata-red.log` id/block 两例在 incompleteOutput 真红，`...green.log` 同用例全绿。生产测试临时恢复旧条件并重建，`/tmp/vlm-metadata-app-red.log` 两个图片可用性分支都在期待 succeeded/translate 时实际 incomplete_response/extract；不是 setup/编译错误。只逆向恢复单行临时变异，最终全量日志 tX93Nx 中该测试和保存/取消测试通过。全量首轮仍有既有 nativeCaptureAndRerun 测试的 waitForShortcutRelease 超时，保留且不算完整通过，未修改断言或超时；最终全量结果另追加。

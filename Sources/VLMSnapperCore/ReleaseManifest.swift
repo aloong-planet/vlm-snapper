@@ -23,6 +23,8 @@ public struct DistributionArtifact: Codable, Equatable, Sendable {
 }
 
 public enum ReleaseManifestError: Error, Equatable {
+    case invalidVersion
+    case mismatchedBuildVersion
     case incompleteArchitectureSet
     case invalidSparklePublicKey
     case insecureFeed(DistributionArchitecture)
@@ -38,19 +40,27 @@ public struct ReleaseManifest: Codable, Equatable, Sendable {
 
     public init(
         version: String,
-        buildVersion: String,
         bundleIdentifier: String,
         sparklePublicKey: String,
         artifacts: [DistributionArtifact]
     ) {
         self.version = version
-        self.buildVersion = buildVersion
+        self.buildVersion = version
         self.bundleIdentifier = bundleIdentifier
         self.sparklePublicKey = sparklePublicKey
         self.artifacts = artifacts
     }
 
     public func validateForFormalRelease() throws {
+        guard version.range(
+            of: #"\A(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z"#,
+            options: .regularExpression
+        ) != nil else {
+            throw ReleaseManifestError.invalidVersion
+        }
+        guard buildVersion == version else {
+            throw ReleaseManifestError.mismatchedBuildVersion
+        }
         guard let publicKey = Data(base64Encoded: sparklePublicKey),
               publicKey.count == 32 else {
             throw ReleaseManifestError.invalidSparklePublicKey
