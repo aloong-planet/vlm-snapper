@@ -18,13 +18,11 @@
     - Desktop (no window): the whole display.
     - Click (pointer moved 3 px or less while pressed) selects the highlighted region; moving further
       draws a manual rectangle instead and the highlight stops following.
-    Structure is fixed, not a choice: the highlight is the selection look of the attached-toolbar
-    prototype (dimmed outside, clear inside, accent border with an inner hairline) as the user asked
-    ("区域会加上边框"); no text, size label or loading hint is added. After a click the selection keeps
-    that look and the shared attached toolbar appears below it.
-    Open item for the user: the attached-toolbar prototype also draws corner handles and a size label
-    on a confirmed selection, which the app does not show. This page follows the app there and leaves
-    the handles and label out; which one is the reference is to be decided.
+    Structure is fixed, not a choice: the highlight is the selection look (dimmed outside, clear
+    inside, 1 px accent border) as the user asked ("区域会加上边框"); no text, size label or loading
+    hint is added. After a click the selection keeps that look and the shared attached toolbar appears
+    below it. Decided 2026-10-28: the shipped app is the reference for the selection look (1 px border,
+    no corner handles, no size label, no inner hairline). Confirmed by the user on 2026-10-28.
     Not covered on this page: UI language and appearance (shown in Simplified Chinese, light). The
     desktop, windows, menu bar and Dock are mock context drawn by other apps, not VLMSnapper UI.
     Demo scaffolding (not part of the design, do not implement): the floating bar marked
@@ -79,7 +77,7 @@
     .snap-dock span:nth-child(3n) { background: linear-gradient(150deg, var(--surface-subtle), var(--text-tertiary)); }
     .snap-screen[data-dock="hidden"] .snap-dock { display: none; }
 
-    .snap-highlight { position: absolute; z-index: 10; pointer-events: none; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask), 0 0 0 1px var(--selection-inner) inset; }
+    .snap-highlight { position: absolute; z-index: 10; pointer-events: none; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask); }
     .snap-highlight[hidden] { display: none; }
   </style>
 </head>

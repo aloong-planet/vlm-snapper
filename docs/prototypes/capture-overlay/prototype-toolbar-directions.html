@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VLMSnapper · 截图操作栏方向</title>
-  <!-- Demo harness: the theme control is not product UI. -->
+  <!-- Demo harness: the theme control is not product UI.
+       2026-10-28: the user made the shipped app the reference for the selection look: a 1 px border,
+       no corner handles, no size label and no inner hairline (they were drawn here before). -->
   <link rel="stylesheet" href="../_shared/capture-overlay.css">
   <style>
 
@@ -42,13 +44,7 @@
     .article-image { min-height: 160px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-soft), var(--surface-subtle)); }
     .quote { padding: 20px; border-left: 3px solid var(--accent); color: var(--text-secondary); background: var(--surface-subtle); font-family: Georgia, serif; line-height: 1.5; }
 
-    .capture-selection { position: absolute; z-index: 10; left: 18%; right: 18%; top: 16%; bottom: 22%; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask), 0 0 0 1px var(--selection-inner) inset; }
-    .selection-handle { position: absolute; width: 8px; height: 8px; border: 1px solid var(--capture-border); background: var(--surface); }
-    .selection-handle.nw { left: -5px; top: -5px; }
-    .selection-handle.ne { right: -5px; top: -5px; }
-    .selection-handle.sw { left: -5px; bottom: -5px; }
-    .selection-handle.se { right: -5px; bottom: -5px; }
-    .size-label { position: absolute; left: -2px; top: -27px; height: 22px; display: flex; align-items: center; padding: 0 8px; border-radius: 5px; color: var(--on-accent); background: var(--accent); box-shadow: 0 3px 10px var(--shadow-soft); font-size: 11px; font-weight: 650; }
+    .capture-selection { position: absolute; z-index: 10; left: 18%; right: 18%; top: 16%; bottom: 22%; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask); }
 
 
     .harness { position: fixed; z-index: 30; left: 0; right: 0; bottom: 18px; width: fit-content; max-width: calc(100vw - 32px); margin-inline: auto; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 999px; color: #f6f7f9; background: rgba(22, 25, 30, .95); box-shadow: 0 8px 28px rgba(0, 0, 0, .38); font-size: 12px; white-space: nowrap; }
@@ -70,8 +66,6 @@
     </article>
 
     <section class="capture-selection" aria-label="已完成的截图选区">
-      <span class="selection-handle nw"></span><span class="selection-handle ne"></span><span class="selection-handle sw"></span><span class="selection-handle se"></span>
-      <span class="size-label">1280 × 720</span>
 
       <div class="capture-toolbar" data-shared-block="capture-toolbar" aria-label="选区底部贴附式操作栏"></div>
 

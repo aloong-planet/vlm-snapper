@@ -3,7 +3,7 @@
    data-shared-block="capture-toolbar" and fill it with window.CaptureToolbar.render. */
 :root {
   color-scheme: light;
-  --selection-border-width: 2px;
+  --selection-border-width: 1px;
   --toolbar-gap: 4px;
   --desktop-a: #c9d9e8;
   --desktop-b: #8aa7bf;
@@ -25,7 +25,6 @@
   --on-accent: #ffffff;
   --capture-border: #69a5ff;
   --outside-mask: rgba(8, 13, 20, .54);
-  --selection-inner: rgba(255, 255, 255, .34);
   --traffic-red: #ff5f57;
   --traffic-yellow: #febc2e;
   --traffic-green: #28c840;
@@ -59,7 +58,6 @@ html[data-theme="dark"] {
   --on-accent: #ffffff;
   --capture-border: #86b7ff;
   --outside-mask: rgba(2, 5, 9, .62);
-  --selection-inner: rgba(255, 255, 255, .24);
   --traffic-red: #ff5f57;
   --traffic-yellow: #febc2e;
   --traffic-green: #28c840;
