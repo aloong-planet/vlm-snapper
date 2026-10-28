@@ -648,8 +648,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         historyRetryTask?.cancel()
         await historyRetryTask?.value
         if let request = captureRequest {
-            captureRequest = nil
-            await request.workspaceToRetire?.restoreAfterCaptureFailure()
+            await abandonPendingCapture(request)
         }
         if let activeCaptureGeneration {
             await cancelCapture(generation: activeCaptureGeneration)
@@ -1118,8 +1117,29 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func beginCapture(request: CaptureRequest) async -> Bool {
+        // Cover the displays now; the freeze below excludes VLMSnapper windows.
+        if captureOverlayController.presentPending(
+            onSelection: { [weak self] selection in
+                Task {
+                    await self?.finishSelection(
+                        selection,
+                        generation: request.generation
+                    )
+                }
+            },
+            onCancel: { [weak self] in
+                Task {
+                    await self?.cancelCapture(
+                        generation: request.generation
+                    )
+                }
+            }
+        ) {
+            captureToolbarController.suspend()
+        }
         let result = await captureCoordinator.startCapture()
         guard captureRequest?.generation == request.generation else {
+            // The cancellation that cleared this request withdrew its overlay.
             if case let .ready(session, _, _) = result {
                 await session.cancel()
             }
@@ -1127,36 +1147,30 @@ final class VLMSnapperApplicationModel: ObservableObject {
         }
         switch result {
         case let .ready(session, frozenDisplays, _):
-            // Revalidate the frozen frames before preparing their native overlays.
+            // Revalidate the frozen frames before showing them.
             let geometries = dependencies.displayMonitor.currentGeometries()
             let invalidated = await session.applyCurrentDisplayGeometries(geometries)
             let validDisplays = frozenDisplays.filter { !invalidated.contains($0.geometry.displayID) }
             guard captureRequestCanCommit(request) else {
-                if captureRequest?.generation == request.generation { captureRequest = nil }
+                // Whoever cleared this request already withdrew its overlay and
+                // restored its workspace; a newer request may own both again.
+                let ownsRequest = captureRequest?.generation == request.generation
+                if ownsRequest {
+                    captureRequest = nil
+                    withdrawPendingCapture()
+                }
                 await session.cancel()
-                await request.workspaceToRetire?.restoreAfterCaptureFailure()
+                if ownsRequest {
+                    await request.workspaceToRetire?.restoreAfterCaptureFailure()
+                }
                 return false
             }
-            let replacementPresented = captureOverlayController.replace(
-                displays: validDisplays,
-                onSelection: { [weak self] selection in
-                    Task {
-                        await self?.finishSelection(
-                            selection,
-                            generation: request.generation
-                        )
-                    }
-                },
-                onCancel: { [weak self] in
-                    Task {
-                        await self?.cancelCapture(
-                            generation: request.generation
-                        )
-                    }
-                }
+            let replacementPresented = captureOverlayController.commit(
+                displays: validDisplays
             )
             guard replacementPresented else {
                 captureRequest = nil
+                withdrawPendingCapture()
                 await session.cancel()
                 await request.workspaceToRetire?.restoreAfterCaptureFailure()
                 await releaseFailedCaptureIfNeeded(request)
@@ -1190,17 +1204,37 @@ final class VLMSnapperApplicationModel: ObservableObject {
             return true
         case .permissionRequired:
             captureRequest = nil
+            withdrawPendingCapture()
             await request.workspaceToRetire?.restoreAfterCaptureFailure()
             permission = .unavailable
             publish()
             onShowOnboarding?()
         case .allDisplaysFailed:
             captureRequest = nil
+            withdrawPendingCapture()
             await request.workspaceToRetire?.restoreAfterCaptureFailure()
             await releaseFailedCaptureIfNeeded(request)
             showCaptureFailure()
         }
         return false
+    }
+
+    /// A capture that cannot commit leaves the previous selection exactly as it was.
+    private func withdrawPendingCapture() {
+        captureOverlayController.rollback()
+        captureToolbarController.resume()
+    }
+
+    /// `Esc` or termination before frozen frames arrive leaves capture entirely,
+    /// including a selection being replaced; a reserved workspace becomes usable again.
+    private func abandonPendingCapture(_ request: CaptureRequest) async {
+        captureRequest = nil
+        if let activeCaptureGeneration {
+            await cancelCapture(generation: activeCaptureGeneration)
+        } else {
+            captureOverlayController.close()
+        }
+        await request.workspaceToRetire?.restoreAfterCaptureFailure()
     }
 
     private func releaseFailedCaptureIfNeeded(_ request: CaptureRequest) async {
@@ -1516,6 +1550,10 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func cancelCapture(generation: UUID) async {
+        if let request = captureRequest, request.generation == generation {
+            await abandonPendingCapture(request)
+            return
+        }
         guard activeCaptureGeneration == generation else { return }
         let session = captureSelectionSession
         let lease = captureLease

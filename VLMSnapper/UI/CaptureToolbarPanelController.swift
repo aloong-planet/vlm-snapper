@@ -34,6 +34,7 @@ enum CaptureToolbarPlacement {
 @MainActor
 public final class CaptureToolbarPanelController {
     public let panel: NSPanel
+    private var isSuspended = false
 
     public init() {
         panel = NSPanel(
@@ -71,7 +72,22 @@ public final class CaptureToolbarPanelController {
         panel.orderFrontRegardless()
     }
 
+    /// Hides a visible toolbar but keeps it for `resume`, while a new capture may still fail.
+    public func suspend() {
+        guard panel.isVisible else { return }
+        isSuspended = true
+        panel.orderOut(nil)
+    }
+
+    /// Shows a suspended toolbar again; does nothing after `hide()`.
+    public func resume() {
+        guard isSuspended else { return }
+        isSuspended = false
+        panel.orderFrontRegardless()
+    }
+
     public func hide() {
+        isSuspended = false
         panel.orderOut(nil)
         panel.contentView = nil
     }

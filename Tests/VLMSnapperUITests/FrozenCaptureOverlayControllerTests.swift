@@ -18,21 +18,23 @@ struct FrozenCaptureOverlayControllerTests {
         let controller = FrozenCaptureOverlayController()
         defer { controller.close() }
 
-        let initialPresentation = controller.replace(
-            displays: [makeDisplay(id: displayID, screen: screen)],
-            onSelection: { _ in },
-            onCancel: {}
-        )
-        #expect(initialPresentation)
+        #expect(present(controller))
+        #expect(controller.commit(displays: [makeDisplay(id: displayID, screen: screen)]))
         let currentDisplayIDs = controller.presentedDisplayIDs
+        let current = visibleOverlays()
+        #expect(!current.isEmpty)
 
-        let failedReplacement = controller.replace(
-            displays: [],
-            onSelection: { _ in },
-            onCancel: {}
-        )
+        #expect(present(controller))
+        let pending = visibleOverlays()
+        #expect(!pending.isEmpty)
+        #expect(current.allSatisfy { !$0.isVisible })
+        let failedReplacement = controller.commit(displays: [])
         #expect(!failedReplacement)
+        controller.rollback()
+
         #expect(controller.presentedDisplayIDs == currentDisplayIDs)
+        #expect(current.allSatisfy { $0.isVisible && $0.contentView != nil })
+        #expect(pending.allSatisfy { !$0.isVisible })
     }
 
     @Test("a failure alert stays visible above a retained overlay")
@@ -45,18 +47,19 @@ struct FrozenCaptureOverlayControllerTests {
         )
         let controller = FrozenCaptureOverlayController()
         defer { controller.close() }
-        let initialPresentation = controller.replace(
-            displays: [makeDisplay(id: displayID, screen: screen)],
-            onSelection: { _ in },
-            onCancel: {}
-        )
-        #expect(initialPresentation)
+        #expect(present(controller))
+        #expect(controller.commit(displays: [makeDisplay(id: displayID, screen: screen)]))
         let alert = NSAlert()
 
         controller.prepareFailurePresentation(alert)
 
         #expect(alert.window.level.rawValue > NSWindow.Level.screenSaver.rawValue)
     }
+}
+
+@MainActor
+private func visibleOverlays() -> [NSWindow] {
+    NSApp.windows.filter { $0.isVisible && $0.level == .screenSaver }
 }
 
 private func makeDisplay(
@@ -85,4 +88,9 @@ private func makeDisplay(
         ),
         frame: FrozenDisplayFrame(image: context.makeImage()!)
     )
+}
+
+@MainActor
+private func present(_ controller: FrozenCaptureOverlayController) -> Bool {
+    controller.presentPending(onSelection: { _ in }, onCancel: {})
 }
