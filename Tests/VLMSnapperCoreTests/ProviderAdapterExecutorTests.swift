@@ -105,7 +105,7 @@ struct ProviderAdapterExecutorTests {
 
     @Test("DeepSeek reasoning activity keeps the first-text deadline alive")
     func deepSeekReasoningKeepsFirstTextDeadlineAlive() async throws {
-        // Deadlines expire only when the transport fires them, so host load cannot end the stream.
+        // Deadlines expire only when the transport fires them, not when real time passes.
         let clock = ManualTimeoutClock()
         let executor = ProviderAdapterExecutor(
             transport: DeepSeekReasoningStreamingTransport(clock: clock),
@@ -129,7 +129,7 @@ struct ProviderAdapterExecutorTests {
             .completed,
         ])
         // The request start and each reasoning event armed a first-text deadline.
-        #expect(await clock.armIDs(of: .firstText).count == 3)
+        #expect(clock.armIDs(of: .firstText).count == 3)
     }
 
     @Test("The stall deadline resets after text and terminates an idle stream")
@@ -281,8 +281,8 @@ private actor RecordingStreamingTransport: ProviderHTTPStreaming {
 
 /// A DeepSeek stream of two reasoning events, then text. After each reasoning event it waits for
 /// the first-text deadline that event re-arms, then fires every deadline armed before the event:
-/// superseded ones are already cancelled, so firing them changes nothing, while one that survived
-/// ends the stream with a first-text timeout.
+/// superseded ones were cancelled when the replacement was armed, so firing them changes nothing,
+/// while one that survived ends the stream with a first-text timeout.
 private struct DeepSeekReasoningStreamingTransport: ProviderHTTPStreaming {
     let clock: ManualTimeoutClock
 
@@ -295,12 +295,12 @@ private struct DeepSeekReasoningStreamingTransport: ProviderHTTPStreaming {
                     // The deadline armed when the request started.
                     await clock.waitForNewArm(of: .firstText, excluding: [])
                     for reasoning in ["Inspecting", "Reading"] {
-                        let before = await clock.armIDs(of: .firstText)
+                        let before = clock.armIDs(of: .firstText)
                         continuation.yield(Self.sse(
                             #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"\#(reasoning)"},"finish_reason":null}]}"#
                         ))
                         await clock.waitForNewArm(of: .firstText, excluding: before)
-                        await clock.fire(before)
+                        clock.fire(before)
                         // Let a fired deadline that was still live reach the stream before text does.
                         try await Task.sleep(for: .milliseconds(50))
                     }
@@ -350,55 +350,57 @@ private struct RequestAwareTimeoutClock: ProviderTimeoutClock {
 }
 
 /// A timeout clock whose sleeps end only when fired or cancelled, recording every deadline armed.
-private actor ManualTimeoutClock: ProviderTimeoutClock {
+/// Cancellation is handled synchronously, so a superseded deadline stops being pending before the
+/// coordinator arms its replacement and firing it afterwards changes nothing.
+private final class ManualTimeoutClock: ProviderTimeoutClock, @unchecked Sendable {
+    private let lock = NSLock()
     private var nextID = 0
     private var armed: [(id: Int, kind: ProviderTimeoutKind)] = []
     private var pending: [Int: CheckedContinuation<Void, Error>] = [:]
     private var cancelledBeforeSuspending: Set<Int> = []
 
     func sleep(for duration: Duration, kind: ProviderTimeoutKind) async throws {
-        let id = nextID
-        nextID += 1
-        armed.append((id, kind))
+        let id = lock.withLock {
+            let id = nextID
+            nextID += 1
+            armed.append((id, kind))
+            return id
+        }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                if cancelledBeforeSuspending.remove(id) != nil || Task.isCancelled {
-                    continuation.resume(throwing: CancellationError())
-                } else {
+                let cancelled = lock.withLock {
+                    if cancelledBeforeSuspending.remove(id) != nil { return true }
                     pending[id] = continuation
+                    return false
                 }
+                if cancelled { continuation.resume(throwing: CancellationError()) }
             }
         } onCancel: {
-            Task { await self.cancel(id) }
+            let continuation: CheckedContinuation<Void, Error>? = lock.withLock {
+                if let continuation = pending.removeValue(forKey: id) { return continuation }
+                cancelledBeforeSuspending.insert(id)
+                return nil
+            }
+            continuation?.resume(throwing: CancellationError())
         }
     }
 
     func armIDs(of kind: ProviderTimeoutKind) -> Set<Int> {
-        Set(armed.filter { $0.kind == kind }.map(\.id))
+        lock.withLock { Set(armed.filter { $0.kind == kind }.map(\.id)) }
     }
 
-    /// Waits until a deadline of `kind` outside `excluding` is armed; gives up after five seconds so
-    /// a deadline that is never re-armed fails the test instead of hanging it.
+    /// Waits until a deadline of `kind` outside `excluding` is armed; gives up after ten seconds so a
+    /// deadline that is never re-armed fails the armed-deadline count instead of hanging the test.
     func waitForNewArm(of kind: ProviderTimeoutKind, excluding: Set<Int>) async {
-        let giveUp = ContinuousClock.now.advanced(by: .seconds(5))
-        while !armed.contains(where: { $0.kind == kind && !excluding.contains($0.id) }),
-              ContinuousClock.now < giveUp {
+        let giveUp = ContinuousClock.now.advanced(by: .seconds(10))
+        while armIDs(of: kind).subtracting(excluding).isEmpty, ContinuousClock.now < giveUp {
             try? await Task.sleep(for: .milliseconds(1))
         }
     }
 
     /// Ends the given deadlines' sleeps as if they had expired; cancelled ones are no longer pending.
     func fire(_ ids: Set<Int>) {
-        for id in ids {
-            pending.removeValue(forKey: id)?.resume()
-        }
-    }
-
-    private func cancel(_ id: Int) {
-        if let continuation = pending.removeValue(forKey: id) {
-            continuation.resume(throwing: CancellationError())
-        } else {
-            cancelledBeforeSuspending.insert(id)
-        }
+        let continuations = lock.withLock { ids.compactMap { pending.removeValue(forKey: $0) } }
+        continuations.forEach { $0.resume() }
     }
 }
