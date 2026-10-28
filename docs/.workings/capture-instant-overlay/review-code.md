@@ -143,3 +143,33 @@ code finding.
 Item 1 (product code changed by the fix, compared clause by clause with the
 spec): not applicable; the fix for test-review findings 3-8 changes only tests,
 the test-file header and records.
+
+## Review of the fix for test-review finding 10 (2026-10-28)
+
+Change: `cancelCapture(generation:)`, active-selection branch, also clears a
+pending replacement request and restores its reserved workspace.
+
+- Underlying premises: a request in flight while a selection is active is
+  always a replacement sharing that selection's activity (`workflow.capture`
+  reuses the owner's lease), so releasing the activity makes the request
+  unable to commit (`captureRequestCanCommit` checks the lease). Reproduced
+  before the fix by `displayChangeWhileReplacingAbandonsPendingCapture`
+  (deadline at the admission wait; a shortcut pressed in that window was
+  refused and its fresh lease released, with no overlay).
+- Runnability: callers of the active branch while a replacement is pending are
+  the display-change cancellation (the defect) and `abandonPendingCapture`,
+  which clears the request first, so `replacement` is `nil` there and the
+  workspace is not restored twice. The stale freeze then takes the
+  generation-mismatch path (no overlay or workspace change) and its admission
+  wrapper releases nothing, because the lease equals the owner. A capture
+  admitted in between gets a new activity; the stale `perform` compares
+  `captureLease` with its own lease and leaves the new one alone. Escape
+  surface of the old behaviour: upper (a user shortcut silently dropped).
+- Security: no new surface.
+- Consistency: matches `Esc` while pending, which already cleared the request
+  at once; REQ-005/AC-05 now states the consequence and AC-01 the admission.
+
+Self-check item 1 (product code against the spec, clause by clause):
+REQ-005/AC-01 "准入后立即……显示……选区遮罩" holds for a shortcut pressed after
+the replaced selection ended (A12); AC-05's added sentence describes exactly
+this branch; no other clause is touched.

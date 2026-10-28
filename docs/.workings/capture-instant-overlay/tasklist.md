@@ -94,3 +94,9 @@ Unrecorded scope expansion: none in product code. The fixture identity fix is te
   `openai-secret` in it come from the test sources).
 - Incremental review decision: `node <implement skill>/change-scope.mjs --base 8bd52f2` exit 1, verdict `run`
   (`Tests/VLMSnapperAppTests/ProviderApplicationTests.swift` changed): `logs/change-scope-after-findings-fix.txt`.
+- Incremental-round findings 9-11 (2026-10-28): run scripts kept in `logs/scripts/` (see `review-tests.md`, handling
+  of findings 9-11, for how they differ from the versions behind the two earlier logs). A12 bug reproduction: red on
+  `da94f5c` (deadline at the admission wait), green after the `cancelCapture` fix.
+- Targeted verification of the findings 9-11 fix: `logs/targeted-findings-9-11.log` (all commands exit 0; App suite
+  29 tests; three native cases passed). Incremental review decision: `logs/change-scope-after-findings-9-11.txt`
+  (exit 1, verdict `run`).

@@ -1,0 +1,13 @@
+changed :-  (added)
+changed Sources/VLMSnapperApp/VLMSnapperApplicationModel.swift  (no syntax tree comparison for this type)
+changed Tests/VLMSnapperAppTests/ProviderApplicationTests.swift  (no syntax tree comparison for this type)
+inert   docs/.workings/capture-instant-overlay/logs/change-scope-after-findings-9-11.txt
+inert   docs/.workings/capture-instant-overlay/logs/scripts/gate.sh
+inert   docs/.workings/capture-instant-overlay/logs/scripts/rg-shim
+inert   docs/.workings/capture-instant-overlay/logs/scripts/targeted.sh
+inert   docs/.workings/capture-instant-overlay/logs/targeted-findings-9-11.log
+inert   docs/.workings/capture-instant-overlay/review-code.md
+inert   docs/.workings/capture-instant-overlay/review-tests.md
+inert   docs/.workings/capture-instant-overlay/tasklist.md
+inert   docs/specs/v1-core.md
+verdict: run (12 files differ from the base)

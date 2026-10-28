@@ -1236,13 +1236,18 @@ struct ProviderApplicationTests {
                 try await eventually { try mainScreenOverlay() != nil }
                 let overlay = try #require(try mainScreenOverlay())
                 pumpNativeEvents(overlay)
-                try sendMouse(.leftMouseDown, at: NSPoint(x: 100, y: 200), to: overlay)
-                try sendMouse(.leftMouseDragged, at: NSPoint(x: 300, y: 300), to: overlay)
+                try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 300), to: overlay)
+                try sendMouse(.leftMouseDragged, at: NSPoint(x: 400, y: 400), to: overlay)
                 await fixture.capture.release()
                 try await eventually { try overlayShowsFrozenFrame(overlay) }
                 #expect(captureToolbar() == nil)
-                try sendMouse(.leftMouseUp, at: NSPoint(x: 300, y: 300), to: overlay)
+                // Still dragging after the frame arrived: the rectangle's left edge moves to 150.
+                try sendMouse(.leftMouseDragged, at: NSPoint(x: 150, y: 400), to: overlay)
+                try sendMouse(.leftMouseUp, at: NSPoint(x: 150, y: 400), to: overlay)
                 try await eventually { captureToolbar() != nil }
+                let toolbar = try #require(captureToolbar())
+                // The toolbar is left-aligned with the selection that mouse-up completed.
+                #expect(abs(toolbar.frame.minX - (overlay.frame.minX + 150)) <= 1)
             }
         }
     }
@@ -1271,16 +1276,16 @@ struct ProviderApplicationTests {
                 fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
                 try await eventually { !captureOverlayIsVisible() && model.providerSnapshot.activity == nil }
                 fixture.displayGeometries = [display.geometry]
-                await fixture.capture.release()
-                // The invalidated request must not keep later captures out. Shortcuts pressed
-                // before its late result is handled are refused, so retry within a bound.
-                let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-                while await fixture.capture.requests < 3, ContinuousClock.now < deadline {
-                    try fixture.shortcuts.fire()
-                    try await Task.sleep(for: .milliseconds(50))
+                // The second freeze has not returned; a shortcut now must still show its overlay.
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    try await fixture.capture.requests == 3 && mainScreenOverlay() != nil
                 }
-                #expect(await fixture.capture.requests >= 3)
-                try await eventually { try mainScreenOverlay() != nil }
+                let replacement = try #require(try mainScreenOverlay())
+                await fixture.capture.release()
+                try await eventually { try overlayShowsFrozenFrame(replacement) }
+                #expect(replacement.isVisible)
+                #expect(try mainScreenOverlay() === replacement)
             }
         }
     }
@@ -2218,12 +2223,12 @@ private actor FixtureCapture: FrozenDisplayCapturing {
     private var allowed = false
     private var released = false
     private var framesHeld = false
-    private var waiter: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
     func allowSuspendedCapture() {
         allowed = true
         released = false
     }
-    /// Suspends the next capture until `release()`, then returns the provided display.
+    /// Suspends captures until `release()`, then returns the provided display.
     func holdFrames() {
         framesHeld = true
         released = false
@@ -2231,18 +2236,19 @@ private actor FixtureCapture: FrozenDisplayCapturing {
     func release() {
         released = true
         framesHeld = false
-        waiter?.resume()
-        waiter = nil
+        let suspended = waiters
+        waiters.removeAll()
+        suspended.forEach { $0.resume() }
     }
     func captureFrozenDisplays() async throws(CaptureDiscoveryError) -> FrozenDisplayBatch {
         requests += 1
-        if framesHeld, !released { await withCheckedContinuation { waiter = $0 } }
+        if framesHeld, !released { await withCheckedContinuation { waiters.append($0) } }
         if let display { return FrozenDisplayBatch(displays: [display]) }
         guard allowed else {
             Issue.record("Provider setup must not capture the screen")
             throw .permissionDenied
         }
-        if !released { await withCheckedContinuation { waiter = $0 } }
+        if !released { await withCheckedContinuation { waiters.append($0) } }
         throw .permissionDenied
     }
 }

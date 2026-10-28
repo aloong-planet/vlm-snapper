@@ -1555,12 +1555,17 @@ final class VLMSnapperApplicationModel: ObservableObject {
             return
         }
         guard activeCaptureGeneration == generation else { return }
+        // A pending replacement shares this selection's activity, which ends here,
+        // so it can never commit; clear it now rather than when its freeze returns.
+        let replacement = captureRequest
+        captureRequest = nil
         let session = captureSelectionSession
         let lease = captureLease
         captureLease = nil
         cancelCaptureSurfaces()
         await session?.cancel()
         if let lease { await providerCoordinator.release(lease) }
+        await replacement?.workspaceToRetire?.restoreAfterCaptureFailure()
     }
 
     private func cancelCaptureSurfaces() {

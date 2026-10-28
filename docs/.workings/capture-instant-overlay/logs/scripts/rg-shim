@@ -1,0 +1,2 @@
+#!/bin/bash
+exec -a rg "/Users/loong_zhou/.nvm/versions/node/v24.19.0/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe" "$@"

@@ -40,8 +40,8 @@ request, AC-06 displays without a frame, AC-07 termination while pending.
 | A8 | `replacementAndEscapeRetireDisplaySubscriptions` (modified) | REQ-001/AC-07; FM-25 | Same | Existing input; waits additionally until the new overlay renders its frozen frame before checking retirement and subscriptions | Existing assertions unchanged (previous overlay retired, one display read per notification while subscribed, none after `Esc`/termination) | Existing | None |
 | A9 | `displayChangesCancelSelectionBeforeMouseUp` (modified) | REQ-001/AC-01-03 | Same | Existing input; waits for the frozen frame before posting display changes | Existing assertions unchanged | Existing | None |
 | A10 | `nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive` (modified, increment reviewed 2026-10-28) | §3; FM-23; REQ-005/AC-03 | Same | Existing input; the overlay to drag is the one on `NSScreen.main` (the screen the synthetic display freezes) instead of the first visible overlay | Existing assertions unchanged. Reason: with pending panels on every screen, the first visible overlay can belong to a screen without a frame on multi-display machines; the drag may now reach the pending panel before commit, which is the AC-02 path | Existing | None |
-| A11 | `selectionStartedBeforeFramesFinishesAfterThem` (new; increment 2026-10-28 for finding 4b) | REQ-005/AC-03 (rectangle begun before the frame, finished after it) | Application model + real overlay controller | Held capture; mouse down and drag sent to the pending overlay; capture released; wait for the rendered frozen frame; mouse up sent | No toolbar before mouse up; toolbar appears after it. Expected from AC-03 (selection begun while pending is kept and cropped from the frame) | `syntheticDisplay()` | None |
-| A12 | `displayChangeWhileReplacingAbandonsPendingCapture` (new; increment 2026-10-28 for finding 5) | REQ-005/AC-05 (request invalidated); REQ-001/AC-01-02 | Same | First capture committed without a drag (selection subscribed to display changes); held second capture; geometry change plus notification ends the first selection and releases the shared lease; geometry restored; capture released | After the change: no overlay and activity `nil`. After release and a further shortcut: the capture is admitted and freezes (`capture.requests == 3`, overlay on the main screen). A request left registered after the invalidated branch would refuse that shortcut. Expected from AC-05 and REQ-001 | `syntheticDisplay()` plus `changedGeometry` (existing helper) | None |
+| A11 | `selectionStartedBeforeFramesFinishesAfterThem` (new; increment 2026-10-28 for findings 4b and 9) | REQ-005/AC-03 (rectangle begun before the frame, finished after it); §4 toolbar left-aligned with the selection | Application model + real overlay controller | Held capture; mouse down at (300, 300) and drag to (400, 400) on the pending overlay; capture released; wait for the rendered frozen frame; drag on to (150, 400), which moves the selection's left edge; mouse up there | No toolbar before mouse up; after it, the toolbar's left edge equals the final selection's left edge (overlay x + 150, within 1 pt). A selection completed when the frame arrived would anchor the toolbar at x + 300 and the later mouse up would be refused. Expected from AC-03 and §4 (toolbar left-aligned with the selection) | `syntheticDisplay()` | None |
+| A12 | `displayChangeWhileReplacingAbandonsPendingCapture` (new; increment 2026-10-28 for findings 5 and 10; bug reproduction, must fail first) | REQ-005/AC-01 (an admitted shortcut shows the overlay), AC-05 (request invalidated); REQ-001/AC-01-02 | Same | First capture committed without a drag; held second capture; geometry change plus notification ends the first selection and releases the shared activity; geometry restored; one further shortcut while the second capture is still held; then release of both held captures | After the change: no overlay and activity `nil`. The single further shortcut is admitted at once (`capture.requests == 3`, a pending overlay on the main screen) although the second capture's freeze has not returned. After release the third capture's own overlay shows the frozen frame and stays visible: the stale second result does not touch it. Expected from AC-01 (admission shows the overlay) and AC-05 | `syntheticDisplay()` plus `changedGeometry`; `FixtureCapture` holds several suspended captures and releases them together | None |
 | U1 | `failedReplacementKeepsCurrentOverlay` (modified) | FM-3; REQ-005/AC-05 | Overlay controller | Present and commit one display; present pending; `commit(displays: [])` | Commit returns `false`; after `rollback()` the previous window is visible and `presentedDisplayIDs` unchanged | Existing `makeDisplay` (real `NSScreen` identity) | None |
 | U2 | `failureAlertStaysAboveRetainedOverlay` (modified) | FM-3 | Overlay controller | Present and commit one display; prepare alert | Alert level above `.screenSaver` (existing expectation) | Existing | None |
 
@@ -161,6 +161,21 @@ spec cell.
 - Resource reuse: no new resource; same per-test fixture.
 
 Conclusion: no finding on the changed rows.
+
+### Increment review: rows A11 and A12 after the incremental round (2026-10-28)
+
+- A11: the final mouse up lands on a point that changes the selection's left
+  edge after the frame arrived, and the assertion reads the toolbar's left
+  edge, which the spec (§4) ties to the selection's left edge; it fails if the
+  selection is completed at frame arrival instead of at mouse up.
+- A12: one shortcut, no retry. It fails first on the code at `da94f5c`
+  (request left registered until the stale freeze returns) and is the bug
+  reproduction for finding 10; the fixture change (several held captures,
+  released together) is needed because the second and third captures are both
+  suspended at once.
+- Resources and observables unchanged.
+
+Conclusion: no finding on rows A11 and A12.
 
 ### Handling of post-implementation findings (2026-10-28)
 
@@ -429,6 +444,190 @@ gate nor CI.
 
 No sync item is completed by this round.
 
+### Incremental round: fix `8bd52f2..da94f5c`
+
+Date: 2026-10-28. Implementation version: `da94f5c` (fix range
+`8bd52f2..da94f5c` of the change `850f64d..da94f5c`, branch
+`perf/instant-capture-overlay`). No ticket; same no-ticket path. Date, version
+and range apply to every part of this round. Everything outside the objects
+below carries over from the first round of this check (the subsections above,
+version `8bd52f2`).
+
+Capability declaration, re-checked directly (`ls capabilities.toml` at the
+repository root: no such file): 项目无能力声明文件; 未确认 mutation-testing;
+未确认 working-language. Finding 2 is still open, so this round neither runs the
+mutation check nor treats it as disabled; every "goes red" answer below comes
+from the code under test and the expected-value source, not from a run.
+
+#### Objects
+
+| Retrieval | Result |
+|---|---|
+| `git diff --name-only 8bd52f2..da94f5c -- Tests Sources VLMSnapper Package.swift Scripts .github` | Only `Tests/VLMSnapperAppTests/ProviderApplicationTests.swift`; no product, build or gate file changed |
+| `git diff -U0 8bd52f2..da94f5c -- Tests` (hunk headers) | Header lines 24-27 and 39-42; A1 (`overlayCoversDisplaysBeforeFreezeCompletes`), A3 (`escapeWhileFreezingExitsCapture`), A4 (`failedFreezeRestoresPreviousSelection`), A6 (`escapeWhileReplacingSelectionReleasesActivity`, comment only), new A11 (`selectionStartedBeforeFramesFinishesAfterThem`) and A12 (`displayChangeWhileReplacingAbandonsPendingCapture`), new helpers at lines 1816-1835. No existing helper, fixture or shared setup changed |
+| `grep -rna --include='*.swift' -e 'pressEscapeThroughApplication' -e 'sendMouse(' Tests` (86 Swift files under `Tests`) | Both new helpers are `private` to `ProviderApplicationTests.swift` (1818, 1827), so no other file can import them; callers are A3 (1076) and A11 (1239, 1240, 1244) only. No further test depends on changed helper code |
+| Test design table rows at `8bd52f2` and `da94f5c` (`git show <rev>:docs/.workings/capture-instant-overlay/review-tests.md`, rows `^\| [AU][0-9]* \|`, compared with and without the spec column) | Changed: A1, A3, A4, A6 (content and spec cell); A2, A5, A7, A10, U1 (spec cell only); A11, A12 (new). Unchanged: A8, A9, U2 |
+
+Objects of this round: tests A1, A3, A4, A6, A11, A12 and the test-file
+header; table rows A1-A7, A10, A11, A12 and U1.
+
+#### Run evidence
+
+Handed logs, not rerun. Targeted log of the fix:
+`logs/targeted-findings-fix.log`. Reused pre-review gate log:
+`logs/gate-pre-review-8bd52f2.log`, byte-identical (`cmp`) to the
+session-temporary original the first round checked, so the first round's
+verdict on it carries over.
+
+| Log requirement (targeted log) | Log content | Verdict |
+|---|---|---|
+| Tested version | `git rev-parse HEAD` = `8bd52f26…` with a modified tree; every manifest hash equals the blob at `da94f5c` (`git rev-parse da94f5c:<path>`) except `tasklist.md` (`e2957e7` logged, `12ea198` committed: the later edit only adds the pointer to this log, an inert `docs/` Markdown file no build or test reads). The three `logs/` files were absent at run time (written afterwards). `:-` unchanged (`208ccf6`) | Matches `da94f5c` for every file the build and tests read |
+| Every command | The six build and test commands are logged with their arguments, as are `git rev-parse HEAD` and `git status --porcelain --untracked-files=all`; the command that produced the manifest is not (`-- manifest` only) | Missing item (finding 11) |
+| Exit code not taken through a pipe | `== exit: N` after every command and `== overall: 0`; how they were taken is shown only by the session-temporary `targeted.sh` (`"$@" >> "$log" 2>&1; local c=$?`) | Present; provenance not kept (finding 11) |
+| Full output | Complete output of every command inline | Present |
+| Objects run | App run: A1, A3, A4, A6, A11, A12 pass (log lines 343-360); the native thrown-operation case passes on the fixed code (424-429) | All objects ran and passed |
+
+#### Test design table check
+
+| Row | Written test against the row | Verdict |
+|---|---|---|
+| A1 | Every-screen check, hook count 0 while held and 1 after the frame, same window | Consistent |
+| A3 | Key-window assertion, then `Esc` through `NSApp.sendEvent` | Consistent |
+| A4 | Hook count 1 after the first capture and still 1 after the failed one | Consistent |
+| A6 | The comment no longer claims "exactly once"; assertions unchanged | Consistent |
+| A11 | Down and drag before the frame, wait for the rendered frame, no toolbar, mouse up, toolbar | Consistent (what its "no toolbar" read can detect: finding 9) |
+| A12 | Row: "after release and a further shortcut … `capture.requests == 3`". Test: a shortcut every 50 ms for up to 5 s until admitted, then `requests >= 3` | Inconsistent driving input and assertion (finding 10) |
+| A2, A5, A7, A10, U1 | Spec cells now cite REQ-005 correctly (A2 AC-03, A5 AC-07, A7 AC-04, A10 AC-03, U1 AC-05) | Consistent |
+
+The expected-value cells of A2 and A7 and the reason cell of A10 still carry
+the provisional numbers ("AC-02", "AC-03", "the AC-02 path") beside the right
+content: numbering only, no conclusion depends on it, not a finding.
+
+#### Dimension 1: Coverage
+
+Test-file header lines 36-42: the two gaps added by the fix are real. A
+display connected while frames are pending gets no pending panel
+(`presentPending` builds panels from `NSScreen.screens` at presentation,
+`FrozenCaptureOverlayController.swift` 39) and no frame, and the screen list
+cannot be changed in process; the absence of a flash is ordering inside
+`presentPending` (67-73). Lines 24-27 are true: `Scripts/test-local-regression.sh`
+50-55 and `.github/workflows/ci.yml` 38, 44, 50 run only the Paste and
+closed-window native cases.
+
+| Clause touched by the fix | Case | Verdict |
+|---|---|---|
+| AC-01 overlay on every connected display | A1 | Covered on multi-display runs only; on the one-display machines that run the suite the check follows from the preceding wait. The checklist row says so ("本机单屏"), and this is the option finding 3 offered; no new finding |
+| AC-03 keyboard owned while pending | A3 | Covered |
+| AC-03 rectangle begun before the frame is kept | A11 | Covered (a drag reset at the frame turns A11 red) |
+| AC-03 and §3: a rectangle begun before the frame completes at mouse-up, not when the frame arrives | A11's "no toolbar" read | Not effectively driven (finding 9) |
+| AC-05 request invalidated | A12 | The withdrawal and the cleared request are covered; the admission refusal A12 tolerates is finding 10 |
+| FM-25 sources retired only after the frame, not on failure | A1, A4 | Covered through the model hook; the delegate wiring (`VLMSnapperApplicationDelegate.swift` 149-153) has no diff in `850f64d..da94f5c` |
+
+Fixture independence: A11 and A12 use `syntheticDisplay()` (real
+`NSScreen.main` geometry and pixel size) and the existing `changedGeometry`;
+no new shape.
+
+Conclusion: findings 9 and 10.
+
+#### Dimension 2: Case design
+
+- A3 now drives `Esc` through the application's key-window routing; A11 sends
+  real `NSEvent`s to the pending panel in user order, still without hit
+  testing (header gap); A12 reaches the invalidated branch only through two
+  shortcuts and an injected display notification, the REQ-001 tests' path.
+- Observables: window visibility and key status, the rendered frame, the
+  toolbar window, the published activity, the fixture's capture count and the
+  model's `onRetireCaptureSources` callback, which production wiring sets. No
+  private state is read.
+- No unreachable state is constructed. A12 restores the geometry before the
+  third capture, so that capture is not invalidated into the modal failure
+  alert.
+
+Conclusion: no finding.
+
+#### Dimension 3: False greens
+
+Mutation check: not run (finding 2, open).
+
+UI forms (`review-code/false-greens.md`): key status, per-screen frames and the
+rendered frame are effects, not existence. Key events now pass the
+application's routing; mouse events still skip hit testing (recorded gap).
+Read timing: A1's hook is called in the same main-actor stretch as `commit`
+(`VLMSnapperApplicationModel.swift` 1168-1202, no suspension), so a visible
+frame implies the call; A12 polls exactly the expressions it asserts; A11's
+"no toolbar" is read in the main-actor turn in which the frame was seen,
+before an early completion could show a toolbar (finding 9). No gate, CLI
+check or exemption is added.
+
+| Case | Goes red when |
+|---|---|
+| A1 | Sources are retired at admission or in `presentPending` (count 1 while held), or not retired, or retired twice after the frame; a screen lacks a pending overlay (multi-display runs only); plus the first round's causes |
+| A3 | `presentPending` does not make the pending panel key (`isKeyWindow` false, as observed in the locked-session run, Ticket 24), no window is key (`requireFixture` throws), or `Esc` routed by the application does not withdraw the overlay; plus the first round's causes |
+| A4 | The failed capture or its rollback calls the retirement hook, or the first commit does not |
+| A6 | Unchanged from the first round |
+| A11 | `attach` or `commit` resets or replaces the view holding the drag (mouse-up finds no `dragStart`, no toolbar), a mouse-down before the frame is ignored, or the frame lands in another window (`overlayShowsFrozenFrame` throws on a retired panel). Not when the selection is completed at frame arrival (finding 9) |
+| A12 | The invalidated branch leaves `captureRequest` set (requests stay at 2 for 5 s), the display change leaves the pending overlay or the activity in place, or the third capture shows no overlay |
+
+Conclusion: finding 9.
+
+#### Dimension 4: Resource reuse
+
+Counted from the targeted log, whole cases including fixture creation, model
+start, frame construction and teardown: A1 0.133 s, A3 0.126 s, A4 0.324 s,
+A6 0.547 s, A11 0.211 s, A12 0.217 s. No resource reaches 1 s, so there are no
+load counts to compare and no shared resource that a case clears; the
+collection-order check does not apply.
+
+Conclusion: no finding.
+
+#### Re-check of the first round's findings
+
+| Finding | State after the fix |
+|---|---|
+| 2 | Open: `capabilities.toml` still absent; waits on the user |
+| 3 | Resolved: spec cells and the Dimension 1 table use REQ-005, header gaps added, A1 checks every screen, checklist rows updated |
+| 4 | Resolved: A3 (keyboard) and A11 (drag kept across the frame); finding 9 is a different gap in A11 |
+| 5 | Resolved for the branch; finding 10 concerns what A12 tolerates |
+| 6 | Resolved: A1, A4 |
+| 7 | Resolved: the late-result row cites A3 and A7; "exactly once" removed from row A6 and the test comment |
+| 8 | The case ran on the fixed code (targeted log 424-429) and the header is corrected; adding it to the gate and CI still waits on the user's decision |
+
+#### Document sync check
+
+Scope: this record and every file under `docs/.workings/capture-instant-overlay/`
+(enumerated with `find`, hidden files included;
+`git ls-files --others --ignored --exclude-standard -- docs Tests AGENTS.md CODEX.md CONTEXT.md`
+returned nothing); `docs/.workings/v1-core/checklist.md` REQ-005 rows (lines
+23-29); `docs/specs/v1-core.md` (§3 line 42, REQ-005 lines 66-78, FM-25,
+Testing Decisions 367 and 371); `docs/features/v1-core.md`; ADR-0013;
+`CONTEXT.md`; root `AGENTS.md` and `CODEX.md`; the test-file header;
+`Scripts/test-local-regression.sh` and `.github/workflows/ci.yml`. A
+repository search for the reviewed test names and the retirement hook
+(excluding `.build` and `.git`) finds them only in these files, the evidence
+logs and the product sources, so other directories are excluded.
+
+Facts from the fix range and its targeted run: A1, A3 and A4 strengthened, A11
+and A12 added, header gaps added and the native-case statement corrected, the
+native cleanup case run on the fixed code, logs kept in `logs/`. Facts this
+round establishes: findings 9-11.
+
+| Document | Statement | State |
+|---|---|---|
+| This record, test design table row A12 | "after release and a further shortcut … `capture.requests == 3`" | Differs from the test (finding 10) |
+| This record, design-review Dimension 1 row "AC-03 rectangle begun before the frame, finished after it" | Covered by A11 | Holds for "kept", not for "completed at mouse-up" (finding 9) |
+| This record, first-round Run evidence (lines 213-229) | Cites the session-temporary log, `gate.sh` and the rg shim | The log is now kept byte-identical; the scripts are not (finding 11) |
+| `checklist.md` line 23 (AC-01) | Every `NSScreen` checked, "本机单屏" | True |
+| `checklist.md` line 25 (AC-03) | A11 for "冻结前开始、帧到达后完成的选区" | Overstated until finding 9 is resolved |
+| `checklist.md` line 27 (AC-05) | A12 for 请求失效 | True for the withdrawal; see finding 10 |
+| `final-regression.md` line 18 | REQ-005 against implementation and tests: "True; parts not driven by tests are the REQ-005 Pending and the gaps listed in the test-file header" | Contradicted by findings 9 and 10; re-check after their resolution |
+| `tasklist.md` line 74 (spec final check, AC-01 "Met") | Admission shows the overlay immediately | Not met in finding 10's window |
+| `tasklist.md` lines 91-96 | Evidence list | True; the run scripts are missing (finding 11) |
+| Test-file header lines 24-27, 36-42 | Native-case runs; gap list | True |
+| Spec REQ-005 scope and AC-01 (lines 68, 70), §3 (line 42); features line 35 | A ready shortcut shows the overlay at once | Contradicted by the implementation in finding 10's window; unchanged under its option (a), needs wording under option (b) |
+| Spec Testing Decisions 367 and 371, ADR-0013, `CONTEXT.md`, `measurements.md`, `review-code.md`, root `AGENTS.md` and `CODEX.md` | No statement on these facts | Unaffected |
+
+No sync item is completed by this round.
+
 ### Findings
 
 2. **Capability declaration missing; `mutation-testing` unconfirmed.**
@@ -542,3 +741,101 @@ No sync item is completed by this round.
    omission predates this change: recommend adding the case to both as a
    separate task; it has no durable home, so the user decides whether to file
    it.
+
+Incremental round (fix `8bd52f2..da94f5c`, 2026-10-28). Finding 2 remains open
+and blocks the mutation check of this round's objects; findings 3-8 are
+re-checked in the round's table above.
+
+9. **A11 cannot see a selection completed when the frame arrives instead of
+   at mouse-up.** Category: regression that would be missed. Evidence:
+   `attach` finishes a drag only when `completedBeforeFrame` is set
+   (`FrozenCaptureOverlayController.swift` 215, 246-249, 291-293); an
+   `attach` that finished any drag in progress would confirm the selection
+   while the mouse is still down. A11 reads `captureToolbar() == nil`
+   (`ProviderApplicationTests.swift` 1243) in the main-actor turn in which
+   `eventually` saw the frame, while the toolbar of such an early completion
+   needs three session-actor hops and the crop
+   (`VLMSnapperApplicationModel.swift` 1293-1311); the mouse-up lands on the
+   last drag point (1240, 1244), so the completed rectangle is the same either
+   way, and the later mouse-up completion is refused as `inactiveSession`
+   (`CaptureSelectionSession.swift` 146-147) and swallowed (model 1314-1318).
+   Impact: dropping that condition from `attach` keeps A11 green (analysis;
+   no mutation run, finding 2). Recommendation: after the frame, move the drag
+   to a point that changes the selection's lower-left corner, then mouse up,
+   and assert that the toolbar is anchored to the final rectangle
+   (`CaptureToolbarPlacement.origin`: x from the selection's minX, y below its
+   minY); or wait a bound that covers A2's toolbar latency before asserting no
+   toolbar. Update row A11 and re-review it.
+
+10. **A12 retries the shortcut and so accepts a refusal that REQ-005/AC-01
+    does not allow; its table row expects one shortcut.** Category: defect
+    (the test masks a deviation) and untrue record. Evidence: when a display
+    change ends the selection being replaced, `cancelCapture` for the active
+    generation releases the activity and closes every overlay
+    (`VLMSnapperApplicationModel.swift` 1552-1564) but leaves the pending
+    replacement's `captureRequest`, which is cleared only when the stale
+    freeze returns (1154-1167). A shortcut in that window gets a fresh lease
+    from the workflow (`ApplicationWorkflow.swift` 27), is refused by
+    `guard captureRequest == nil` (model 1079) and its lease is released
+    (workflow 40-41): no overlay, no feedback. REQ-005's scope and AC-01 (spec
+    lines 68, 70), §3 (line 42) and features line 35 require the overlay once
+    Provider, permission and activity admit the shortcut; `Esc` while pending
+    clears the request at once (`abandonPendingCapture`, model 1230-1238).
+    A12 states the refusal as expected and fires a shortcut every 50 ms for up
+    to 5 s (`ProviderApplicationTests.swift` 1275-1282, `requests >= 3`); row
+    A12 expects one further shortcut to be admitted (`requests == 3`).
+    Impact: in the app, a shortcut pressed after a display change ends the
+    selection being replaced and before the stale freeze returns (100-200 ms
+    per display, ADR-0013) is silently dropped, and A12 stays green.
+    Recommendation (user decision, as it changes product code or the spec):
+    (a), recommended because AC-01 already requires it and `Esc` behaves so,
+    clear the pending request when the selection it replaces is cancelled,
+    and let A12 fire one shortcut while the stale capture is still held,
+    expecting admission (`requests == 3`, an overlay), then release and check
+    that the stale result leaves the new capture alone (the fixture's single
+    `waiter` must then hold two suspended captures); (b) accept the window,
+    state it in REQ-005 and the features catalogue, and change row A12 to the
+    bounded retry. Either way the row and the test must agree, with the row
+    re-reviewed under the design review's increment rule.
+
+11. **The run scripts behind both handed logs are not kept, and the targeted
+    log omits its manifest command.** Category: untrue record and evidence.
+    Evidence: `logs/targeted-findings-fix.log` lines 13-21 print the manifest
+    under `-- manifest` without the command that produced it (a gate log
+    requirement; the per-file `git hash-object` loop is visible only in
+    `targeted.sh`). Both logs' `== exit:` lines and the gate log's
+    `<scratch rg shim>` PATH are explained only by `targeted.sh`, `gate.sh`
+    and `bin/rg` in the session scratchpad, which the first round's Run
+    evidence cites by session path and which disappear with the session;
+    `tasklist.md` 91-94 keeps the logs but not the scripts. Impact on results:
+    none, the manifest hashes equal the blobs at `da94f5c`; after the session
+    the logs alone cannot show how the manifest and the exit codes were taken.
+    Recommendation: keep the three scripts next to the logs in `logs/`, list
+    them in `tasklist.md` and point the first round's Run evidence to them; no
+    rerun.
+
+### Handling of incremental-round findings 9-11 (2026-10-28)
+
+| Finding | Handling |
+|---|---|
+| 9 A11 blind to completion at frame arrival | A11 keeps dragging after the frame arrives so the left edge moves from 300 to 150, then asserts the toolbar's left edge at the final selection's left edge (spec §4); row A11 re-reviewed |
+| 10 A12 accepted a refused shortcut | Product defect fixed: cancelling the selection a pending capture replaces now clears that request at once (`cancelCapture`, active branch). A12 fires one shortcut while the stale freeze is still held and expects admission; it failed first on `da94f5c` at that wait (deadline, line 1281) and passes after the fix. `FixtureCapture` now holds several suspended captures. REQ-005/AC-05 states the consequence; row A12 re-reviewed |
+| 11 Scripts not kept; manifest command missing | `logs/scripts/` keeps `gate.sh`, `targeted.sh` and `rg-shim` (the scratchpad `bin/rg` behind the `<scratch rg shim>` PATH). Both scripts now also print the manifest command; the kept copies differ from the versions that produced `gate-pre-review-8bd52f2.log` and `targeted-findings-fix.log` only by that added echo line. The first round's Run evidence cites the scratchpad paths; the kept copies are these files |
+
+Pre-handoff self-check of this fix (items 2-5):
+
+- Item 2: A11's new assertion compares the toolbar's left edge with a value
+  from the spec rule (left alignment) and the input point, not from
+  `CaptureToolbarPlacement`; it fails by 150 pt if completion happens at frame
+  arrival. A12's admission wait fails if the shortcut is refused (shown red);
+  its final identity check fails if the stale second result replaced or
+  closed the third capture's overlay.
+- Item 3: `cancelCapture` (product) gained one branch-free step; both callers
+  enumerated in `review-code.md`. `FixtureCapture.release` resumes every held
+  continuation; its holders are `holdFrames` captures and the suspended
+  permission path, both driven by existing tests (A4, the exclusivity test).
+- Item 4: no new data shapes.
+- Item 5: `FixtureCapture` users: every composition test (same file), all in
+  the targeted run of this fix.
+
+Self-check result: no finding.
