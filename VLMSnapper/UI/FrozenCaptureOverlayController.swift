@@ -18,6 +18,7 @@ public final class FrozenCaptureOverlayController {
 
     private var panels: [CaptureOverlayPanel] = []
     private var pendingPanels: [CaptureOverlayPanel] = []
+    private let pointerLocation: @MainActor () -> CGPoint
 
     /// Displays covered by the current frozen overlay; a pending overlay does
     /// not change this until it is committed.
@@ -25,7 +26,11 @@ public final class FrozenCaptureOverlayController {
         Set(panels.map(\.displayID))
     }
 
-    public init() {}
+    /// `pointerLocation` reads the pointer in global AppKit coordinates; the overlay opens with
+    /// the snap region under it before the pointer moves.
+    public init(pointerLocation: @escaping @MainActor () -> CGPoint = { NSEvent.mouseLocation }) {
+        self.pointerLocation = pointerLocation
+    }
 
     /// Covers every connected display before frozen frames exist. The current
     /// overlay is hidden but kept until `commit` retires it or `rollback`
@@ -109,6 +114,22 @@ public final class FrozenCaptureOverlayController {
         return true
     }
 
+    /// Gives every overlay of this capture its snap regions; `nil` means the window list could not
+    /// be read, so a click selects nothing while dragging still works.
+    public func attachSnapRegions(_ resolver: CaptureSnapRegionResolver?) {
+        let pointer = pointerLocation()
+        for panel in pendingPanels + panels {
+            guard let resolver else {
+                panel.overlayView?.attachSnapRegions(nil, pointer: nil)
+                continue
+            }
+            panel.overlayView?.attachSnapRegions(
+                { [weak panel] point in panel?.snapRegion(at: point, resolver: resolver) ?? .zero },
+                pointer: panel.localPoint(fromGlobal: pointer)
+            )
+        }
+    }
+
     /// Withdraws the pending overlay and shows the previous overlay again.
     public func rollback() {
         guard !pendingPanels.isEmpty else { return }
@@ -184,6 +205,7 @@ private final class CaptureOverlayPanel: NSPanel {
         // The default window-open animation starts the panel slightly smaller than
         // the screen and grows it over several frames; the overlay must cover at once.
         animationBehavior = .none
+        acceptsMouseMovedEvents = true
         hasShadow = false
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -201,21 +223,64 @@ private final class CaptureOverlayPanel: NSPanel {
             setFrame(screen.frame, display: false)
         }
     }
+
+    /// The snap region under a point of this panel's view, both in view coordinates. The
+    /// resolver works in global top-left coordinates, flipped against the primary display.
+    func snapRegion(at point: CGPoint, resolver: CaptureSnapRegionResolver) -> CGRect {
+        let flipHeight = NSScreen.screens.first?.frame.height ?? frame.height
+        func topLeft(_ rect: CGRect) -> CGRect {
+            CGRect(x: rect.minX, y: flipHeight - rect.maxY, width: rect.width, height: rect.height)
+        }
+        let display = CaptureSnapDisplay(
+            frame: topLeft(overlayScreen.frame),
+            visibleFrame: topLeft(overlayScreen.visibleFrame),
+            pointPixelScale: Double(overlayScreen.backingScaleFactor)
+        )
+        let global = CGPoint(x: frame.minX + point.x, y: flipHeight - (frame.minY + point.y))
+        let region = resolver.region(at: global, on: display)
+        return CGRect(
+            x: region.minX - frame.minX,
+            y: flipHeight - region.maxY - frame.minY,
+            width: region.width,
+            height: region.height
+        )
+    }
+
+    func localPoint(fromGlobal point: CGPoint) -> CGPoint? {
+        guard frame.contains(point) else { return nil }
+        return CGPoint(x: point.x - frame.minX, y: point.y - frame.minY)
+    }
 }
 
 /// Renders with layers: the frozen frame is a layer's contents, so dragging only
 /// rebuilds two small paths instead of redrawing a full-resolution frame.
 private final class CaptureOverlayView: NSView {
+    /// A press that moves this far or less is a click on the snap region (v1-core::REQ-006/AC-07).
+    private static let dragThreshold: CGFloat = 3
+
+    private enum SnapRegions {
+        case awaiting
+        case ready((CGPoint) -> CGRect)
+        case unavailable
+    }
+
     private let onSelection: @MainActor (CapturePoint, CapturePoint, CGRect) -> Void
     private let onCancel: @MainActor () -> Void
     private let frameLayer = CALayer()
     private let dimLayer = CAShapeLayer()
     private let borderLayer = CAShapeLayer()
     private var geometry: CaptureDisplayGeometry?
+    private var snapRegions = SnapRegions.awaiting
+    private var press: CGPoint?
     private var dragStart: CGPoint?
     private var dragCurrent: CGPoint?
-    // A drag released before the frozen frame arrived; finished by `attach`.
-    private var completedBeforeFrame = false
+    /// The snap region shown while no drag is in progress, or the region a click selected.
+    private var snapped: CGRect?
+    /// A click made before the window list arrived; resolved when it does.
+    private var clickBeforeSnapRegions: CGPoint?
+    /// A selection completed before the frozen frame arrived; finished by `attach`.
+    private var completedBeforeFrame: CGRect?
+    private var selectionSettled = false
 
     init(
         onSelection: @escaping @MainActor (CapturePoint, CapturePoint, CGRect) -> Void,
@@ -246,10 +311,43 @@ private final class CaptureOverlayView: NSView {
     func attach(_ display: FrozenCaptureDisplay) {
         geometry = display.geometry
         updateLayers { frameLayer.contents = display.frame.image }
-        if completedBeforeFrame, let dragStart, let dragCurrent {
-            completedBeforeFrame = false
-            finishSelection(from: dragStart, to: dragCurrent)
+        if let selection = completedBeforeFrame {
+            completedBeforeFrame = nil
+            finishSelection(selection)
         }
+    }
+
+    /// `pointer` is where the pointer is in this view, or `nil` when it is on another display.
+    func attachSnapRegions(_ region: ((CGPoint) -> CGRect)?, pointer: CGPoint?) {
+        guard let region else {
+            snapRegions = .unavailable
+            if let click = clickBeforeSnapRegions {
+                clickBeforeSnapRegions = nil
+                complete(CGRect(origin: click, size: .zero))
+            }
+            return
+        }
+        snapRegions = .ready(region)
+        if let click = clickBeforeSnapRegions {
+            clickBeforeSnapRegions = nil
+            let selection = region(click)
+            snapped = selection
+            complete(selection)
+        } else if press == nil, !selectionSettled {
+            snapped = pointer.map(region)
+            updateLayers()
+        }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        // Mouse movement reaches every display's overlay, not only the key one.
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self
+        ))
     }
 
     override func setFrameSize(_ newSize: NSSize) {
@@ -272,30 +370,66 @@ private final class CaptureOverlayView: NSView {
         updateLayers()
     }
 
+    override func mouseMoved(with event: NSEvent) {
+        guard press == nil, !selectionSettled, case .ready(let region) = snapRegions else { return }
+        snapped = region(convert(event.locationInWindow, from: nil))
+        updateLayers()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        guard press == nil, !selectionSettled, snapped != nil else { return }
+        snapped = nil
+        updateLayers()
+    }
+
     override func mouseDown(with event: NSEvent) {
         window?.makeKey()
         let point = convert(event.locationInWindow, from: nil)
-        dragStart = point
-        dragCurrent = point
-        completedBeforeFrame = false
+        press = point
+        dragStart = nil
+        dragCurrent = nil
+        completedBeforeFrame = nil
+        clickBeforeSnapRegions = nil
+        selectionSettled = false
+        if case .ready(let region) = snapRegions { snapped = region(point) }
         updateLayers()
     }
 
     override func mouseDragged(with event: NSEvent) {
-        dragCurrent = convert(event.locationInWindow, from: nil)
+        guard let press else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        if dragStart == nil {
+            guard hypot(point.x - press.x, point.y - press.y) > Self.dragThreshold else { return }
+            dragStart = press
+        }
+        dragCurrent = point
         updateLayers()
     }
 
     override func mouseUp(with event: NSEvent) {
-        guard let dragStart else { return }
+        guard let press else { return }
+        self.press = nil
         let end = convert(event.locationInWindow, from: nil)
-        dragCurrent = end
-        updateLayers()
-        guard geometry != nil else {
-            completedBeforeFrame = true
+        // A release far from the press is a drag even when no drag event arrived in between.
+        if dragStart == nil, hypot(end.x - press.x, end.y - press.y) > Self.dragThreshold {
+            dragStart = press
+        }
+        if dragStart != nil {
+            dragCurrent = end
+            if let rect = selectionRect { complete(rect) }
             return
         }
-        finishSelection(from: dragStart, to: end)
+        switch snapRegions {
+        case .ready(let region):
+            let selection = region(press)
+            snapped = selection
+            complete(selection)
+        case .awaiting:
+            clickBeforeSnapRegions = press
+        case .unavailable:
+            // Without snap regions a click is an empty selection, as before snapping existed.
+            complete(CGRect(origin: press, size: .zero))
+        }
     }
 
     override func keyDown(with event: NSEvent) {
@@ -306,18 +440,28 @@ private final class CaptureOverlayView: NSView {
         }
     }
 
-    private func finishSelection(from start: CGPoint, to end: CGPoint) {
-        guard let geometry, let selectionRect else { return }
+    private func complete(_ selection: CGRect) {
+        selectionSettled = true
+        updateLayers()
+        guard geometry != nil else {
+            completedBeforeFrame = selection
+            return
+        }
+        finishSelection(selection)
+    }
+
+    private func finishSelection(_ selection: CGRect) {
+        guard let geometry else { return }
         onSelection(
             CaptureCoordinateMapper.pixelPoint(
-                fromLocalAppKitPoint: CapturePoint(x: start.x, y: start.y),
+                fromLocalAppKitPoint: CapturePoint(x: selection.minX, y: selection.minY),
                 geometry: geometry
             ),
             CaptureCoordinateMapper.pixelPoint(
-                fromLocalAppKitPoint: CapturePoint(x: end.x, y: end.y),
+                fromLocalAppKitPoint: CapturePoint(x: selection.maxX, y: selection.maxY),
                 geometry: geometry
             ),
-            selectionRect
+            selection
         )
     }
 
@@ -347,8 +491,9 @@ private final class CaptureOverlayView: NSView {
         CATransaction.commit()
     }
 
+    /// The dragged rectangle while dragging; otherwise the snap region.
     private var selectionRect: CGRect? {
-        guard let dragStart, let dragCurrent else { return nil }
+        guard let dragStart, let dragCurrent else { return snapped }
         return CGRect(
             x: min(dragStart.x, dragCurrent.x),
             y: min(dragStart.y, dragCurrent.y),

@@ -51,6 +51,113 @@ struct FrozenCaptureOverlayControllerTests {
         #expect(overlays.allSatisfy { $0.animationBehavior == .none })
     }
 
+    // Snap regions (v1-core::REQ-006). The resolver gets two windows in global top-left
+    // coordinates on the primary display; expected frames are those windows flipped by hand
+    // against the display height. Hover from physical mouse movement and real window lists are
+    // checked on the installed build.
+    @Test("a click selects the whole snap region under the pointer")
+    func clickSelectsSnapRegion() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        var selections: [CGRect] = []
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { selections.append($0.screenFrame) }, onCancel: {})
+        #expect(presented)
+        let committed = controller.commit(displays: [makeDisplay(id: try displayID(screen), screen: screen)])
+        #expect(committed)
+        controller.attachSnapRegions(twoWindowResolver())
+        let panel = try primaryOverlay()
+
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 252, y: height - 199))
+
+        #expect(selections == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
+    }
+
+    @Test("a press moved past three points draws a manual rectangle instead")
+    func dragIgnoresSnapRegion() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        var selections: [CGRect] = []
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { selections.append($0.screenFrame) }, onCancel: {})
+        #expect(presented)
+        let committed = controller.commit(displays: [makeDisplay(id: try displayID(screen), screen: screen)])
+        #expect(committed)
+        controller.attachSnapRegions(twoWindowResolver())
+        let panel = try primaryOverlay()
+
+        try send(.leftMouseDown, at: NSPoint(x: 250, y: height - 200), to: panel)
+        try send(.leftMouseDragged, at: NSPoint(x: 290, y: height - 170), to: panel)
+        try send(.leftMouseUp, at: NSPoint(x: 290, y: height - 160), to: panel)
+
+        #expect(selections == [CGRect(x: 250, y: height - 200, width: 40, height: 40)])
+    }
+
+    @Test("a click before the window list and the frame completes once both arrive")
+    func clickBeforeSnapRegionsCompletesLater() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        var selections: [CGRect] = []
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { selections.append($0.screenFrame) }, onCancel: {})
+        #expect(presented)
+        let panel = try primaryOverlay()
+
+        try click(panel, from: NSPoint(x: 750, y: height - 200), to: NSPoint(x: 750, y: height - 200))
+        #expect(selections.isEmpty)
+        controller.attachSnapRegions(twoWindowResolver())
+        #expect(selections.isEmpty)
+        let committed = controller.commit(displays: [makeDisplay(id: try displayID(screen), screen: screen)])
+        #expect(committed)
+
+        #expect(selections == [CGRect(x: 600, y: height - 300, width: 300, height: 200)])
+    }
+
+    @Test("without a window list a click selects nothing")
+    func clickWithoutSnapRegionsSelectsNothing() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        var selections: [CGRect] = []
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { selections.append($0.screenFrame) }, onCancel: {})
+        #expect(presented)
+        let committed = controller.commit(displays: [makeDisplay(id: try displayID(screen), screen: screen)])
+        #expect(committed)
+        controller.attachSnapRegions(nil)
+        let panel = try primaryOverlay()
+
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+
+        #expect(selections.allSatisfy { $0.isEmpty })
+    }
+
+    @Test("the overlay opens on the snap region under the pointer and follows it")
+    func hoverShowsAndFollowsSnapRegion() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        let controller = FrozenCaptureOverlayController(pointerLocation: { CGPoint(x: 250, y: height - 200) })
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { _ in }, onCancel: {})
+        #expect(presented)
+        controller.attachSnapRegions(twoWindowResolver())
+        let panel = try primaryOverlay()
+        let first = NSPoint(x: 250, y: height - 200)
+        let second = NSPoint(x: 750, y: height - 200)
+
+        // Pending overlay: clear inside the snap region, dimmed (48 % black) outside it.
+        #expect(try renderedAlpha(panel, at: first) == 0)
+        #expect(try renderedAlpha(panel, at: second) > 100)
+
+        try send(.mouseMoved, at: second, to: panel)
+
+        #expect(try renderedAlpha(panel, at: second) == 0)
+        #expect(try renderedAlpha(panel, at: first) > 100)
+    }
+
     @Test("a failure alert stays visible above a retained overlay")
     func failureAlertStaysAboveRetainedOverlay() throws {
         let screen = try #require(NSScreen.screens.first)
@@ -107,4 +214,65 @@ private func makeDisplay(
 @MainActor
 private func present(_ controller: FrozenCaptureOverlayController) -> Bool {
     controller.presentPending(onSelection: { _ in }, onCancel: {})
+}
+
+@MainActor
+private func primaryScreen() throws -> NSScreen {
+    try #require(NSScreen.screens.first)
+}
+
+private func displayID(_ screen: NSScreen) throws -> UInt32 {
+    try #require(
+        (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+    )
+}
+
+@MainActor
+private func primaryOverlay() throws -> NSWindow {
+    let screen = try primaryScreen()
+    return try #require(visibleOverlays().first { $0.frame == screen.frame })
+}
+
+private func twoWindowResolver() -> CaptureSnapRegionResolver {
+    let windows = [
+        CGRect(x: 100, y: 100, width: 300, height: 200),
+        CGRect(x: 600, y: 100, width: 300, height: 200),
+    ].map {
+        CaptureWindowSnapshotEntry(ownerProcessID: 4242, layer: 0, alpha: 1, isOnScreen: true, bounds: $0)
+    }
+    return CaptureSnapRegionResolver(
+        snapshot: CaptureWindowSnapshot(windows: windows, dockProcessID: nil),
+        excludedProcessID: ProcessInfo.processInfo.processIdentifier
+    )
+}
+
+@MainActor
+private func send(_ type: NSEvent.EventType, at point: NSPoint, to window: NSWindow) throws {
+    window.sendEvent(try #require(NSEvent.mouseEvent(
+        with: type, location: point, modifierFlags: [],
+        timestamp: ProcessInfo.processInfo.systemUptime,
+        windowNumber: window.windowNumber, context: nil,
+        eventNumber: 1, clickCount: 1, pressure: 1
+    )))
+}
+
+@MainActor
+private func click(_ window: NSWindow, from down: NSPoint, to up: NSPoint) throws {
+    try send(.leftMouseDown, at: down, to: window)
+    try send(.leftMouseUp, at: up, to: window)
+}
+
+/// Alpha the overlay renders at one point of its window.
+@MainActor
+private func renderedAlpha(_ window: NSWindow, at point: NSPoint) throws -> UInt8 {
+    let layer = try #require(window.contentView?.layer)
+    let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+    let context = try #require(CGContext(
+        data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+        space: space,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ))
+    context.translateBy(x: -point.x, y: -point.y)
+    layer.render(in: context)
+    return try #require(context.data).load(fromByteOffset: 3, as: UInt8.self)
 }

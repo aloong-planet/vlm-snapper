@@ -1255,6 +1255,80 @@ struct ProviderApplicationTests {
         }
     }
 
+    // v1-core::REQ-006: a click selects the snap region from the window list taken with the
+    // freeze. The selection shows through the toolbar, which is left-aligned with it.
+    @Test
+    func clickOnWindowSelectsWholeWindow() async throws {
+        try await withSnapFixture { fixture, screen in
+            try fixture.shortcuts.fire()
+            let overlay = try await frozenMainOverlay()
+            try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
+            try sendMouse(.leftMouseUp, at: NSPoint(x: 301, y: 251), to: overlay)
+            try await eventually { captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            #expect(abs(toolbar.frame.minX - (screen.frame.minX + 200)) <= 1)
+            #expect(toolbar.frame.maxY <= screen.frame.minY + 150)
+        }
+    }
+
+    @Test
+    func clickOnDesktopSelectsWholeDisplay() async throws {
+        try await withSnapFixture { fixture, screen in
+            try fixture.shortcuts.fire()
+            let overlay = try await frozenMainOverlay()
+            try sendMouse(.leftMouseDown, at: NSPoint(x: 60, y: 600), to: overlay)
+            try sendMouse(.leftMouseUp, at: NSPoint(x: 60, y: 600), to: overlay)
+            try await eventually { captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            #expect(abs(toolbar.frame.minX - screen.visibleFrame.minX) <= 1)
+        }
+    }
+
+    @Test
+    func clickWhileFreezingSelectsWindowOnceFramesArrive() async throws {
+        try await withSnapFixture { fixture, screen in
+            await fixture.capture.holdFrames()
+            try fixture.shortcuts.fire()
+            try await eventually { try mainScreenOverlay() != nil }
+            let overlay = try #require(try mainScreenOverlay())
+            pumpNativeEvents(overlay)
+            try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
+            try sendMouse(.leftMouseUp, at: NSPoint(x: 300, y: 250), to: overlay)
+            #expect(captureToolbar() == nil)
+            await fixture.capture.release()
+            try await eventually { captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            #expect(abs(toolbar.frame.minX - (screen.frame.minX + 200)) <= 1)
+        }
+    }
+
+    @Test
+    func clickWithoutWindowListSelectsNothingButDragStillWorks() async throws {
+        try await withSnapFixture(windowList: false) { fixture, screen in
+            try fixture.shortcuts.fire()
+            let overlay = try await frozenMainOverlay()
+            try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
+            try sendMouse(.leftMouseUp, at: NSPoint(x: 300, y: 250), to: overlay)
+            // Selections are handled in order: the toolbar that appears belongs to the drag.
+            try drag(overlay, from: NSPoint(x: 120, y: 200), to: NSPoint(x: 260, y: 320))
+            try await eventually { captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            #expect(abs(toolbar.frame.minX - (screen.frame.minX + 120)) <= 1)
+        }
+    }
+
+    @Test
+    func heldWindowListDoesNotDelayOverlay() async throws {
+        try await withSnapFixture { fixture, _ in
+            await fixture.windows.hold()
+            try fixture.shortcuts.fire()
+            try await eventually { try mainScreenOverlay() != nil }
+            let overlay = try #require(try mainScreenOverlay())
+            try await eventually { try overlayShowsFrozenFrame(overlay) }
+            await fixture.windows.release()
+        }
+    }
+
     @Test
     func displayChangeWhileReplacingAbandonsPendingCapture() async throws {
         try await withFixture { fixture in
@@ -1842,6 +1916,48 @@ private func sendMouse(_ type: NSEvent.EventType, at point: NSPoint, to window: 
     pumpNativeEvents(window)
 }
 
+/// Runs a capture-ready model whose window list holds one window at local (200, 150, 300, 200)
+/// of the main screen, given to the list in global top-left coordinates.
+@MainActor
+private func withSnapFixture(
+    windowList: Bool = true,
+    _ body: @MainActor (ApplicationFixture, NSScreen) async throws -> Void
+) async throws {
+    try await withFixture { fixture in
+        fixture.permissionGranted = true
+        let display = try syntheticDisplay()
+        await fixture.capture.provide(display)
+        fixture.displayGeometries = [display.geometry]
+        let screen = try #require(NSScreen.main)
+        let flipHeight = try #require(NSScreen.screens.first).frame.height
+        if windowList {
+            let window = CaptureWindowSnapshotEntry(
+                ownerProcessID: 4242, layer: 0, alpha: 1, isOnScreen: true,
+                bounds: CGRect(
+                    x: screen.frame.minX + 200,
+                    y: flipHeight - (screen.frame.minY + 350),
+                    width: 300,
+                    height: 200
+                )
+            )
+            await fixture.windows.provide(CaptureWindowSnapshot(windows: [window], dockProcessID: nil))
+        }
+        try await fixture.withModel { model in
+            try await makeCaptureReady(model, key: "fixture-snap-key")
+            try await body(fixture, screen)
+        }
+    }
+}
+
+@MainActor
+private func frozenMainOverlay() async throws -> NSWindow {
+    try await eventually { try mainScreenOverlay() != nil }
+    let overlay = try requireFixture(try mainScreenOverlay())
+    try await eventually { try overlayShowsFrozenFrame(overlay) }
+    pumpNativeEvents(overlay)
+    return overlay
+}
+
 /// Captures with frames available immediately and drags a selection until the toolbar shows.
 @MainActor
 private func completeSelection(
@@ -1979,6 +2095,7 @@ private final class ApplicationFixture {
     let http = FixtureHTTP()
     let shortcuts = FixtureShortcuts()
     let capture = FixtureCapture()
+    let windows = FixtureWindowListing()
     let displayNotifications = NotificationCenter()
     let workspaceNotifications = NotificationCenter()
     var displayGeometries: [CaptureDisplayGeometry]?
@@ -2089,6 +2206,7 @@ private final class ApplicationFixture {
                 retentionPreferences: preferences.retention,
                 permissionChecker: FixturePermissions(granted: permissionGranted),
                 frozenDisplayCapturer: capture,
+                windowListing: windows,
                 displayMonitor: CaptureDisplayMonitor(
                     notifications: displayNotifications,
                     workspaceNotifications: workspaceNotifications,
@@ -2253,6 +2371,25 @@ private actor FixtureCapture: FrozenDisplayCapturing {
         }
         if !released { await withCheckedContinuation { waiters.append($0) } }
         throw .permissionDenied
+    }
+}
+
+/// Window list for snap regions; by default there is none, so clicks keep their old meaning.
+private actor FixtureWindowListing: CaptureWindowListing {
+    private var snapshot: CaptureWindowSnapshot?
+    private var held = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    func provide(_ snapshot: CaptureWindowSnapshot?) { self.snapshot = snapshot }
+    func hold() { held = true }
+    func release() {
+        held = false
+        let suspended = waiters
+        waiters.removeAll()
+        suspended.forEach { $0.resume() }
+    }
+    func captureWindowSnapshot() async -> CaptureWindowSnapshot? {
+        if held { await withCheckedContinuation { waiters.append($0) } }
+        return snapshot
     }
 }
 

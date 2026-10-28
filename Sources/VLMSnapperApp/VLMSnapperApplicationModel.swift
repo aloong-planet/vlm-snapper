@@ -1136,6 +1136,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             }
         ) {
             captureToolbarController.suspend()
+            attachSnapRegions(for: request)
         }
         let result = await captureCoordinator.startCapture()
         guard captureRequest?.generation == request.generation else {
@@ -1276,6 +1277,24 @@ final class VLMSnapperApplicationModel: ObservableObject {
         )
         if alert.runModal() == .alertFirstButtonReturn {
             capture()
+        }
+    }
+
+    /// Reads the window list alongside the freeze and hands it to this request's overlay only
+    /// while the request still owns it (v1-core::REQ-006).
+    private func attachSnapRegions(for request: CaptureRequest) {
+        let listing = dependencies.windowListing
+        Task { [weak self] in
+            let snapshot = await listing.captureWindowSnapshot()
+            guard let self,
+                  self.captureRequest?.generation == request.generation
+                    || self.activeCaptureGeneration == request.generation else { return }
+            self.captureOverlayController.attachSnapRegions(snapshot.map {
+                CaptureSnapRegionResolver(
+                    snapshot: $0,
+                    excludedProcessID: ProcessInfo.processInfo.processIdentifier
+                )
+            })
         }
     }
 
