@@ -1281,14 +1281,16 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     /// Reads the window list alongside the freeze and hands it to this request's overlay only
-    /// while the request still owns it (v1-core::REQ-006).
+    /// while that overlay is the newest: pending for this request, or committed with no newer
+    /// request pending (v1-core::REQ-006).
     private func attachSnapRegions(for request: CaptureRequest) {
         let listing = dependencies.windowListing
         Task { [weak self] in
             let snapshot = await listing.captureWindowSnapshot()
-            guard let self,
-                  self.captureRequest?.generation == request.generation
-                    || self.activeCaptureGeneration == request.generation else { return }
+            guard let self else { return }
+            let ownsNewestOverlay = self.captureRequest.map { $0.generation == request.generation }
+                ?? (self.activeCaptureGeneration == request.generation)
+            guard ownsNewestOverlay else { return }
             self.captureOverlayController.attachSnapRegions(snapshot.map {
                 CaptureSnapRegionResolver(
                     snapshot: $0,

@@ -158,6 +158,30 @@ struct FrozenCaptureOverlayControllerTests {
         #expect(try renderedAlpha(panel, at: first) > 100)
     }
 
+    @Test("a replacement's window list does not reach the overlay it may roll back to")
+    func rollbackKeepsPreviousSnapRegions() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        var selections: [CGRect] = []
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { selections.append($0.screenFrame) }, onCancel: {})
+        #expect(presented)
+        let committed = controller.commit(displays: [makeDisplay(id: try displayID(screen), screen: screen)])
+        #expect(committed)
+        controller.attachSnapRegions(resolver(windows: [CGRect(x: 100, y: 100, width: 300, height: 200)]))
+        let previous = try primaryOverlay()
+
+        let replacing = controller.presentPending(onSelection: { _ in }, onCancel: {})
+        #expect(replacing)
+        controller.attachSnapRegions(resolver(windows: [CGRect(x: 600, y: 100, width: 300, height: 200)]))
+        controller.rollback()
+
+        // The restored overlay still snaps with its own list: no window there, so the display.
+        try click(previous, from: NSPoint(x: 750, y: height - 200), to: NSPoint(x: 750, y: height - 200))
+        #expect(selections == [screen.frame])
+    }
+
     @Test("a failure alert stays visible above a retained overlay")
     func failureAlertStaysAboveRetainedOverlay() throws {
         let screen = try #require(NSScreen.screens.first)
@@ -234,10 +258,14 @@ private func primaryOverlay() throws -> NSWindow {
 }
 
 private func twoWindowResolver() -> CaptureSnapRegionResolver {
-    let windows = [
+    resolver(windows: [
         CGRect(x: 100, y: 100, width: 300, height: 200),
         CGRect(x: 600, y: 100, width: 300, height: 200),
-    ].map {
+    ])
+}
+
+private func resolver(windows bounds: [CGRect]) -> CaptureSnapRegionResolver {
+    let windows = bounds.map {
         CaptureWindowSnapshotEntry(ownerProcessID: 4242, layer: 0, alpha: 1, isOnScreen: true, bounds: $0)
     }
     return CaptureSnapRegionResolver(

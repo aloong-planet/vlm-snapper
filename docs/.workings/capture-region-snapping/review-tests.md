@@ -76,3 +76,20 @@ cleared by these rows.
 ### Findings
 
 None.
+
+### Increment: rows added for the code-review fixes (2026-10-28)
+
+| # | Spec | Seam | Driving input | Assertion and expected-value source | Fixture shape | Expensive resources |
+|---|---|---|---|---|---|---|
+| U7 | AC-09, AC-10 (CONTEXT invariant) | S2 | capture 1 committed with list A; replacement pending gets list B; rollback; click at a point only B covers | selection = the whole display (A has no window there) | two single-window lists | none |
+| A5 | AC-09, AC-10 | S3 | selection completed, replacement pending with frames held; lists returned newest first; click after both returned | toolbar at the visible-frame left edge (replacement's list: desktop), not +200 | per-call lists | app composition |
+
+Order: both tests were written while fixing the review findings and reviewed here afterwards — the
+increment rule asks for review before writing; recorded as it happened. Review of the rows:
+Dimension 1 — they drive the two state paths found in review (rollback, late list of a replaced
+capture). Dimension 2 — public seams only; A5 clicks after the fixture reports both list calls
+returned plus 100 ms, so the earlier capture's list is handed over before the click (otherwise the
+first list would resolve the click and hide the bug). Dimension 3 — both were red on the unfixed code for
+the asserted reason (`logs/snap-rollback-red.log`, `logs/snap-late-red.log`). Dimension 4 — no new
+resource. Findings: none.
+

@@ -1,0 +1,33 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 21:30:30.146.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 21:30:30.147.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 21:30:30.147.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 21:30:30.147.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 0.128 seconds.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+✔ Test "the pending overlay covers each display without an opening animation" passed after 0.029 seconds.
+◇ Test "a click selects the whole snap region under the pointer" started.
+✔ Test "a click selects the whole snap region under the pointer" passed after 0.030 seconds.
+◇ Test "a press moved past three points draws a manual rectangle instead" started.
+✔ Test "a press moved past three points draws a manual rectangle instead" passed after 0.029 seconds.
+◇ Test "a click before the window list and the frame completes once both arrive" started.
+✔ Test "a click before the window list and the frame completes once both arrive" passed after 0.021 seconds.
+◇ Test "without a window list a click selects nothing" started.
+✔ Test "without a window list a click selects nothing" passed after 0.025 seconds.
+◇ Test "the overlay opens on the snap region under the pointer and follows it" started.
+✔ Test "the overlay opens on the snap region under the pointer and follows it" passed after 0.016 seconds.
+◇ Test "a replacement's window list does not reach the overlay it may roll back to" started.
+✘ Test "a replacement's window list does not reach the overlay it may roll back to" recorded an issue at FrozenCaptureOverlayControllerTests.swift:182:9: Expectation failed: (selections → [(600.0, 682.0, 300.0, 200.0)]) == ([screen.frame] → [(0.0, 0.0, 1512.0, 982.0)])
+± inserted [(600.0, 682.0, 300.0, 200.0)], removed [(0.0, 0.0, 1512.0, 982.0)]
+✘ Test "a replacement's window list does not reach the overlay it may roll back to" failed after 0.050 seconds with 1 issue.
+◇ Test "a failure alert stays visible above a retained overlay" started.
+✔ Test "a failure alert stays visible above a retained overlay" passed after 0.044 seconds.
+✘ Suite "Frozen capture overlay" failed after 0.376 seconds with 1 issue.
+✘ Test run with 9 tests in 1 suite failed after 0.376 seconds with 1 issue.

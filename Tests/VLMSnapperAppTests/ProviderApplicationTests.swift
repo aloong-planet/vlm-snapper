@@ -1318,6 +1318,40 @@ struct ProviderApplicationTests {
     }
 
     @Test
+    func lateWindowListOfReplacedCaptureIsIgnored() async throws {
+        try await withSnapFixture(windowList: false) { fixture, screen in
+            let flipHeight = try #require(NSScreen.screens.first).frame.height
+            func list(atLocalX x: CGFloat) -> CaptureWindowSnapshot {
+                CaptureWindowSnapshot(windows: [CaptureWindowSnapshotEntry(
+                    ownerProcessID: 4242, layer: 0, alpha: 1, isOnScreen: true,
+                    bounds: CGRect(x: screen.frame.minX + x, y: flipHeight - (screen.frame.minY + 350), width: 300, height: 200)
+                )], dockProcessID: nil)
+            }
+            // The first capture's list has a window at local x 200, the replacement's at x 700.
+            await fixture.windows.provide(perCall: [list(atLocalX: 200), list(atLocalX: 700)])
+            await fixture.windows.hold()
+            let first = try await completeSelection(fixture).overlay
+            await fixture.capture.holdFrames()
+            try fixture.shortcuts.fire()
+            try await eventually { try mainScreenOverlay().map { $0 !== first } ?? false }
+            let overlay = try #require(try mainScreenOverlay())
+            pumpNativeEvents(overlay)
+            // The replacement's list arrives first, the first capture's afterwards. Click only
+            // after both have been handed over, or the first list would resolve the click.
+            await fixture.windows.release(newestFirst: true)
+            try await eventually { await fixture.windows.returned == 2 }
+            try await Task.sleep(for: .milliseconds(100))
+            try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
+            try sendMouse(.leftMouseUp, at: NSPoint(x: 300, y: 250), to: overlay)
+            await fixture.capture.release()
+            try await eventually { try overlayShowsFrozenFrame(overlay) && captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            // Local x 300 has no window in the replacement's list: the whole display is selected.
+            #expect(abs(toolbar.frame.minX - screen.visibleFrame.minX) <= 1)
+        }
+    }
+
+    @Test
     func heldWindowListDoesNotDelayOverlay() async throws {
         try await withSnapFixture { fixture, _ in
             await fixture.windows.hold()
@@ -2377,19 +2411,26 @@ private actor FixtureCapture: FrozenDisplayCapturing {
 /// Window list for snap regions; by default there is none, so clicks keep their old meaning.
 private actor FixtureWindowListing: CaptureWindowListing {
     private var snapshot: CaptureWindowSnapshot?
+    /// Per-call lists, used in order before falling back to `snapshot`.
+    private var queued: [CaptureWindowSnapshot?] = []
     private var held = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
     func provide(_ snapshot: CaptureWindowSnapshot?) { self.snapshot = snapshot }
+    func provide(perCall snapshots: [CaptureWindowSnapshot?]) { queued = snapshots }
     func hold() { held = true }
-    func release() {
+    /// Resumes held calls, newest first when `newestFirst` is set.
+    func release(newestFirst: Bool = false) {
         held = false
-        let suspended = waiters
+        let suspended = newestFirst ? waiters.reversed() : waiters
         waiters.removeAll()
         suspended.forEach { $0.resume() }
     }
+    private(set) var returned = 0
     func captureWindowSnapshot() async -> CaptureWindowSnapshot? {
+        let result = queued.isEmpty ? snapshot : queued.removeFirst()
         if held { await withCheckedContinuation { waiters.append($0) } }
-        return snapshot
+        returned += 1
+        return result
     }
 }
 

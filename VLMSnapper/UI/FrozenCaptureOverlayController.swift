@@ -114,11 +114,13 @@ public final class FrozenCaptureOverlayController {
         return true
     }
 
-    /// Gives every overlay of this capture its snap regions; `nil` means the window list could not
-    /// be read, so a click selects nothing while dragging still works.
+    /// Gives the newest overlay its snap regions: the pending one while frames are freezing,
+    /// otherwise the current one. An overlay a rollback may restore keeps the list taken with its
+    /// own frozen frame. `nil` means the window list could not be read, so a click selects nothing
+    /// while dragging still works.
     public func attachSnapRegions(_ resolver: CaptureSnapRegionResolver?) {
         let pointer = pointerLocation()
-        for panel in pendingPanels + panels {
+        for panel in pendingPanels.isEmpty ? panels : pendingPanels {
             guard let resolver else {
                 panel.overlayView?.attachSnapRegions(nil, pointer: nil)
                 continue
