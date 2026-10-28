@@ -7,6 +7,33 @@ Spec：[v1-core](../../specs/v1-core.md)
 
 ## 来源 → spec
 
+### 2026-10-28 快捷键截图即时显示遮罩：来源盘点与发布前设计自审
+
+参考 commit `850f64d`（origin/main）；本轮实现提交 `e3c41d5`、`30a62ba` 之后的文档修改未提交。核对范围：截图入口、冻结与选区遮罩显示时序及其失败、取消、退出回归；不是全 v1 收口。
+
+| 来源锚点及支持原文 | 来源处置 | 拟核对范围 | 结论 |
+|---|---|---|---|
+| 用户 2026-10-28：“目前这个软件截图最大的问题是：当我按快捷键的时候，它需要过一会儿才能出来。帮我解决这个问题。”并要求对照 Snipaste 逆向报告、按最优解决定、不中途询问 | 本轮有效 | 快捷键/菜单截图入口到选区遮罩出现的时序 | 现行 Further Notes 已要求“快捷键触发后立即展示”，实测 160–325 ms 不满足；以 ADR-0013 落定先显示待冻结遮罩。 |
+| ADR-0010 “全部可用冻结帧完成后，应用先建立新的不透明选区遮罩” | 已被 ADR-0013 取代（仅显示时序） | Solution、§3 入口、§6 结果工作区、FM-23、FM-25 | 冻结时机、裁切来源、排除自身、失败保留与资源释放不变。 |
+| ADR-0010 与 FM-3、FM-25 的失败保留、无桌面闪烁要求 | 本轮有效，继续适用 | v1-core::REQ-005/AC-02、AC-05 | 待冻结遮罩失败时原样恢复旧选区、操作栏与结果工作区。 |
+| Snipaste 2.7.2 静态逆向报告（常驻窗口、只抓光标屏、同步 CoreGraphics 抓屏、窗口检测在显示后后台进行） | 背景 | ADR-0013 备选项 | 只取其“先给反馈、后台准备”的结构；不引入窗口自动识别（Out of Scope 不变）。 |
+
+| 覆盖单位 | 唯一主定义及来源反查 | 设计核对 / 实现验收状态 |
+|---|---|---|
+| v1-core::REQ-005/AC-01 | 用户延迟反馈；Further Notes 性能目标 | `overlayCoversDisplaysBeforeFreezeCompletes` 先红后绿；实测见 `../capture-instant-overlay/measurements.md` |
+| v1-core::REQ-005/AC-02 | ADR-0010 无闪烁与排除自身 | 同一窗口显示冻结帧由上测试断言；真实冻结帧不含遮罩在 macOS 26.0.1 实测，14.4–15 为 Pending |
+| v1-core::REQ-005/AC-03 | 由 AC-01 推出的冻结前输入归属 | `selectionDraggedWhileFreezingCompletesWithFrozenFrames`；透明区点击穿透由系统事件复现并修复，测试缺口写入测试文件头 |
+| v1-core::REQ-005/AC-04 | §3 “`Esc` 或取消退出且不保存”；FM-23 | `escapeWhileFreezingExitsCapture`、`escapeWhileReplacingSelectionReleasesActivity`、`escapeWhileFreezingFromResultRestoresWorkspace` |
+| v1-core::REQ-005/AC-05 | FM-3、FM-25 | `failedFreezeRestoresPreviousSelection`；控制器 `failedReplacementKeepsCurrentOverlay` |
+| v1-core::REQ-005/AC-06 | v1-core::REQ-001/AC-05 与 FM-3 | 单屏组合测试经冻结后几何复核；两屏中单屏失败需硬件，列为测试缺口 |
+| v1-core::REQ-005/AC-07 | FM-18 退出前取消 | `terminationWhileFreezingWithdrawsOverlay` |
+
+编号核实：REQ-003 已被“界面语言与区域格式”占用；`git log --all -S 'REQ-004'` 命中未合并 PR #34 的提交 `a4758c0`，为避免合并冲突改用 REQ-005；`git log --all -S 'REQ-005'` 无匹配。ADR-0013 在全部远端分支与历史中均未使用。
+
+原型门：待冻结遮罩沿用冻结后选区遮罩的外观（同色同透明度暗色遮罩、1pt 强调色边框），不新增控件、文案或状态形态，只提前出现时机，按“无可见形态变化”例外不重画原型；当次生产渲染截图核对见实测记录。
+
+共享与回归范围：v1-core::REQ-001 全部 AC（冻结后显示器变化）、FM-1/2/3/5/23/24/25/31/44、v1-core::US-001/AC-11（截图退让不视为关闭）继续适用并由既有组合测试回归。其余章节不受本轮影响：Provider、历史、双语、更新与分发条款未改动。i18n 已在项目能力中声明启用，本轮未新增 UI 文案。
+
 ### 2026-09-22 安装版用户验收与合并授权
 
 用户对上一轮交付的本地安装版 **0.1.0 (40)** 明确回复“验收通过，合并”。记为本次历史详情与原图缩放交互的用户实机验收通过，来源为本会话用户确认，不冒充自动化独立测量。包括已交付的图片预览、滚轮缩放、拖拽平移和尺寸切换；没有额外记录用户使用的具体硬件型号或逐步测试日志。
