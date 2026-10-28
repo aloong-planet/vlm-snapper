@@ -11,7 +11,7 @@ are English. Every search below has a Chinese and an English pattern.
 
 | Changed declaration surface | Compared with | Conclusion |
 |---|---|---|
-| Spec Solution sentence, §3 bullet, v1-core::REQ-006 AC-01–11, FM-47 | Implementation at `5c96041` (spec final check in `tasklist.md`) | True; installed-build checks pending (real window list, Dock/menu-bar geometry, physical hover) |
+| Spec Solution sentence, §3 bullet, v1-core::REQ-006 AC-01–11, FM-47 | Implementation at `5c96041` (spec final check in `tasklist.md`) | True; installed-build checks pending (real window list, Dock/menu-bar geometry, physical hover and its latency with many windows, the visible frame of an auto-hidden Dock); two displays: deferred acceptance |
 | Spec Implementation Decisions (window list, Dock strip, newest overlay, no Accessibility) | Resolver, adapter, controller, model guard | True; the newest-overlay rule written back from the code review |
 | Spec Testing Decisions paragraph for REQ-006 | Tests C1–C7, U1–U12, A1–A6 and their fixtures | True after the 2026-10-28 correction: crop end points are judged at the overlay controller (U12), toolbar position in the app tests; gaps listed (auto-hide visible frame, latency, two displays) |
 | Spec Prototype Coverage sentence, Out of Scope (window detection removed; Dock icons, element detection, toggles listed) | Confirmed prototype; user decisions of 2026-10-28 | True |
@@ -48,5 +48,6 @@ are English. Every search below has a Chinese and an English pattern.
 
 ### Closeout conclusion
 
-All rows converged as of `5c96041` plus the documentation commits. Remaining before delivery: the
-post-implementation test check (running), installed-build checks, the final full gate.
+All rows converged as of the test-hardening commits after `48610ef` (tests and records only; product code unchanged since `5c96041`). Remaining before delivery: the
+incremental post-implementation review of the test-hardening fix, installed-build checks, the final
+full gate.

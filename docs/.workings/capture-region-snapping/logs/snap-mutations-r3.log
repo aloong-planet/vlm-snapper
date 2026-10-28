@@ -1,0 +1,29 @@
+== guard-lt: exit 1
+✘ Test "pointer jitter of up to three points while pressed is still a click" recorded an issue at FrozenCaptureOverlayControllerTests.swift:198:9: 
+✘ Test "while dragging the rectangle is drawn instead of the snap region" recorded an issue at FrozenCaptureOverlayControllerTests.swift:225:9: 
+== dead-drag-start: exit 1
+✘ Test "while dragging the rectangle is drawn instead of the snap region" recorded an issue at FrozenCaptureOverlayControllerTests.swift:225:9: 
+== threshold-4: exit 1
+✘ Test "a press moved just over three points draws a rectangle" recorded an issue at FrozenCaptureOverlayControllerTests.swift:209:9: 
+== corner-swap: exit 1
+✘ Test "a clicked region is handed over as its physical pixel corners" recorded an issue at FrozenCaptureOverlayControllerTests.swift:274:9: 
+== bounds-not-clip: exit 1
+✘ Test "the topmost window under the pointer is snapped as a whole window" recorded an issue at CaptureSnapRegionResolverTests.swift:72:9: 
+✘ Test "regions stay on the pointer's display and skip windows under two pixels" recorded an issue at CaptureSnapRegionResolverTests.swift:154:9: 
+✘ Test "the two-pixel minimum counts physical pixels in both directions" recorded an issue at CaptureSnapRegionResolverTests.swift:176:9: 
+== dock-no-fallthrough: exit 1
+✘ Test "the topmost window under the pointer is snapped as a whole window" recorded an issue at CaptureSnapRegionResolverTests.swift:69:9: 
+✘ Test "the Dock strip is one region and an auto-hidden Dock falls through" recorded an issue at CaptureSnapRegionResolverTests.swift:98:9: 
+✘ Test "own, transparent, off-screen and system overlay windows are skipped" recorded an issue at CaptureSnapRegionResolverTests.swift:140:9: 
+✘ Test "the topmost window under the pointer is snapped as a whole window" recorded an issue at CaptureSnapRegionResolverTests.swift:71:9: 
+✘ Test "the topmost window under the pointer is snapped as a whole window" recorded an issue at CaptureSnapRegionResolverTests.swift:72:9: 
+== right-dock: exit 1
+✘ Test "a Dock on the left or right side is one strip along that edge" recorded an issue at CaptureSnapRegionResolverTests.swift:122:9: 
+== no-height-rule: exit 1
+✘ Test "the two-pixel minimum counts physical pixels in both directions" recorded an issue at CaptureSnapRegionResolverTests.swift:175:9: 
+== no-width-rule: exit 1
+✘ Test "the two-pixel minimum counts physical pixels in both directions" recorded an issue at CaptureSnapRegionResolverTests.swift:174:9: 
+✘ Test "regions stay on the pointer's display and skip windows under two pixels" recorded an issue at CaptureSnapRegionResolverTests.swift:159:9: 
+✘ Test "the two-pixel minimum counts physical pixels in both directions" recorded an issue at CaptureSnapRegionResolverTests.swift:176:9: 
+== reread-at-commit: exit 1
+✘ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() recorded an issue at ProviderApplicationTests.swift:1389:13: 

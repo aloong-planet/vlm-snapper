@@ -166,10 +166,13 @@ struct CaptureSnapRegionResolverTests {
             Self.window(kept, process: 506),
             Self.window(CGRect(x: 25, y: 700, width: 0.75, height: 100), process: 507),
             Self.window(CGRect(x: 5, y: 650, width: 30, height: 0.75), process: 508),
+            // Mostly off the display: only 0.75 pt (1.5 px) of it lies on the display.
+            Self.window(CGRect(x: -100, y: 700, width: 100.75, height: 100), process: 509),
         ])
         // At scale 2: 1 pt is 2 px and is kept; 0.75 pt is 1.5 px, too narrow or too low.
         #expect(resolver.region(at: CGPoint(x: 20.5, y: 750), on: Self.display) == kept)
         #expect(resolver.region(at: CGPoint(x: 25.3, y: 750), on: Self.display) == Self.display.frame)
         #expect(resolver.region(at: CGPoint(x: 15, y: 650.3), on: Self.display) == Self.display.frame)
+        #expect(resolver.region(at: CGPoint(x: 0.3, y: 750), on: Self.display) == Self.display.frame)
     }
 }

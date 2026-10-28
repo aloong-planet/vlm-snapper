@@ -1,0 +1,61 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 22:24:56.302.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:24:56.304.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:24:56.304.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:24:56.304.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Suite "Capture snap region resolver" started.
+◇ Test "a Dock on the left or right side is one strip along that edge" started.
+◇ Test "the Dock strip is one region and an auto-hidden Dock falls through" started.
+◇ Test "the desktop snaps to the whole display" started.
+◇ Test "regions stay on the pointer's display and skip windows under two pixels" started.
+◇ Test "the topmost window under the pointer is snapped as a whole window" started.
+◇ Test "own, transparent, off-screen and system overlay windows are skipped" started.
+◇ Test "a status item is snapped on its own and the rest of the menu bar as a whole" started.
+◇ Test "the two-pixel minimum counts physical pixels in both directions" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+✔ Test "the topmost window under the pointer is snapped as a whole window" passed after 0.001 seconds.
+✔ Test "own, transparent, off-screen and system overlay windows are skipped" passed after 0.001 seconds.
+✔ Test "the desktop snaps to the whole display" passed after 0.001 seconds.
+✔ Test "regions stay on the pointer's display and skip windows under two pixels" passed after 0.001 seconds.
+✔ Test "the two-pixel minimum counts physical pixels in both directions" passed after 0.001 seconds.
+✔ Test "a status item is snapped on its own and the rest of the menu bar as a whole" passed after 0.001 seconds.
+✔ Test "a Dock on the left or right side is one strip along that edge" passed after 0.001 seconds.
+✔ Test "the Dock strip is one region and an auto-hidden Dock falls through" passed after 0.001 seconds.
+✔ Suite "Capture snap region resolver" passed after 0.001 seconds.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 0.169 seconds.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+✔ Test "the pending overlay covers each display without an opening animation" passed after 0.033 seconds.
+◇ Test "a click selects the whole snap region under the pointer" started.
+✔ Test "a click selects the whole snap region under the pointer" passed after 0.030 seconds.
+◇ Test "a press moved past three points draws a manual rectangle instead" started.
+✔ Test "a press moved past three points draws a manual rectangle instead" passed after 0.041 seconds.
+◇ Test "a click before the window list and the frame completes once both arrive" started.
+✔ Test "a click before the window list and the frame completes once both arrive" passed after 0.031 seconds.
+◇ Test "without a window list a click selects nothing" started.
+✔ Test "without a window list a click selects nothing" passed after 0.033 seconds.
+◇ Test "the overlay opens on the snap region under the pointer and follows it" started.
+✔ Test "the overlay opens on the snap region under the pointer and follows it" passed after 0.029 seconds.
+◇ Test "a replacement's window list does not reach the overlay it may roll back to" started.
+✔ Test "a replacement's window list does not reach the overlay it may roll back to" passed after 0.046 seconds.
+◇ Test "pointer jitter of up to three points while pressed is still a click" started.
+✔ Test "pointer jitter of up to three points while pressed is still a click" passed after 0.045 seconds.
+◇ Test "a press moved just over three points draws a rectangle" started.
+✔ Test "a press moved just over three points draws a rectangle" passed after 0.032 seconds.
+◇ Test "while dragging the rectangle is drawn instead of the snap region" started.
+✔ Test "while dragging the rectangle is drawn instead of the snap region" passed after 0.031 seconds.
+◇ Test "a release far from the press is a rectangle even without drag events" started.
+✔ Test "a release far from the press is a rectangle even without drag events" passed after 0.028 seconds.
+◇ Test "a clicked region stays put while the pointer moves on" started.
+✔ Test "a clicked region stays put while the pointer moves on" passed after 0.039 seconds.
+◇ Test "a clicked region is handed over as its physical pixel corners" started.
+✔ Test "a clicked region is handed over as its physical pixel corners" passed after 0.018 seconds.
+◇ Test "a failure alert stays visible above a retained overlay" started.
+✔ Test "a failure alert stays visible above a retained overlay" passed after 0.057 seconds.
+✔ Suite "Frozen capture overlay" passed after 0.669 seconds.
+✔ Test run with 23 tests in 2 suites passed after 0.669 seconds.

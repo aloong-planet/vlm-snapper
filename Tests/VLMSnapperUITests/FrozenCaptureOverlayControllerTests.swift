@@ -190,6 +190,9 @@ struct FrozenCaptureOverlayControllerTests {
         let (controller, panel, selections) = try committedSnapOverlay()
         defer { controller.close() }
         try send(.leftMouseDown, at: NSPoint(x: 250, y: height - 200), to: panel)
+        // Physical jitter arrives as several small drag events.
+        try send(.leftMouseDragged, at: NSPoint(x: 251, y: height - 200), to: panel)
+        try send(.leftMouseDragged, at: NSPoint(x: 252, y: height - 200), to: panel)
         try send(.leftMouseDragged, at: NSPoint(x: 253, y: height - 200), to: panel)
         try send(.leftMouseUp, at: NSPoint(x: 253, y: height - 200), to: panel)
         #expect(selections.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
@@ -204,6 +207,22 @@ struct FrozenCaptureOverlayControllerTests {
         try send(.leftMouseDragged, at: NSPoint(x: 252.5, y: height - 197.5), to: panel)
         try send(.leftMouseUp, at: NSPoint(x: 252.5, y: height - 197.5), to: panel)
         #expect(selections.frames == [CGRect(x: 250, y: height - 200, width: 2.5, height: 2.5)])
+    }
+
+    @Test("while dragging the rectangle is drawn instead of the snap region")
+    func dragDrawsRectangleWhileDragging() throws {
+        let height = try primaryScreen().frame.height
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { _ in }, onCancel: {})
+        #expect(presented)
+        controller.attachSnapRegions(twoWindowResolver())
+        let panel = try primaryOverlay()
+        try send(.leftMouseDown, at: NSPoint(x: 250, y: height - 200), to: panel)
+        try send(.leftMouseDragged, at: NSPoint(x: 290, y: height - 170), to: panel)
+        // Before release: clear inside the dragged rectangle, dimmed elsewhere in window A.
+        #expect(try renderedAlpha(panel, at: NSPoint(x: 270, y: height - 185)) == 0)
+        #expect(try renderedAlpha(panel, at: NSPoint(x: 150, y: height - 250)) > 100)
     }
 
     @Test("a release far from the press is a rectangle even without drag events")

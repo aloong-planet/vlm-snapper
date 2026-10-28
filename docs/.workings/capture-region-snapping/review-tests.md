@@ -443,18 +443,20 @@ checks. Dimension 2: public seams only; A6 counts calls on the injected adapter,
 Dimension 3: expected values are literals or hand-computed; U8 and U9 sit on either side of the
 threshold so a moved threshold or `>`/`>=` change turns one red; U10 turns red without the
 release-only rule; U12 compares pixel points, not the frame used for the toolbar; A6's second list
-would change the toolbar position if the list were read again. Dimension 4: no new resource.
+would change the toolbar position if the list were read again before the click; a read after the
+click leaves the toolbar alone and is caught only by the call count (corrected after incremental
+finding 11). Dimension 4: no new resource.
 Findings: none.
 
 ### Self-check of the findings fix (2026-10-28)
 
-- Item 2 (new assertions): each new assertion was turned red by a temporary product mutation and the
-  sources restored byte-identical (`logs/snap-mutations.log`): drag-event guard removed → U8; `>` → `>=`
-  → U8; release-only rule removed → U10; settled guard removed from mouse-moved → U11; pixel scale
-  dropped → pixel-minimum test; side-Dock branch disabled → side-Dock test; own PID not excluded → A6.
-  U12 compares against values of 200 px and more with a 0.001 tolerance (display-size rounding), so it
-  cannot hold by tolerance alone. A6's single-read assertion would fail on a second read (the second
-  per-call list holds no windows); not mutated.
+- Item 2 (new assertions), corrected after incremental finding 11: the first batch
+  (`logs/snap-mutations.log`) turned red U8 (drag guard removed; `>` → `>=`), U10 (release-only rule
+  removed), U11 (settled guard removed), the pixel-minimum test's scale-1 point (pixel scale dropped),
+  the left-Dock expectation (left branch disabled) and A6's toolbar position (own PID not excluded).
+  It did not cover U9, C4's fall-through, the right Dock, the narrow and low windows, U12 or A6's call
+  count; those were shown red in the second batch (`logs/snap-mutations-r3.log`, listed under the
+  handling of findings 9–12). U12 compares against values of 200 px and more with a 0.001 tolerance.
 - Item 3 (changed functions): no product function changed in this fix; test helpers `makeDisplay`
   (new `pixelScale`, default unchanged), `committedSnapOverlay`, `SelectionLog`, `FixtureWindowListing.calls`.
 - Item 4 (data): side-Dock and auto-hide displays reuse the sampled frame; the auto-hide visible frame
@@ -464,3 +466,296 @@ Findings: none.
   files, plus `CaptureSelectionSessionTests.swift`, which declares its own private `makeDisplay`
   unrelated to the changed one); both files run in the targeted verification below.
 - Findings of the self-check: none.
+
+
+## Post-implementation check — incremental round (2026-10-28)
+
+No ticket (no-ticket path, as above). Incremental round for the handed fix range `14336d6..48610ef`
+(one commit; whole change `8c00b2d..48610ef`). Implementation version: `48610ef`. Product code is
+unchanged since `5c96041` (`git diff --stat 5c96041..48610ef -- Sources VLMSnapper Package.swift
+Package.resolved Scripts` is empty): the fix changes tests, test helpers and records only. Date,
+version and range apply to every dimension below. Everything outside the objects below is carried over
+from the first round ("Post-implementation check (2026-10-28)" above).
+
+### Objects
+
+- Tests changed in the range (`git diff --stat 14336d6..48610ef -- Tests/`: 3 files, +180 −10; every
+  hunk read):
+  - resolver tests: `snapsDockStrip` (:86, auto-hide case rewritten), new `snapsSideDockStrips` (:110)
+    and `appliesPixelMinimumAtDisplayScale` (:163), helper `resolver(front:back:dockVisible:)` (new
+    `back`), header note;
+  - UI tests: new U8 `jitterWithinThresholdIsClick` (:188), U9 `moveJustOverThresholdDrags` (:199), U10
+    `farReleaseWithoutDragEventsDrags` (:210), U11 `clickedRegionDoesNotFollowPointer` (:219), U12
+    `clickedRegionMapsToPixels` (:236); helper `makeDisplay(id:screen:pixelScale:)` (new parameter), new
+    `SelectionLog` and `committedSnapOverlay`; gap comment above U1;
+  - App tests: new A6 `windowListIsReadOnceAtTriggerWithoutOwnWindows` (:1357); `FixtureWindowListing.calls`;
+    header note.
+- Tests depending on the changed helpers. Every changed helper is `private`, so only its own file can
+  use it; searched over the whole tree anyway:
+  `grep -rn --include=*.swift -E "FixtureWindowListing|committedSnapOverlay|SelectionLog|makeDisplay\(|func resolver\(|Self\.resolver\(" Tests Sources VLMSnapper Scripts`.
+  Result: resolver tests — `Self.resolver(` in all 8 test functions; UI tests — `makeDisplay(` at :22,
+  :69, :88, :115, :130, :172, :246, :270 and inside `committedSnapOverlay` (:397, used by U8–U10), i.e.
+  11 of the 14 functions (not `pendingOverlayAppearsWithoutOpeningAnimation`, U5/U6, U11);
+  `CaptureSelectionSessionTests.swift` declares an unrelated private `makeDisplay(id:width:height:)`;
+  App tests — `FixtureWindowListing()` only at :2168 inside `ApplicationFixture`, built only by
+  `withFixture` (:2091), which every App test reaches (`grep -n 'withFixture\|withSnapFixture'`: all 36
+  Swift Testing functions and the three `ProviderApplicationTestsNativeMenu` cases at :64, :108, :157).
+- Test design table rows changed in the range: "Increment: rows for findings 2–6 and 8" — A3, C4, C7
+  (rewritten), U8–U12, A6; plus the correction sentence in the design review's Dimension 1 (:50–52),
+  which is not a row.
+
+The helper changes keep their defaults: `back: []` appends nothing, `pixelScale: nil` keeps the 2 × 2
+geometry, `calls += 1` changes neither the returned list, its order nor any suspension point. The
+dependents therefore run the inputs of the first round; their rows and "goes red when" answers are the
+first round's (snap tests) or their own features' (pre-existing App and UI tests, which have no row in
+this table and whose assertions the range does not touch). Below, only what the new code reaches is
+judged again.
+
+Capability declaration: `tomllib` on `capabilities.toml` → `FileNotFoundError` — 项目无能力声明文件;
+未确认 mutation-testing; 未确认 working-language. Same item as finding 1 (user decision 2026-10-28:
+separate PR); not a new finding. This round runs no mutation and edits no code; "goes red when" answers
+are derived from the code under test, citing the fix's mutation logs where they exist. Fixed names
+follow this record's English precedent.
+
+### Run evidence
+
+Handed-over log, not rerun: `logs/targeted-snap-findings.log`, byte-identical (`cmp`) to the
+scratchpad log; written by the scratchpad `targeted-snap.sh`, whose echo lines it reproduces.
+
+| Log requirement (full verification gate) | Log content | Verdict |
+|---|---|---|
+| Tested version | `git rev-parse HEAD` = `14336d6…`; porcelain lists 9 modified and 4 untracked files with `git hash-object` hashes. Each equals `git rev-parse 48610ef:<path>`; the only file of `48610ef` not listed is this log, written by the run; `:-` (`208ccf64…`) as before | Matches `48610ef` |
+| Every command | strict build; `build --build-tests`; non-App suite (`--skip ProviderApplicationTests`); App suite (`--filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu`); three native cases | Present |
+| Exit code not taken through a pipe | `== exit: N` from `local c=$?` right after a redirect (`run()` in the script); all 0, `== overall: 0` | Present |
+| Full output | Build and test output of every command | Present |
+
+Reviewed objects in the log: resolver 8 tests (:952–1010, suite :1127), UI 14 (:1271–1415, suite
+:1416), App 36 (:1437–1535, A6 :1509), native 3 (:1537–1593). Totals: non-App 382 (:1425) = 375 + 7
+new; App 36 (:1535) = 35 + A6. Conclusion: the log meets the log requirements and is this round's run
+evidence.
+
+### Test design table check
+
+| Row | Written test | Verdict |
+|---|---|---|
+| A3 (rewritten) | `clickWithoutWindowListSelectsNothingButDragStillWorks` (App :1308) | Matches |
+| C4 (rewritten) | `snapsDockStrip` (:86), `snapsSideDockStrips` (:110) | Matches (row literals) |
+| C7 (rewritten) | `appliesPixelMinimumAtDisplayScale` (:163), `clipsToDisplayAndSkipsTinyWindows` (:144) | Matches |
+| U8, U9, U10 | UI :188, :199, :210 | Match (U10's pair is 50 pt apart on each axis) |
+| U11 | UI :219 | Matches (pending overlay, no commit) |
+| U12 | UI :236 | Matches |
+| A6 | App :1357 | Matches |
+
+Resource columns match. Gap notes: resolver header (:10–12) adds the auto-hide visible frame; UI comment
+(:54–59) adds hover latency and the three two-display paths; App header (:46–47) adds hover latency and
+the real window list — matching spec Testing Decisions (:392) and `tasklist.md` :72–76.
+
+### Dimension 1: Coverage
+
+| Spec item | Rows of this range | Verdict |
+|---|---|---|
+| AC-04 pinned strip, side Docks, auto-hide falls through | C4 | Covered; real side-Dock and auto-hide geometry is derived from the bottom-Dock sample and recorded as installed-build checks |
+| AC-06 < 2 × 2 physical pixels *after clipping to the display* | C7 | Scale, the 2 px boundary, width and height covered; "after clipping" not driven: finding 10 |
+| AC-06 own windows in the app | A6 | Covered |
+| AC-07 / FM-47 ≤ 3 pt click, > 3 pt rectangle, region stops following | U8–U11 | Release threshold on both sides, release-only and settled hover covered; jitter under 3 pt as drag events and the rectangle shown once a drag event passes 3 pt not driven: finding 9. Settled guard in `mouseExited`: inside the recorded two-display gap (leaving a display) |
+| AC-02 / AC-07 crop of a click | U12 | Covered at the controller (pixel corners); corners → crop is the existing selection-session tests' |
+| AC-09 / FM-47 list taken at trigger, not re-read; "不轮询" | A6 | A re-read before the click is covered; after the click it rests on an assertion never shown red: finding 11 |
+| AC-11 latency | — | Recorded as installed-build check |
+
+Touched regression points: none in product code. Fixture shape: the window behind the Dock, the
+sub-pixel windows and A6's lists keep the recorded sample's structure (front to back, layer 0, global
+top-left bounds); A6's own entry carries the test process PID, as production excludes its own. Side-Dock
+and auto-hide visible frames are constructed from the sampled frame, not sampled (recorded).
+
+Conclusion: findings 9, 10, 11.
+
+### Dimension 2: Case design
+
+The new tests act through public entry points and read public observables (`region(at:on:)`,
+`Selection.screenFrame`, `Selection.start`/`end`, rendered layer alpha, toolbar frame, the injected
+adapter's call count). `makeDisplay(pixelScale:)` gives the geometry production has (pixels = frame ×
+scale) over a 2 × 2 image; the mapping reads only the geometry, and a controller reading the image size
+would turn U12 red, not green. `committedSnapOverlay` and U11 take the real pointer for the opening
+region; each test presses before asserting, which replaces it. Isolation as in the first round.
+Basic check "drives the target behaviour": U9's drag event does not decide its result — the release
+alone gives the same rectangle (finding 9).
+
+Conclusion: finding 9.
+
+### Dimension 3: False greens
+
+Mutation check: not run (finding 1). Red evidence below is from `logs/snap-mutations.log` and the
+scratchpad `mut-*.log` it summarises (failure lines and values checked).
+
+| Test | Goes red when | Stays green although wrong |
+|---|---|---|
+| `snapsDockStrip` (C4) | wrong bottom strip; the Dock window snapped whole or "no strip → display" (both (0, 0, 1512, 982) ≠ the window below); strip returned without a Dock window | auto-hide inset (recorded) |
+| `snapsSideDockStrips` (C4) | left branch removed (shown, :116 → display); right branch removed (→ Chrome clip (400, 60, 1112, 700)); strip from `frame.minY` or of wrong height | — |
+| `appliesPixelMinimumAtDisplayScale` (C7) | scale dropped (shown, :171); `>=` → `>`; width clause dropped (:172); height clause dropped (:173); threshold ≤ 1.5 or > 2 px | unclipped bounds measured (finding 10); a threshold in (1.5, 2] px (no realistic alternative; no finding) |
+| `clipsToDisplayAndSkipsTinyWindows` (C7, carried) | as first round | unclipped bounds measured (finding 10) |
+| U8 | `mouseDragged` guard removed (shown, :195); `>` → `>=` (shown, :195); threshold under 3 | guard `<` or `!=`, or a `mouseDragged` that never starts a drag (finding 9) |
+| U9 | shared threshold ≥ 3.54 pt; per-axis distance; wrong rectangle | anything in `mouseDragged` (finding 9); a sum-of-axes distance (no realistic alternative; no finding) |
+| U10 | release-only rule removed (shown, :215) | — |
+| U11 | settled guard removed from `mouseMoved` (shown, :231, :232) | settled guard in `mouseExited` (two-display gap) |
+| U12 | corners swapped or mixed, press point instead of the region, missing flip or scale (expected ≥ 200 px, tolerance 0.001) | — (not shown red) |
+| A6 | own PID not excluded (shown, :1385, 80 pt off); listing moved after the freeze (`calls == 1` before release hits the deadline); a second read before the click (empty list → display edge; count 2) | a second read after the click: only :1386 sees it, never shown red (finding 11) |
+| U2 `dragIgnoresSnapRegion` (dependent) | as first round | a `mouseDragged` that never starts a drag — the release 40 × 40 pt away gives the same rectangle (finding 9) |
+| Other dependents | inputs unchanged; answers as first round / their features | — |
+
+Forms: always-true — none (expected literals differ from the neighbouring candidates: region vs dragged
+rectangle in U8–U10, window below vs display in C4, kept window vs display in C7); tautology — none
+(literals, hand-computed corners); stale path — none (`screenFrame`, `start`/`end` are what the model
+consumes, model :1303–1330); conditional skip — none (`#require` throws); assertions that may not run —
+none (U12 `#require(corners.first)` plus the count; App waits throw on deadline).
+
+UI and rendered assertions (`review-code/false-greens.md`): U11 asserts effects in pairs, and its "does
+not follow" was made to happen once (settled-move mutation red on both lines). A6's "no second read"
+(:1386) was never made to happen ("not mutated", self-check item 2) and is read after polling the
+toolbar (:1383), not the count: finding 11, which also covers the self-check's claim that every new
+assertion was turned red.
+
+Conclusion: findings 9, 10, 11.
+
+### Dimension 4: Resource reuse
+
+| Resource | Built | Measured (targeted log) | Expensive (≥ 1 s)? |
+|---|---|---|---|
+| Resolver window list (`Self.resolver`, now with `back`) | per call | 8 tests, suite 0.116 s (:1127) | No |
+| Overlay panels and `FrozenCaptureDisplay` (`makeDisplay`, optionally pixel-sized geometry over the same 2 × 2 image; `committedSnapOverlay`) | per UI test | U2–U12 0.109–0.321 s (:1349–1410). The suite's first three tests report 7.033, 3.298 and 4.731 s (:1271, :1310, :1335), the values unrelated suites report at the same moments (:1278, :1280; :1308–1315; :1331–1334): a shared main-actor stall, not setup. Run alone (`logs/snap-findings-unit.log`): 0.018–0.147 s each | No |
+| Application composition with `FixtureWindowListing` (`withFixture`, `withSnapFixture`) | per App test, as before | A6 0.329 s (:1509), other snap tests 0.088–0.422 s; `injectedUpdateEventsReachTheApplicationPresentation` 0.025 s for composition plus body (:1523) | No |
+
+No expensive resource, so no load count to compare; no reviewed test clears a shared resource, so the
+collection-order rule does not apply. The new tests reuse the existing helpers (`twoWindowResolver`,
+`primaryOverlay`, `send`, `click`, `renderedAlpha`; `withSnapFixture`, `eventually`, `sendMouse`,
+`pumpNativeEvents`, `mainScreenOverlay`, `captureToolbar`).
+
+Conclusion: no finding.
+
+### Document sync
+
+Range as in the first round (same documents and exclusions). `find docs/.workings/capture-region-snapping`
+(hidden entries included): 15 files, one subdirectory, no dotfiles; `git check-ignore` matched none.
+Changed facts, from the range only: the tests and gap notes under Objects, the targeted run (all pass;
+382 / 36 / 3), the records the fix corrected. Content search: `/usr/bin/grep -a -n -E` for test IDs,
+counts, installed-build, two-display, auto-hide, latency, crop, single-read and mutation terms over
+`final-regression.md`, `review-code.md`, `tasklist.md`, `logs/change-scope-after-findings.txt`,
+`docs/.workings/v1-core/checklist.md`, `docs/specs/v1-core.md`, `docs/features/v1-core.md`,
+`CONTEXT.md`, ADR-0014, `AGENTS.md`, `CODEX.md` (276,486 bytes; 107 hits, all read); this record,
+`review-code.md` and the three test headers read in full.
+
+First round's list of statements to correct: corrected — `review-code.md` :19–22; `tasklist.md` :32,
+:64, :66, :68, :72–76; checklist :21; this record (increment rows, :50–52). Not corrected —
+`final-regression.md` :14, :51–52 (finding 12).
+
+Statements this round's findings make untrue or incomplete: `tasklist.md` :63 (AC-06 evidence, finding
+10), :64 ("threshold both sides", finding 9), :70 ("No missing or partial item", findings 9–11),
+:82–86 (finding 12); this record :50–52 (jitter "now U8–U11", finding 9), :437–446 (drag-event guard,
+A6's second list; findings 9, 11), :451–457 (finding 11); App tests :1367 (finding 11). Spec, feature
+catalogue, `CONTEXT.md`, ADR-0014 and checklist :21 state behaviour or passing tests, not depth, and are
+unaffected. None of the listed statements may be closed before its finding is handled.
+
+### Findings
+
+9. **AC-07 / FM-47: the drag-event path is pinned only at exactly 3 pt; jitter under 3 pt and the
+   rectangle shown while dragging are not driven.** Missed regression. Evidence: every drag event in the
+   suite is exactly 3 pt (U8 :193) or beyond it (U9 3.54 pt, U2 50 pt, REQ-005 test 141 pt, `drag()`
+   184–224 pt; `grep -rn 'leftMouseDragged'` over `Tests`, `Sources`, `VLMSnapper`, `Scripts`), and no
+   test reads the overlay between a drag event and the release (`renderedAlpha` only in U5/U6 and U11;
+   the App suite's `overlayShowsFrozenFrame` reads the frozen frame at the centre). With the guard in
+   `mouseDragged` (controller :404) turned to `<` or `!=`, U8's 3 pt event still starts no drag, and U9,
+   U2 and every other drag still end in the same rectangle, because `mouseUp`'s release-only rule
+   (:415–418) starts it at the release; a `mouseDragged` that never starts a drag passes the same way.
+   Impact: with `<`/`!=`, a click with 1–2 pt of jitter — physical jitter arrives as several small drag
+   events — becomes a tiny rectangle the app rejects as too small, so the click does nothing (FM-47
+   "按下后抖动不超过 3 pt 仍是单击"); with a dead `mouseDragged`, no rectangle is drawn while dragging and
+   the snap region stays highlighted until release (AC-07 "改为手绘矩形，吸附区域停止跟随"). Recommended: U8
+   sends drag events at 1 pt and 2 pt before the 3 pt one; U2 asserts after its drag event, before the
+   release, rendered alpha 0 inside the dragged rectangle (e.g. (270, h − 185)) and > 100 at a point of
+   window A outside it (e.g. (150, h − 250)); show each red once by temporarily inverting the guard;
+   update rows U8 and U2 and the statements listed under Document sync. Destination: this branch.
+
+10. **AC-06: the 2 × 2 pixel rule is never applied to a window larger than its part on the display.**
+    Missed regression. Evidence: the resolver measures the clipped rectangle (resolver :78–80), as AC-06
+    requires ("裁到该显示器后不足 2 × 2 物理像素的窗口跳过"), but every small test window lies wholly inside
+    its display (C7 :151, pixel-minimum :164–168), so clip and bounds coincide, and the only clipped
+    window, Chrome, keeps 88 × 700 pt (:156). Measuring `window.bounds` instead passes every test.
+    Impact: a window reaching under 1 pt onto a display (parked past an edge, or overlapping the
+    neighbouring display) becomes a one-pixel region there; a click on it gives a selection under
+    2 × 2 px, which the app drops (`selectionTooSmall`, model :1333), instead of selecting what lies
+    below. Recommended: add to `appliesPixelMinimumAtDisplayScale` a front window straddling the left
+    edge, e.g. (−100, 700, 100.75, 100) at scale 2 (clip 0.75 pt = 1.5 px), expecting the display frame
+    at (0.3, 750); update row C7. Destination: this branch.
+
+11. **The fix's red evidence is narrower than its record says, and A6's guard against a re-read after
+    the click is unproven.** Untrue record and evidence; the A6 part backs a missed-regression
+    conclusion. Evidence: self-check item 2 (:451) says each new assertion was turned red by a temporary
+    mutation; the logs show red only at UI :195 (two mutations), :215, :231–232, resolver :171, :116 and
+    App :1385 — none for U9 (:206), C4's fall-through (:98–101), the right Dock (:122), the narrow and
+    low windows (:172–173), U12 and A6's count (the last two acknowledged). For A6, the row review
+    (:445–446, "A6's second list would change the toolbar position if the list were read again") and
+    the test comment (App :1367) hold only for a read before the click: a second read after it, such as
+    a refresh at commit, finds the click resolved and the view settled (`attachSnapRegions` ignores a
+    settled view, controller :338), leaves the toolbar at +200 and is visible only to
+    `#expect(calls == 1)` (:1386), which runs after polling the toolbar (:1383), not the count, and was
+    never made to fail (false-greens: 凡断言「X 不发生」先让 X 发生一次; 读得太早). A6 is the only test of
+    "窗口列表只在触发时读取一次" (spec Testing Decisions :392) for reads after the click. The Dimension 3
+    answers above show the other assertions do go red. Recommended: rewrite item 2 to list the
+    assertions actually shown red; correct :445–446 and the App comment ("a read before the click moves
+    the toolbar; a later one is caught by the call count"); make :1386 fail once with a temporary second
+    read at commit, confirming the failure lands there, and keep that log. Destination: this branch.
+
+12. **`final-regression.md` was not brought in line with the gaps the fix recorded.** Untrue record.
+    Evidence: :14 still lists REQ-006's pending checks as "real window list, Dock/menu-bar geometry,
+    physical hover", while spec Testing Decisions (:392), `tasklist.md` :72–76 and checklist :21 also
+    list the auto-hide visible frame, hover latency and the two-display acceptance; :51 claims
+    convergence "as of `5c96041` plus the documentation commits", but :16 now rests on tests added in
+    `48610ef`. The first round listed :14 and :51–52 for correction; `tasklist.md` :82–86 reports
+    `final-regression.md` corrected and "records listed above now match the tests". Recommended: extend
+    :14's pending list (installed build: auto-hide visible frame, hover latency; two displays: deferred
+    acceptance) and restate :51 against `48610ef`. Destination: this branch.
+
+## Handling of incremental-round findings 9–12 (2026-10-28)
+
+Read in full from the incremental round's Findings subsection; hand-back titles match the record.
+
+### Increment: rows for findings 9–11
+
+| # | Spec | Seam | Driving input | Assertion and expected-value source | Fixture shape | Expensive resources |
+|---|---|---|---|---|---|---|
+| U8 (extended) | AC-07, FM-47 | S2 | down; drag events 1 pt, 2 pt, 3 pt away; up at 3 pt | selection = the snap region (literal) | two-window resolver | none |
+| U13 | AC-07 | S2 | pending overlay; down at (250, h − 200); drag event to (290, h − 170); read before release | rendered: clear inside the dragged rectangle at (270, h − 185); dimmed at (150, h − 250), inside window A but outside the rectangle | same | none |
+| C7 (extended) | AC-06 | S1 | scale 2; window (−100, 700, 100.75, 100) straddling the left edge (0.75 pt = 1.5 px on the display) | point (0.3, 750) → the display frame (literal) | sample display | none |
+| A6 (strengthened) | AC-09, AC-11 | S3 | as before; after the toolbar appears wait 100 ms, then read the call count | one call; a temporary second read at commit must turn this red | per-call lists | app composition |
+
+Review: Dimension 1 — U8/U13 drive the drag-event guard below 3 pt and the rectangle shown while
+dragging; C7's straddling window drives the clipped measurement; A6 drives a read after the click.
+Dimension 2 — public seams. Dimension 3 — each to be shown red by a temporary mutation (guard `<`,
+dead drag start, bounds instead of clip, second read at commit), with the earlier unproven assertions
+mutated in the same batch. Dimension 4 — no new resource. Findings: none.
+
+### Mutation evidence for findings 9–11 (`logs/snap-mutations-r3.log`; sources restored, build exit 0)
+
+| Mutation | Test turned red (line) |
+|---|---|
+| drag guard `>` → `<` | U8 jitter (UI :198), U13 mid-drag (UI :225) |
+| drag never starts in `mouseDragged` | U13 (UI :225) |
+| threshold 3 → 4 | U9 (UI :209) |
+| start corner uses maxY | U12 (UI :274) |
+| bounds instead of the clipped part | straddling window (resolver :176) and the two clip cases (:72, :154) |
+| Dock without strip returns the display | auto-hide fall-through (resolver :98), plus :69–72, :140 |
+| right-Dock branch disabled | right Dock (resolver :122) |
+| height clause dropped | low window (resolver :175) |
+| width clause dropped | narrow window (resolver :174), :159, :176 |
+| second window-list read at commit | A6 call count (App :1389) |
+
+### Records corrected for findings 11–12
+
+Self-check item 2 and the A6 row review rewritten above; A6's test comment and a 100 ms wait before
+the count; `final-regression.md` pending list and convergence statement restated.
+
+### Self-check of this fix
+
+Item 1: no product code changed. Item 2: every new or strengthened assertion shown red (table above).
+Item 3: no product function changed. Item 4: the straddling window extends the sampled display; no
+new data shape. Item 5: no shared helper changed in this fix. Findings: none.
+

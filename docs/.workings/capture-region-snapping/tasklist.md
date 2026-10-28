@@ -84,3 +84,14 @@ display, the region clearing when the pointer leaves a display.
   frame, hover latency).
 - Self-check items 6–7: evidence kept (`logs/snap-mutations.log`, `logs/snap-findings-unit.log`,
   `logs/snap-findings-app.log`); records listed above now match the tests. No product code changed.
+
+## Incremental round findings 9–12 (2026-10-28)
+
+- Handled in `review-tests.md` ("Handling of incremental-round findings 9–12"): U8 extended, U13, the
+  straddling-window case, A6 strengthened; mutation batch `logs/snap-mutations-r3.log` (10 mutations,
+  each red at the intended assertion, sources restored); records corrected.
+- Targeted verification: first run failed one native case — main-menu Paste, which does not touch
+  capture — with Terminal frontmost and no key window (`logs/targeted-snap-r3-native-paste-flake.log`,
+  `frontPID=687`), the foreground-dependent wait tracked in Ticket 24; the case alone passed 3/3
+  (`logs/native-paste-reruns.log`); the whole targeted run repeated green
+  (`logs/targeted-snap-r3b.log`: strict build, build-tests, non-app 383, App 36, three native cases).

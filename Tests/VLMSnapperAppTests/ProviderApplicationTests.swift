@@ -1364,7 +1364,8 @@ struct ProviderApplicationTests {
                 )
             }
             // First read: one of VLMSnapper's own windows in front at local x 280, a window at 200.
-            // A second read would return no windows and move the toolbar to the display's edge.
+            // A second read before the click would move the toolbar to the display's edge; one after
+            // it leaves the toolbar alone and is caught by the call count.
             let own = ProcessInfo.processInfo.processIdentifier
             await fixture.windows.provide(perCall: [
                 CaptureWindowSnapshot(windows: [entry(own, localX: 280, width: 100), entry(4242, localX: 200, width: 300)], dockProcessID: nil),
@@ -1383,6 +1384,8 @@ struct ProviderApplicationTests {
             try await eventually { captureToolbar() != nil }
             let toolbar = try #require(captureToolbar())
             #expect(abs(toolbar.frame.minX - (screen.frame.minX + 200)) <= 1)
+            // Give any read started at commit time to reach the adapter before counting.
+            try await Task.sleep(for: .milliseconds(100))
             #expect(await fixture.windows.calls == 1)
         }
     }
