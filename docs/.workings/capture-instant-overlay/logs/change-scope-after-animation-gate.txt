@@ -1,0 +1,17 @@
+HEAD 858ddbd7b977f083926c4313431ff67022dbc35a
+Command: node ~/.claude/skills/implement/change-scope.mjs --base fa6b881
+changed :-  (added)
+inert   docs/.workings/capture-instant-overlay/final-regression.md
+inert   docs/.workings/capture-instant-overlay/install.md
+inert   docs/.workings/capture-instant-overlay/logs/change-scope-after-animation-gate.txt
+inert   docs/.workings/capture-instant-overlay/logs/gate-full-animation-fix.log
+inert   docs/.workings/capture-instant-overlay/measurements.md
+inert   docs/.workings/capture-instant-overlay/review-code.md
+inert   docs/.workings/capture-instant-overlay/tasklist.md
+inert   docs/.workings/v1-core/checklist.md
+inert   docs/adr/0013-show-pending-overlay-before-freezing.md
+inert   docs/features/v1-core.md
+inert   docs/postmortems/pending-capture-overlay-pitfalls.md
+inert   docs/specs/v1-core.md
+verdict: run (13 files differ from the base)
+exit: 1

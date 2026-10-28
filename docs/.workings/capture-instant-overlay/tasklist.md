@@ -124,5 +124,8 @@ Unrecorded scope expansion: none in product code. The fixture identity fix is te
 - Full offline gate after the test and records commit: `logs/gate-full-animation-fix.log`.
 - Full offline gate at `fa6b881`: `logs/gate-full-animation-fix.log`, every stage PASS, exit 0 (strict build, script
   tests, checklist, shell syntax, non-app incl. the new overlay test, app, native Paste, native closed-window,
-  accessibility). Manifest: only the user's untracked `:-` (`208ccf64…`). Later commits change documentation and logs
-  only; reuse decision in `final-regression.md` (third round).
+  accessibility). Manifest: only the user's untracked `:-` (`208ccf64…`).
+- Reuse of that result for `858ddbd` and this log commit: `logs/change-scope-after-animation-gate.txt` (base `fa6b881`)
+  exit 1, verdict `run`, caused only by the untracked `:-`, whose `git hash-object` equals the gate manifest entry;
+  every committed difference is `inert`. Strict build exit 0 and checklist check exit 0 on `858ddbd`
+  (`logs/strict-build-after-animation-gate.txt`). The full result applies to the delivered code.
