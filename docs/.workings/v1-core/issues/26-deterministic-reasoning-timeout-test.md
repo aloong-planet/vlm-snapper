@@ -1,6 +1,6 @@
 # 26 — Make the DeepSeek reasoning timeout test deterministic
 
-**Status:** in-progress
+**Status:** done — 随 PR #37 合并完成
 
 **Blocked by:** none
 
@@ -34,3 +34,11 @@ Caught error: `.firstTextTimeout`），该分支未改动任何 Provider 代码�
 - **Evidence** 文档同步：交付前按“核销前的范围复核”核对现行状态与实际结果一致（本票状态、清单、相关记录），遗漏补入、过期说明就地更新；清单无待处理项，待触发项写明后续安排 — [ticket-26-doc-sync.md](../ticket-26-doc-sync.md)
 
 ## Comments
+
+- 2026-10-29: Delivered in PR #37 (`fix/deterministic-reasoning-timeout-test`). The old test failed 5/5 with the
+  test process paused for 300 ms at a time (the CI error); the rewritten test passed 5/5 under the same
+  pauses and 5/5 plain; removing the deadline cancellation or the re-arm turns it red. Full local gate passed
+  at `8949652` (`ticket-26-logs/gate-full-final.log`; an earlier run's accessibility stage failed on a focus
+  change, kept as `gate-full-final-accessibility-flake.log`). Reviews: `ticket-26-review-code.md`,
+  `ticket-26-review-tests.md` (design review, post-implementation check, one incremental round).
+
