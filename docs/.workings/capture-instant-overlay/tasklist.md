@@ -110,3 +110,7 @@ Unrecorded scope expansion: none in product code. The fixture identity fix is te
   `4327bd6`, every stage PASS, exit 0 (strict build, script tests, checklist, shell syntax, non-app, app,
   native Paste, native closed-window, accessibility). Live Provider regression not run.
 - After the run only this log copy and this note were committed (documentation). Reuse check below.
+- Reuse of the full result: `logs/change-scope-after-full-gate.txt` (base `4327bd6`) exit 1, verdict `run`, caused only
+  by the user's untracked `:-`, whose `git hash-object` (`208ccf64…`) equals the entry in the full gate's manifest, so
+  the run covered the same file; every committed difference is `inert`. Lint/typecheck on the current code: strict
+  build exit 0 (`logs/strict-build-after-full-gate.txt`). The full result therefore applies to the delivered code.
