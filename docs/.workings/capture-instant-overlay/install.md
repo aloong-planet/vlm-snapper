@@ -30,8 +30,9 @@ from history (PR #34) to confirm it is still present.
 
 ## Reinstall — 0.1.3 (same day, after user feedback)
 
-- Reason: the user saw the dim cover less than the screen and then expand; cause and fix in `review-code.md`
-  (window-open animation).
+- Reason: user feedback on 0.1.2, 2026-10-28, verbatim: “有一个问题，按截图快捷键后，遮罩没有直接覆盖全屏幕，看起来像是先铺了遮罩但是
+  遮罩没有完全覆盖屏幕，然后遮罩快速扩大到整个屏幕，是什么原因？” Cause and fix in `review-code.md` (window-open
+  animation). The user's hands-on check of 0.1.3 is still to come.
 - Contents: this branch at `17dbf8d` plus the same local merge of PR #34 (`a4758c0`); code identical to the 0.1.2
   tree that passed the full offline regression except the one-line `animationBehavior = .none`, which passed the
   targeted run (`logs/targeted-animation-fix.log`). Signed and verified the same way; Keychain smoke test passed.

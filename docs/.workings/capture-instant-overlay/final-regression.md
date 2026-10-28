@@ -95,3 +95,54 @@ All rows converged after the re-check. Items handed to the user: the missing
 `capabilities.toml` (mutation testing and working language unconfirmed), CI's
 single-file shell syntax check, and adding the thrown-operation native case to
 CI and the local gate.
+
+## 2026-10-28 re-check after user feedback on the installed build (window-open animation)
+
+Scope: `0829955..HEAD` (fix `17dbf8d`, test and records `fa6b881`) plus the
+documentation of this round. Trigger: the user's failure report on the
+installed 0.1.2 (`install.md`). Language census of the touched files
+(`perl` count of Han and Latin characters): features English (2 Han
+characters), spec, ADR-0013, postmortem and checklist Chinese with English
+identifiers; every search below has a Chinese and an English pattern.
+
+### Stage 1: changed declarations
+
+| Changed declaration surface | Compared with | Conclusion |
+|---|---|---|
+| Spec REQ-005/AC-01 clause (first frame covers the whole display, no growing open animation) | `animationBehavior = .none` in the overlay panel; test "the pending overlay covers each display without an opening animation"; screen recording of 0.1.3 (5/5 full on the first frame) | True |
+| Spec Implementation Decisions sentence (overlay windows disable the open animation) | Overlay panel init | True |
+| Spec Testing Decisions sentence (frame and window-server bounds stay full; animation behavior is the in-process observable; first-frame coverage by recording) | Probe and test in `measurements.md`, `review-tests.md` U3 | True |
+| `docs/features/v1-core.md` capture paragraph ("covering each whole display from its first frame") | Spec AC-01 | Consistent, user-visible terms only |
+| ADR-0013 background, option 6, consequences | `measurements.md` on-screen table and in-process variants | Numbers match the recorded runs after the corrections in this round (old build 278–574 ms, new 82–161 ms, median 91 ms; reuse differences −2–22 and 15–33 ms) |
+| Postmortem item 4, title and intro count | `review-code.md`, `measurements.md` | Cause chain, frame columns and counts match; the earlier unverified "300 ms" wording was removed here and in `review-code.md` |
+| v1-core checklist row REQ-005/AC-01 | Test logs, recording, user message | True; user's re-check of 0.1.3 recorded as not yet done |
+| Code comment on the panel and test comment | Probe (frame and bounds unchanged during the animation) | Causal statements verified |
+
+### Stage 2: related declarations
+
+| Relation | Derivation | Conclusion |
+|---|---|---|
+| Feature, spec, ADR files ↔ README rows | Titles and one-line summaries unchanged | Rows still true |
+| Postmortem ↔ an index | No postmortem index (first round) | Nothing to update |
+| Fact "overlay covers the whole display at once" ↔ other statements | `grep -rn -E '打开动画\|窗口动画\|由小到大\|整屏\|覆盖整块\|铺满' CONTEXT.md AGENTS.md docs/specs docs/features docs/adr docs/postmortems VLMSnapper/Resources/Localization` and `grep -rn -i -E 'animation(Behavior)?\|whole display\|full[- ]screen\|first frame\|dims the live' …same paths plus VLMSnapper/UI` | Hits: spec AC-01, ADR-0013 (updated), ADR-0010 "不等待窗口动画" (capture timing, unrelated, still true), management-center "铺满" lines (unrelated), the two `animationBehavior = .none` settings |
+| Latency figures ↔ other statements | `grep -rn -E '4[–-]11\|160[–-]325\|10[–-]30 ?ms' CONTEXT.md AGENTS.md docs/specs docs/features docs/adr docs/postmortems` (no README or site directory exists) | Only ADR-0013; background, option 6 and consequences corrected to on-screen figures |
+| Rule "overlay windows disable the open animation" ↔ the gate guarding it | `.github/workflows/ci.yml` line 36 runs `swift test --skip ProviderApplicationTests`, which includes the overlay controller suite; local gate non-app stage ran it (`logs/gate-full-animation-fix.log`) | Guarded in CI and locally; the visible effect itself is guarded only by the recorded measurement |
+| Localised strings | No string changed | Nothing to check |
+
+### Stage 3: events
+
+| Event | Follow-up | Conclusion |
+|---|---|---|
+| User failure feedback on installed 0.1.2 | AC-01 reopened and extended, fix, test, checklist row, `install.md` quote | Done; the user's hands-on check of 0.1.3 is a deferred acceptance item |
+| Postmortem item count 3 → 4 | `grep -rn -E '三个问题\|三个坑' docs CONTEXT.md` (outside `docs/.workings`) and `grep -rn -i -E 'three (problems\|pitfalls\|issues)' docs/postmortems docs/specs docs/features docs/adr docs/agents` | No other statement enumerates them |
+| New rule (overlay open animation off) | Canonical home | Spec Implementation Decisions (plus code comment) |
+| Earlier measurement claim found to be main-thread only | ADR-0013, `measurements.md` correction note | Corrected in place |
+| Local reinstall 0.1.3 | `install.md` | Recorded |
+| `Pending:` notes | Expiry check | REQ-005 Pending (signed app on macOS 14.4–15) unchanged and not expired |
+| Requirement identifiers | AC-01 extended in place | No new identifier |
+
+### Closeout conclusion
+
+All rows converged. Deferred: the user's hands-on check of 0.1.3. Items handed
+to the user earlier are unchanged.
+

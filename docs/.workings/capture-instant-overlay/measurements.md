@@ -84,9 +84,11 @@ controller (6-749, 5-750, 3-752) and absent after the fix in 3 of 3 runs
 frames too: the animation predates this change, but over an opaque frozen
 screenshot it was less visible than over the live screen.
 
-Reusing an already created panel (in-process variant) showed the overlay 10-30
-ms earlier than creating a new one in the same runs, within the run-to-run
-spread; see ADR-0013 option 6. Both in-process variants ran with the default
+In-process variants recorded the same way (3 rounds, first covered frame after
+the call): production `presentPending` (new panels with the overlay view) 69,
+55, 72 ms; a new plain panel 58, 48, 47 ms; a reused plain panel 36, 40, 49 ms.
+Reuse was 15-33 ms earlier than the production path and -2 to 22 ms earlier
+than a new plain panel, within the run-to-run spread; see ADR-0013 option 6. Both in-process variants ran with the default
 animation (the scratch helper took an optional behavior, so `.none` there was
 `nil`); the comparison is like for like, and its 2 % inset grid did not reach
 the edges where the animation shows.

@@ -209,5 +209,5 @@ frame and window-server bounds already equal the screen during the animation
 (`measurements.md`).
 
 The finding was missed earlier because every check of the overlay looked at
-its final state (screenshots 300 ms after presentation, rendered layers,
+its final state (still screenshots after presentation, rendered layers,
 window frames); none looked at the frames during presentation.

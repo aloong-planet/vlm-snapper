@@ -20,7 +20,7 @@ Spec：[v1-core](../../specs/v1-core.md)
 
 | 覆盖单位 | 唯一主定义及来源反查 | 设计核对 / 实现验收状态 |
 |---|---|---|
-| v1-core::REQ-005/AC-01 | 用户延迟反馈；Further Notes 性能目标 | `overlayCoversDisplaysBeforeFreezeCompletes` 先红后绿，并核对每块 `NSScreen` 都有待冻结遮罩（本机单屏）；实测见 `../capture-instant-overlay/measurements.md` |
+| v1-core::REQ-005/AC-01 | 用户延迟反馈；Further Notes 性能目标 | `overlayCoversDisplaysBeforeFreezeCompletes` 先红后绿，并核对每块 `NSScreen` 都有待冻结遮罩（本机单屏）；首帧整屏、无打开动画（2026-10-28 用户在本地安装 0.1.2 上反馈“遮罩没有直接覆盖全屏幕……然后遮罩快速扩大到整个屏幕”，AC-01 据此重开并补入该条款；用户对 0.1.3 的实机复验尚未进行）：控制器测试 `pendingOverlayAppearsWithoutOpeningAnimation` 先红后绿，安装版 0.1.3 真实快捷键录屏 5/5 次首帧即整屏覆盖；实测见 `../capture-instant-overlay/measurements.md` |
 | v1-core::REQ-005/AC-02 | ADR-0010 无闪烁与排除自身 | 同一窗口显示冻结帧由上测试断言；无桌面闪烁不可在进程内观察，列为测试缺口（需安装版录屏）；真实冻结帧不含遮罩在 macOS 26.0.1 实测，14.4–15 为 Pending |
 | v1-core::REQ-005/AC-03 | 由 AC-01 推出的冻结前输入归属 | 键盘：`escapeWhileFreezingExitsCapture` 断言待冻结遮罩为 key window 并经应用分发 `Esc`；冻结前完成的选区：`selectionDraggedWhileFreezingCompletesWithFrozenFrames`；冻结前开始、帧到达后完成的选区：`selectionStartedBeforeFramesFinishesAfterThem`；透明区点击穿透由系统事件复现并修复，测试缺口写入测试文件头 |
 | v1-core::REQ-005/AC-04 | §3 “`Esc` 或取消退出且不保存”；FM-23 | `escapeWhileFreezingExitsCapture`、`escapeWhileReplacingSelectionReleasesActivity`、`escapeWhileFreezingFromResultRestoresWorkspace` |

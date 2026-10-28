@@ -122,3 +122,7 @@ Unrecorded scope expansion: none in product code. The fixture identity fix is te
 - Fix `17dbf8d`; guard test red/green: `logs/animation-red.log`, `logs/animation-green.log`; targeted run of the app
   suite and the three native cases: `logs/targeted-animation-fix.log`.
 - Full offline gate after the test and records commit: `logs/gate-full-animation-fix.log`.
+- Full offline gate at `fa6b881`: `logs/gate-full-animation-fix.log`, every stage PASS, exit 0 (strict build, script
+  tests, checklist, shell syntax, non-app incl. the new overlay test, app, native Paste, native closed-window,
+  accessibility). Manifest: only the user's untracked `:-` (`208ccf64…`). Later commits change documentation and logs
+  only; reuse decision in `final-regression.md` (third round).
