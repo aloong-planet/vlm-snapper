@@ -48,6 +48,6 @@ are English. Every search below has a Chinese and an English pattern.
 
 ### Closeout conclusion
 
-All rows converged as of the test-hardening commits after `48610ef` (tests and records only; product code unchanged since `5c96041`). Remaining before delivery: the
-incremental post-implementation review of the test-hardening fix, installed-build checks, the final
-full gate.
+All rows converged as of the test-hardening commits after `48610ef` (tests and records only; product code unchanged since `5c96041`). The incremental reviews ended with no findings,
+the installed-build checks passed (`install.md`) and the full gate passed at `8c5a59b`. Deferred
+acceptance: the auto-hidden Dock's visible frame and two displays.

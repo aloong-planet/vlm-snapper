@@ -48,8 +48,12 @@ No ticket; implemented directly from the spec on `feat/capture-region-snapping` 
   native cases; all exit 0) at `e91ba54`
 - [x] Code review: `review-code.md`; two bugs fixed red-first in `5c96041`
 - [x] Full gate before review: `logs/gate-snap-prereview.log` at `5c96041`, every stage PASS (non-app 375, App 35)
-- [ ] Post-implementation test review (independent sub-agent) — running
-- [ ] Archive, features catalogue (step 8), full gate, install, PR
+- [x] Post-implementation test review (independent sub-agent): one full round, three incremental rounds;
+  the last found nothing (`review-tests.md` sections)
+- [x] Archive, features catalogue (step 8), install (`install.md`)
+- [x] Full gate: `logs/gate-snap-full.log` at `8c5a59b`, every stage PASS (non-app 384, App 36); later commits
+  are records only, reuse recorded below
+- [ ] PR (stop before merge)
 
 ## Spec final check (2026-10-28, code at `5c96041`)
 
