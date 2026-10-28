@@ -40,3 +40,11 @@ one on the armed deadlines. Product mutations, repeated on the synchronous doubl
 (`ticket-26-logs/mutations-sync-clock.log`; the first double's run in `mutations.log`): old deadline not
 cancelled → red at the stream (`:106`, `firstTextTimeout`); reasoning not re-arming → red at the
 armed-deadline count (`:132`). Sources restored. Refactoring list: none.
+
+## Full gate before delivery (2026-10-29)
+
+- `ticket-26-logs/gate-full-final-accessibility-flake.log` at `8949652`: every stage passed except the
+  accessibility scenarios — an external AX run failed at step 9 with `ax_read_-25202` (element gone) while a
+  short-lived process (PID 96316, gone when checked) was frontmost; that stage does not run the changed test.
+- `ticket-26-logs/gate-full-final.log` at `8949652`, repeated: every stage PASS (non-app 363, App 29, native
+  Paste, native closed-window, accessibility). The manifest lists only the untracked `:-` and the kept flake log.
