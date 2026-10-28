@@ -61,7 +61,7 @@ No ticket; implemented directly from the spec on `feat/capture-region-snapping` 
 | 04 | Dock strip whole, no single icons; auto-hide falls through | Dock windows match only inside the frame/visible-frame strip | C4 |
 | 05 | desktop → whole display | fallback `display.frame` | C5, A1 desktop |
 | 06 | own/transparent/off-screen/overlay windows skipped; clipped to the display; < 2 × 2 px skipped | guards in the resolver; clip and pixel check | C6, C7 |
-| 07 | ≤ 3 pt is a click; more is a manual rectangle | view threshold; release far from press is a drag | U1, U2, U8–U11 (threshold both sides, release-only, settled) |
+| 07 | ≤ 3 pt is a click; more is a manual rectangle | view threshold; release far from press is a drag | U1, U2, U8–U11 (threshold both sides, release-only, settled), U13 (mid-drag drawing), U14 (small-step drag) |
 | 08 | click before frames / before the list completes later | completed-before-frame; click held until the list | U3, A2 |
 | 09 | list fixed at trigger; no list → no highlight, click selects nothing, drag works | one listing per request; `.unavailable` | A6 (one read, at trigger, own windows skipped), U4, A3 |
 | 10 | Esc, retrigger, display changes unchanged | existing paths; lists only reach the newest overlay | existing REQ-001/005 tests, U7, A5 |
@@ -95,3 +95,6 @@ display, the region clearing when the pointer leaves a display.
   `frontPID=687`), the foreground-dependent wait tracked in Ticket 24; the case alone passed 3/3
   (`logs/native-paste-reruns.log`); the whole targeted run repeated green
   (`logs/targeted-snap-r3b.log`: strict build, build-tests, non-app 383, App 36, three native cases).
+- Round-2 findings 13–14: U14 added (small-step drag), shown red by two mutations
+  (`logs/snap-mutations-r4.log`); record restated. Targeted verification green
+  (`logs/targeted-snap-r4.log`: non-app 384, App 36, three native cases).

@@ -225,6 +225,23 @@ struct FrozenCaptureOverlayControllerTests {
         #expect(try renderedAlpha(panel, at: NSPoint(x: 150, y: height - 250)) > 100)
     }
 
+    @Test("a drag passing three points in small steps stops showing the snap region")
+    func smallStepDragStopsSnapping() throws {
+        let height = try primaryScreen().frame.height
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { _ in }, onCancel: {})
+        #expect(presented)
+        controller.attachSnapRegions(twoWindowResolver())
+        let panel = try primaryOverlay()
+        try send(.leftMouseDown, at: NSPoint(x: 250, y: height - 200), to: panel)
+        // 1.98 pt and then 3.96 pt from the press, each step under 3 pt.
+        try send(.leftMouseDragged, at: NSPoint(x: 251.4, y: height - 198.6), to: panel)
+        try send(.leftMouseDragged, at: NSPoint(x: 252.8, y: height - 197.2), to: panel)
+        // Before release, window A outside the tiny rectangle is dimmed again.
+        #expect(try renderedAlpha(panel, at: NSPoint(x: 150, y: height - 250)) > 100)
+    }
+
     @Test("a release far from the press is a rectangle even without drag events")
     func farReleaseWithoutDragEventsDrags() throws {
         let height = try primaryScreen().frame.height

@@ -1,0 +1,4 @@
+== from-previous-event: exit 1
+✘ Test "a drag passing three points in small steps stops showing the snap region" recorded an issue at FrozenCaptureOverlayControllerTests.swift:242:9: 
+== drag-threshold-4: exit 1
+✘ Test "a drag passing three points in small steps stops showing the snap region" recorded an issue at FrozenCaptureOverlayControllerTests.swift:242:9: 
