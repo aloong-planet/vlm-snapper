@@ -105,13 +105,11 @@ struct ProviderAdapterExecutorTests {
 
     @Test("DeepSeek reasoning activity keeps the first-text deadline alive")
     func deepSeekReasoningKeepsFirstTextDeadlineAlive() async throws {
+        // Deadlines expire only when the transport fires them, so host load cannot end the stream.
+        let clock = ManualTimeoutClock()
         let executor = ProviderAdapterExecutor(
-            transport: DeepSeekReasoningStreamingTransport(),
-            timeouts: ProviderStreamTimeouts(
-                firstText: .milliseconds(250),
-                stalled: .milliseconds(250),
-                total: .seconds(1)
-            )
+            transport: DeepSeekReasoningStreamingTransport(clock: clock),
+            timeoutClock: clock
         )
         var events: [ProviderStreamEvent] = []
 
@@ -130,6 +128,8 @@ struct ProviderAdapterExecutorTests {
             .metadata(ProviderResponseMetadata(requestID: "chat_reasoning", usage: nil)),
             .completed,
         ])
+        // The request start and each reasoning event armed a first-text deadline.
+        #expect(await clock.armIDs(of: .firstText).count == 3)
     }
 
     @Test("The stall deadline resets after text and terminates an idle stream")
@@ -279,21 +279,31 @@ private actor RecordingStreamingTransport: ProviderHTTPStreaming {
     }
 }
 
+/// A DeepSeek stream of two reasoning events, then text. After each reasoning event it waits for
+/// the first-text deadline that event re-arms, then fires every deadline armed before the event:
+/// superseded ones are already cancelled, so firing them changes nothing, while one that survived
+/// ends the stream with a first-text timeout.
 private struct DeepSeekReasoningStreamingTransport: ProviderHTTPStreaming {
+    let clock: ManualTimeoutClock
+
     func stream(for request: URLRequest) async throws -> ProviderHTTPStreamResponse {
         ProviderHTTPStreamResponse(
             statusCode: 200,
             headers: [:],
             body: AsyncThrowingStream { continuation in
                 let producer = Task {
-                    continuation.yield(Self.sse(
-                        #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"Inspecting"},"finish_reason":null}]}"#
-                    ))
-                    try await Task.sleep(for: .milliseconds(150))
-                    continuation.yield(Self.sse(
-                        #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"Reading"},"finish_reason":null}]}"#
-                    ))
-                    try await Task.sleep(for: .milliseconds(150))
+                    // The deadline armed when the request started.
+                    await clock.waitForNewArm(of: .firstText, excluding: [])
+                    for reasoning in ["Inspecting", "Reading"] {
+                        let before = await clock.armIDs(of: .firstText)
+                        continuation.yield(Self.sse(
+                            #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"\#(reasoning)"},"finish_reason":null}]}"#
+                        ))
+                        await clock.waitForNewArm(of: .firstText, excluding: before)
+                        await clock.fire(before)
+                        // Let a fired deadline that was still live reach the stream before text does.
+                        try await Task.sleep(for: .milliseconds(50))
+                    }
                     continuation.yield(Self.sse(
                         #"{"id":"chat_reasoning","choices":[{"index":0,"delta":{"content":"{\"source\":\"Hello\"}"},"finish_reason":"stop"}]}"#
                     ))
@@ -335,6 +345,60 @@ private struct RequestAwareTimeoutClock: ProviderTimeoutClock {
         while await transport.requestCount == 0 {
             try Task.checkCancellation()
             await Task.yield()
+        }
+    }
+}
+
+/// A timeout clock whose sleeps end only when fired or cancelled, recording every deadline armed.
+private actor ManualTimeoutClock: ProviderTimeoutClock {
+    private var nextID = 0
+    private var armed: [(id: Int, kind: ProviderTimeoutKind)] = []
+    private var pending: [Int: CheckedContinuation<Void, Error>] = [:]
+    private var cancelledBeforeSuspending: Set<Int> = []
+
+    func sleep(for duration: Duration, kind: ProviderTimeoutKind) async throws {
+        let id = nextID
+        nextID += 1
+        armed.append((id, kind))
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                if cancelledBeforeSuspending.remove(id) != nil || Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    pending[id] = continuation
+                }
+            }
+        } onCancel: {
+            Task { await self.cancel(id) }
+        }
+    }
+
+    func armIDs(of kind: ProviderTimeoutKind) -> Set<Int> {
+        Set(armed.filter { $0.kind == kind }.map(\.id))
+    }
+
+    /// Waits until a deadline of `kind` outside `excluding` is armed; gives up after five seconds so
+    /// a deadline that is never re-armed fails the test instead of hanging it.
+    func waitForNewArm(of kind: ProviderTimeoutKind, excluding: Set<Int>) async {
+        let giveUp = ContinuousClock.now.advanced(by: .seconds(5))
+        while !armed.contains(where: { $0.kind == kind && !excluding.contains($0.id) }),
+              ContinuousClock.now < giveUp {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+    }
+
+    /// Ends the given deadlines' sleeps as if they had expired; cancelled ones are no longer pending.
+    func fire(_ ids: Set<Int>) {
+        for id in ids {
+            pending.removeValue(forKey: id)?.resume()
+        }
+    }
+
+    private func cancel(_ id: Int) {
+        if let continuation = pending.removeValue(forKey: id) {
+            continuation.resume(throwing: CancellationError())
+        } else {
+            cancelledBeforeSuspending.insert(id)
         }
     }
 }

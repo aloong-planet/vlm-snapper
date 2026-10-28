@@ -1,0 +1,5 @@
+== old-deadline-kept: NOT APPLIED
+== no-rearm: exit 1
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" recorded an issue at ProviderAdapterExecutorTests.swift:132:9: Expectation failed: await clock.armIDs(of: .firstText).count == 
+== old-deadline-kept: exit 1
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" recorded an issue at ProviderAdapterExecutorTests.swift:106:6: Caught error: firstTextTimeout
