@@ -35,6 +35,9 @@ import VLMSnapperUI
 // compositor leaves the pending overlay out of real frames (signed-app check), a
 // second display whose freeze fails while another commits (two displays needed),
 // or every display invalidated before commit (modal failure alert blocks the run).
+// Window-server hit testing is also out of reach: `sendEvent` skips it, so a click
+// inside a clear pending selection reaching another app needs posted HID events
+// with Accessibility trust (verified outside the suite, see the construction notes).
 @MainActor
 final class ProviderApplicationTestsNativeMenu: XCTestCase {
 

@@ -4,8 +4,8 @@ import VLMSnapperCore
 
 /// Selection overlays shown in two phases: a pending overlay covers every
 /// display as soon as a capture starts, and `commit` shows each display's frozen
-/// frame in that same panel once the freeze finishes. The freeze excludes all
-/// VLMSnapper windows, so covering the screen first never leaks into the frame.
+/// frame in that same panel once the freeze finishes. The freeze filter excludes
+/// VLMSnapper's own windows, which keeps the pending overlay out of the frame.
 @MainActor
 public final class FrozenCaptureOverlayController {
     public struct Selection {
@@ -175,9 +175,12 @@ private final class CaptureOverlayPanel: NSPanel {
         )
         level = .screenSaver
         // Transparent until the frozen frame arrives: the pending overlay dims
-        // the live screen, which the frozen frame then replaces pixel for pixel.
+        // the live screen, then the frozen frame covers it at native resolution.
         isOpaque = false
         backgroundColor = .clear
+        // A transparent window lets clicks through where it is fully clear, as
+        // inside a selection drawn before the frame arrives; keep them here.
+        ignoresMouseEvents = false
         hasShadow = false
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

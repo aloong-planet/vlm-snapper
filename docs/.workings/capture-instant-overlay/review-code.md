@@ -1,0 +1,120 @@
+# Instant capture overlay code review
+
+Date: 2026-10-28. Range: `850f64d..e3c41d5` plus the review fixes committed
+after it. Scope: pending overlay before the freeze, layer-backed overlay
+rendering, commit/rollback/abandon paths in the application model, toolbar
+suspend/resume. No ticket.
+
+## Underlying premises
+
+- The pending overlay is on screen while ScreenCaptureKit freezes, so the
+  change now depends on the freeze filter excluding VLMSnapper's own windows
+  (`SCContentFilter(display:excludingApplications:)` with the current process,
+  introduced earlier for self-exclusion). Measured with the production capturer
+  and controller on macOS 26.0.1: the frame frozen under the visible 48 % scrim
+  has the same luma as a reference freeze (236.4-236.8 vs 236.9), see
+  `measurements.md`. `NSWindow.sharingType` is not relied on: ScreenCaptureKit
+  handles it inconsistently (Apple Developer Forums thread 808016, where DTS
+  asked for a bug report), and third parties report a behaviour change from
+  macOS 15; it happened to be honoured in a macOS 26 probe, which is not a
+  guarantee. macOS 14.4-15 relies on the
+  documented application exclusion; the spec already assigns compositor
+  exclusion to signed-app acceptance.
+- Layer backing: `wantsLayer = true` creates the backing layer before the
+  sublayers are added (pending dim visible in the real screenshot), and
+  `viewDidChangeBackingProperties` gives the shape layers the Retina scale on
+  first presentation (measured `contentsScale` 2.0 on a 2.0 backing panel).
+- The menu panel is a custom `.popUpMenu` panel closed only by explicit hide or
+  its mouse-down monitors; the pending overlay becoming key does not close it.
+- New causal comments were checked against evidence; two overstated ones were
+  reworded (the frozen frame does not replace the live screen "pixel for pixel"
+  where VLMSnapper windows were visible, and exclusion is a property of the
+  freeze filter, not a guarantee for every system).
+
+Conclusion: premises hold on the measured system; macOS 14.4-15 compositing
+remains a signed-app acceptance item (unchanged ownership).
+
+## Runnability
+
+States of a capture request after this change: pending (fresh, replacing a
+selection, replacing a terminal result workspace) and committed. Exits from
+pending, each checked against the implementation:
+
+| Exit | Overlay | Toolbar | Workspace | Lease |
+|---|---|---|---|---|
+| Commit succeeds | Frames attached to pending panels; panels without a frame and the previous overlay retired | Hidden | Retired | Kept by the new selection |
+| Commit finds no framed panel | Rolled back to previous overlay | Resumed | Restored | Released only if no selection remains (existing rule) |
+| Permission required / all displays failed | Rolled back | Resumed | Restored | Same as above |
+| Request can no longer commit (still owned) | Rolled back | Resumed | Restored | Unchanged |
+| Request cleared by someone else | Untouched (owner withdrew it) | Untouched | Not restored again | Unchanged |
+| `Esc` while pending | All overlays closed (previous selection cancelled too) | Hidden | Restored | Released by the selection cancel, or by the admission wrapper after the freeze returns |
+| Termination preparation while pending | Same as `Esc` | Same | Same | Same |
+| Previous selection cancelled by a display change while pending | All overlays closed by its cancel; the pending request then fails the lease check and stays closed | Hidden | n/a | Released once |
+
+Selections released before frames arrive are completed when the frame is
+attached; the model's `finishSelection` task runs after commit has set the
+active generation and session (no suspension point between them).
+
+Findings in this layer:
+
+1. **Clicks escaped to other applications while pending (fixed).** The pending
+   panel is non-opaque and a completed selection leaves a fully transparent
+   hole in the scrim. Reproduced with posted HID events (Accessibility-trusted
+   harness, own window placed underneath): a second click inside the hole was
+   delivered to the window underneath and not to the overlay. Escape surface:
+   upper (a click reaches an unrelated application). Fix: the overlay panel sets
+   `ignoresMouseEvents = false` explicitly; the same reproduction then delivers
+   the click to the overlay (new selection started, hole closed, underlying
+   window received nothing). Not reproducible in the test suite because
+   `sendEvent` bypasses window-server hit testing and CI has no Accessibility
+   trust; recorded in the test file header. Class check: every non-opaque
+   window was enumerated (`grep -rn 'isOpaque = false' Sources VLMSnapper`):
+   the capture overlay (fixed), the operation toolbar (only rounded corners are
+   clear and it sits above VLMSnapper's own overlay) and the menu panel (clear
+   area around its arrow, conventional popover click-through, unchanged by this
+   work). Two others checked, none with the same exposure.
+2. **Abandoned request could undo a newer request (fixed during implementation).**
+   If `Esc` cleared request A while A was suspended in display revalidation and
+   a new shortcut started request B, A's "cannot commit" branch would have rolled
+   back B's pending overlay and un-reserved B's workspace. That branch now acts
+   only while A still owns the request.
+
+Conclusion: two bugs found and fixed; all enumerated exits end in a defined
+state.
+
+## Security
+
+No new input, persistence, credential, network or logging surface. The
+self-exclusion filter still fails closed when the current process cannot be
+resolved. The behavioural dependency added here (overlay visible during the
+freeze) would degrade to a darker screenshot, not to a disclosure, if an OS
+release stopped honouring application exclusion; the click-through escape
+above was the only cross-application effect found and is fixed.
+
+Conclusion: no open finding.
+
+## Consistency
+
+- Contract change: `docs/specs/v1-core.md` (Solution, §3, FM-25) and ADR-0010
+  state that the overlay appears only after every display is frozen. The
+  presentation order changes; the decision goes to a new ADR that supersedes
+  that part of ADR-0010, and the spec is rewritten in the spec final check.
+- Removed API `replace(displays:onSelection:onCancel:)`: no remaining reference
+  (`grep -rn 'replace(displays' Sources VLMSnapper Tests` is empty).
+- Smell baseline on touched code: no speculative generality (every new entry
+  point is called by the model), no duplicated logic in production code; the
+  new composition tests repeat the fixture preamble exactly like the existing
+  tests in the same file (kept for local consistency). `NSScreenNumber` lookup
+  also exists in `CaptureDisplayMonitor.swift` (pre-existing, outside the
+  change; recorded only).
+
+Conclusion: contract documents must be updated (tracked in the tasklist); no
+code finding.
+
+## Refactor list (not executed)
+
+| Item | Reason | Escape surface | Recommendation |
+|---|---|---|---|
+| Prepare the next pending panels ahead of time | `presentPending` measured 4-11 ms, mostly window creation; a prepared set would be about 1 ms | Self (latency only) | Not now: already below one 60 Hz frame; adds lifecycle handling for display changes and memory for hidden panels |
+| Overlay scrim and border colours are AppKit literals, not theme tokens | ui-design colour rule; values unchanged from the previous `draw(_:)` | Self | Do not change: the scrim sits over a frozen screenshot and is appearance-independent by design; the border already follows the system accent |
+| Modal capture-failure alert makes "every display invalidated before commit" untestable | Test gap documented in the test file header | Self | Separate task if desired: a non-modal failure presentation seam |
