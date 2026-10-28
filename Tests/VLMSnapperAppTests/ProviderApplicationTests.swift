@@ -21,8 +21,10 @@ import VLMSnapperUI
 // It is still programmatic input, not installed-app physical Cmd+V acceptance.
 // Closed-window completion is observed from the actual onboarding view render;
 // this is not desktop capture or an occlusion/physical-focus check.
-// CI also runs these cases separately; same-process repeats cover fixture
-// teardown without relying on process exit to release the native view graph.
+// CI and the local gate run the Paste and closed-window cases separately; the
+// thrown-operation case runs only when invoked by name. Same-process repeats
+// cover fixture teardown without relying on process exit to release the native
+// view graph.
 // Wait traces are diagnostic only: observation can affect scheduling, and a
 // process abort before the deferred flush can lose the buffered transitions.
 // Historical intermittent deadlines still need a failing, instrumented run.
@@ -31,6 +33,19 @@ import VLMSnapperUI
 // Production callback tests do not claim installed-app physical Retry clicks.
 // Display tests inject OS notifications and geometry snapshots; physical
 // hot-plug, display sleep and multi-monitor focus require hardware acceptance.
+// Pending-overlay tests hold the injected capturer, so they cannot show that the
+// compositor leaves the pending overlay out of real frames (signed-app check), a
+// second display whose freeze fails while another commits (two displays needed),
+// a display connected while frames are pending (hot-plug during the freeze), the
+// absence of a desktop flash between overlays (one main-thread call; check by
+// screen recording), or every display invalidated before commit (modal failure
+// alert blocks the run).
+// Window-server hit testing is also out of reach: `sendEvent` skips it, so a click
+// inside a clear pending selection reaching another app needs posted HID events
+// with Accessibility trust (verified outside the suite, see the construction notes).
+// The window-open animation of the overlay changes only composited frames, not the
+// window frame, window-server bounds or layers: the overlay controller tests assert the
+// window's animation behavior, and full first-frame coverage was checked by screen recording.
 @MainActor
 final class ProviderApplicationTestsNativeMenu: XCTestCase {
 
@@ -760,10 +775,8 @@ struct ProviderApplicationTests {
                     model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
                 }
                 try fixture.shortcuts.fire()
-                try await eventually {
-                    NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver }
-                }
-                let overlay = try #require(NSApp.windows.first { $0.isVisible && $0.level == .screenSaver })
+                try await eventually { try mainScreenOverlay() != nil }
+                let overlay = try #require(try mainScreenOverlay())
                 pumpNativeEvents(overlay)
                 trace.record("overlay-ready", window: overlay)
                 try drag(overlay, from: NSPoint(x: 100, y: 200), to: NSPoint(x: 300, y: 300), trace: trace)
@@ -892,10 +905,10 @@ struct ProviderApplicationTests {
                     model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
                 }
                 try fixture.shortcuts.fire()
-                try await eventually {
-                    NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver }
-                }
-                let overlay = try #require(NSApp.windows.first { $0.isVisible && $0.level == .screenSaver })
+                try await eventually { try mainScreenOverlay() != nil }
+                let overlay = try #require(try mainScreenOverlay())
+                // The selection and its display subscription begin with the frozen frame.
+                try await eventually { try overlayShowsFrozenFrame(overlay) }
                 let reads = fixture.displayReads
                 try await eventually { model.providerSnapshot.activity == .capture }
                 fixture.displayGeometries = [display.geometry, changedGeometry(display.geometry, id: UInt32.max)]
@@ -949,7 +962,9 @@ struct ProviderApplicationTests {
                             $0.isVisible && $0.level == .screenSaver && $0 !== previous
                         }
                     }
-                    let overlay = try #require(NSApp.windows.first { $0.isVisible && $0.level == .screenSaver })
+                    let overlay = try #require(try mainScreenOverlay())
+                    // Retirement and display subscriptions follow the frozen frame.
+                    try await eventually { try overlayShowsFrozenFrame(overlay) }
                     if let previous {
                         #expect(!previous.isVisible)
                         #expect(previous.contentView == nil)
@@ -983,6 +998,297 @@ struct ProviderApplicationTests {
                 #expect(fixture.displayReads == terminatedReads)
                 #expect(!NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver })
                 #expect(model.historyRecords.isEmpty)
+            }
+        }
+    }
+
+    @Test
+    func overlayCoversDisplaysBeforeFreezeCompletes() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-overlay-key")
+                var retiredSources = 0
+                model.onRetireCaptureSources = { retiredSources += 1 }
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                // The capturer is still suspended, so no frozen frame exists yet.
+                try await eventually {
+                    try await fixture.capture.requests == 1 && mainScreenOverlay() != nil
+                }
+                let overlay = try #require(try mainScreenOverlay())
+                let everyScreenCovered = NSScreen.screens.allSatisfy { screen in
+                    NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver && $0.frame == screen.frame }
+                }
+                #expect(everyScreenCovered)
+                #expect(try !overlayShowsFrozenFrame(overlay))
+                // Menu, management center and onboarding stay until the frame is shown.
+                #expect(retiredSources == 0)
+                await fixture.capture.release()
+                try await eventually { try overlayShowsFrozenFrame(overlay) }
+                #expect(overlay.isVisible)
+                #expect(try mainScreenOverlay() === overlay)
+                #expect(retiredSources == 1)
+            }
+        }
+    }
+
+    @Test
+    func selectionDraggedWhileFreezingCompletesWithFrozenFrames() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-selection-key")
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                try await eventually { try mainScreenOverlay() != nil }
+                let overlay = try #require(try mainScreenOverlay())
+                pumpNativeEvents(overlay)
+                try drag(overlay, from: NSPoint(x: 100, y: 200), to: NSPoint(x: 300, y: 300))
+                #expect(try !overlayShowsFrozenFrame(overlay))
+                #expect(captureToolbar() == nil)
+                await fixture.capture.release()
+                try await eventually { captureToolbar() != nil }
+                #expect(try overlayShowsFrozenFrame(overlay))
+            }
+        }
+    }
+
+    @Test
+    func escapeWhileFreezingExitsCapture() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-escape-key")
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                try await eventually { try mainScreenOverlay() != nil }
+                let overlay = try #require(try mainScreenOverlay())
+                pumpNativeEvents(overlay)
+                // The keyboard belongs to the pending overlay, so the application routes Esc to it.
+                #expect(overlay.isKeyWindow)
+                try pressEscapeThroughApplication()
+                try await eventually { !captureOverlayIsVisible() }
+                // The freeze finishes after the user left; its frames must not reopen the selection.
+                await fixture.capture.release()
+                try await eventually { model.providerSnapshot.activity == nil }
+                #expect(!captureOverlayIsVisible())
+                #expect(captureToolbar() == nil)
+                #expect(model.historyRecords.isEmpty)
+                #expect(await fixture.http.imageRequests.isEmpty)
+            }
+        }
+    }
+
+    @Test
+    func terminationWhileFreezingWithdrawsOverlay() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-termination-key")
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                try await eventually { try mainScreenOverlay() != nil }
+                // Frames are still held, so preparation must not wait for the freeze.
+                #expect(await model.prepareForTermination())
+                #expect(!captureOverlayIsVisible())
+                #expect(model.historyRecords.isEmpty)
+            }
+        }
+    }
+
+    @Test
+    func failedFreezeRestoresPreviousSelection() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-failure-key")
+                var retiredSources = 0
+                model.onRetireCaptureSources = { retiredSources += 1 }
+                let (previous, toolbar) = try await completeSelection(fixture)
+                #expect(retiredSources == 1)
+
+                await fixture.capture.provide(nil)
+                await fixture.capture.allowSuspendedCapture()
+                var onboardingRequests = 0
+                model.onShowOnboarding = { onboardingRequests += 1 }
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    try await fixture.capture.requests == 2 && mainScreenOverlay() != nil
+                }
+                let pending = try #require(try mainScreenOverlay())
+                #expect(pending !== previous)
+                #expect(!previous.isVisible)
+                #expect(!toolbar.isVisible)
+                await fixture.capture.release()
+                try await eventually { onboardingRequests == 1 }
+                #expect(!pending.isVisible)
+                #expect(previous.isVisible)
+                #expect(try overlayShowsFrozenFrame(previous))
+                #expect(toolbar.isVisible)
+                #expect(model.providerSnapshot.activity == .capture)
+                // A failed capture retires no source interface.
+                #expect(retiredSources == 1)
+            }
+        }
+    }
+
+    @Test
+    func escapeWhileReplacingSelectionReleasesActivity() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-replacement-key")
+                let (previous, toolbar) = try await completeSelection(fixture)
+
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    try await fixture.capture.requests == 2 && mainScreenOverlay() != nil
+                }
+                let pending = try #require(try mainScreenOverlay())
+                #expect(pending !== previous)
+                pumpNativeEvents(pending)
+                try pressEscape(pending)
+                try await eventually { !captureOverlayIsVisible() }
+                #expect(!toolbar.isVisible)
+                await fixture.capture.release()
+                // One capture activity is shared by both selections; leaving must release it.
+                try await eventually { model.providerSnapshot.activity == nil }
+                #expect(!captureOverlayIsVisible())
+                #expect(!toolbar.isVisible)
+                #expect(model.historyRecords.isEmpty)
+            }
+        }
+    }
+
+    @Test
+    func escapeWhileFreezingFromResultRestoresWorkspace() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            await fixture.http.allowImageRequests()
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-workspace-key")
+                let (_, toolbar) = try await completeSelection(fixture)
+                pumpNativeEvents(toolbar)
+                // Center of the first operation button in the production toolbar.
+                let toolbarContent = try #require(toolbar.contentView)
+                try click(toolbar, at: NSPoint(x: 40, y: toolbarContent.bounds.midY))
+                try await eventually { await fixture.http.imageRequests.count == 1 }
+                try await fixture.http.finishImage(source: "First result")
+                try await eventually {
+                    model.historyRecords.count == 1 && !model.providerSnapshot.blocksConfigurationChanges
+                }
+                let result = try #require(NSApp.windows.first {
+                    $0.isVisible && $0.contentViewController is NSHostingController<ResultWorkspaceView>
+                })
+
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    try await fixture.capture.requests == 2 && mainScreenOverlay() != nil
+                }
+                let pending = try #require(try mainScreenOverlay())
+                pumpNativeEvents(pending)
+                try pressEscape(pending)
+                try await eventually { !captureOverlayIsVisible() }
+                await fixture.capture.release()
+                try await eventually { model.providerSnapshot.activity == nil }
+                #expect(result.isVisible)
+                // A workspace still reserved for the abandoned capture refuses the next one.
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    try await fixture.capture.requests == 3 && mainScreenOverlay() != nil
+                }
+            }
+        }
+    }
+
+    @Test
+    func selectionStartedBeforeFramesFinishesAfterThem() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-drag-key")
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                try await eventually { try mainScreenOverlay() != nil }
+                let overlay = try #require(try mainScreenOverlay())
+                pumpNativeEvents(overlay)
+                try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 300), to: overlay)
+                try sendMouse(.leftMouseDragged, at: NSPoint(x: 400, y: 400), to: overlay)
+                await fixture.capture.release()
+                try await eventually { try overlayShowsFrozenFrame(overlay) }
+                #expect(captureToolbar() == nil)
+                // Still dragging after the frame arrived: the rectangle's left edge moves to 150.
+                try sendMouse(.leftMouseDragged, at: NSPoint(x: 150, y: 400), to: overlay)
+                try sendMouse(.leftMouseUp, at: NSPoint(x: 150, y: 400), to: overlay)
+                try await eventually { captureToolbar() != nil }
+                let toolbar = try #require(captureToolbar())
+                // The toolbar is left-aligned with the selection that mouse-up completed.
+                #expect(abs(toolbar.frame.minX - (overlay.frame.minX + 150)) <= 1)
+            }
+        }
+    }
+
+    @Test
+    func displayChangeWhileReplacingAbandonsPendingCapture() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-pending-invalidated-key")
+                try fixture.shortcuts.fire()
+                try await eventually { try mainScreenOverlay() != nil }
+                let previous = try #require(try mainScreenOverlay())
+                try await eventually { try overlayShowsFrozenFrame(previous) }
+
+                await fixture.capture.holdFrames()
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    try await fixture.capture.requests == 2 && mainScreenOverlay().map { $0 !== previous } == true
+                }
+                // Ending the first selection releases the activity the pending capture shares.
+                fixture.displayGeometries = [changedGeometry(display.geometry, move: true)]
+                fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                try await eventually { !captureOverlayIsVisible() && model.providerSnapshot.activity == nil }
+                fixture.displayGeometries = [display.geometry]
+                // The second freeze has not returned; a shortcut now must still show its overlay.
+                try fixture.shortcuts.fire()
+                try await eventually {
+                    try await fixture.capture.requests == 3 && mainScreenOverlay() != nil
+                }
+                let replacement = try #require(try mainScreenOverlay())
+                await fixture.capture.release()
+                try await eventually { try overlayShowsFrozenFrame(replacement) }
+                #expect(replacement.isVisible)
+                #expect(try mainScreenOverlay() === replacement)
             }
         }
     }
@@ -1476,6 +1782,97 @@ private func changedGeometry(
     )
 }
 
+@MainActor
+private func makeCaptureReady(_ model: VLMSnapperApplicationModel, key: String) async throws {
+    model.credentialEditor.edit(key)
+    #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false,
+        operation: model.providerSettingsConfiguration().onValidate))
+    try await eventually { model.providerReadiness == .pendingModel(.deepSeek) }
+    model.providerSettingsConfiguration().onSelectModel("fixture-vision")
+    try await eventually {
+        model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
+    }
+}
+
+/// The selection overlay on the screen that `syntheticDisplay()` freezes.
+@MainActor
+private func mainScreenOverlay() throws -> NSWindow? {
+    let screen = try requireFixture(NSScreen.main)
+    return NSApp.windows.first {
+        $0.isVisible && $0.level == .screenSaver && $0.frame == screen.frame
+    }
+}
+
+@MainActor
+private func captureOverlayIsVisible() -> Bool {
+    NSApp.windows.contains { $0.isVisible && $0.level == .screenSaver }
+}
+
+@MainActor
+private func captureToolbar() -> NSWindow? {
+    NSApp.windows.first { $0.isVisible && $0.contentView is NSHostingView<CaptureOperationToolbar> }
+}
+
+@MainActor
+private func pressEscape(_ window: NSWindow) throws {
+    window.sendEvent(try requireFixture(NSEvent.keyEvent(with: .keyDown, location: .zero,
+        modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+        windowNumber: window.windowNumber, context: nil, characters: "\u{1b}",
+        charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)))
+}
+
+/// Sends Esc the way a key press arrives: to whichever window the application has made key.
+@MainActor
+private func pressEscapeThroughApplication() throws {
+    let window = try requireFixture(NSApp.keyWindow)
+    NSApp.sendEvent(try requireFixture(NSEvent.keyEvent(with: .keyDown, location: .zero,
+        modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+        windowNumber: window.windowNumber, context: nil, characters: "\u{1b}",
+        charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)))
+}
+
+@MainActor
+private func sendMouse(_ type: NSEvent.EventType, at point: NSPoint, to window: NSWindow) throws {
+    window.sendEvent(try requireFixture(NSEvent.mouseEvent(
+        with: type, location: point, modifierFlags: [],
+        timestamp: ProcessInfo.processInfo.systemUptime,
+        windowNumber: window.windowNumber, context: nil,
+        eventNumber: 1, clickCount: 1, pressure: 1
+    )))
+    pumpNativeEvents(window)
+}
+
+/// Captures with frames available immediately and drags a selection until the toolbar shows.
+@MainActor
+private func completeSelection(
+    _ fixture: ApplicationFixture
+) async throws -> (overlay: NSWindow, toolbar: NSWindow) {
+    try fixture.shortcuts.fire()
+    try await eventually { try mainScreenOverlay() != nil }
+    let overlay = try requireFixture(try mainScreenOverlay())
+    try await eventually { try overlayShowsFrozenFrame(overlay) }
+    pumpNativeEvents(overlay)
+    try drag(overlay, from: NSPoint(x: 100, y: 200), to: NSPoint(x: 300, y: 300))
+    try await eventually { captureToolbar() != nil }
+    return (overlay, try requireFixture(captureToolbar()))
+}
+
+/// Reads what the overlay shows at its centre: a pending overlay dims the live
+/// screen (translucent), a frozen overlay shows the opaque frozen frame.
+@MainActor
+private func overlayShowsFrozenFrame(_ window: NSWindow) throws -> Bool {
+    let layer = try requireFixture(window.contentView?.layer)
+    let context = try requireFixture(CGContext(
+        data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+        space: requireFixture(CGColorSpace(name: CGColorSpace.sRGB)),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ))
+    context.translateBy(x: -layer.bounds.midX, y: -layer.bounds.midY)
+    layer.render(in: context)
+    let alpha = try requireFixture(context.data).load(fromByteOffset: 3, as: UInt8.self)
+    return alpha == 255
+}
+
 private func syntheticDisplay() throws -> FrozenCaptureDisplay {
     let screen = try #require(NSScreen.main)
     let number = try #require(screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)
@@ -1537,11 +1934,11 @@ private final class WeakShortcutLease {
 }
 
 @MainActor
-private func stopFixture(excluding existingWindows: Set<ObjectIdentifier>, stop: () -> Void) {
+private func stopFixture(excluding existingWindows: [NSWindow], stop: () -> Void) {
     precondition(withUnsafeCurrentTask { $0 != nil }, "Fixture cleanup requires a Swift Task")
     autoreleasepool {
         // Keep this fixture's windows alive across stop(), which closes them.
-        let windows = NSApp.windows.filter { !existingWindows.contains(ObjectIdentifier($0)) }
+        let windows = NSApp.windows.filter { window in !existingWindows.contains { $0 === window } }
         stop()
         for window in windows {
             window.makeFirstResponder(nil)
@@ -1610,7 +2007,9 @@ private final class ApplicationFixture {
 
     func withModel(historyImageLoader: ControlledHistoryImages? = nil,
                    _ operation: (VLMSnapperApplicationModel) async throws -> Void) async throws {
-        let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
+        // Strong references: a freed window's address can be reused by a window this
+        // fixture creates, so identifiers alone would skip that window at cleanup.
+        let existingWindows = NSApp.windows
         let defaults = try requireFixture(UserDefaults(suiteName: suite))
         await UserDefaultsApplicationLanguageStore(defaults: defaults).save(.english)
         let model = try VLMSnapperApplicationModel(
@@ -1650,7 +2049,9 @@ private final class ApplicationFixture {
     }
 
     func withApplication(_ operation: (VLMSnapperApplicationDelegate) async throws -> Void) async throws {
-        let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
+        // Strong references: a freed window's address can be reused by a window this
+        // fixture creates, so identifiers alone would skip that window at cleanup.
+        let existingWindows = NSApp.windows
         let defaults = try requireFixture(UserDefaults(suiteName: suite))
         await UserDefaultsApplicationLanguageStore(defaults: defaults).save(.english)
         let application = application()
@@ -1820,28 +2221,37 @@ private struct FixturePermissions: ScreenCapturePermissionAuthorizing, ScreenCap
 
 private actor FixtureCapture: FrozenDisplayCapturing {
     private var display: FrozenCaptureDisplay?
-    func provide(_ display: FrozenCaptureDisplay) { self.display = display }
+    func provide(_ display: FrozenCaptureDisplay?) { self.display = display }
     private(set) var requests = 0
     private var allowed = false
     private var released = false
-    private var waiter: CheckedContinuation<Void, Never>?
+    private var framesHeld = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
     func allowSuspendedCapture() {
         allowed = true
         released = false
     }
+    /// Suspends captures until `release()`, then returns the provided display.
+    func holdFrames() {
+        framesHeld = true
+        released = false
+    }
     func release() {
         released = true
-        waiter?.resume()
-        waiter = nil
+        framesHeld = false
+        let suspended = waiters
+        waiters.removeAll()
+        suspended.forEach { $0.resume() }
     }
     func captureFrozenDisplays() async throws(CaptureDiscoveryError) -> FrozenDisplayBatch {
         requests += 1
+        if framesHeld, !released { await withCheckedContinuation { waiters.append($0) } }
         if let display { return FrozenDisplayBatch(displays: [display]) }
         guard allowed else {
             Issue.record("Provider setup must not capture the screen")
             throw .permissionDenied
         }
-        if !released { await withCheckedContinuation { waiter = $0 } }
+        if !released { await withCheckedContinuation { waiters.append($0) } }
         throw .permissionDenied
     }
 }

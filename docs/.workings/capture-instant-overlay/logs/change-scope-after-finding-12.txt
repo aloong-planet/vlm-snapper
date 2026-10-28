@@ -1,0 +1,4 @@
+changed :-  (added)
+inert   docs/.workings/capture-instant-overlay/logs/change-scope-after-finding-12.txt
+inert   docs/.workings/capture-instant-overlay/review-tests.md
+verdict: run (3 files differ from the base)

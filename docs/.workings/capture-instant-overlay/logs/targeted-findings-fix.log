@@ -1,0 +1,441 @@
+== version
+$ git rev-parse HEAD
+8bd52f26540dc79b1b5199cad8dba13ae385f222
+$ git status --porcelain --untracked-files=all
+ M Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+ M docs/.workings/capture-instant-overlay/final-regression.md
+ M docs/.workings/capture-instant-overlay/review-code.md
+ M docs/.workings/capture-instant-overlay/review-tests.md
+ M docs/.workings/capture-instant-overlay/tasklist.md
+ M docs/.workings/v1-core/checklist.md
+?? :-
+?? docs/.workings/capture-instant-overlay/native-thrown-operation-run.txt
+-- manifest
+bf3fbe3cd8658086d69658f6ed47cd6301f44272  Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+fe30bc5da57fad3b523607e2867c94925797010e  docs/.workings/capture-instant-overlay/final-regression.md
+1e4a057f4056e952c5bf25baf11938450fb490e3  docs/.workings/capture-instant-overlay/review-code.md
+cfef4d704e02f97b21cb7ca121c37b26b3c659ec  docs/.workings/capture-instant-overlay/review-tests.md
+e2957e7cbae36b07b2622f843a49473cd222faa2  docs/.workings/capture-instant-overlay/tasklist.md
+c6e519b3d5ab13ca345ee95223624e3e7b7b7053  docs/.workings/v1-core/checklist.md
+208ccf64622a6373abcaded4092ab9be44679863  :-
+1679484ddb5c88741ee8d57c113231c29a0d0322  docs/.workings/capture-instant-overlay/native-thrown-operation-run.txt
+== command: /usr/bin/xcrun swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+[0/1] Planning build
+Building for debugging...
+[0/18] Compiling VLMSnapperProcessShim VLMSnapperProcessShim.c
+[1/18] Write swift-version--58304C5D6DBC2206.txt
+[2/18] Compiling VLMSnapperHotKeyShim VLMSnapperHotKeyShim.c
+[4/67] Compiling VLMSnapperReleaseSupport DeveloperIDProfilePreparation.swift
+[5/67] Compiling VLMSnapperReleaseSupport DeveloperIDProvisioningProfile.swift
+[6/67] Emitting module VLMSnapperReleaseSupport
+[7/69] Emitting module VLMSnapperSigningTool
+[8/69] Compiling VLMSnapperSigningTool main.swift
+[9/68] Compiling VLMSnapperCore OrderedStructuredOutputParser.swift
+[10/68] Compiling VLMSnapperCore PersistedOperationWorkspaceRunner.swift
+[11/68] Compiling VLMSnapperCore PrimaryInstanceCoordinator.swift
+[12/68] Compiling VLMSnapperCore ProviderAPIKeyInput.swift
+[13/68] Compiling VLMSnapperCore ProviderAdapterError.swift
+[13/73] Linking VLMSnapperSigningTool
+[14/73] Applying VLMSnapperSigningTool
+[16/73] Compiling VLMSnapperCore DiagnosticLogStore.swift
+[17/73] Compiling VLMSnapperCore ExtractionCoordinator.swift
+[18/73] Compiling VLMSnapperCore FileProviderMetadataStore.swift
+[19/73] Compiling VLMSnapperCore FileSystemScreenshotStore.swift
+[20/73] Compiling VLMSnapperCore GeminiStreamDecoder.swift
+[21/73] Emitting module VLMSnapperCore
+[22/73] Compiling VLMSnapperCore GlobalShortcutCoordinator.swift
+[23/73] Compiling VLMSnapperCore HistoryDatabaseResetter.swift
+[24/73] Compiling VLMSnapperCore HistoryManagement.swift
+[25/73] Compiling VLMSnapperCore HistoryRetention.swift
+[26/73] Compiling VLMSnapperCore LiveProviderContractGate.swift
+[27/73] Compiling VLMSnapperCore ProviderPreparedOperationStreamer.swift
+[28/73] Compiling VLMSnapperCore ProviderRequestFactory.swift
+[29/73] Compiling VLMSnapperCore ProviderSetupSession.swift
+[30/73] Compiling VLMSnapperCore ProviderStreamContract.swift
+[31/73] Compiling VLMSnapperCore ProviderStreamTimeout.swift
+[32/73] Compiling VLMSnapperCore ProviderAdapterExecutor.swift
+[33/73] Compiling VLMSnapperCore ProviderConfiguration.swift
+[34/73] Compiling VLMSnapperCore ProviderHTTPErrorNormalizer.swift
+[35/73] Compiling VLMSnapperCore ProviderHTTPStreaming.swift
+[36/73] Compiling VLMSnapperCore ProviderModelCatalog.swift
+[37/73] Compiling VLMSnapperCore ReleaseManifest.swift
+[38/73] Compiling VLMSnapperCore SQLiteHistoryStore.swift
+[39/73] Compiling VLMSnapperCore SRGBPNGCropper.swift
+[40/73] Compiling VLMSnapperCore ScreenCaptureKitFrozenDisplayCapturer.swift
+[41/73] Compiling VLMSnapperCore ScreenCapturePermissionCoordinator.swift
+[42/73] Compiling VLMSnapperCore CaptureFreezeCoordinator.swift
+[43/73] Compiling VLMSnapperCore CaptureSelectionSession.swift
+[44/73] Compiling VLMSnapperCore CarbonGlobalShortcutBackend.swift
+[45/73] Compiling VLMSnapperCore DataProtectionKeychainSmokeTest.swift
+[46/73] Compiling VLMSnapperCore DeepSeekChatStreamDecoder.swift
+[47/73] Compiling VLMSnapperCore LoginItemCoordinator.swift
+[48/73] Compiling VLMSnapperCore ManagedScreenshotRoot.swift
+[49/73] Compiling VLMSnapperCore OnboardingSession.swift
+[50/73] Compiling VLMSnapperCore OpenAIResponsesStreamDecoder.swift
+[51/73] Compiling VLMSnapperCore OperationWorkspaceSession.swift
+[52/73] Compiling VLMSnapperCore AlignedTranslationParser.swift
+[53/73] Compiling VLMSnapperCore AppleKeychainProviderCredentialStore.swift
+[54/73] Compiling VLMSnapperCore ApplicationLanguage.swift
+[55/73] Compiling VLMSnapperCore ApplicationWorkflow.swift
+[56/73] Compiling VLMSnapperCore CaptureCoordinateMapper.swift
+[57/73] Compiling VLMSnapperCore ServerSentEventDecoder.swift
+[58/73] Compiling VLMSnapperCore TargetLanguageCatalog.swift
+[59/73] Compiling VLMSnapperCore TranslationSegment.swift
+[60/73] Compiling VLMSnapperCore UpdateLifecycle.swift
+[61/73] Compiling VLMSnapperCore UserDefaultsPermissionRequestHistoryStore.swift
+[62/109] Emitting module VLMSnapperSparkle
+[63/109] Compiling VLMSnapperSparkle SparkleUpdateDriver.swift
+[64/109] Compiling VLMSnapperLiveProviderGate main.swift
+[65/109] Emitting module VLMSnapperLiveProviderGate
+[65/109] Write Objects.LinkFileList
+[67/109] Compiling VLMSnapperUI ScreenCapturePermissionRecoveryView.swift
+[68/109] Compiling VLMSnapperUI StoragePrivacyDetailView.swift
+[69/109] Compiling VLMSnapperUI VLMSnapperApplicationMenu.swift
+[69/112] Linking VLMSnapperLiveProviderGate
+[71/112] Emitting module VLMSnapperUI
+[71/112] Applying VLMSnapperLiveProviderGate
+[73/112] Compiling VLMSnapperUI OnboardingView.swift
+[74/112] Compiling VLMSnapperUI ProviderAPIKeyField.swift
+[75/112] Compiling VLMSnapperUI ProviderCredentialEditor.swift
+[76/112] Compiling VLMSnapperUI ProviderSettingsPresentation.swift
+[77/112] Compiling VLMSnapperUI ResultWorkspaceView.swift
+[78/112] Compiling VLMSnapperUI ResultWorkspaceWindowController.swift
+[79/112] Compiling VLMSnapperUI VLMSnapperIcons.swift
+[80/112] Compiling VLMSnapperUI VLMSnapperLocalization.swift
+[81/112] Compiling VLMSnapperUI VLMSnapperStrings.swift
+[82/112] Compiling VLMSnapperUI FrozenCaptureOverlayController.swift
+[83/112] Compiling VLMSnapperUI GlobalShortcutRecorder.swift
+[84/112] Compiling VLMSnapperUI HistoryImagePreview.swift
+[85/112] Compiling VLMSnapperUI HistoryRetryPresentation.swift
+[86/112] Compiling VLMSnapperUI ApplicationTerminationSheet.swift
+[87/112] Compiling VLMSnapperUI BilingualResultView.swift
+[88/112] Compiling VLMSnapperUI CaptureOperationToolbar.swift
+[89/112] Compiling VLMSnapperUI CaptureToolbarPanelController.swift
+[90/112] Compiling VLMSnapperUI VLMSnapperTheme.swift
+[91/112] Compiling VLMSnapperUI VLMSnapperUIConstants.swift
+[92/112] Compiling VLMSnapperUI resource_bundle_accessor.swift
+[93/112] Compiling VLMSnapperUI MenuBarPanelController.swift
+[94/112] Compiling VLMSnapperUI MenuBarPanelView.swift
+[95/112] Compiling VLMSnapperUI NativeLifecycleAdapters.swift
+[96/112] Compiling VLMSnapperUI OnboardingContainerView.swift
+[97/112] Compiling VLMSnapperUI ProviderFieldLayout.swift
+[98/112] Compiling VLMSnapperUI ProviderModelPicker.swift
+[99/112] Compiling VLMSnapperUI ProviderPasteMenu.swift
+[100/112] Compiling VLMSnapperUI ManagementCenterView.swift
+[101/112] Compiling VLMSnapperUI ManagementCenterWindowController.swift
+[102/112] Compiling VLMSnapperUI MarkdownResultView.swift
+[103/112] Compiling VLMSnapperUI MenuBarContainerView.swift
+[104/125] Compiling VLMSnapperApp main.swift
+[105/125] Emitting module VLMSnapperApp
+[106/125] Emitting module VLMSnapperAXFixture
+[107/125] Compiling VLMSnapperAXFixture main.swift
+[107/125] Write Objects.LinkFileList
+[109/125] Compiling VLMSnapperUIHarness VLMSnapperUIHarness.swift
+[110/125] Compiling VLMSnapperUIHarness ProviderEditingSmoke.swift
+[111/125] Emitting module VLMSnapperUIHarness
+[111/125] Write Objects.LinkFileList
+[112/125] Linking VLMSnapperAXFixture
+[113/125] Applying VLMSnapperAXFixture
+[114/125] Linking VLMSnapperUIHarness
+[115/125] Applying VLMSnapperUIHarness
+[117/125] Compiling VLMSnapperApp VLMSnapperApplicationDelegate.swift
+[118/125] Compiling VLMSnapperApp CaptureDisplayMonitor.swift
+[119/125] Compiling VLMSnapperApp ApplicationStartupDependencies.swift
+[120/125] Compiling VLMSnapperApp ApplicationDirectories.swift
+[121/125] Compiling VLMSnapperApp ApplicationModelDependencies.swift
+[122/125] Compiling VLMSnapperApp VLMSnapperApplicationModel.swift
+[122/125] Write Objects.LinkFileList
+[123/125] Linking VLMSnapperApp
+[124/125] Applying VLMSnapperApp
+Build complete! (11.47s)
+== exit: 0
+== command: /usr/bin/xcrun swift build --build-tests
+[0/1] Planning build
+Building for debugging...
+[0/20] Write sources
+[1/20] Compiling VLMSnapperHotKeyShim VLMSnapperHotKeyShim.c
+[2/20] Write swift-version--58304C5D6DBC2206.txt
+[3/20] Compiling VLMSnapperProcessShim VLMSnapperProcessShim.c
+[5/69] Compiling VLMSnapperReleaseSupport DeveloperIDProfilePreparation.swift
+[6/69] Emitting module VLMSnapperReleaseSupport
+[7/69] Compiling VLMSnapperReleaseSupport DeveloperIDProvisioningProfile.swift
+[8/71] Compiling VLMSnapperSigningTool main.swift
+[9/71] Emitting module VLMSnapperSigningTool
+[10/70] Compiling VLMSnapperCore AlignedTranslationParser.swift
+[11/70] Compiling VLMSnapperCore AppleKeychainProviderCredentialStore.swift
+[12/70] Compiling VLMSnapperCore ApplicationLanguage.swift
+[13/70] Compiling VLMSnapperCore ApplicationWorkflow.swift
+[14/70] Compiling VLMSnapperCore CaptureCoordinateMapper.swift
+[14/75] Linking VLMSnapperSigningTool
+[15/75] Applying VLMSnapperSigningTool
+[17/75] Compiling VLMSnapperCore ProviderPreparedOperationStreamer.swift
+[18/75] Compiling VLMSnapperCore ProviderRequestFactory.swift
+[19/75] Compiling VLMSnapperCore ProviderSetupSession.swift
+[20/75] Compiling VLMSnapperCore ProviderStreamContract.swift
+[21/75] Compiling VLMSnapperCore ProviderStreamTimeout.swift
+[22/75] Compiling VLMSnapperCore CaptureFreezeCoordinator.swift
+[23/75] Compiling VLMSnapperCore CaptureSelectionSession.swift
+[24/75] Compiling VLMSnapperCore CarbonGlobalShortcutBackend.swift
+[25/75] Compiling VLMSnapperCore DataProtectionKeychainSmokeTest.swift
+[26/75] Compiling VLMSnapperCore DeepSeekChatStreamDecoder.swift
+[27/75] Compiling VLMSnapperCore LoginItemCoordinator.swift
+[28/75] Compiling VLMSnapperCore ManagedScreenshotRoot.swift
+[29/75] Compiling VLMSnapperCore OnboardingSession.swift
+[30/75] Compiling VLMSnapperCore OpenAIResponsesStreamDecoder.swift
+[31/75] Compiling VLMSnapperCore OperationWorkspaceSession.swift
+[32/75] Compiling VLMSnapperCore DiagnosticLogStore.swift
+[33/75] Compiling VLMSnapperCore ExtractionCoordinator.swift
+[34/75] Compiling VLMSnapperCore FileProviderMetadataStore.swift
+[35/75] Compiling VLMSnapperCore FileSystemScreenshotStore.swift
+[36/75] Compiling VLMSnapperCore GeminiStreamDecoder.swift
+[37/75] Emitting module VLMSnapperCore
+[38/75] Compiling VLMSnapperCore GlobalShortcutCoordinator.swift
+[39/75] Compiling VLMSnapperCore HistoryDatabaseResetter.swift
+[40/75] Compiling VLMSnapperCore HistoryManagement.swift
+[41/75] Compiling VLMSnapperCore HistoryRetention.swift
+[42/75] Compiling VLMSnapperCore LiveProviderContractGate.swift
+[43/75] Compiling VLMSnapperCore OrderedStructuredOutputParser.swift
+[44/75] Compiling VLMSnapperCore PersistedOperationWorkspaceRunner.swift
+[45/75] Compiling VLMSnapperCore PrimaryInstanceCoordinator.swift
+[46/75] Compiling VLMSnapperCore ProviderAPIKeyInput.swift
+[47/75] Compiling VLMSnapperCore ProviderAdapterError.swift
+[48/75] Compiling VLMSnapperCore ProviderAdapterExecutor.swift
+[49/75] Compiling VLMSnapperCore ProviderConfiguration.swift
+[50/75] Compiling VLMSnapperCore ProviderHTTPErrorNormalizer.swift
+[51/75] Compiling VLMSnapperCore ProviderHTTPStreaming.swift
+[52/75] Compiling VLMSnapperCore ProviderModelCatalog.swift
+[53/75] Compiling VLMSnapperCore ReleaseManifest.swift
+[54/75] Compiling VLMSnapperCore SQLiteHistoryStore.swift
+[55/75] Compiling VLMSnapperCore SRGBPNGCropper.swift
+[56/75] Compiling VLMSnapperCore ScreenCaptureKitFrozenDisplayCapturer.swift
+[57/75] Compiling VLMSnapperCore ScreenCapturePermissionCoordinator.swift
+[58/75] Compiling VLMSnapperCore ServerSentEventDecoder.swift
+[59/75] Compiling VLMSnapperCore TargetLanguageCatalog.swift
+[60/75] Compiling VLMSnapperCore TranslationSegment.swift
+[61/75] Compiling VLMSnapperCore UpdateLifecycle.swift
+[62/75] Compiling VLMSnapperCore UserDefaultsPermissionRequestHistoryStore.swift
+[63/111] Emitting module VLMSnapperSparkle
+[64/111] Compiling VLMSnapperSparkle SparkleUpdateDriver.swift
+[65/111] Compiling VLMSnapperLiveProviderGate main.swift
+[66/111] Emitting module VLMSnapperLiveProviderGate
+[66/111] Write Objects.LinkFileList
+[68/111] Compiling VLMSnapperUI VLMSnapperIcons.swift
+[69/111] Compiling VLMSnapperUI VLMSnapperLocalization.swift
+[70/111] Compiling VLMSnapperUI VLMSnapperStrings.swift
+[71/114] Compiling VLMSnapperUI ProviderFieldLayout.swift
+[72/114] Compiling VLMSnapperUI ProviderModelPicker.swift
+[73/114] Compiling VLMSnapperUI ProviderPasteMenu.swift
+[73/114] Linking VLMSnapperLiveProviderGate
+[74/114] Applying VLMSnapperLiveProviderGate
+[76/114] Emitting module VLMSnapperUI
+[77/114] Compiling VLMSnapperUI VLMSnapperTheme.swift
+[78/114] Compiling VLMSnapperUI VLMSnapperUIConstants.swift
+[79/114] Compiling VLMSnapperUI resource_bundle_accessor.swift
+[80/114] Compiling VLMSnapperUI ScreenCapturePermissionRecoveryView.swift
+[81/114] Compiling VLMSnapperUI StoragePrivacyDetailView.swift
+[82/114] Compiling VLMSnapperUI VLMSnapperApplicationMenu.swift
+[83/114] Compiling VLMSnapperUI ProviderSettingsPresentation.swift
+[84/114] Compiling VLMSnapperUI ResultWorkspaceView.swift
+[85/114] Compiling VLMSnapperUI ResultWorkspaceWindowController.swift
+[86/114] Compiling VLMSnapperUI OnboardingView.swift
+[87/114] Compiling VLMSnapperUI ProviderAPIKeyField.swift
+[88/114] Compiling VLMSnapperUI ProviderCredentialEditor.swift
+[89/114] Compiling VLMSnapperUI FrozenCaptureOverlayController.swift
+[90/114] Compiling VLMSnapperUI GlobalShortcutRecorder.swift
+[91/114] Compiling VLMSnapperUI HistoryImagePreview.swift
+[92/114] Compiling VLMSnapperUI HistoryRetryPresentation.swift
+[93/114] Compiling VLMSnapperUI ApplicationTerminationSheet.swift
+[94/114] Compiling VLMSnapperUI BilingualResultView.swift
+[95/114] Compiling VLMSnapperUI CaptureOperationToolbar.swift
+[96/114] Compiling VLMSnapperUI CaptureToolbarPanelController.swift
+[97/114] Compiling VLMSnapperUI MenuBarPanelController.swift
+[98/114] Compiling VLMSnapperUI MenuBarPanelView.swift
+[99/114] Compiling VLMSnapperUI NativeLifecycleAdapters.swift
+[100/114] Compiling VLMSnapperUI OnboardingContainerView.swift
+[101/114] Compiling VLMSnapperUI ManagementCenterView.swift
+[102/114] Compiling VLMSnapperUI ManagementCenterWindowController.swift
+[103/114] Compiling VLMSnapperUI MarkdownResultView.swift
+[104/114] Compiling VLMSnapperUI MenuBarContainerView.swift
+[105/127] Compiling VLMSnapperApp main.swift
+[106/127] Compiling VLMSnapperApp ApplicationDirectories.swift
+[107/127] Emitting module VLMSnapperAXFixture
+[108/127] Compiling VLMSnapperAXFixture main.swift
+[108/127] Write Objects.LinkFileList
+[110/127] Compiling VLMSnapperUIHarness VLMSnapperUIHarness.swift
+[111/127] Compiling VLMSnapperUIHarness ProviderEditingSmoke.swift
+[112/127] Emitting module VLMSnapperUIHarness
+[112/127] Write Objects.LinkFileList
+[113/127] Linking VLMSnapperAXFixture
+[114/127] Linking VLMSnapperUIHarness
+[115/127] Applying VLMSnapperAXFixture
+[116/127] Applying VLMSnapperUIHarness
+[118/127] Emitting module VLMSnapperApp
+[119/127] Compiling VLMSnapperApp ApplicationStartupDependencies.swift
+[120/127] Compiling VLMSnapperApp ApplicationModelDependencies.swift
+[121/127] Compiling VLMSnapperApp CaptureDisplayMonitor.swift
+[122/127] Compiling VLMSnapperApp VLMSnapperApplicationDelegate.swift
+[123/127] Compiling VLMSnapperApp VLMSnapperApplicationModel.swift
+[123/127] Write Objects.LinkFileList
+[124/127] Linking VLMSnapperApp
+[125/127] Applying VLMSnapperApp
+[127/129] Emitting module VLMSnapperAppTests
+[128/129] Compiling VLMSnapperAppTests ProviderApplicationTests.swift
+[128/130] Write Objects.LinkFileList
+[129/130] Linking VLMSnapperPackageTests
+Build complete! (21.69s)
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 17:22:09.475.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 17:22:09.477.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 17:22:09.477.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 17:22:09.477.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 0 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 2 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 5 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 6 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+✔ Test recentMenuShowsAtMostFiveSavedRecords(count:) with 4 test cases passed after 1.418 seconds.
+◇ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() started.
+✔ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() passed after 0.719 seconds.
+◇ Test historyImageRemainsVisibleWhileSameRecordReloads() started.
+✔ Test historyImageRemainsVisibleWhileSameRecordReloads() passed after 0.076 seconds.
+◇ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() started.
+✔ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() passed after 0.664 seconds.
+◇ Test historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .extract to historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .translate to historyRetryUpdatesOriginalRecord(kind:) started.
+✔ Test historyRetryUpdatesOriginalRecord(kind:) with 2 test cases passed after 5.890 seconds.
+◇ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() started.
+✔ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() passed after 2.389 seconds.
+◇ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() started.
+✔ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() passed after 0.052 seconds.
+◇ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() started.
+✔ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() passed after 2.287 seconds.
+◇ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() started.
+[NATIVE-DIAG] capture pid=1054 elapsed=1.3337278333492577
+t=0.12568579171784222 stage=overlay-ready target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.12793154176324606 stage=before-mouse-1 target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.14206658327020705 stage=after-mouse-1 target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.14224199997261167 stage=before-mouse-6 target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.15538733336143196 stage=after-mouse-6 target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.15553233330138028 stage=before-mouse-2 target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.1666434167418629 stage=after-mouse-2 target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.1667698749806732 stage=toolbar-wait target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.23583866679109633 stage=toolbar-wait target=72932 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=true,key=false,canKey=false,level=1001,size=(539.0, 31.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.23598537500947714 stage=toolbar-ready target=-1 active=true policy=2 key=72932 main=-1 frontPID=7844 windows=[id=72901,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72927,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72931,visible=true,key=false,canKey=false,level=1001,size=(539.0, 31.0);id=72932,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+✔ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() passed after 1.333 seconds.
+◇ Test displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .sleep to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .disconnect to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .scale to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .rotate to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .move to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+✔ Test displayChangesCancelSelectionBeforeMouseUp(change:) with 5 test cases passed after 0.565 seconds.
+◇ Test replacementAndEscapeRetireDisplaySubscriptions() started.
+✔ Test replacementAndEscapeRetireDisplaySubscriptions() passed after 0.200 seconds.
+◇ Test overlayCoversDisplaysBeforeFreezeCompletes() started.
+✔ Test overlayCoversDisplaysBeforeFreezeCompletes() passed after 0.133 seconds.
+◇ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() started.
+✔ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() passed after 0.221 seconds.
+◇ Test escapeWhileFreezingExitsCapture() started.
+✔ Test escapeWhileFreezingExitsCapture() passed after 0.126 seconds.
+◇ Test terminationWhileFreezingWithdrawsOverlay() started.
+✔ Test terminationWhileFreezingWithdrawsOverlay() passed after 0.107 seconds.
+◇ Test failedFreezeRestoresPreviousSelection() started.
+✔ Test failedFreezeRestoresPreviousSelection() passed after 0.324 seconds.
+◇ Test escapeWhileReplacingSelectionReleasesActivity() started.
+✔ Test escapeWhileReplacingSelectionReleasesActivity() passed after 0.547 seconds.
+◇ Test escapeWhileFreezingFromResultRestoresWorkspace() started.
+✔ Test escapeWhileFreezingFromResultRestoresWorkspace() passed after 0.772 seconds.
+◇ Test selectionStartedBeforeFramesFinishesAfterThem() started.
+✔ Test selectionStartedBeforeFramesFinishesAfterThem() passed after 0.211 seconds.
+◇ Test displayChangeWhileReplacingAbandonsPendingCapture() started.
+✔ Test displayChangeWhileReplacingAbandonsPendingCapture() passed after 0.217 seconds.
+◇ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() started.
+✔ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() passed after 0.101 seconds.
+◇ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() started.
+✔ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() passed after 0.101 seconds.
+◇ Test nativeOnboardingValidatesSelectsAndReturns() started.
+✔ Test nativeOnboardingValidatesSelectsAndReturns() passed after 1.966 seconds.
+◇ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() started.
+✔ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() passed after 0.530 seconds.
+◇ Test injectedUpdateEventsReachTheApplicationPresentation() started.
+✔ Test injectedUpdateEventsReachTheApplicationPresentation() passed after 0.058 seconds.
+◇ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 401 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 500 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+✔ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) with 2 test cases passed after 0.067 seconds.
+◇ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() started.
+✔ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() passed after 0.035 seconds.
+◇ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() started.
+✔ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() passed after 0.028 seconds.
+◇ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() started.
+✔ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() passed after 0.045 seconds.
+✔ Suite ProviderApplicationTests passed after 21.202 seconds.
+✔ Test run with 29 tests in 1 suite passed after 21.202 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTestsNativeMenu.testNativeMainMenuPasteValidatesThroughRealKeyWindow
+Test Suite 'Selected tests' started at 2026-10-28 17:22:31.384.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 17:22:31.386.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 17:22:31.386.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' started.
+[NATIVE-DIAG] paste pid=1881 elapsed=1.5212132916785777
+t=1.1751864165998995 stage=before-activation target=73006 active=false policy=1 key=-1 main=-1 frontPID=1881 windows=[id=73002,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=73003,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=73005,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=73006,visible=true,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=73007,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2672137916088104 stage=key-window-wait target=73006 active=true policy=1 key=73006 main=73006 frontPID=1881 windows=[id=73002,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=73003,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=73005,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=73006,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=73007,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2672817499842495 stage=key-window-ready target=73006 active=true policy=1 key=73006 main=73006 frontPID=1881 windows=[id=73002,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=73003,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=73005,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=73006,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=73007,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.3056573332287371 stage=paste-dispatched target=73006 active=true policy=1 key=73006 main=73006 frontPID=1881 windows=[id=73002,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=73003,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=73005,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=73006,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=73007,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.3365021666977555 stage=validate-dispatched target=73006 active=true policy=1 key=73006 main=73006 frontPID=1881 windows=[id=73002,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=73003,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=73005,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=73006,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=73007,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' passed (1.522 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 17:22:32.908.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.522 (1.522) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 17:22:32.908.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.522 (1.522) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 17:22:32.908.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.522 (1.524) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTestsNativeMenu.testValidationCompletesWhileManagementRemainsClosed
+Test Suite 'Selected tests' started at 2026-10-28 17:22:33.577.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 17:22:33.578.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 17:22:33.578.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testValidationCompletesWhileManagementRemainsClosed]' started.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testValidationCompletesWhileManagementRemainsClosed]' passed (3.876 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 17:22:37.454.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.876 (3.876) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 17:22:37.454.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.876 (3.876) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 17:22:37.454.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.876 (3.877) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTestsNativeMenu.testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows
+Test Suite 'Selected tests' started at 2026-10-28 17:22:38.165.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 17:22:38.166.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 17:22:38.166.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows]' started.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows]' passed (2.081 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 17:22:40.248.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.081 (2.082) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 17:22:40.248.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.081 (2.082) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 17:22:40.248.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.081 (2.083) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== exit: 0
+== overall: 0

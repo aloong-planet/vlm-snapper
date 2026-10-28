@@ -1,0 +1,5 @@
+changed :-  (added)
+inert   docs/.workings/capture-instant-overlay/logs/change-scope-after-full-gate.txt
+inert   docs/.workings/capture-instant-overlay/logs/gate-full-4327bd6.log
+inert   docs/.workings/capture-instant-overlay/tasklist.md
+verdict: run (4 files differ from the base)

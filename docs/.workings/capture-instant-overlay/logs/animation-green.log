@@ -1,0 +1,19 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 19:07:18.622.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 19:07:18.623.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 19:07:18.623.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 19:07:18.623.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 0.147 seconds.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+✔ Test "the pending overlay covers each display without an opening animation" passed after 0.030 seconds.
+◇ Test "a failure alert stays visible above a retained overlay" started.
+✔ Test "a failure alert stays visible above a retained overlay" passed after 0.056 seconds.
+✔ Suite "Frozen capture overlay" passed after 0.234 seconds.
+✔ Test run with 3 tests in 1 suite passed after 0.234 seconds.

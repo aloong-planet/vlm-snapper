@@ -1,0 +1,101 @@
+Pre-review gate app stage, 2026-10-28, HEAD eb3bc7d.
+Command: swift test --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu (stage 'app' of Scripts/test-local-regression.sh --offline); exit 1.
+Process 416 (frontPID in the trace): /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow
+Session state measured right after the run (CGSessionCopyCurrentDictionary): screenLocked=1 onConsole=1
+----- unedited app.log -----
+Building for debugging...
+[0/12] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.17s)
+Test Suite 'Selected tests' started at 2026-10-28 16:45:33.364.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 16:45:33.366.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 16:45:33.366.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 16:45:33.366.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 0 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 2 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 5 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 6 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+✔ Test recentMenuShowsAtMostFiveSavedRecords(count:) with 4 test cases passed after 1.063 seconds.
+◇ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() started.
+✔ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() passed after 0.450 seconds.
+◇ Test historyImageRemainsVisibleWhileSameRecordReloads() started.
+✔ Test historyImageRemainsVisibleWhileSameRecordReloads() passed after 0.022 seconds.
+◇ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() started.
+✔ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() passed after 0.497 seconds.
+◇ Test historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .extract to historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .translate to historyRetryUpdatesOriginalRecord(kind:) started.
+✔ Test historyRetryUpdatesOriginalRecord(kind:) with 2 test cases passed after 3.833 seconds.
+◇ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() started.
+✔ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() passed after 1.936 seconds.
+◇ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() started.
+✔ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() passed after 0.019 seconds.
+◇ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() started.
+✔ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() passed after 1.531 seconds.
+◇ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() started.
+[NATIVE-DIAG] capture pid=72821 elapsed=5.093066833214834
+t=0.035388374933972955 stage=overlay-ready target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.035604041535407305 stage=before-mouse-1 target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.05131004145368934 stage=after-mouse-1 target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.051463374868035316 stage=before-mouse-6 target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.06373374979011714 stage=after-mouse-6 target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.0638685415033251 stage=before-mouse-2 target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.07537754159420729 stage=after-mouse-2 target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.0755036249756813 stage=toolbar-wait target=72319 active=false policy=2 key=-1 main=-1 frontPID=416 windows=[id=72290,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=72315,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=72318,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=72319,visible=true,key=false,canKey=true,level=1000,size=(1512.0, 982.0)]
+✘ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() recorded an issue at ProviderApplicationTests.swift:752:6: Caught error: deadline("VLMSnapperAppTests/ProviderApplicationTests.swift", 775)
+✘ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() failed after 5.093 seconds with 1 issue.
+◇ Test displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .sleep to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .disconnect to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .scale to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .rotate to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .move to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+✔ Test displayChangesCancelSelectionBeforeMouseUp(change:) with 5 test cases passed after 0.282 seconds.
+◇ Test replacementAndEscapeRetireDisplaySubscriptions() started.
+✔ Test replacementAndEscapeRetireDisplaySubscriptions() passed after 0.087 seconds.
+◇ Test overlayCoversDisplaysBeforeFreezeCompletes() started.
+✔ Test overlayCoversDisplaysBeforeFreezeCompletes() passed after 0.062 seconds.
+◇ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() started.
+✘ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() recorded an issue at ProviderApplicationTests.swift:1022:6: Caught error: deadline("VLMSnapperAppTests/ProviderApplicationTests.swift", 1040)
+✘ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() failed after 5.090 seconds with 1 issue.
+◇ Test escapeWhileFreezingExitsCapture() started.
+✔ Test escapeWhileFreezingExitsCapture() passed after 0.051 seconds.
+◇ Test terminationWhileFreezingWithdrawsOverlay() started.
+✔ Test terminationWhileFreezingWithdrawsOverlay() passed after 0.030 seconds.
+◇ Test failedFreezeRestoresPreviousSelection() started.
+✘ Test failedFreezeRestoresPreviousSelection() recorded an issue at ProviderApplicationTests.swift:1093:6: Caught error: deadline("VLMSnapperAppTests/ProviderApplicationTests.swift", 1743)
+✘ Test failedFreezeRestoresPreviousSelection() failed after 5.112 seconds with 1 issue.
+◇ Test escapeWhileReplacingSelectionReleasesActivity() started.
+✘ Test escapeWhileReplacingSelectionReleasesActivity() recorded an issue at ProviderApplicationTests.swift:1127:6: Caught error: deadline("VLMSnapperAppTests/ProviderApplicationTests.swift", 1743)
+✘ Test escapeWhileReplacingSelectionReleasesActivity() failed after 5.122 seconds with 1 issue.
+◇ Test escapeWhileFreezingFromResultRestoresWorkspace() started.
+✘ Test escapeWhileFreezingFromResultRestoresWorkspace() recorded an issue at ProviderApplicationTests.swift:1159:6: Caught error: deadline("VLMSnapperAppTests/ProviderApplicationTests.swift", 1743)
+✘ Test escapeWhileFreezingFromResultRestoresWorkspace() failed after 5.123 seconds with 1 issue.
+◇ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() started.
+✔ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() passed after 0.061 seconds.
+◇ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() started.
+✔ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() passed after 0.040 seconds.
+◇ Test nativeOnboardingValidatesSelectsAndReturns() started.
+✔ Test nativeOnboardingValidatesSelectsAndReturns() passed after 1.708 seconds.
+◇ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() started.
+✔ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() passed after 0.140 seconds.
+◇ Test injectedUpdateEventsReachTheApplicationPresentation() started.
+✔ Test injectedUpdateEventsReachTheApplicationPresentation() passed after 0.014 seconds.
+◇ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 401 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 500 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+✔ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) with 2 test cases passed after 0.037 seconds.
+◇ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() started.
+✔ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() passed after 0.031 seconds.
+◇ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() started.
+✔ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() passed after 0.020 seconds.
+◇ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() started.
+✔ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() passed after 0.028 seconds.
+✘ Suite ProviderApplicationTests failed after 37.499 seconds with 5 issues.
+✘ Test run with 27 tests in 1 suite failed after 37.499 seconds with 5 issues.

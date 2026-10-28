@@ -1,0 +1,22 @@
+2026-10-28. Code: HEAD 8bd52f2 plus uncommitted test changes listed below (fixture cleanup from cb19ef2 included).
+4849060bd90cc090819cee5d3b80866aff9104ce  Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+fb29a9df1b336b9d38976529c0d27af68cfbd1fa  docs/.workings/capture-instant-overlay/review-tests.md
+208ccf64622a6373abcaded4092ab9be44679863  :-
+135abc8767cdfd4cf9b8f5d3b3ac205af5cfa82d  docs/.workings/capture-instant-overlay/native-thrown-operation-run.txt
+Command: swift test --skip-build --filter ProviderApplicationTestsNativeMenu.testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows
+Test Suite 'Selected tests' started at 2026-10-28 17:20:27.634.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 17:20:27.635.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 17:20:27.635.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows]' started.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows]' passed (2.234 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 17:20:29.869.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.234 (2.234) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 17:20:29.869.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.234 (2.234) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 17:20:29.869.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.234 (2.235) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+Exit: 0
