@@ -9,7 +9,7 @@
 | 交付时回写票状态与证据摘要（开 PR 时） | [issues/26](issues/26-deterministic-reasoning-timeout-test.md) | 已完成：Comments 2026-10-29 条目（PR #37） |
 | 票 17 指向本票（测试机制变化，事件） | [issues/17](issues/17-deepseek-reasoning-stream-activity.md) | 已完成：Comments 追加 2026-10-28 条目 |
 | 复核发现 1、2 的更正（测试注释、票 26 验收第 1 条、`ticket-26-review-code.md`、本票测试审查记录 T1 行） | [issues/26](issues/26-deterministic-reasoning-timeout-test.md)、[ticket-26-review-code.md](ticket-26-review-code.md)、[ticket-26-review-tests.md](ticket-26-review-tests.md) | 已完成：`96f7e7f` |
-| 复核发现 4 的后续：用户决定建票时在票 17 的 Comments 追加指向 | [issues/17](issues/17-deepseek-reasoning-stream-activity.md) | 待触发：用户决定是否为 90 s 总时限与 10/10/90 s 默认值的测试缺口建票（已在 PR #37 描述中提出）；建票时追加，放弃则移除本行并写明原因 |
+| 复核发现 4 的后续：建票并在票 17 的 Comments 追加指向 | [issues/27](issues/27-provider-timeout-invariant-tests.md)、[issues/17](issues/17-deepseek-reasoning-stream-activity.md) | 已完成：用户 2026-10-29 决定建票（“file it as a ticket”）；票 27 已建，票 17 Comments 已追加 |
 | 票关闭（随本 PR 合并） | [issues/26](issues/26-deterministic-reasoning-timeout-test.md) | 已完成：Status 写为“done — 随 PR #37 合并完成” |
 
 ## 核销前的范围复核（2026-10-28）

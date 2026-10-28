@@ -61,3 +61,5 @@ activity that is intentionally not shown to the user.
   150 ms real-time sleeps against 250 ms deadlines, which failed on a stalled CI runner (PR #36);
   ticket 26 drives its deadlines with a manual clock. The descriptions of the earlier timing in
   this ticket's review records describe the test as it was then.
+- 2026-10-29: Ticket 27 covers the §6 timer invariants this ticket's review cited without a driving
+  test (the total timer not being restarted or cancelled by activity, and the default values).
