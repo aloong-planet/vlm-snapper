@@ -1,0 +1,13 @@
+Command: node ~/.claude/skills/implement/change-scope.mjs --base 7997e66
+changed :-  (added)
+changed Tests/VLMSnapperCoreTests/ProviderAdapterExecutorTests.swift  (no syntax tree comparison for this type)
+inert   docs/.workings/v1-core/issues/26-deterministic-reasoning-timeout-test.md
+inert   docs/.workings/v1-core/ticket-26-logs/change-scope-after-findings.txt
+inert   docs/.workings/v1-core/ticket-26-logs/mutations-sync-clock.log
+inert   docs/.workings/v1-core/ticket-26-logs/sync-clock-plain.log
+inert   docs/.workings/v1-core/ticket-26-logs/sync-clock-with-300ms-pauses.log
+inert   docs/.workings/v1-core/ticket-26-logs/targeted-sync-clock.log
+inert   docs/.workings/v1-core/ticket-26-review-code.md
+inert   docs/.workings/v1-core/ticket-26-review-tests.md
+verdict: run (10 files differ from the base)
+exit: 1
