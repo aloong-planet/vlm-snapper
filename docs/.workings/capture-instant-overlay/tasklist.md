@@ -66,3 +66,18 @@ immediately after the shortcut.
   `stopFixture` skipped the test's own result window as "pre-existing" because its `ObjectIdentifier` matched a
   window freed during the test. Root cause and fix are recorded in `review-code.md` (Runnability, finding 3).
 - After the fix (strong references compared by identity): 0 of 20 runs of the same suite command failed.
+
+## Spec final check (2026-10-28, code at `cb19ef2`, read-only)
+
+| Spec unit (quoted) | Implementation | Verdict |
+|---|---|---|
+| v1-core::REQ-005/AC-01 “准入后立即在每块已连接显示器上显示与冻结后外观相同的选区遮罩，不等待冻结完成，不新增加载提示或文案；同时开始冻结各显示器” | `beginCapture` calls `presentPending` (one panel per `NSScreen`, same scrim) before awaiting `startCapture`; no new strings | Met |
+| AC-02 “冻结帧在原遮罩中原位显示，不重建遮罩、不出现桌面闪烁；冻结帧与最终 PNG 不包含该遮罩” | `commit` attaches frames to the pending panels; new panels ordered in before old ones are hidden; freeze filter excludes the current process | Met (compositor part measured on macOS 26.0.1; 14.4–15 is the spec Pending) |
+| AC-03 “冻结完成前遮罩接管鼠标与键盘，包括已拖出选区的透明内部……冻结帧显示后按冻结帧裁切” | pending panel made key; `ignoresMouseEvents = false`; drag released before a frame is completed in `attach` | Met |
+| AC-04 “冻结完成前按 `Esc` 退出截图……迟到的冻结结果不重新打开选区” | `cancelCapture` → `abandonPendingCapture`; stale generation guard discards late results | Met |
+| AC-05 “冻结失败、权限缺失、新遮罩无法覆盖任何显示器或请求失效时撤下待冻结遮罩，此前的选区遮罩、操作栏或结果工作区原样恢复” | `withdrawPendingCapture` (rollback + toolbar resume) on all four branches; workspace restore unchanged | Met |
+| AC-06 “冻结完成时没有有效冻结帧的显示器……撤下其遮罩且不可选；冻结完成前新接入的显示器本次不可选” | `commit` retires pending panels without a valid frame; panels exist only for screens present at presentation | Met (multi-display path not testable on one display) |
+| AC-07 “应用准备退出（含安装更新前）时撤下待冻结遮罩，不等待冻结完成” | `prepareForTermination` → `abandonPendingCapture`, no await on the freeze | Met |
+| Solution, §3 entry bullet, §6 workspace bullet, FM-23, FM-25 (rewritten this round) | Same code paths as above | Consistent |
+
+Unrecorded scope expansion: none in product code. The fixture identity fix is test infrastructure required to keep the new tests reliable; it changes no product behaviour.
