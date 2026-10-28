@@ -1,0 +1,76 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 23:51:47.401.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 23:51:47.403.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 23:51:47.403.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 23:51:47.403.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" recorded an issue at ProviderAdapterExecutorTests.swift:106:6: Caught error: firstTextTimeout
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" failed after 0.427 seconds with 1 issue.
+✘ Suite "Provider adapter executor" failed after 0.427 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.427 seconds with 1 issue.
+Test Suite 'Selected tests' started at 2026-10-28 23:51:48.988.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 23:51:48.990.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 23:51:48.990.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 23:51:48.990.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" recorded an issue at ProviderAdapterExecutorTests.swift:106:6: Caught error: firstTextTimeout
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" failed after 0.542 seconds with 1 issue.
+✘ Suite "Provider adapter executor" failed after 0.542 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.542 seconds with 1 issue.
+Test Suite 'Selected tests' started at 2026-10-28 23:51:51.111.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 23:51:51.112.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 23:51:51.113.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 23:51:51.113.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" recorded an issue at ProviderAdapterExecutorTests.swift:106:6: Caught error: firstTextTimeout
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" failed after 0.515 seconds with 1 issue.
+✘ Suite "Provider adapter executor" failed after 0.515 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.515 seconds with 1 issue.
+Test Suite 'Selected tests' started at 2026-10-28 23:51:52.890.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 23:51:52.893.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 23:51:52.893.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 23:51:52.893.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.003) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" recorded an issue at ProviderAdapterExecutorTests.swift:106:6: Caught error: firstTextTimeout
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" failed after 0.620 seconds with 1 issue.
+✘ Suite "Provider adapter executor" failed after 0.621 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.621 seconds with 1 issue.
+Test Suite 'Selected tests' started at 2026-10-28 23:51:54.685.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 23:51:54.687.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 23:51:54.687.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 23:51:54.687.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" recorded an issue at ProviderAdapterExecutorTests.swift:106:6: Caught error: firstTextTimeout
+✘ Test "DeepSeek reasoning activity keeps the first-text deadline alive" failed after 0.518 seconds with 1 issue.
+✘ Suite "Provider adapter executor" failed after 0.518 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.518 seconds with 1 issue.

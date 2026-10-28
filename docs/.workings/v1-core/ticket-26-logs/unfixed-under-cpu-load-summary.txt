@@ -1,0 +1,11 @@
+   1 ✔ Test run with 1 test in 1 suite passed after 0.312 seconds.
+   2 ✔ Test run with 1 test in 1 suite passed after 0.317 seconds.
+   1 ✔ Test run with 1 test in 1 suite passed after 0.318 seconds.
+   1 ✔ Test run with 1 test in 1 suite passed after 0.319 seconds.
+   1 ✔ Test run with 1 test in 1 suite passed after 0.320 seconds.
+   3 ✔ Test run with 1 test in 1 suite passed after 0.321 seconds.
+   1 ✔ Test run with 1 test in 1 suite passed after 0.323 seconds.
+   1 ✔ Test run with 1 test in 1 suite passed after 0.324 seconds.
+   1 ✔ Test run with 1 test in 1 suite passed after 0.325 seconds.
+   2 ✔ Test run with 1 test in 1 suite passed after 0.326 seconds.
+   1 ✔ Test run with 1 test in 1 suite passed after 0.328 seconds.

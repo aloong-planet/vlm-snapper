@@ -1,0 +1,71 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 00:15:39.322.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 00:15:39.323.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 00:15:39.323.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 00:15:39.323.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✔ Test "DeepSeek reasoning activity keeps the first-text deadline alive" passed after 0.114 seconds.
+✔ Suite "Provider adapter executor" passed after 0.114 seconds.
+✔ Test run with 1 test in 1 suite passed after 0.115 seconds.
+Test Suite 'Selected tests' started at 2026-10-29 00:15:40.444.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 00:15:40.445.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 00:15:40.445.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 00:15:40.445.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✔ Test "DeepSeek reasoning activity keeps the first-text deadline alive" passed after 0.435 seconds.
+✔ Suite "Provider adapter executor" passed after 0.435 seconds.
+✔ Test run with 1 test in 1 suite passed after 0.435 seconds.
+Test Suite 'Selected tests' started at 2026-10-29 00:15:41.883.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 00:15:41.885.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 00:15:41.885.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 00:15:41.885.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✔ Test "DeepSeek reasoning activity keeps the first-text deadline alive" passed after 0.447 seconds.
+✔ Suite "Provider adapter executor" passed after 0.447 seconds.
+✔ Test run with 1 test in 1 suite passed after 0.447 seconds.
+Test Suite 'Selected tests' started at 2026-10-29 00:15:43.030.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 00:15:43.031.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 00:15:43.032.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 00:15:43.032.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✔ Test "DeepSeek reasoning activity keeps the first-text deadline alive" passed after 0.127 seconds.
+✔ Suite "Provider adapter executor" passed after 0.127 seconds.
+✔ Test run with 1 test in 1 suite passed after 0.127 seconds.
+Test Suite 'Selected tests' started at 2026-10-29 00:15:44.180.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 00:15:44.181.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 00:15:44.181.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 00:15:44.181.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Provider adapter executor" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+✔ Test "DeepSeek reasoning activity keeps the first-text deadline alive" passed after 0.427 seconds.
+✔ Suite "Provider adapter executor" passed after 0.427 seconds.
+✔ Test run with 1 test in 1 suite passed after 0.428 seconds.
