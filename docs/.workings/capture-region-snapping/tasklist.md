@@ -102,3 +102,5 @@ display, the region clearing when the pointer leaves a display.
 - Round-2 findings 13–14: U14 added (small-step drag), shown red by two mutations
   (`logs/snap-mutations-r4.log`); record restated. Targeted verification green
   (`logs/targeted-snap-r4.log`: non-app 384, App 36, three native cases).
+
+- Reuse of the full result after `8c5a59b`: `logs/change-scope-after-full-gate.txt` exit 1 only for the untracked `:-` (hash equal to the gate manifest), every committed difference `inert`; strict build and checklist check exit 0 (`logs/strict-build-after-full-gate.txt`).
