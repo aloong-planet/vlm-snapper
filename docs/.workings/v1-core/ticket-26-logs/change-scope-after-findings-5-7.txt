@@ -1,0 +1,9 @@
+Command: node ~/.claude/skills/implement/change-scope.mjs --base 96f7e7f
+changed :-  (added)
+inert   docs/.workings/v1-core/ticket-26-doc-sync.md
+inert   docs/.workings/v1-core/ticket-26-logs/change-scope-after-findings-5-7.txt
+inert   docs/.workings/v1-core/ticket-26-logs/change-scope-after-findings.txt
+inert   docs/.workings/v1-core/ticket-26-logs/targeted-t26-versioned.log
+inert   docs/.workings/v1-core/ticket-26-review-tests.md
+verdict: run (6 files differ from the base)
+exit: 1

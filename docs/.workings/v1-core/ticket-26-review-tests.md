@@ -557,3 +557,18 @@ Judgements:
 
 Carried over and not renumbered: finding 3 stays open (deferred by the user, per the handling section), and
 finding 4 is awaiting the user's decision.
+
+## Handling of incremental-round findings 5–7 (2026-10-29)
+
+Read in full from the incremental round's Findings subsection; hand-back titles match the record.
+
+- Finding 5: targeted verification rerun with the gate's log requirements
+  (`ticket-26-logs/targeted-t26-versioned.log`): HEAD `443c7f8`, manifest (only the untracked `:-`,
+  `208ccf6…`), test file blob `1555a21` — the reviewed content — then strict build, build-tests and the
+  non-app suite (363 tests), all exit 0. This replaces `targeted-sync-clock.log` as the run evidence of the fix.
+- Finding 6: self-check item 3 corrected above (the "cancelled before suspension" branch is reached only by
+  timing; its correctness rests on reading the code).
+- Finding 7: rows added to `ticket-26-doc-sync.md` for the findings 1–2 corrections (done, `96f7e7f`) and for
+  finding 4's follow-up (pending the user's decision).
+- These changes touch records only; `change-scope` against `96f7e7f` is recorded in
+  `ticket-26-logs/change-scope-after-findings-5-7.txt`.
