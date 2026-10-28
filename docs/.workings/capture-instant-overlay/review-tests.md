@@ -41,7 +41,7 @@ request, AC-06 displays without a frame, AC-07 termination while pending.
 | A9 | `displayChangesCancelSelectionBeforeMouseUp` (modified) | REQ-001/AC-01-03 | Same | Existing input; waits for the frozen frame before posting display changes | Existing assertions unchanged | Existing | None |
 | A10 | `nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive` (modified, increment reviewed 2026-10-28) | §3; FM-23; REQ-005/AC-03 | Same | Existing input; the overlay to drag is the one on `NSScreen.main` (the screen the synthetic display freezes) instead of the first visible overlay | Existing assertions unchanged. Reason: with pending panels on every screen, the first visible overlay can belong to a screen without a frame on multi-display machines; the drag may now reach the pending panel before commit, which is the AC-02 path | Existing | None |
 | A11 | `selectionStartedBeforeFramesFinishesAfterThem` (new; increment 2026-10-28 for findings 4b and 9) | REQ-005/AC-03 (rectangle begun before the frame, finished after it); §4 toolbar left-aligned with the selection | Application model + real overlay controller | Held capture; mouse down at (300, 300) and drag to (400, 400) on the pending overlay; capture released; wait for the rendered frozen frame; drag on to (150, 400), which moves the selection's left edge; mouse up there | No toolbar before mouse up; after it, the toolbar's left edge equals the final selection's left edge (overlay x + 150, within 1 pt). A selection completed when the frame arrived would anchor the toolbar at x + 300 and the later mouse up would be refused. Expected from AC-03 and §4 (toolbar left-aligned with the selection) | `syntheticDisplay()` | None |
-| A12 | `displayChangeWhileReplacingAbandonsPendingCapture` (new; increment 2026-10-28 for findings 5 and 10; bug reproduction, must fail first) | REQ-005/AC-01 (an admitted shortcut shows the overlay), AC-05 (request invalidated); REQ-001/AC-01-02 | Same | First capture committed without a drag; held second capture; geometry change plus notification ends the first selection and releases the shared activity; geometry restored; one further shortcut while the second capture is still held; then release of both held captures | After the change: no overlay and activity `nil`. The single further shortcut is admitted at once (`capture.requests == 3`, a pending overlay on the main screen) although the second capture's freeze has not returned. After release the third capture's own overlay shows the frozen frame and stays visible: the stale second result does not touch it. Expected from AC-01 (admission shows the overlay) and AC-05 | `syntheticDisplay()` plus `changedGeometry`; `FixtureCapture` holds several suspended captures and releases them together | None |
+| A12 | `displayChangeWhileReplacingAbandonsPendingCapture` (new; increment 2026-10-28 for findings 5 and 10; bug reproduction, must fail first) | REQ-005/AC-01 (an admitted shortcut shows the overlay), AC-05 (request invalidated); REQ-001/AC-01-02 | Same | First capture committed without a drag; held second capture; geometry change plus notification ends the first selection and releases the shared activity; geometry restored; one further shortcut while the second capture is still held; then release of both held captures | After the change: no overlay and activity `nil`. The single further shortcut is admitted at once (`capture.requests == 3`, a pending overlay on the main screen) although the second capture's freeze has not returned. After release the third capture's frozen frame appears in the same overlay window, which is visible when that frame is first seen. These last checks are read once, when the frame appears; they are not ordered after the stale second result (nothing observable marks its handling), so they catch the stale result closing or replacing the third overlay only when it is handled first, which the resume order usually but not necessarily produces (increment 2026-10-28, finding 12). Expected from AC-01 (admission shows the overlay) and AC-05 | `syntheticDisplay()` plus `changedGeometry`; `FixtureCapture` holds several suspended captures and releases them together | None |
 | U1 | `failedReplacementKeepsCurrentOverlay` (modified) | FM-3; REQ-005/AC-05 | Overlay controller | Present and commit one display; present pending; `commit(displays: [])` | Commit returns `false`; after `rollback()` the previous window is visible and `presentedDisplayIDs` unchanged | Existing `makeDisplay` (real `NSScreen` identity) | None |
 | U2 | `failureAlertStaysAboveRetainedOverlay` (modified) | FM-3 | Overlay controller | Present and commit one display; prepare alert | Alert level above `.screenSaver` (existing expectation) | Existing | None |
 
@@ -628,6 +628,212 @@ round establishes: findings 9-11.
 
 No sync item is completed by this round.
 
+### Incremental round: fix `da94f5c..533de26`
+
+Date: 2026-10-28. Implementation version: `533de26` (fix range
+`da94f5c..533de26` of the change `850f64d..533de26`, branch
+`perf/instant-capture-overlay`). No ticket; same no-ticket path. Date, version
+and range apply to every part of this round. Outside the objects below, every
+dimension carries over from the previous incremental round (fix
+`8bd52f2..da94f5c`, version `da94f5c`) and, where that round carried over,
+from the first round (version `8bd52f2`).
+
+Capability declaration, re-checked by opening `capabilities.toml` at the
+repository root with Python's `tomllib` (`FileNotFoundError`): 项目无能力声明文件;
+未确认 mutation-testing; 未确认 working-language. Finding 2 is still open, so this
+round neither runs the mutation check nor treats it as disabled; every "goes
+red" answer below comes from the code under test and the expected-value
+source.
+
+#### Objects
+
+| Retrieval | Result |
+|---|---|
+| `git diff --name-only da94f5c..533de26 -- Tests Sources VLMSnapper Package.swift Scripts .github` | `Sources/VLMSnapperApp/VLMSnapperApplicationModel.swift` (the `cancelCapture` fix) and `Tests/VLMSnapperAppTests/ProviderApplicationTests.swift` |
+| `git diff da94f5c..533de26 -- Tests` (hunks) | A11 body (1236-1251), A12 body (1276-1289) and `FixtureCapture` (2223-2252: the single `waiter` becomes `waiters`, and `release()` resumes all of them). No header line, other test or other helper changed |
+| `grep -rn --include='*.swift' 'FixtureCapture' Tests` | Declared `private` in `ProviderApplicationTests.swift` (2219) and used only as `ApplicationFixture.capture` (1978); `ApplicationFixture` and `withFixture` (1901) are `private` to the same file, so no other test file can reach the changed code |
+| `grep -n -E '^\s*(@Test\|func test[A-Za-z]*\()'` on that file, checked against its uses of `withFixture` | 29 Swift Testing tests in `ProviderApplicationTests` (208-1556) and 3 XCTest cases in `ProviderApplicationTestsNativeMenu` (49, 99, 146). Every one builds an `ApplicationFixture`, so all 32 depend on `FixtureCapture`, at least through the teardown's `capture.release()` in `withModel` and `withApplication` |
+| `grep -n -e 'holdFrames()' -e 'allowSuspendedCapture()' -e 'capture.release()'` on that file, read with each test's `shortcuts.fire()` calls | Suspending tests: A1-A7, A11, A12 and `credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring`. Only A12 holds two captures at once (its second and third shortcut); every other one fires a single shortcut between its hold and `release()` (A7's third shortcut follows `release()`, which clears `framesHeld`). For those nine and the 22 tests that never suspend, `release()` resumes one or no continuation, as before |
+| `git diff da94f5c..533de26 -- docs/.workings/capture-instant-overlay/review-tests.md`, rows `^\| [AU][0-9]* \|` | Rows A11 and A12 changed; no other row |
+
+Objects of this round: tests A11 and A12, the other 30 tests of the file
+through `FixtureCapture`, and table rows A11 and A12.
+
+#### Run evidence
+
+Handed logs, not rerun. Targeted log of the fix:
+`logs/targeted-findings-9-11.log`. The reused gate log
+`logs/gate-pre-review-8bd52f2.log` is not touched by the fix range and no
+object of this round takes its result from it; the earlier rounds' verdict on
+it carries over.
+
+| Log requirement (targeted log) | Log content | Verdict |
+|---|---|---|
+| Tested version | `git rev-parse HEAD` = `da94f5c…` with a modified tree. Manifest hashes against `git rev-parse 533de26:<path>`: equal for the model, the test file, `review-code.md`, `review-tests.md`, the spec and the three `logs/scripts/` files. `tasklist.md`: `6673155` logged, `095d0c2` committed; the logged blob is the committed file's first 99 lines (`git hash-object` of `head -n 99`), and the three later lines only point to this log (inert `docs/` Markdown no build or test reads). `targeted-findings-9-11.log` is the run's own output, and `change-scope-after-findings-9-11.txt` was written afterwards (it lists the log as present). `:-` unchanged (`208ccf6`). Before this round wrote its section, the work tree equalled `533de26` apart from `:-` (`git diff --stat 533de26 -- . ':(exclude):-'` was empty) | Matches `533de26` for every file the build and tests read |
+| Every command | The two builds and four test runs with their arguments; `git rev-parse HEAD`, `git status --porcelain --untracked-files=all` and the manifest command (line 16) | Present |
+| Exit code not taken through a pipe | `== exit: N` after every command and `== overall: 0`; `logs/scripts/targeted.sh` (blob `4ecc9d0`, the hash the manifest recorded at run time, and byte-identical to the session copy) takes `c=$?` directly after the redirected command | Present; provenance kept |
+| Full output | Complete output of every command inline | Present |
+| Objects run | Swift Testing run: 29 tests in 1 suite passed (lines 301-385), A11 0.234 s (360-361), A12 0.246 s (362-363); the three XCTest cases passed (387-443) | All 32 objects ran and passed |
+
+A12's red run on `da94f5c`, cited by the handling of findings 9-11 and by
+`tasklist.md` lines 98-99, survives only in the session scratchpad
+(`logs/f10-red.log`: `deadline(..., 1281)`, no version manifest). This round
+does not rely on it: the "goes red" answer for a request left registered comes
+from the code at `da94f5c`, whose `cancelCapture` active branch has no
+`captureRequest` step (the fix hunk at model line 1555), and agrees with it.
+
+#### Test design table check
+
+| Row | Written test against the row | Verdict |
+|---|---|---|
+| A11 | Down at (300, 300), drag to (400, 400), release, wait for the rendered frame, drag to (150, 400) and up there (1239-1246); no toolbar after the frame (1243); toolbar left edge within 1 pt of overlay x + 150 (1250). The expected value comes from the input point and §4 (操作栏默认位于选区左下方), not from `CaptureToolbarPlacement` | Consistent |
+| A12 | One shortcut while the second capture is held (1280); admission as `requests == 3` with a main-screen overlay (1281-1283); release of both; frozen frame in the same, visible window (1284-1288) | Driving input and assertions consistent; the row's reading of the post-release checks ("stays visible: the stale second result does not touch it") is finding 12 |
+| A1-A10 | Fixture cells unchanged in meaning: a held capture still returns the provided display after `release()` | Consistent |
+
+The other 20 tests of the file predate this change and have no rows.
+
+#### Dimension 1: Coverage
+
+Test-file header (lines 34-44): unchanged by the fix range; its gaps stay
+true, and the fix adds no environment-bound path.
+
+| Clause touched by the fix | Case | Verdict |
+|---|---|---|
+| AC-05 added sentence: the replaced selection ends on its own before the freeze completes, so this capture ends | A12 (after the display change: no visible overlay, activity `nil`) | Covered |
+| AC-05 added sentence and AC-01: a later shortcut shows a new overlay without waiting for the invalidated freeze | A12 (one shortcut while the second freeze is held; `requests == 3` and an overlay) | Covered |
+| AC-03: a rectangle begun before the frame completes at mouse-up (finding 9) | A11 (toolbar at the final left edge) | Covered |
+| The fix's `replacement?.workspaceToRetire?.restoreAfterCaptureFailure()` (model 1568) | None | Not a gap: no reachable state gives that request a workspace (below) |
+| A stale freeze result leaves a newer capture alone | A12's post-release checks | Not ordered after the stale result (finding 12) |
+
+No reachable workspace for a replacement: `workspaceSession` is `private` to
+the model, the only Swift file that names it (`git grep -c workspaceSession --
+'*.swift'`); its writes (`grep -n -E 'workspaceSession\s*=[^=]'`; no `&`,
+tuple or key-path writes) are lines 862, 1196, 1402, 1538 and 1547. A commit
+leaves it `nil` (`captureRequestCanCommit` 1248-1254 with 1194-1196). While the
+selection is active, 1402 cannot run first (it follows
+`cancelCaptureSurfaces()` at 1391, which ends the selection), and 862 belongs
+to `openHistoryRecord`, whose only trigger, `ManagementCenterCallbacks.onOpenRecord`
+(model 326), is never invoked: `git grep -n OpenRecord -- '*.swift'` finds only
+its declaration, initializer parameter and assignment
+(`ManagementCenterView.swift` 100, 125, 149) and test closures whose tests
+assert it is not called. So `perform` reads `workspaceSession == nil` (1082)
+for every replacement.
+
+Fixture independence: A11 and A12 keep `syntheticDisplay()` and
+`changedGeometry`; `FixtureCapture` still returns one batch per call at the
+real `NSScreen.main` geometry. Several calls held at once is the state the
+fixed model produces (the invalidated freeze still in flight while a new
+capture starts).
+
+Conclusion: no finding.
+
+#### Dimension 2: Case design
+
+- A11 sends real `NSEvent`s to the pending panel in user order and reads the
+  visible toolbar window's frame. A12 reaches the branch through shortcuts and
+  an injected display notification (the REQ-001 tests' path) and reads the
+  capture count, the visible main-screen overlay, its rendered frame and its
+  identity. No private state is read.
+- Each held call is a real suspension inside the `FrozenDisplayCapturing`
+  call the production coordinator awaits; no unreachable state is built.
+- Isolation: the teardown's `release()` now resumes every held call, so no
+  capture task outlives its test; the single `waiter` would have dropped A12's
+  first continuation.
+
+Conclusion: no finding.
+
+#### Dimension 3: False greens
+
+Mutation check: not run (finding 2, open).
+
+Unit-test forms: A11's left-edge check separates 150 from 300 with a 1 pt
+tolerance; A12 asserts `requests == 3`, not the earlier `>= 3`, and fires once
+(the retry loop is gone); expected values come from the inputs and the spec,
+with no import of `CaptureToolbarPlacement` or overlay constants; no silent
+skip (`#require` throws); no assertion sits in a callback.
+
+UI forms (`review-code/false-greens.md`), read timing: A11 reads the toolbar
+once it appears. Under a completion at frame arrival, that completion's task
+is created in `attach` before the test sends the later events, and both
+completions pass the main actor and the session actor in creation order, so
+the early toolbar is the one read. A12's admission wait polls the asserted
+expression. A12's post-release checks run in the main-actor turn in which the
+third frame is first seen, while the stale second result arrives on its own
+task (`release()` resumes it first; `startCapture` then runs on the generic
+executor, `CaptureFreezeCoordinator.swift` 73-99, language mode 6 without
+`NonisolatedNonsendingByDefault`, `Package.swift` lines 1 and 142) with no
+ordering to that turn (finding 12). No gate, CLI check or exemption is added.
+
+| Case | Goes red when |
+|---|---|
+| A11 | The selection completes at frame arrival (toolbar at x + 300; the later mouse-up is dropped by the `captureDisplayGeometries` guard, model 1286-1288, or refused as `inactiveSession`); `attach` or `commit` drops the drag (no `dragStart`, no toolbar); a mouse-down before the frame is ignored; the frame lands in another window; the toolbar stops being left-aligned with the selection |
+| A12 | `cancelCapture` leaves the pending replacement's `captureRequest` (the defect: `perform`'s guard, model 1079, refuses the shortcut, requests stay 2, deadline at test line 1281); the display change leaves an overlay or the activity; the third capture shows no pending overlay or its frame lands in another window; the stale result closes or replaces the third overlay before the checks run. Not when it does so after them (finding 12), and not for the workspace restore at model 1568 (no reachable workspace, Dimension 1) |
+| The other 30 | Unchanged: with no or one held call, `release()` behaves as before |
+
+Conclusion: finding 12.
+
+#### Dimension 4: Resource reuse
+
+Counted from the targeted log, whole cases including fixture creation, model
+start and teardown: A11 0.234 s, A12 0.246 s; the fastest dependent cases take
+0.029 s (`terminationPreparationDoesNotUnregisterBeforeExitIsCommitted`,
+`historyImageRemainsVisibleWhileSameRecordReloads`) and 0.035 s, so the
+per-test fixture stays far below 1 s, and longer cases add flows on it. The
+`FixtureCapture` change adds no resource. No resource reaches 1 s, so there are
+no load counts to compare and no shared resource that a case clears; the
+collection-order check does not apply.
+
+Conclusion: no finding.
+
+#### Re-check of earlier findings
+
+| Finding | State at `533de26` |
+|---|---|
+| 2 | Open: `capabilities.toml` still absent |
+| 8 | Unchanged: the case passes on the fixed code (targeted log 427-443); adding it to the gate and CI still waits on the user |
+| 9 | Resolved: A11 asserts the toolbar at the final left edge |
+| 10 | Resolved: `cancelCapture` clears the pending replacement, A12 fires one shortcut and expects admission, and REQ-005/AC-05 states the consequence. Finding 12 concerns only A12's post-release reading |
+| 11 | Resolved: `logs/scripts/` keeps the three scripts (byte-identical to the session copies), and the targeted log names its manifest command |
+
+#### Document sync check
+
+Scope: this record and every file under
+`docs/.workings/capture-instant-overlay/` (enumerated with `find`, hidden files
+included;
+`git ls-files --others --ignored --exclude-standard -- docs Tests AGENTS.md CODEX.md CONTEXT.md`
+returned nothing); `docs/.workings/v1-core/checklist.md` REQ-005 rows (22-28);
+`docs/specs/v1-core.md` (REQ-005 lines 66-78, §4 line 82, FM-23 and FM-25
+lines 301 and 303, Testing Decisions 367 and 371); `docs/features/v1-core.md`
+(lines 35, 37, 39, 49); ADR-0013; `CONTEXT.md`; root `AGENTS.md` and
+`CODEX.md`; the test-file header. `git grep` for the two changed test names
+and `FixtureCapture` finds them only in the test file, this record,
+`review-code.md`, the checklist and the two targeted logs, so other
+directories are excluded.
+
+Facts from the fix range and its targeted run: `cancelCapture` clears a
+pending replacement and calls its workspace restore; AC-05 gained a sentence;
+A11 and A12 rewritten; `FixtureCapture` holds several calls; scripts kept; all
+32 dependent tests pass. Facts this round establishes: finding 12; the
+workspace restore has no reachable workspace.
+
+| Document | Statement | State |
+|---|---|---|
+| This record, row A12 and item 2 of the self-check of the findings 9-11 fix | "stays visible: the stale second result does not touch it"; "fails if the stale second result replaced or closed the third capture's overlay" | Overstated (finding 12) |
+| This record, the previous round's Document sync check | `checklist.md` line 25 "overstated until finding 9 is resolved"; `final-regression.md` line 18 "contradicted by findings 9 and 10"; `tasklist.md` line 74 "not met in finding 10's window"; spec and features contradicted in that window | Superseded at `533de26`: findings 9 and 10 are resolved, so these documents are true again; that table records its own version `da94f5c` |
+| `checklist.md` lines 25 and 27 (AC-03, AC-05) | A11 for 冻结前开始、帧到达后完成的选区; A12 for 请求失效 | True |
+| `final-regression.md` line 18 and closeout | REQ-005 true apart from the Pending and the header gaps; re-check after this review | No longer contradicted by findings 9 and 10; finding 12 names no undriven clause; the report's own re-check is still due |
+| `tasklist.md` line 74 (AC-01 "Met") | Admission shows the overlay immediately | True (A12) |
+| `tasklist.md` line 78 (spec final check, AC-05) | Quotes AC-05 without the added sentence; "workspace restore unchanged" | Stale since the fix: the added sentence is checked in `review-code.md` (fix section, self-check item 1), and `cancelCapture` now also calls a restore that has no reachable workspace. No test conclusion depends on the row; for the implementer's next update of the spec final check |
+| `review-code.md`, fix section | "Reproduced before the fix by `displayChangeWhileReplacingAbandonsPendingCapture` (deadline at the admission wait)"; "restores its reserved workspace" | The first agrees with the code at `da94f5c` and the scratch red log; the second describes a call with no reachable workspace (Dimension 1), a code statement no test conclusion depends on |
+| `logs/` | Targeted log and kept scripts | True |
+| Test-file header lines 34-44 | Gap list | True; no new gap |
+| Spec AC-01 and AC-05 (lines 70, 74), §4 (82), Testing Decisions 371 | Admission shows the overlay; the added AC-05 sentence; toolbar at the selection's lower left; REQ-005 composition observables | True against the implementation and A11, A12 |
+| Features lines 35, 37, 39, 49 | Selection view at capture start; rectangle drawn before the frame kept; display changes; workspace after failure or Escape | True |
+| ADR-0013, `CONTEXT.md`, `measurements.md`, `native-thrown-operation-run.txt`, `locked-session-toolbar-timeouts.txt` | No statement on these facts | Unaffected |
+| Root `AGENTS.md`, `CODEX.md` | "项目能力" section | Finding 2, open |
+
+No sync item is completed by this round.
+
 ### Findings
 
 2. **Capability declaration missing; `mutation-testing` unconfirmed.**
@@ -814,6 +1020,39 @@ re-checked in the round's table above.
     them in `tasklist.md` and point the first round's Run evidence to them; no
     rerun.
 
+Incremental round (fix `da94f5c..533de26`, 2026-10-28). Finding 2 remains open
+and blocks the mutation check of this round's objects; findings 8-11 are
+re-checked in the round's table above.
+
+12. **A12's post-release checks are not ordered after the stale second
+    result, yet its row and the fix's self-check say they show that result
+    leaves the third capture alone.** Category: untrue record. Evidence:
+    `release()` resumes both held calls (`ProviderApplicationTests.swift`
+    2236-2242), and each continues on its own task: `startCapture` runs on the
+    generic executor (`CaptureFreezeCoordinator.swift` 73-99; language mode 6
+    without `NonisolatedNonsendingByDefault`, `Package.swift` lines 1 and 142)
+    before `beginCapture` resumes on the main actor. The checks
+    `replacement.isVisible` and `mainScreenOverlay() === replacement`
+    (1287-1288) run in the main-actor turn in which `eventually` first sees the
+    third frame (1286), and nothing observable marks the stale result as
+    handled; when the third result reaches the main actor first, the checks
+    precede anything the stale result does. Row A12 says "stays visible: the
+    stale second result does not touch it", and item 2 of the self-check of
+    the findings 9-11 fix says the identity check "fails if the stale second
+    result replaced or closed the third capture's overlay". Impact: no
+    behaviour of the current code goes unguarded, because the stale result is
+    inert through two independent generation checks
+    (`VLMSnapperApplicationModel.swift` 1141 and 1249) that a stale-first run,
+    which the resume order favours, still exercises; but a regression letting
+    the stale result close or replace the third overlay is caught only in that
+    ordering. Recommendation: reword row A12 and that self-check line to what
+    the checks show (the third capture's frame in the same, still visible
+    window, read once when it appears; the stale result is usually, not
+    necessarily, handled first), with no test change, and re-review the row
+    under the design review's increment rule. Making the stronger claim hold
+    would need an observable for the stale result's handling, which neither
+    the model nor the fixture offers.
+
 ### Handling of incremental-round findings 9-11 (2026-10-28)
 
 | Finding | Handling |
@@ -828,8 +1067,10 @@ Pre-handoff self-check of this fix (items 2-5):
   from the spec rule (left alignment) and the input point, not from
   `CaptureToolbarPlacement`; it fails by 150 pt if completion happens at frame
   arrival. A12's admission wait fails if the shortcut is refused (shown red);
-  its final identity check fails if the stale second result replaced or
-  closed the third capture's overlay.
+  its final checks read the third capture's frame in the same, still
+  visible window once, when it appears; they are not ordered after the stale
+  second result, so they detect that result closing or replacing the third
+  overlay only when it was handled first (corrected for finding 12).
 - Item 3: `cancelCapture` (product) gained one branch-free step; both callers
   enumerated in `review-code.md`. `FixtureCapture.release` resumes every held
   continuation; its holders are `holdFrames` captures and the suspended
@@ -839,3 +1080,15 @@ Pre-handoff self-check of this fix (items 2-5):
   the targeted run of this fix.
 
 Self-check result: no finding.
+
+### Handling of incremental-round finding 12 (2026-10-28)
+
+Records only, as recommended: row A12 and item 2 of the self-check for the
+findings 9-11 fix now state what A12's final checks show (the third frame in
+the same, still visible window, read once when it appears; the stale result is
+usually, not necessarily, handled first). No test or code changed. Row A12
+re-reviewed under the increment rule: coverage claim now matches the
+observable; case design and resources unchanged; no false-green claim remains.
+Self-check of this fix: items 2-5 not applicable (no test, data or helper
+change); no finding. Whether a further incremental review is needed is decided
+by `change-scope.mjs` (recorded in `tasklist.md`).

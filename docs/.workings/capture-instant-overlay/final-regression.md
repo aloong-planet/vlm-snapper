@@ -52,6 +52,46 @@ language.
 ### Closeout conclusion
 
 All rows converged. One out-of-scope finding (CI shell-syntax coverage) has no
-durable home yet and is handed to the user for a decision. This report is
-re-checked after the post-implementation test review in case it changes code,
-tests or documentation.
+durable home yet and is handed to the user for a decision. The re-check after the
+post-implementation test review is below.
+
+## 2026-10-28 re-check after the post-implementation test review
+
+Scope: changes in `8bd52f2..533de26` plus the uncommitted finding-12 record
+fix, the postmortem and the features sentence below. Same language census and
+per-language searches as above.
+
+### Stage 1: changed declarations
+
+| Changed declaration surface | Compared with | Conclusion |
+|---|---|---|
+| Spec REQ-005/AC-05 added sentence (replaced selection ends while pending) | `cancelCapture` active branch (`533de26`), test A12 | True |
+| `docs/features/v1-core.md` display-change sentence (capture freezing to replace that selection ends with it; next shortcut opens at once) | Spec AC-05 and AC-01 | Consistent, user-visible terms only |
+| `docs/postmortems/pending-capture-overlay-pitfalls.md` (new) | `review-code.md` findings, `review-tests.md` findings 9-12, `tasklist.md` run counts | Each cause chain and count matches its record |
+| Test-file header (CI native cases, two new gaps) | `ci.yml`, `Scripts/test-local-regression.sh`, actual tests | True |
+| v1-core checklist rows REQ-005/AC-01/02/03/05/06 | Tests at `533de26` | True |
+| Test review and code review records | Findings 2-12 and their handling | Consistent; finding 2 left to the user |
+
+### Stage 2: related declarations
+
+| Relation | Derivation | Conclusion |
+|---|---|---|
+| Postmortem file ↔ an index | `ls docs/postmortems`; `grep -rn 'postmortems/' docs CONTEXT.md AGENTS.md` (only `docs-layout.md`, which lists the directory) | No index exists for postmortems; nothing to update |
+| Spec AC-05 ↔ features ↔ CONTEXT ↔ ADRs | `grep -rn -E '被替换.{0,40}(显示器\|失效)\|显示器变化.{0,60}(替换\|快捷键)' CONTEXT.md AGENTS.md docs/specs docs/features docs/adr` (only spec AC-05) and `grep -rn -i -E 'replac.{0,60}(display\|disconnect)\|display change.{0,80}(replac\|shortcut)' …same paths` (no match; the new features sentence was read directly in Stage 1) | Features updated; CONTEXT and ADRs carry no statement about this edge |
+| Spec Testing Decisions (composition tests) ↔ new tests A11, A12 | Read of the REQ-005 testing paragraph | Paragraph names the observables used; still true |
+
+### Stage 3: events
+
+| Event | Follow-up | Conclusion |
+|---|---|---|
+| Product defect fixed (finding 10) | Spec, features, postmortem | All three updated |
+| Test infrastructure rule already landed (fixture identity) | Spec Testing Decisions | Unchanged, still true |
+| `Pending:` notes | Expiry check | Unchanged |
+| Requirement identifiers | No new identifier; AC-05 extended in place | Nothing to verify |
+
+### Closeout conclusion
+
+All rows converged after the re-check. Items handed to the user: the missing
+`capabilities.toml` (mutation testing and working language unconfirmed), CI's
+single-file shell syntax check, and adding the thrown-operation native case to
+CI and the local gate.

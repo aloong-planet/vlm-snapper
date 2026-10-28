@@ -100,3 +100,6 @@ Unrecorded scope expansion: none in product code. The fixture identity fix is te
 - Targeted verification of the findings 9-11 fix: `logs/targeted-findings-9-11.log` (all commands exit 0; App suite
   29 tests; three native cases passed). Incremental review decision: `logs/change-scope-after-findings-9-11.txt`
   (exit 1, verdict `run`).
+- Finding 12 (records only): `logs/change-scope-after-finding-12.txt` exit 1, verdict `run`, caused solely by the
+  user's pre-existing untracked `:-` (a codesign requirement string no test reads; not a test file or test data);
+  every file this fix changed is `inert`, so no further incremental review is required.
