@@ -42,10 +42,32 @@ No ticket; implemented directly from the spec on `feat/capture-region-snapping` 
 
 ## Steps
 
-- [ ] Test design review (`/review-tests`), recorded in `review-tests.md`
-- [ ] Vertical slices with `/tdd`: resolver → adapter/dependency → overlay click → hover/tracking → app wiring
-- [ ] Targeted verification
-- [ ] Code review (`/review-code`), `review-code.md`
-- [ ] Full gate before review (pre-review run)
-- [ ] Post-implementation test review (independent sub-agent)
-- [ ] Spec final check, archive, features catalogue (step 8), full gate, install, PR
+- [x] Test design review (`/review-tests`), recorded in `review-tests.md`
+- [x] Vertical slices with `/tdd`: resolver (`e91ba54`), overlay click/hover, adapter and app wiring
+- [x] Targeted verification: `logs/targeted-snap.log` (strict build, build-tests, non-app 374, App 34, three
+  native cases; all exit 0) at `e91ba54`
+- [x] Code review: `review-code.md`; two bugs fixed red-first in `5c96041`
+- [x] Full gate before review: `logs/gate-snap-prereview.log` at `5c96041`, every stage PASS (non-app 375, App 35)
+- [ ] Post-implementation test review (independent sub-agent) — running
+- [ ] Archive, features catalogue (step 8), full gate, install, PR
+
+## Spec final check (2026-10-28, code at `5c96041`)
+
+| AC | Spec text (short) | Implementation | Evidence |
+|---|---|---|---|
+| 01 | shown at the pointer without moving; follows; no new text | controller passes the pointer when the list arrives; tracking area per view; existing selection layers | U5/U6 rendered alpha |
+| 02 | topmost ordinary window as a whole incl. title bar; occluded window keeps full frame | resolver returns the first matching window's bounds | C1, C2, U1, A1 |
+| 03 | status item alone; rest of menu bar whole | layer-24/25 windows are ordinary entries in z-order | C3 |
+| 04 | Dock strip whole, no single icons; auto-hide falls through | Dock windows match only inside the frame/visible-frame strip | C4 |
+| 05 | desktop → whole display | fallback `display.frame` | C5, A1 desktop |
+| 06 | own/transparent/off-screen/overlay windows skipped; clipped to the display; < 2 × 2 px skipped | guards in the resolver; clip and pixel check | C6, C7 |
+| 07 | ≤ 3 pt is a click; more is a manual rectangle | view threshold; release far from press is a drag | U1, U2, existing drag tests |
+| 08 | click before frames / before the list completes later | completed-before-frame; click held until the list | U3, A2 |
+| 09 | list fixed at trigger; no list → no highlight, click selects nothing, drag works | one listing per request; `.unavailable` | U4, A3 |
+| 10 | Esc, retrigger, display changes unchanged | existing paths; lists only reach the newest overlay | existing REQ-001/005 tests, U7, A5 |
+| 11 | instant hover; list does not delay the overlay | local hit-test; listing detached off the main thread | A4; hover cost not measured separately |
+
+No missing or partial item. Implementation-time decision written back to the spec: a window list only
+reaches the newest overlay (Implementation Decisions). No unrecorded scope.
+Installed-build checks (pending until the local install): the real window list in the signed sandboxed
+app, real Dock/menu-bar geometry, hover from physical mouse movement.

@@ -18,6 +18,7 @@ spec 版本参考：`8c00b2d`（main）之上的未提交修改。
 | Snipaste 2.7.2 REA 逆向报告“选择框怎样自动套住窗口”：前后顺序窗口列表命中、跳过透明/离屏/高层级窗口、本进程标记、无窗口时退回桌面、拖过约 2 pt 改拖拽 | 背景 | Implementation Decisions、AC-05–07 | 采用窗口列表命中；桌面改为整块显示器；阈值取 3 pt；不采用 66 ms 轮询（快照一次、本地命中）。 |
 | 本机实测（2026-10-28）：窗口列表约 18 ms；Dock 为 layer 20 全屏窗口；菜单栏 layer 24、状态项 layer 25 独立窗口；输入法窗口 alpha 0；可用区域底部 48 pt 为 Dock 条带 | 背景（实现前提） | Implementation Decisions、AC-03、AC-04、AC-06、AC-11 | 写入实现决策与测试样本形态要求。 |
 | v1-core::REQ-005（冻结前输入归属、Esc、失败恢复）与 §3 最小 2 × 2 物理像素 | 本轮有效，继续适用 | AC-08、AC-10、AC-06 | 由 REQ-006 引用，不另建同义条款。 |
+| 覆盖单位 v1-core::REQ-006/AC-01–11 | 本节各来源 | 设计核对见 `../capture-region-snapping/review-tests.md` 用例设计表；实现验收：解析器 C1–C7、遮罩控制器 U1–U7、应用组合 A1–A5 均通过（`../capture-region-snapping/logs/gate-snap-prereview.log`，`5c96041`）；签名安装版的真实窗口列表、Dock/菜单栏几何与物理鼠标悬停待安装后实测 | 待安装版实测 |
 | 用户 2026-10-28 确认原型（“Approve, implement it”），并选择选区外观以 App 为准（1 pt、无手柄与尺寸标签）、记录 ADR-0014、`capabilities.toml` 另行补建 | 本轮有效 | Prototype Coverage、ADR-0014、原型页 | 原型改为 1 px 边框、去掉手柄/尺寸标签/内描线；ADR-0014 落盘。 |
 
 ### 2026-10-28 快捷键截图即时显示遮罩：来源盘点与发布前设计自审
