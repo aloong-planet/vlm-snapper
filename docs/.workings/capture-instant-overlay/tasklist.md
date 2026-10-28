@@ -103,3 +103,10 @@ Unrecorded scope expansion: none in product code. The fixture identity fix is te
 - Finding 12 (records only): `logs/change-scope-after-finding-12.txt` exit 1, verdict `run`, caused solely by the
   user's pre-existing untracked `:-` (a codesign requirement string no test reads; not a test file or test data);
   every file this fix changed is `inert`, so no further incremental review is required.
+
+## Full verification gate before delivery (2026-10-28)
+
+- `logs/gate-full-4327bd6.log` (script `logs/scripts/gate.sh`): `Scripts/test-local-regression.sh --offline` at
+  `4327bd6`, every stage PASS, exit 0 (strict build, script tests, checklist, shell syntax, non-app, app,
+  native Paste, native closed-window, accessibility). Live Provider regression not run.
+- After the run only this log copy and this note were committed (documentation). Reuse check below.
