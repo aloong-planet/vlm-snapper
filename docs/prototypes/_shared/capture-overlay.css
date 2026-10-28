@@ -1,0 +1,93 @@
+/* Capture overlay shared block: colour tokens (light and dark) and the toolbar attached below a
+   selection. Used by every capture-overlay prototype page; pages mount the toolbar with
+   data-shared-block="capture-toolbar" and fill it with window.CaptureToolbar.render. */
+:root {
+  color-scheme: light;
+  --selection-border-width: 2px;
+  --toolbar-gap: 4px;
+  --desktop-a: #c9d9e8;
+  --desktop-b: #8aa7bf;
+  --desktop-glow: rgba(255, 255, 255, .44);
+  --menubar: rgba(249, 251, 254, .86);
+  --window: rgba(249, 250, 252, .98);
+  --surface: #ffffff;
+  --surface-subtle: #eef1f5;
+  --surface-hover: #e8edf3;
+  --surface-selected: #dce8f8;
+  --text: #20242a;
+  --text-secondary: #646c77;
+  --text-tertiary: #88919d;
+  --line: rgba(49, 58, 69, .18);
+  --line-strong: rgba(49, 58, 69, .3);
+  --accent: #276bd8;
+  --accent-hover: #1f5fc4;
+  --accent-soft: #e5efff;
+  --on-accent: #ffffff;
+  --capture-border: #69a5ff;
+  --outside-mask: rgba(8, 13, 20, .54);
+  --selection-inner: rgba(255, 255, 255, .34);
+  --traffic-red: #ff5f57;
+  --traffic-yellow: #febc2e;
+  --traffic-green: #28c840;
+  --shadow: rgba(19, 27, 37, .35);
+  --shadow-soft: rgba(19, 27, 37, .16);
+  --focus: rgba(39, 107, 216, .46);
+  --browser-line: rgba(36, 43, 52, .13);
+  --article-ink: #32373e;
+  --article-muted: #858c96;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --desktop-a: #334353;
+  --desktop-b: #17212b;
+  --desktop-glow: rgba(119, 146, 171, .26);
+  --menubar: rgba(24, 29, 35, .88);
+  --window: rgba(36, 40, 47, .98);
+  --surface: #2c3138;
+  --surface-subtle: #252a31;
+  --surface-hover: #363d47;
+  --surface-selected: #304765;
+  --text: #f2f4f7;
+  --text-secondary: #b5bcc6;
+  --text-tertiary: #88919d;
+  --line: rgba(230, 234, 240, .14);
+  --line-strong: rgba(230, 234, 240, .26);
+  --accent: #6ba3f7;
+  --accent-hover: #82b2f8;
+  --accent-soft: #293f60;
+  --on-accent: #ffffff;
+  --capture-border: #86b7ff;
+  --outside-mask: rgba(2, 5, 9, .62);
+  --selection-inner: rgba(255, 255, 255, .24);
+  --traffic-red: #ff5f57;
+  --traffic-yellow: #febc2e;
+  --traffic-green: #28c840;
+  --shadow: rgba(0, 0, 0, .58);
+  --shadow-soft: rgba(0, 0, 0, .3);
+  --focus: rgba(107, 163, 247, .54);
+  --browser-line: rgba(233, 237, 242, .12);
+  --article-ink: #e8ebef;
+  --article-muted: #969eaa;
+}
+
+.capture-toolbar { position: absolute; z-index: 14; left: 0; top: calc(100% + var(--selection-border-width) + var(--toolbar-gap)); display: flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text); background: var(--window); box-shadow: 0 14px 38px var(--shadow), 0 2px 8px var(--shadow-soft); backdrop-filter: blur(24px); }
+
+.tool-button, .action-button, .value-button { height: 25px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 6px; white-space: nowrap; }
+.tool-button { width: 25px; padding: 0; border: 1px solid transparent; color: var(--text-secondary); background: transparent; }
+.tool-button:hover { color: var(--text); background: var(--surface-hover); }
+.action-button { padding: 0 9px; border: 1px solid var(--line); color: var(--text); background: var(--surface); font-weight: 650; }
+.action-button:hover { background: var(--surface-hover); }
+.action-button.primary { border-color: var(--accent); color: var(--on-accent); background: var(--accent); }
+.action-button.primary:hover { background: var(--accent-hover); }
+.value-button { max-width: 228px; padding: 0 7px; border: 1px solid var(--line); color: var(--text-secondary); background: var(--surface); }
+.value-button:hover { color: var(--text); background: var(--surface-hover); }
+.value-button strong { max-width: 172px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.toolbar-divider { width: 1px; height: 20px; margin: 0 1px; background: var(--line); }
+.icon { width: 15px; height: 15px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (max-width: 1240px) {
+  .value-button.model strong { max-width: 128px; }
+}
+
+.capture-toolbar[hidden] { display: none; }
