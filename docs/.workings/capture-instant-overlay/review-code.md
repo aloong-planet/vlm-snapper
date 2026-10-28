@@ -173,3 +173,41 @@ Self-check item 1 (product code against the spec, clause by clause):
 REQ-005/AC-01 "准入后立即……显示……选区遮罩" holds for a shortcut pressed after
 the replaced selection ended (A12); AC-05's added sentence describes exactly
 this branch; no other clause is touched.
+
+## Review of the overlay window-open animation fix (2026-10-28, user report)
+
+User report on the installed 0.1.2: after the shortcut the dim did not cover
+the screen at first and then quickly grew to full size.
+
+- Underlying premises: the overlay panel used AppKit's default
+  `animationBehavior`, which scales a newly ordered window up from slightly
+  smaller than its frame. The window's frame does not change during this, so
+  no in-process observable (window frame, layer bounds, rendered layer) shows
+  it; it is visible only in the composited output. Measured by screen
+  recording (`measurements.md`, on-screen section).
+- Runnability: `animationBehavior = .none` on the overlay panel; nothing else
+  changes. Ordering, key status, exclusion from the frozen frame and the
+  commit/rollback paths are unaffected (targeted run: App suite 29 tests,
+  three native cases, overlay controller tests all pass,
+  `logs/targeted-animation-fix.log`).
+- Security: no new surface.
+- Consistency: the menu-bar panel already sets `animationBehavior = .none` for
+  the same reason. Class check, all app windows enumerated
+  (`grep -rn -E 'NSPanel\(|NSWindow\(|: NSPanel|: NSWindow|animationBehavior' VLMSnapper Sources`):
+  menu panel (already `.none`), capture overlay (fixed), capture toolbar panel
+  (default; a small panel shown after the selection, not reported, left
+  unchanged), management center, result workspace and onboarding (titled
+  windows where the standard animation is expected).
+
+Test: `FrozenCaptureOverlayControllerTests` gained "the pending overlay covers
+each display without an opening animation" (visible overlay windows after
+`presentPending` have `animationBehavior == .none`). Red first with the line
+removed: failed on that expectation only, overlays present
+(`logs/animation-red.log`); green with the fix (3 of 3 tests,
+`logs/animation-green.log`). The property is the only in-process observable:
+frame and window-server bounds already equal the screen during the animation
+(`measurements.md`).
+
+The finding was missed earlier because every check of the overlay looked at
+its final state (screenshots 300 ms after presentation, rendered layers,
+window frames); none looked at the frames during presentation.

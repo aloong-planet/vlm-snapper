@@ -51,3 +51,49 @@ stored; they contain unrelated personal screen content):
   rectangle, undimmed inside it with content continuous across the edge, and
   the 1 pt accent border on the edge; same appearance as the previous
   `draw(_:)` implementation.
+
+## On-screen latency and the window-open animation (2026-10-28, after user feedback)
+
+Correction: the 4-11 ms figures above are main-thread time of `presentPending`
+only. They are not the time until the overlay is visible. Visible timing is
+measured below from the composited display.
+
+Method: a scratch program records the main display with an `SCStream` (half
+resolution, up to 120 fps, idle frames skipped), posts the installed app's
+capture shortcut (Command-Shift-F) through the HID event tap, then Esc. Per
+frame it compares a 22 x 14 grid including 1 px edge points with the frame
+before the shortcut; a point counts as covered when its luma falls below 75 %
+of the baseline. Times are frame presentation timestamps minus the time the
+shortcut was posted, so they include hotkey delivery, admission, window
+server composition and one or more display refreshes. App switched with a
+normal quit between versions.
+
+| Installed build | First overlay frame (5 runs) | Full coverage | Partial frames before full |
+|---|---|---|---|
+| 0.1.1 (freeze first, PR #34 base) | 574, none, 480, 278, 321 ms | 753, none, 547, 349, none ms | 4, 0, 6, 5, 3 |
+| 0.1.2 (pending overlay, default window animation) | 126, 97, 120, 104, 99 ms | 193, 155, 166, 250, 228 ms | 4, 4, 3, 3, 4 |
+| 0.1.3 (pending overlay, `animationBehavior = .none`) | 161, 91, 132, 88, 82 ms | same frame | 0, 0, 0, 0, 0 |
+
+"none" means no covered frame within 1 s in that run (not investigated; old
+build only). The partial frames come from AppKit's default window-open
+animation: in a single-capture frame dump of 0.1.2 the dimmed area spanned
+x 7-748 of 0-755, then 5-750, then 4-751 over successive frames (edge coverage
+0 %, 17 %, 33 %), the same growth reproduced in process with the production
+controller (6-749, 5-750, 3-752) and absent after the fix in 3 of 3 runs
+(first frame 0-755 with 100 % edge coverage). The old build shows partial
+frames too: the animation predates this change, but over an opaque frozen
+screenshot it was less visible than over the live screen.
+
+Reusing an already created panel (in-process variant) showed the overlay 10-30
+ms earlier than creating a new one in the same runs, within the run-to-run
+spread; see ADR-0013 option 6. Both in-process variants ran with the default
+animation (the scratch helper took an optional behavior, so `.none` there was
+`nil`); the comparison is like for like, and its 2 % inset grid did not reach
+the edges where the animation shows.
+
+In-process observables during the default animation (scratch probe polling
+every 4 ms for 350 ms after `orderFrontRegardless`): `NSWindow.frame` and the
+window-server bounds from `CGWindowListCopyWindowInfo` equal the full screen
+(0, 0, 1512, 982) from the first sample; window alpha is 1. The shrink exists
+only in composited frames, so the regression test asserts the overlay
+windows' `animationBehavior`.

@@ -43,6 +43,9 @@ import VLMSnapperUI
 // Window-server hit testing is also out of reach: `sendEvent` skips it, so a click
 // inside a clear pending selection reaching another app needs posted HID events
 // with Accessibility trust (verified outside the suite, see the construction notes).
+// The window-open animation of the overlay changes only composited frames, not the
+// window frame, window-server bounds or layers: the overlay controller tests assert the
+// window's animation behavior, and full first-frame coverage was checked by screen recording.
 @MainActor
 final class ProviderApplicationTestsNativeMenu: XCTestCase {
 

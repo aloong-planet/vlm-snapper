@@ -114,3 +114,11 @@ Unrecorded scope expansion: none in product code. The fixture identity fix is te
   by the user's untracked `:-`, whose `git hash-object` (`208ccf64…`) equals the entry in the full gate's manifest, so
   the run covered the same file; every committed difference is `inert`. Lint/typecheck on the current code: strict
   build exit 0 (`logs/strict-build-after-full-gate.txt`). The full result therefore applies to the delivered code.
+
+## User report after install: overlay grows from smaller than the screen (2026-10-28)
+
+- Cause, fix and review: `review-code.md` (window-open animation); measurements: `measurements.md`; test row U3:
+  `review-tests.md`; reinstall: `install.md`.
+- Fix `17dbf8d`; guard test red/green: `logs/animation-red.log`, `logs/animation-green.log`; targeted run of the app
+  suite and the three native cases: `logs/targeted-animation-fix.log`.
+- Full offline gate after the test and records commit: `logs/gate-full-animation-fix.log`.

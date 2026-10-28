@@ -37,6 +37,20 @@ struct FrozenCaptureOverlayControllerTests {
         #expect(pending.allSatisfy { !$0.isVisible })
     }
 
+    // The open animation scales only the composited window: frame and window-server
+    // bounds already equal the screen, so the window's behavior is the observable here.
+    @Test("the pending overlay covers each display without an opening animation")
+    func pendingOverlayAppearsWithoutOpeningAnimation() {
+        let controller = FrozenCaptureOverlayController()
+        defer { controller.close() }
+
+        #expect(present(controller))
+
+        let overlays = visibleOverlays()
+        #expect(!overlays.isEmpty)
+        #expect(overlays.allSatisfy { $0.animationBehavior == .none })
+    }
+
     @Test("a failure alert stays visible above a retained overlay")
     func failureAlertStaysAboveRetainedOverlay() throws {
         let screen = try #require(NSScreen.screens.first)

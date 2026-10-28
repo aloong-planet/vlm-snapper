@@ -1092,3 +1092,30 @@ observable; case design and resources unchanged; no false-green claim remains.
 Self-check of this fix: items 2-5 not applicable (no test, data or helper
 change); no finding. Whether a further incremental review is needed is decided
 by `change-scope.mjs` (recorded in `tasklist.md`).
+
+### Increment: overlay window-open animation (2026-10-28, user report)
+
+Design table row U3 (written before the test; implementation base `17dbf8d`):
+
+| Row | Spec item | Seam | Driving input | Assertion and expected value source | Fixture shape | Expensive resources |
+|---|---|---|---|---|---|---|
+| U3 | v1-core::REQ-005/AC-01 (first overlay frame covers the whole display, no opening animation) | `FrozenCaptureOverlayController.presentPending` | one call; no frames | every visible `.screenSaver` window has `animationBehavior == .none`; expected value from AC-01 and AppKit's documented behavior values | none | none |
+
+Design review of U3:
+- Dimension 1: AC-01's new clause has no in-process behavioral observable;
+  frame and window-server bounds stay at the screen size while the animation
+  plays (probe in `measurements.md`), so U3 asserts the window property that
+  decides it, and the test file header of the app tests records that the
+  visible effect was checked by screen recording.
+- Dimension 2: public seam; the windows are read back through `NSApp.windows`
+  as in U1; state reached through the public call only.
+- Dimension 3: it turns red when an overlay window keeps the default
+  animation; an empty window list cannot pass (non-empty asserted first).
+- Dimension 4: no expensive resource.
+
+Post-implementation check of U3: written as designed; red with the
+`animationBehavior` line removed, failing on that expectation only
+(`logs/animation-red.log`); green with the fix (`logs/animation-green.log`).
+The full offline gate run after this commit is recorded in `tasklist.md`.
+
+Findings: none.

@@ -1,0 +1,22 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 19:07:05.723.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 19:07:05.725.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 19:07:05.725.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 19:07:05.725.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 0.188 seconds.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+✘ Test "the pending overlay covers each display without an opening animation" recorded an issue at FrozenCaptureOverlayControllerTests.swift:51:9: Expectation failed: overlays.allSatisfy { $0.animationBehavior == .none }
+✘ Test "the pending overlay covers each display without an opening animation" failed after 0.021 seconds with 1 issue.
+↳ // The open animation scales only the composited window: frame and window-server
+↳ // bounds already equal the screen, so the window's behavior is the observable here.
+◇ Test "a failure alert stays visible above a retained overlay" started.
+✔ Test "a failure alert stays visible above a retained overlay" passed after 0.044 seconds.
+✘ Suite "Frozen capture overlay" failed after 0.255 seconds with 1 issue.
+✘ Test run with 3 tests in 1 suite failed after 0.255 seconds with 1 issue.

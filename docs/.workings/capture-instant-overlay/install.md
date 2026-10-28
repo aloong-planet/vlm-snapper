@@ -27,3 +27,16 @@ Rollback: quit VLMSnapper, then move the backup back to `/Applications/VLMSnappe
 Please try: press the capture shortcut and check that the dimmed overlay appears at once; drag immediately after
 pressing; press Esc right after the shortcut; retrigger while a selection is shown; and use Translate on saved text
 from history (PR #34) to confirm it is still present.
+
+## Reinstall — 0.1.3 (same day, after user feedback)
+
+- Reason: the user saw the dim cover less than the screen and then expand; cause and fix in `review-code.md`
+  (window-open animation).
+- Contents: this branch at `17dbf8d` plus the same local merge of PR #34 (`a4758c0`); code identical to the 0.1.2
+  tree that passed the full offline regression except the one-line `animationBehavior = .none`, which passed the
+  targeted run (`logs/targeted-animation-fix.log`). Signed and verified the same way; Keychain smoke test passed.
+- Installed `/Applications/VLMSnapper.app` 0.1.3, executable SHA-256
+  `f6be156aa961e390677d9d87f553fef5473033b8bd8f8e12b4544b76b2044e4b`. The superseded 0.1.2 was moved out of
+  `/Applications` to session scratch storage; the rollback target remains
+  `/Applications/VLMSnapper.app.backup-20261028-0.1.1-before-instant-capture`.
+- Hotkey-to-screen measurements of 0.1.1, 0.1.2 and 0.1.3 are in `measurements.md`.
