@@ -290,8 +290,270 @@ Findings: none.
 
 Item 1: no product code changed. Item 2: the strengthened double turns both product mutations red at the
 intended assertions (`ticket-26-logs/mutations-sync-clock.log`); the count assertion is red when reasoning
-does not re-arm. Item 3: no product function changed; the double's branches — cancelled before
-suspension, cancelled while pending, fired, fired after cancellation — are driven by this test's passing
-run (cancellation of superseded and final timers) and by the old-deadline mutation (fired while pending).
+does not re-arm. Item 3 (corrected after incremental finding 6): no product function changed. The double's
+"cancelled while pending" branch runs in every passing run (superseded and final timers), and "fired while
+pending" runs under the old-deadline mutation. Its "cancelled before suspension" branch is reached only
+when a cancellation lands between arming and suspending, which no run forces or reports; its correctness
+rests on reading the code (the handler records the id under the lock and the suspension resumes at once).
 Item 4: fixture unchanged. Item 5: the double is private to this test file
 (`grep -rn ManualTimeoutClock Tests Sources Scripts` → this file only). Findings: none.
+
+## Post-implementation check, incremental round (2026-10-29)
+
+Ticket: v1-core ticket 26 (linked at the top). This is an incremental round of the post-implementation check
+above (first round, 2026-10-29). Fix under review: `7997e66..96f7e7f`. `685805f` (HEAD) only adds
+`ticket-26-logs/change-scope-after-findings.txt`. The test file is blob `1555a21` at `96f7e7f`, at HEAD and in
+the working tree; `git status` lists only the stray `:-`. Line numbers refer to
+`Tests/VLMSnapperCoreTests/ProviderAdapterExecutorTests.swift` at that blob unless another file is named.
+"timeout" means `Sources/VLMSnapperCore/ProviderStreamTimeout.swift` and "executor" means
+`ProviderAdapterExecutor.swift`.
+
+Sources read in full: ticket 26; the fix diff; the test file; timeout; executor; `Package.swift`;
+`ticket-26-review-code.md`; `ticket-26-doc-sync.md`; this record; `targeted-sync-clock.log`;
+`mutations-sync-clock.log`; `sync-clock-plain.log`; `sync-clock-with-300ms-pauses.log`;
+`change-scope-after-findings.txt`; `mutations.log`; `stall.sh`; `docs/agents/docs-layout.md`; `AGENTS.md`;
+`CODEX.md`. Read in part: spec v1-core §6, Failure Modes and Seam 2.
+
+### Increment scope
+
+- `git diff --name-only 7997e66 96f7e7f` lists the test file and seven files under `docs/.workings/v1-core/`
+  (ticket 26, `ticket-26-review-code.md`, this record, and four logs). `git diff --name-only 96f7e7f 685805f`
+  lists one log.
+- Changed test code: the hunks at :108 and :132 (test `deepSeekReasoningKeepsFirstTextDeadlineAlive`),
+  :282–305 (`DeepSeekReasoningStreamingTransport`) and :352–405 (`ManualTimeoutClock`).
+- Tests that depend on the changed helpers:
+  `grep -rn -e ManualTimeoutClock -e DeepSeekReasoningStreamingTransport Tests Sources Scripts Package.swift`
+  finds only :109, :111, :286, :287 and :355 of this file, and both types are `private`.
+  `grep -rln ProviderAdapterExecutorTests Tests Scripts` finds only this file. The only test in scope is
+  therefore `deepSeekReasoningKeepsFirstTextDeadlineAlive`.
+- Changed rows of the test design table: T1, rewritten under "Increment: row T1 rewritten".
+
+The following conclusions are carried over from the first round of this check and were not re-checked: the
+fixture's provenance (dimension 1), the assessment of `stall.sh` (dimension 3; the file is unchanged), and
+the status of findings 3 and 4.
+
+### Run evidence
+
+This round checks the handed-over targeted log, `ticket-26-logs/targeted-sync-clock.log`, against the gate's
+log requirements:
+
+- Version: :1 gives HEAD `7997e66…` "+ working tree". :2–10 list the porcelain status: the test file, ticket 26,
+  the code review record and this record as modified, plus `:-` and the four new logs as untracked. The
+  modified and new files are exactly the files that `96f7e7f` changes. The log lacks two required items: the
+  `git hash-object` output for each listed file, and the commands that took the version. As a result, it does
+  not show which content of the test file ran (finding 5).
+- Commands: three (`swift build -Xswiftc -warnings-as-errors …`, `swift build --build-tests`,
+  `swift test --skip-build --skip ProviderApplicationTests`). Each ends with `== exit: 0`, and no recorded
+  command line contains a pipe.
+- Output: complete for each command. It contains no warning, no failure and no continuation message. The
+  reviewed test starts at :721 and passes at :1194 (0.221 s), inside `Test run with 363 tests in 77 suites
+  passed` (:1359).
+- Product sources: the porcelain lists no file under `Sources/`, so the product mutations behind
+  `mutations-sync-clock.log` had been reverted before this run.
+- Corroboration only, not a substitute for the version list: the test file's mtime, 00:15:15, is earlier than
+  the run (00:17:14), and the file's current content is blob `1555a21`.
+
+Conclusion: the log shows a passing result but cannot tie it to `96f7e7f` (finding 5). As the skill requires,
+nothing was rerun to fill that gap.
+
+Supplementary logs, cited by ticket 26 acceptance 1 and by the code review record:
+
+- `sync-clock-plain.log`, `sync-clock-with-300ms-pauses.log` and `mutations-sync-clock.log` record neither
+  the version nor the command.
+- `mutations-sync-clock.log` prints the new :132 expression (`clock.armIDs…` without `await`), so its runs
+  were built from the new test.
+- In `sync-clock-with-300ms-pauses.log`, runs 1 and 4 took 0.114 s and 0.127 s, the unpaused time. Only 3 of
+  the 5 runs were paused.
+
+None of this changes a conclusion below, because the passing path's independence from time follows from the
+code (dimension 2).
+
+No measurements were taken this round. The code answers dimension 3, mutation testing does not apply, and
+the rules do not allow a rerun to fill finding 5's gap.
+
+### Written test vs the test design table
+
+| Column | Table (T1, rewritten) | Written test | Match |
+|---|---|---|---|
+| Seam | `ProviderAdapterExecutor.stream` with injected transport and timeout clock | :109–113 | yes |
+| Driving input | wait for the request-start first-text deadline; per reasoning event: snapshot, yield, bounded 10 s wait for a new arm, fire the snapshot, 50 ms pause; then text and `[DONE]` | :296 (the initial wait uses the same 10 s guard, :395); :297–306; :307–311 | yes |
+| Assertion and expected-value source | event literals; three first-text arms (spec §6); a surviving deadline fails the stream with `.firstTextTimeout` | :126–130; :132; thrown at :116 | yes |
+| Fixture shape | recorded DeepSeek SSE shape, unchanged | payload bytes unchanged; reasoning text interpolated at :300, as in the first round | yes |
+| Expensive resources | none | none | yes |
+
+The test file has no header gap note, and none is needed. No path in this test's scope is untestable. The red
+path for an old deadline that is kept is probabilistic, not untestable (dimension 3).
+
+### Dimension 1: Coverage
+
+The fix changes the double and the comments. It does not change the driving input or the assertions, so
+coverage of spec §6 (reasoning refreshes the first-text deadline) and of Seam 2's timeout contract is as in
+the first round. Failure Modes 9 (a timeout stops the call) is still driven on the red path through
+`.firstTextTimeout`.
+
+The claim "request start plus one per reasoning event" matches the inputs. :296–302 produce exactly those
+arms, and nothing else arms `.firstText` before text (timeout :60–79; executor :47, :68–71). The pre-existing
+gap is finding 4, carried over.
+
+### Dimension 2: Case design
+
+The test uses the public seam with clock injection. It reads only the double's record of the calls that the
+product makes through the injected protocol. Instances are created per test, and nothing is shared.
+
+The double now follows the real clock's cancellation contract:
+
+- `Task.cancel()` runs the `onCancel` handler (:378–385) synchronously on the cancelling thread. If the task
+  was cancelled before it registered the handler, the handler runs immediately on entry instead. In both
+  cases, the sleep is either resumed with `CancellationError` or marked in `cancelledBeforeSuspending` (:381),
+  and the operation then throws (:372, :376). It never becomes pending.
+- `receivedActivity` cancels the old timer (timeout :74) before it creates the replacement (:75–79). The
+  replacement's body runs only after that.
+- The producer fires only after it has seen the replacement armed (:302–303). By then every superseded ID has
+  left `pending` or will never enter it, so firing a superseded deadline is a no-op whatever the task order.
+- The design review's dimension 2 sentence ("ends it on cancellation, as the real clock does") was
+  contradicted by finding 1 and now holds.
+- Locking: every access to the four mutable fields happens under `lock`. Continuations are resumed outside it
+  (:376, :384, :404). `fire` and `onCancel` therefore cannot both resume one continuation, and nothing resumes
+  while holding the lock.
+
+No pattern that masks a defect was found.
+
+### Dimension 3: False greens
+
+Mutation testing: 项目无能力声明文件；未确认 `mutation-testing` (`capabilities.toml` is still absent at
+the repository root, checked directly). Mutation testing was not run. This is finding 3, which is still open;
+the handling section above records the user's deferral. The question "when does it go red" is answered from
+the code:
+
+| Broken behaviour | Mechanism | Red at | Deterministic |
+|---|---|---|---|
+| Reasoning does not cancel the earlier first-text deadline (timeout :74) | That deadline is still pending at `fire(before)` (:303), resumes, and its timer calls `timeout(.firstText)` and then `fail(.firstTextTimeout)` (timeout :103–104, :111–114) | thrown at :116 (reported at :106) | Only if the resumed timer reaches the coordinator before `complete()`. The window is the 50 ms pause (:305), twice, plus text processing; otherwise :132 still counts 3 and the test passes. Inferred, unchanged from the first round: whole-process stalls do not defeat it, because the resumed timer job is queued before the producer wakes. |
+| Reasoning cancels but does not re-arm, or re-arms as `.stalled` (timeout :75–79) | `waitForNewArm` gives up after 10 s per event; `fire` is a no-op | :132 (count 1) | yes (about 20 s) |
+| No first-text deadline at request start (timeout :60–65, executor :47) | The initial wait gives up after 10 s | :132 (count 2) | yes |
+| The decoder stops flagging non-empty reasoning (executor :168) | No cancel and no re-arm; the request-start deadline is fired while still live | :116 if the timer wins the race, otherwise :132 (count 1) | yes, at one of the two |
+| Reasoning is treated as text | It re-arms `.stalled` instead of `.firstText` | :132 (count 1) | yes |
+| Reasoning surfaces as a public event, or the event order changes | n/a | :126 | yes |
+| Activity restarts the total deadline, or the 10, 10 and 90 s durations change | The double never fires `.total` and ignores `duration` | never | n/a (finding 4, carried over) |
+
+Corroboration: `mutations-sync-clock.log` shows red at :106 (`old-deadline-kept`) and at :132 (`no-rearm`).
+It records neither the mutation diffs nor the version, so it corroborates only.
+
+False-green patterns:
+
+- Tautology: none. The expected values are literals, and 3 comes from spec §6.
+- Always-true assertion: none.
+- Stale path: none. The executor is the production path (first round).
+- Conditional skip: none. The 10 s give-up is silent, but the count assertion follows it.
+- Assertion that may not run: none. Both `#expect`s run at top level after the loop, and the loop throws on
+  stream failure.
+
+This round introduces no new command-line, UI or gate check.
+
+### Dimension 4: Resource reuse
+
+The test design table lists no expensive resource. The written test creates only in-memory doubles per test.
+Counting from the targeted log: there is no per-test load or build output, and the build runs once per
+command, before the tests run. No test clears a process-shared resource, so the collection-order rule does not
+apply.
+
+### Document sync
+
+Scope, following `implement/document-sync.md`:
+
+- Task inputs: ticket 26; spec v1-core §6, Failure Modes and Seam 2; this record; both handed-over logs.
+- Working-record directory: `docs/.workings/v1-core/`, including the `ticket-26-*` files, all 12 files in
+  `ticket-26-logs/`, `issues/26` and `issues/17`, plus the feature-level `review-tests.md`, `checklist.md`
+  and `final-regression.md` as associated references.
+- Root files: `AGENTS.md`, `CODEX.md` (only `@AGENTS.md`) and `CONTEXT.md`. `README.md`, `CLAUDE.md` and
+  `capabilities.toml` were checked directly and are absent.
+- Authoritative docs: `docs/features/`, `docs/adr/` and `docs/specs/`.
+- Excluded: `docs/prototypes/`, because they hold UI prototypes and this change is test-only. Other
+  `docs/.workings/<slug>/` directories are also excluded: there, only the original gate logs of
+  `capture-instant-overlay` name the test, as output lines of earlier runs.
+- Hidden and ignored files:
+  `git status --porcelain --ignored --untracked-files=all -- docs Tests CONTEXT.md AGENTS.md CODEX.md CLAUDE.md README.md capabilities.toml`
+  lists nothing, and `find docs -name '.*' -not -path docs/.workings` finds nothing.
+- References:
+  `grep -rn -I -l -e deepSeekReasoningKeepsFirstTextDeadlineAlive -e ManualTimeoutClock -e ticket-26 -e 26-deterministic -e "DeepSeek reasoning activity keeps" --exclude-dir=.build --exclude-dir=.git .`
+  finds the test file, the `ticket-26-*` files and logs, tickets 17 and 26, `review-tests.md`, and three
+  `capture-instant-overlay` gate logs.
+  `grep -rn -I -i -E "reasoning|推理|首字|first.text|ManualTimeoutClock|timeout clock" docs/features docs/adr docs/postmortems docs/ops CONTEXT.md AGENTS.md CODEX.md`
+  finds only product statements (features :47, ADR 0011 :23 and :42, CONTEXT :95).
+
+Facts changed by the range: the clock double cancels synchronously, and the guard is now 10 s; the test
+comments; ticket 26 acceptance 1; the code review record; this record (handling section, T1 increment,
+self-check); the new logs. The handling section also leaves finding 4 awaiting a user decision.
+
+Judgements:
+
+- Ticket 26 acceptance 1 (:26) matches the code. On the passing path, the only dependence on time or task
+  order is the 10 s guard; the failing path keeps the 50 ms window. The pause evidence is 3 paused runs (run
+  evidence), and the code argument holds independently.
+- `ticket-26-review-code.md` :16–23, :27–30 and :38–42 match the code. "with 300 ms pauses 5/5" counts 2 runs
+  that were not paused; no conclusion depends on it.
+- The test comments at :108, :282–285, :352–354, :392–393 and :401 are true. At :283, "every deadline armed
+  before the event" means every first-text deadline (:298); the total deadline is never fired. No conclusion
+  depends on this wording.
+- This record:
+  - The handling section and the T1 increment are true.
+  - Self-check item 3 is not (finding 6).
+  - The design review's original T1 row and the first round's "5 s" text describe the test as it was on
+    their dates. They remain as original records.
+- `ticket-26-doc-sync.md` has not changed since `7997e66` and lacks the sync items created by the first
+  round's findings (finding 7).
+- Ticket 17's Comments entry of 2026-10-28 ("ticket 26 drives its deadlines with a manual clock") is still
+  true.
+- The spec, features, ADR 0011 and `CONTEXT.md` are unchanged. They contain only product statements, and the
+  change is test-only.
+- The feature-level `review-tests.md`, `checklist.md` and `final-regression.md` contain no statement about
+  the double (the `ManualTimeoutClock` search above), so they are unaffected.
+
+### Findings
+
+5. **The targeted verification log has no per-file version hashes, so it cannot show that the fix's test
+   content was run.** Category: untrue record or evidence.
+   - Missing per the gate's log requirements:
+     - the `git hash-object` output for each file listed at :2–10 of `targeted-sync-clock.log`;
+     - the commands that took the version.
+   - Consequence: the passing result at :1194 is not tied to blob `1555a21` of `96f7e7f`. The listed file set
+     and the test file's mtime (run evidence) only corroborate the tie.
+   - Required handling: provide a targeted-run log for the reviewed version that meets the gate's log
+     requirements, then point this round's run evidence to it. As the skill requires, this check did not rerun
+     anything to fill the gap.
+6. **Self-check item 3 claims that the passing run drives the double's "cancelled before suspension" branch,
+   but nothing forces that branch and no output shows it.** Category: untrue record or evidence.
+   - Facts:
+     - The branch (:372 after :381) runs only when a cancellation lands between arming (:363–368) and the
+       continuation's lock (:371), or before the handler is registered.
+     - The passing run cancels five deadlines:
+       - The request-start deadline: the producer sees its arm by 1 ms polling, and only then is the
+         reasoning event decoded. It is normally already pending when cancelled.
+       - The two re-armed first-text deadlines: each is cancelled by the next event, which the producer
+         sends only after a 50 ms pause, so each is pending.
+       - The total deadline: pending since the request started.
+       - The stall deadline armed by the text event: it races with `complete()`. Inferred: `Package.swift`
+         enables no upcoming features, so the nonisolated `sleep` runs off the coordinator, concurrently with
+         `complete()`.
+     - The branch is therefore reached only by timing, and the test output records no per-branch data.
+   - Why it matters: this branch keeps a superseded deadline from becoming pending when a stall lands between
+     arming and suspending, which is the case the fix exists for. A regression in the branch would show only
+     as a rare false red, and passing runs cannot reveal it. Its correctness currently rests on reading the
+     code (dimension 2), not on runs.
+   - Required handling: bring item 3 in line with the evidence. It should say that the branch is reached only
+     by timing and that its correctness is established by reading the code. This finding requires no test
+     change.
+7. **The ticket's document sync checklist lacks the sync items created by first-round findings 1, 2 and 4.**
+   Category: untrue record (a document that the record-ownership rules require to be synchronized).
+   - The first round's "Document sync" subsection asked for these items to be added to
+     `ticket-26-doc-sync.md`. `git log -- docs/.workings/v1-core/ticket-26-doc-sync.md` shows only `7997e66`.
+   - Missing rows:
+     - The corrections under findings 1 and 2, done in `96f7e7f`: the test comments, ticket 26 acceptance 1,
+       `ticket-26-review-code.md` and this record's T1 row. Status `已完成`, linking `96f7e7f`.
+     - Finding 4's follow-up, a pointer in ticket 17's Comments if the user files a ticket. Status `待处理`,
+       because its applicability waits on the user's decision.
+   - Rule: `implement/document-sync.md` requires that sync items added by changes, review findings or status
+     events go into the ticket's checklist.
+   - Required handling: add the rows, with statuses set as `to-tickets/ticket-artifacts.md` specifies.
+
+Carried over and not renumbered: finding 3 stays open (deferred by the user, per the handling section), and
+finding 4 is awaiting the user's decision.
