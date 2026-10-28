@@ -181,6 +181,9 @@ private final class CaptureOverlayPanel: NSPanel {
         // A transparent window lets clicks through where it is fully clear, as
         // inside a selection drawn before the frame arrives; keep them here.
         ignoresMouseEvents = false
+        // The default window-open animation starts the panel slightly smaller than
+        // the screen and grows it over several frames; the overlay must cover at once.
+        animationBehavior = .none
         hasShadow = false
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
