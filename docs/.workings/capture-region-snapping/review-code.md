@@ -16,9 +16,10 @@ CoreGraphics window-list adapter, overlay controller and view changes, applicati
   sandboxed build — verified on the installed app before delivery.
 - A synthetic mouse-moved event sent to the panel reaches the view (controller hover test passes);
   physical movement on other displays relies on the `.activeAlways` tracking area — installed-build check.
-- New comments: "Listing takes tens of milliseconds" (measured 18 ms) and "a release far from the press
-  is a drag even when no drag event arrived" (the existing tests send down/up without drag events) are
-  verified causes. No finding.
+- New comments: "Listing takes tens of milliseconds" (measured 18 ms) is a verified cause. "A release far
+  from the press is a drag even when no drag event arrived" states the behaviour that keeps an existing
+  press-and-release pair a drag; corrected 2026-10-28 after the post-implementation check (finding 2): no
+  earlier test sent such a pair, `farReleaseWithoutDragEventsDrags` now drives it. No finding.
 
 ## Runnability
 

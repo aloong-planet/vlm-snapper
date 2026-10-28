@@ -1,0 +1,108 @@
+Test Suite 'Selected tests' started at 2026-10-28 22:00:21.647.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:00:21.649.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:00:21.649.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:00:21.649.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 0 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 2 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 5 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 6 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+✔ Test recentMenuShowsAtMostFiveSavedRecords(count:) with 4 test cases passed after 1.303 seconds.
+◇ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() started.
+✔ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() passed after 0.633 seconds.
+◇ Test historyImageRemainsVisibleWhileSameRecordReloads() started.
+✔ Test historyImageRemainsVisibleWhileSameRecordReloads() passed after 0.081 seconds.
+◇ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() started.
+✔ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() passed after 0.714 seconds.
+◇ Test historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .extract to historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .translate to historyRetryUpdatesOriginalRecord(kind:) started.
+✔ Test historyRetryUpdatesOriginalRecord(kind:) with 2 test cases passed after 5.437 seconds.
+◇ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() started.
+✔ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() passed after 2.443 seconds.
+◇ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() started.
+✔ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() passed after 0.031 seconds.
+◇ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() started.
+✔ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() passed after 1.941 seconds.
+◇ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() started.
+[NATIVE-DIAG] capture pid=35310 elapsed=1.2562446668744087
+t=0.07845829171128571 stage=overlay-ready target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.07859862502664328 stage=before-mouse-1 target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.09320016670972109 stage=after-mouse-1 target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.09330583340488374 stage=before-mouse-6 target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.10576320835389197 stage=after-mouse-6 target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.1077050834428519 stage=before-mouse-2 target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.12073316681198776 stage=after-mouse-2 target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.1209898751694709 stage=toolbar-wait target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.20978250005282462 stage=toolbar-wait target=76768 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=true,key=false,canKey=false,level=1001,size=(539.0, 31.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.20991816674359143 stage=toolbar-ready target=-1 active=true policy=2 key=76768 main=-1 frontPID=687 windows=[id=76739,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=76764,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=76767,visible=true,key=false,canKey=false,level=1001,size=(539.0, 31.0);id=76768,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+✔ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() passed after 1.256 seconds.
+◇ Test displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .sleep to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .disconnect to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .scale to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .rotate to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .move to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+✔ Test displayChangesCancelSelectionBeforeMouseUp(change:) with 5 test cases passed after 0.465 seconds.
+◇ Test replacementAndEscapeRetireDisplaySubscriptions() started.
+✔ Test replacementAndEscapeRetireDisplaySubscriptions() passed after 0.180 seconds.
+◇ Test overlayCoversDisplaysBeforeFreezeCompletes() started.
+✔ Test overlayCoversDisplaysBeforeFreezeCompletes() passed after 0.086 seconds.
+◇ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() started.
+✔ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() passed after 0.201 seconds.
+◇ Test escapeWhileFreezingExitsCapture() started.
+✔ Test escapeWhileFreezingExitsCapture() passed after 0.111 seconds.
+◇ Test terminationWhileFreezingWithdrawsOverlay() started.
+✔ Test terminationWhileFreezingWithdrawsOverlay() passed after 0.053 seconds.
+◇ Test failedFreezeRestoresPreviousSelection() started.
+✔ Test failedFreezeRestoresPreviousSelection() passed after 0.241 seconds.
+◇ Test escapeWhileReplacingSelectionReleasesActivity() started.
+✔ Test escapeWhileReplacingSelectionReleasesActivity() passed after 0.230 seconds.
+◇ Test escapeWhileFreezingFromResultRestoresWorkspace() started.
+✔ Test escapeWhileFreezingFromResultRestoresWorkspace() passed after 0.787 seconds.
+◇ Test selectionStartedBeforeFramesFinishesAfterThem() started.
+✔ Test selectionStartedBeforeFramesFinishesAfterThem() passed after 0.212 seconds.
+◇ Test clickOnWindowSelectsWholeWindow() started.
+✔ Test clickOnWindowSelectsWholeWindow() passed after 0.219 seconds.
+◇ Test clickOnDesktopSelectsWholeDisplay() started.
+✔ Test clickOnDesktopSelectsWholeDisplay() passed after 0.223 seconds.
+◇ Test clickWhileFreezingSelectsWindowOnceFramesArrive() started.
+✔ Test clickWhileFreezingSelectsWindowOnceFramesArrive() passed after 0.191 seconds.
+◇ Test clickWithoutWindowListSelectsNothingButDragStillWorks() started.
+✔ Test clickWithoutWindowListSelectsNothingButDragStillWorks() passed after 0.210 seconds.
+◇ Test lateWindowListOfReplacedCaptureIsIgnored() started.
+✔ Test lateWindowListOfReplacedCaptureIsIgnored() passed after 0.471 seconds.
+◇ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() started.
+✔ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() passed after 0.349 seconds.
+◇ Test heldWindowListDoesNotDelayOverlay() started.
+✔ Test heldWindowListDoesNotDelayOverlay() passed after 0.193 seconds.
+◇ Test displayChangeWhileReplacingAbandonsPendingCapture() started.
+✔ Test displayChangeWhileReplacingAbandonsPendingCapture() passed after 0.195 seconds.
+◇ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() started.
+✔ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() passed after 0.093 seconds.
+◇ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() started.
+✔ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() passed after 0.077 seconds.
+◇ Test nativeOnboardingValidatesSelectsAndReturns() started.
+✔ Test nativeOnboardingValidatesSelectsAndReturns() passed after 2.154 seconds.
+◇ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() started.
+✔ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() passed after 0.353 seconds.
+◇ Test injectedUpdateEventsReachTheApplicationPresentation() started.
+✔ Test injectedUpdateEventsReachTheApplicationPresentation() passed after 0.023 seconds.
+◇ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 401 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 500 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+✔ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) with 2 test cases passed after 0.056 seconds.
+◇ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() started.
+✔ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() passed after 0.028 seconds.
+◇ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() started.
+✔ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() passed after 0.023 seconds.
+◇ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() started.
+✔ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() passed after 0.039 seconds.
+✔ Suite ProviderApplicationTests passed after 21.321 seconds.
+✔ Test run with 36 tests in 1 suite passed after 21.321 seconds.

@@ -7,8 +7,9 @@ import Testing
 // very high layer, status items as separate layer-25 windows, the menu bar as a layer-24
 // window of the window server, the Dock as one layer-20 window covering the whole display,
 // and ordinary layer-0 windows that overlap and reach past the display edge.
-// Not covered here: the real list in a signed sandboxed app and real Dock and menu bar
-// geometry, which are checked on the installed build.
+// Not covered here: the real list in a signed sandboxed app, real Dock and menu bar geometry
+// and the visible frame of an auto-hidden Dock (assumed to reach the display edge), which are
+// checked on the installed build.
 @Suite("Capture snap region resolver")
 struct CaptureSnapRegionResolverTests {
     private static let ownProcess: Int32 = 900
@@ -41,6 +42,7 @@ struct CaptureSnapRegionResolverTests {
 
     private static func resolver(
         front: [CaptureWindowSnapshotEntry] = [],
+        back: [CaptureWindowSnapshotEntry] = [],
         dockVisible: Bool = true
     ) -> CaptureSnapRegionResolver {
         let recorded = [
@@ -54,7 +56,7 @@ struct CaptureSnapRegionResolverTests {
         ]
         return CaptureSnapRegionResolver(
             snapshot: CaptureWindowSnapshot(
-                windows: front + (dockVisible ? recorded : recorded.filter { $0.ownerProcessID != dockProcess }),
+                windows: front + (dockVisible ? recorded : recorded.filter { $0.ownerProcessID != dockProcess }) + back,
                 dockProcessID: dockProcess
             ),
             excludedProcessID: ownProcess
@@ -91,13 +93,33 @@ struct CaptureSnapRegionResolverTests {
             visibleFrame: CGRect(x: 0, y: 34, width: 1512, height: 948),
             pointPixelScale: 2
         )
-        // With no reserved strip the point is over the desktop.
-        #expect(Self.resolver().region(at: CGPoint(x: 700, y: 960), on: autoHidden) == Self.display.frame)
+        // With no reserved strip the point falls through to the window behind the Dock.
+        let below = CGRect(x: 600, y: 900, width: 300, height: 80)
+        #expect(
+            Self.resolver(back: [Self.window(below, process: 505)])
+                .region(at: CGPoint(x: 700, y: 960), on: autoHidden) == below
+        )
         // Without the Dock window at all, the reserved strip is not a region either.
         #expect(
             Self.resolver(dockVisible: false).region(at: CGPoint(x: 700, y: 960), on: Self.display)
                 == Self.display.frame
         )
+    }
+
+    @Test("a Dock on the left or right side is one strip along that edge")
+    func snapsSideDockStrips() {
+        let left = CaptureSnapDisplay(
+            frame: Self.display.frame,
+            visibleFrame: CGRect(x: 60, y: 34, width: 1452, height: 948),
+            pointPixelScale: 2
+        )
+        #expect(Self.resolver().region(at: CGPoint(x: 30, y: 500), on: left) == CGRect(x: 0, y: 34, width: 60, height: 948))
+        let right = CaptureSnapDisplay(
+            frame: Self.display.frame,
+            visibleFrame: CGRect(x: 0, y: 34, width: 1452, height: 948),
+            pointPixelScale: 2
+        )
+        #expect(Self.resolver().region(at: CGPoint(x: 1480, y: 500), on: right) == CGRect(x: 1452, y: 34, width: 60, height: 948))
     }
 
     @Test("the desktop snaps to the whole display")
@@ -135,5 +157,19 @@ struct CaptureSnapRegionResolverTests {
         )
         // The 1.5 pt window is one pixel wide at scale 1 and is skipped for the desktop below it.
         #expect(resolver.region(at: CGPoint(x: 1700.5, y: 500), on: second) == second.frame)
+    }
+
+    @Test("the two-pixel minimum counts physical pixels in both directions")
+    func appliesPixelMinimumAtDisplayScale() {
+        let kept = CGRect(x: 20, y: 700, width: 1, height: 100)
+        let resolver = Self.resolver(front: [
+            Self.window(kept, process: 506),
+            Self.window(CGRect(x: 25, y: 700, width: 0.75, height: 100), process: 507),
+            Self.window(CGRect(x: 5, y: 650, width: 30, height: 0.75), process: 508),
+        ])
+        // At scale 2: 1 pt is 2 px and is kept; 0.75 pt is 1.5 px, too narrow or too low.
+        #expect(resolver.region(at: CGPoint(x: 20.5, y: 750), on: Self.display) == kept)
+        #expect(resolver.region(at: CGPoint(x: 25.3, y: 750), on: Self.display) == Self.display.frame)
+        #expect(resolver.region(at: CGPoint(x: 15, y: 650.3), on: Self.display) == Self.display.frame)
     }
 }

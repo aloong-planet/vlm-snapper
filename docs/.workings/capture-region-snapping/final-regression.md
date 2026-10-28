@@ -13,7 +13,7 @@ are English. Every search below has a Chinese and an English pattern.
 |---|---|---|
 | Spec Solution sentence, §3 bullet, v1-core::REQ-006 AC-01–11, FM-47 | Implementation at `5c96041` (spec final check in `tasklist.md`) | True; installed-build checks pending (real window list, Dock/menu-bar geometry, physical hover) |
 | Spec Implementation Decisions (window list, Dock strip, newest overlay, no Accessibility) | Resolver, adapter, controller, model guard | True; the newest-overlay rule written back from the code review |
-| Spec Testing Decisions paragraph for REQ-006 | Tests C1–C7, U1–U7, A1–A5 and their fixtures | True |
+| Spec Testing Decisions paragraph for REQ-006 | Tests C1–C7, U1–U12, A1–A6 and their fixtures | True after the 2026-10-28 correction: crop end points are judged at the overlay controller (U12), toolbar position in the app tests; gaps listed (auto-hide visible frame, latency, two displays) |
 | Spec Prototype Coverage sentence, Out of Scope (window detection removed; Dock icons, element detection, toggles listed) | Confirmed prototype; user decisions of 2026-10-28 | True |
 | `docs/features/v1-core.md` capture paragraph (region outline, click, drag, no single Dock icons) | Spec REQ-006 user-visible layer | Consistent; no implementation terms |
 | `docs/adr/0014-snap-regions-from-window-list.md` | Spec and features | Not contradicted; spec cites ADR-0014 and the range 0001–0014 |

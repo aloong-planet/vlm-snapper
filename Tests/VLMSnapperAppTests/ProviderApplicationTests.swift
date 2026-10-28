@@ -43,6 +43,8 @@ import VLMSnapperUI
 // Window-server hit testing is also out of reach: `sendEvent` skips it, so a click
 // inside a clear pending selection reaching another app needs posted HID events
 // with Accessibility trust (verified outside the suite, see the construction notes).
+// Snap regions (v1-core::REQ-006): hover latency with many windows and the real window list of
+// a signed sandboxed app are checked on the installed build, not here.
 // The window-open animation of the overlay changes only composited frames, not the
 // window frame, window-server bounds or layers: the overlay controller tests assert the
 // window's animation behavior, and full first-frame coverage was checked by screen recording.
@@ -1352,6 +1354,40 @@ struct ProviderApplicationTests {
     }
 
     @Test
+    func windowListIsReadOnceAtTriggerWithoutOwnWindows() async throws {
+        try await withSnapFixture(windowList: false) { fixture, screen in
+            let flipHeight = try #require(NSScreen.screens.first).frame.height
+            func entry(_ process: Int32, localX x: CGFloat, width: CGFloat) -> CaptureWindowSnapshotEntry {
+                CaptureWindowSnapshotEntry(
+                    ownerProcessID: process, layer: 0, alpha: 1, isOnScreen: true,
+                    bounds: CGRect(x: screen.frame.minX + x, y: flipHeight - (screen.frame.minY + 350), width: width, height: 200)
+                )
+            }
+            // First read: one of VLMSnapper's own windows in front at local x 280, a window at 200.
+            // A second read would return no windows and move the toolbar to the display's edge.
+            let own = ProcessInfo.processInfo.processIdentifier
+            await fixture.windows.provide(perCall: [
+                CaptureWindowSnapshot(windows: [entry(own, localX: 280, width: 100), entry(4242, localX: 200, width: 300)], dockProcessID: nil),
+                CaptureWindowSnapshot(windows: [], dockProcessID: nil),
+            ])
+            await fixture.capture.holdFrames()
+            try fixture.shortcuts.fire()
+            try await eventually { await fixture.windows.calls == 1 }
+            try await eventually { try mainScreenOverlay() != nil }
+            let overlay = try #require(try mainScreenOverlay())
+            pumpNativeEvents(overlay)
+            try await Task.sleep(for: .milliseconds(100))
+            try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
+            try sendMouse(.leftMouseUp, at: NSPoint(x: 300, y: 250), to: overlay)
+            await fixture.capture.release()
+            try await eventually { captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            #expect(abs(toolbar.frame.minX - (screen.frame.minX + 200)) <= 1)
+            #expect(await fixture.windows.calls == 1)
+        }
+    }
+
+    @Test
     func heldWindowListDoesNotDelayOverlay() async throws {
         try await withSnapFixture { fixture, _ in
             await fixture.windows.hold()
@@ -2426,7 +2462,9 @@ private actor FixtureWindowListing: CaptureWindowListing {
         suspended.forEach { $0.resume() }
     }
     private(set) var returned = 0
+    private(set) var calls = 0
     func captureWindowSnapshot() async -> CaptureWindowSnapshot? {
+        calls += 1
         let result = queued.isEmpty ? snapshot : queued.removeFirst()
         if held { await withCheckedContinuation { waiters.append($0) } }
         returned += 1
