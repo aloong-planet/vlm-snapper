@@ -79,7 +79,26 @@ Findings in this layer:
    back B's pending overlay and un-reserved B's workspace. That branch now acts
    only while A still owns the request.
 
-Conclusion: two bugs found and fixed; all enumerated exits end in a defined
+3. **Test fixture skipped windows whose address was reused (fixed).** Found by
+   the pre-review gate: `escapeWhileFreezingFromResultRestoresWorkspace`
+   failed in fixture teardown (shortcut lease never released) in 4 of 21 app
+   suite runs before the fix and 0 of 15 isolated runs. Teardown diagnostics showed the model
+   was still alive 35 s later and that `stopFixture` had skipped the result
+   window holding `NSHostingController<ResultWorkspaceView>` as "pre-existing",
+   although the test created it. The fixture recorded pre-existing windows as
+   `ObjectIdentifier`s; a window alive at test start was freed during the test
+   and the new result window reused its address, so its view graph (whose
+   `Binding` retains the model) was never cleared. Escape surface: upper (a
+   later fixture deadline fails an unrelated, passing test). Fix: keep strong
+   references to the pre-existing windows and compare by identity. Class check:
+   every `ObjectIdentifier` use was enumerated
+   (`grep -rn 'ObjectIdentifier' Tests Sources VLMSnapper`); the three fixture
+   sites shared one helper and are all fixed; the only other use is
+   `commit(displays:)`, whose identifiers come from panels the pending array
+   keeps alive, so no address can be reused there. Confirmation: see the
+   suite-loop result recorded in `tasklist.md`.
+
+Conclusion: three bugs found and fixed; all enumerated exits end in a defined
 state.
 
 ## Security

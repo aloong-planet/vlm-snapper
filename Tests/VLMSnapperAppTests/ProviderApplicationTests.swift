@@ -1821,11 +1821,11 @@ private final class WeakShortcutLease {
 }
 
 @MainActor
-private func stopFixture(excluding existingWindows: Set<ObjectIdentifier>, stop: () -> Void) {
+private func stopFixture(excluding existingWindows: [NSWindow], stop: () -> Void) {
     precondition(withUnsafeCurrentTask { $0 != nil }, "Fixture cleanup requires a Swift Task")
     autoreleasepool {
         // Keep this fixture's windows alive across stop(), which closes them.
-        let windows = NSApp.windows.filter { !existingWindows.contains(ObjectIdentifier($0)) }
+        let windows = NSApp.windows.filter { window in !existingWindows.contains { $0 === window } }
         stop()
         for window in windows {
             window.makeFirstResponder(nil)
@@ -1894,7 +1894,9 @@ private final class ApplicationFixture {
 
     func withModel(historyImageLoader: ControlledHistoryImages? = nil,
                    _ operation: (VLMSnapperApplicationModel) async throws -> Void) async throws {
-        let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
+        // Strong references: a freed window's address can be reused by a window this
+        // fixture creates, so identifiers alone would skip that window at cleanup.
+        let existingWindows = NSApp.windows
         let defaults = try requireFixture(UserDefaults(suiteName: suite))
         await UserDefaultsApplicationLanguageStore(defaults: defaults).save(.english)
         let model = try VLMSnapperApplicationModel(
@@ -1934,7 +1936,9 @@ private final class ApplicationFixture {
     }
 
     func withApplication(_ operation: (VLMSnapperApplicationDelegate) async throws -> Void) async throws {
-        let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
+        // Strong references: a freed window's address can be reused by a window this
+        // fixture creates, so identifiers alone would skip that window at cleanup.
+        let existingWindows = NSApp.windows
         let defaults = try requireFixture(UserDefaults(suiteName: suite))
         await UserDefaultsApplicationLanguageStore(defaults: defaults).save(.english)
         let application = application()

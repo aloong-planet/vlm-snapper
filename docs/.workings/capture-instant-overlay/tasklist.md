@@ -56,3 +56,13 @@ immediately after the shortcut.
   one by one as CI does: all passed) and `Tests/AXFixture/main.swift`, an executable
   fixture that does not reference the overlay or toolbar and builds in the strict
   build. No test reads a changed configuration or data file.
+
+## Fixture teardown flake (2026-10-28)
+
+- Before the fix: 4 of 21 runs of `swift test --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu`
+  failed in `escapeWhileFreezingFromResultRestoresWorkspace` teardown (`waitForShortcutRelease` deadline);
+  0 of 15 isolated runs of that test failed.
+- Diagnosis (temporary instrumentation, not committed): the model stayed alive 35 s after the deadline, and
+  `stopFixture` skipped the test's own result window as "pre-existing" because its `ObjectIdentifier` matched a
+  window freed during the test. Root cause and fix are recorded in `review-code.md` (Runnability, finding 3).
+- After the fix (strong references compared by identity): 0 of 20 runs of the same suite command failed.
