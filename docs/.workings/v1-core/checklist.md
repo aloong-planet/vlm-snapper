@@ -20,12 +20,12 @@ Spec：[v1-core](../../specs/v1-core.md)
 
 | 覆盖单位 | 唯一主定义及来源反查 | 设计核对 / 实现验收状态 |
 |---|---|---|
-| v1-core::REQ-005/AC-01 | 用户延迟反馈；Further Notes 性能目标 | `overlayCoversDisplaysBeforeFreezeCompletes` 先红后绿；实测见 `../capture-instant-overlay/measurements.md` |
-| v1-core::REQ-005/AC-02 | ADR-0010 无闪烁与排除自身 | 同一窗口显示冻结帧由上测试断言；真实冻结帧不含遮罩在 macOS 26.0.1 实测，14.4–15 为 Pending |
-| v1-core::REQ-005/AC-03 | 由 AC-01 推出的冻结前输入归属 | `selectionDraggedWhileFreezingCompletesWithFrozenFrames`；透明区点击穿透由系统事件复现并修复，测试缺口写入测试文件头 |
+| v1-core::REQ-005/AC-01 | 用户延迟反馈；Further Notes 性能目标 | `overlayCoversDisplaysBeforeFreezeCompletes` 先红后绿，并核对每块 `NSScreen` 都有待冻结遮罩（本机单屏）；实测见 `../capture-instant-overlay/measurements.md` |
+| v1-core::REQ-005/AC-02 | ADR-0010 无闪烁与排除自身 | 同一窗口显示冻结帧由上测试断言；无桌面闪烁不可在进程内观察，列为测试缺口（需安装版录屏）；真实冻结帧不含遮罩在 macOS 26.0.1 实测，14.4–15 为 Pending |
+| v1-core::REQ-005/AC-03 | 由 AC-01 推出的冻结前输入归属 | 键盘：`escapeWhileFreezingExitsCapture` 断言待冻结遮罩为 key window 并经应用分发 `Esc`；冻结前完成的选区：`selectionDraggedWhileFreezingCompletesWithFrozenFrames`；冻结前开始、帧到达后完成的选区：`selectionStartedBeforeFramesFinishesAfterThem`；透明区点击穿透由系统事件复现并修复，测试缺口写入测试文件头 |
 | v1-core::REQ-005/AC-04 | §3 “`Esc` 或取消退出且不保存”；FM-23 | `escapeWhileFreezingExitsCapture`、`escapeWhileReplacingSelectionReleasesActivity`、`escapeWhileFreezingFromResultRestoresWorkspace` |
-| v1-core::REQ-005/AC-05 | FM-3、FM-25 | `failedFreezeRestoresPreviousSelection`；控制器 `failedReplacementKeepsCurrentOverlay` |
-| v1-core::REQ-005/AC-06 | v1-core::REQ-001/AC-05 与 FM-3 | 单屏组合测试经冻结后几何复核；两屏中单屏失败需硬件，列为测试缺口 |
+| v1-core::REQ-005/AC-05 | FM-3、FM-25 | 权限缺失：`failedFreezeRestoresPreviousSelection`（含失败时不退下来源界面）及控制器 `failedReplacementKeepsCurrentOverlay`；请求失效：`displayChangeWhileReplacingAbandonsPendingCapture`；冻结全部失败或无显示器可覆盖走模态失败提示，列为测试缺口 |
+| v1-core::REQ-005/AC-06 | v1-core::REQ-001/AC-05 与 FM-3 | 冻结后几何复核撤下失效显示器的路径由实现核查确认，单屏组合测试不经过该分支；两屏中单屏失败与冻结期间接入新显示器均需硬件，列为测试缺口 |
 | v1-core::REQ-005/AC-07 | FM-18 退出前取消 | `terminationWhileFreezingWithdrawsOverlay` |
 
 编号核实：REQ-003 已被“界面语言与区域格式”占用；`git log --all -S 'REQ-004'` 命中未合并 PR #34 的提交 `a4758c0`，为避免合并冲突改用 REQ-005；`git log --all -S 'REQ-005'` 无匹配。ADR-0013 在全部远端分支与历史中均未使用。

@@ -15,7 +15,7 @@ language.
 | Changed declaration surface | Compared with | Conclusion |
 |---|---|---|
 | `docs/specs/v1-core.md` Solution, §3 entry bullet, §6 workspace bullet, FM-23, FM-25 | Implementation (`beginCapture`, `commit`, `withdrawPendingCapture`, `abandonPendingCapture`) | True: overlay first, sources and workspace retired after the frozen frame shows, rollback on failure |
-| `docs/specs/v1-core.md` `v1-core::REQ-005` AC-01–07 | Implementation and tests (spec final check in `tasklist.md`) | True; untestable parts are the REQ-005 Pending and the test-file header gaps |
+| `docs/specs/v1-core.md` `v1-core::REQ-005` AC-01–07 | Implementation and tests (spec final check in `tasklist.md`) | True; parts not driven by tests are the REQ-005 Pending and the gaps listed in the test-file header (rechecked after the post-implementation findings 3-6) |
 | `docs/specs/v1-core.md` Implementation Decisions, Testing Decisions, Prototype Coverage, Further Notes | Implementation, tests, fixture | True; fixture identity rule matches the committed fixture |
 | `docs/features/v1-core.md` capture, workspace and management-center sentences | Spec user-visible layer | Consistent: immediate selection view, frozen image in place, Esc while pending, retirement after the frozen image; no implementation terms |
 | `docs/adr/0013-show-pending-overlay-before-freezing.md` | Spec and features | Not contradicted; spec cites ADR-0013 and ADR range 0001–0013 |

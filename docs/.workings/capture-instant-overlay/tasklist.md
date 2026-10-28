@@ -81,3 +81,16 @@ immediately after the shortcut.
 | Solution, §3 entry bullet, §6 workspace bullet, FM-23, FM-25 (rewritten this round) | Same code paths as above | Consistent |
 
 Unrecorded scope expansion: none in product code. The fixture identity fix is test infrastructure required to keep the new tests reliable; it changes no product behaviour.
+
+## Post-implementation findings: evidence and records (2026-10-28)
+
+- Item 6 (evidence): `native-thrown-operation-run.txt` keeps the command, version manifest, full output and exit code
+  of the native cleanup case run; the targeted verification log of the fix is listed below once written.
+- Item 7 (records): test design table and Dimension 1 table (`review-tests.md`), test-file header gaps, v1-core
+  checklist rows REQ-005/AC-01/02/03/05/06 and `final-regression.md` updated in the same fix.
+- Targeted verification of the fix (strict build, test build, App suite 29 tests, three native cases, all exit 0):
+  `logs/targeted-findings-fix.log`. Pre-review gate run handed to the reviewer, kept as
+  `logs/gate-pre-review-8bd52f2.log` (copy of the session-temporary original; fixture placeholder keys such as
+  `openai-secret` in it come from the test sources).
+- Incremental review decision: `node <implement skill>/change-scope.mjs --base 8bd52f2` exit 1, verdict `run`
+  (`Tests/VLMSnapperAppTests/ProviderApplicationTests.swift` changed): `logs/change-scope-after-findings-fix.txt`.

@@ -1,0 +1,9 @@
+changed :-  (added)
+changed Tests/VLMSnapperAppTests/ProviderApplicationTests.swift  (no syntax tree comparison for this type)
+inert   docs/.workings/capture-instant-overlay/final-regression.md
+inert   docs/.workings/capture-instant-overlay/native-thrown-operation-run.txt
+inert   docs/.workings/capture-instant-overlay/review-code.md
+inert   docs/.workings/capture-instant-overlay/review-tests.md
+inert   docs/.workings/capture-instant-overlay/tasklist.md
+inert   docs/.workings/v1-core/checklist.md
+verdict: run (8 files differ from the base)

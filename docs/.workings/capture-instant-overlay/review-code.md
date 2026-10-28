@@ -137,3 +137,9 @@ code finding.
 | Prepare the next pending panels ahead of time | `presentPending` measured 4-11 ms, mostly window creation; a prepared set would be about 1 ms | Self (latency only) | Not now: already below one 60 Hz frame; adds lifecycle handling for display changes and memory for hidden panels |
 | Overlay scrim and border colours are AppKit literals, not theme tokens | ui-design colour rule; values unchanged from the previous `draw(_:)` | Self | Do not change: the scrim sits over a frozen screenshot and is appearance-independent by design; the border already follows the system accent |
 | Modal capture-failure alert makes "every display invalidated before commit" untestable | Test gap documented in the test file header | Self | Separate task if desired: a non-modal failure presentation seam |
+
+## Pre-handoff self-check after the post-implementation test review (2026-10-28)
+
+Item 1 (product code changed by the fix, compared clause by clause with the
+spec): not applicable; the fix for test-review findings 3-8 changes only tests,
+the test-file header and records.
