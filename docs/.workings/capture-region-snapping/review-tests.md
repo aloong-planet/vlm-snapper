@@ -981,3 +981,172 @@ seam. Dimension 3 — to be shown red with the start measured from the previous 
 Finding 14: the previous fix's self-check item 2 is restated — U13 was shown red at its :225 assertion
 only (guard `<`, drag never started); its :224 assertion (clear inside the dragged rectangle) was not
 reached by a mutation, and by the code it goes red when no hole is cut while dragging.
+
+
+## Post-implementation check — incremental round 3 (2026-10-28)
+
+No ticket (no-ticket path, as above). Incremental round for the handed fix range `f3d18f9..e938a1f`
+(one commit; whole change `8c00b2d..e938a1f`). Implementation version: `e938a1f`. Product code is
+unchanged since `5c96041` (`git diff --stat 5c96041..e938a1f -- Sources VLMSnapper Package.swift
+Package.resolved Scripts` is empty); the working tree adds only the untracked `:-` and
+`logs/change-scope-after-findings-13-14.txt`. Date, version and range apply to every dimension below.
+Outside the objects below, every conclusion is carried over from incremental round 2
+("Post-implementation check — incremental round 2 (2026-10-28)") and, through it, from the earlier
+rounds.
+
+### Objects
+
+- Tests changed in the range: `git diff --stat f3d18f9..e938a1f -- Tests/` → 1 file, +17 −0;
+  `git diff -U0 f3d18f9..e938a1f -- Tests/` → one hunk, `@@ -227,0 +228,17 @@`: the new `@Test` and U14
+  `smallStepDragStopsSnapping` (UI :228–243), between U13 (ends :226) and
+  `farReleaseWithoutDragEventsDrags` (:245). Read in full.
+- Tests depending on test helper code changed in the range: none. The only hunk is a new test function
+  inside the suite struct; no helper, fixture or shared setup changed (the file's private helpers from
+  :315 on, `SelectionLog` and `committedSnapOverlay` are untouched) and no other file under `Tests/`
+  changed, so the import search has no changed helper to start from.
+  `/usr/bin/grep -rn -a "smallStepDragStopsSnapping" Tests Sources VLMSnapper Scripts` → its declaration
+  (UI :229) only. U14 calls only unchanged helpers (`primaryScreen`, `twoWindowResolver`,
+  `primaryOverlay`, `send`, `renderedAlpha`).
+- Test design table rows changed in the range: `git diff -U0 f3d18f9..e938a1f --
+  docs/.workings/capture-region-snapping/review-tests.md` adds one design-table header
+  (`| # | Spec | Seam`, `grep -c` → 1) with one row under it, U14 (handling of findings 13–14, :975). The
+  other hunks are self-check item 2 restated (:758–760), the round-2 section (its tables are review
+  tables, not design rows) and the handling text.
+
+Capability declaration: `tomllib` on `capabilities.toml` → `FileNotFoundError` — 项目无能力声明文件;
+未确认 mutation-testing; 未确认 working-language. Same item as finding 1 (user decision 2026-10-28:
+separate PR); not a new finding. This round runs no mutation and no test and edits nothing but this
+record; "goes red when" answers are derived from the code under test (controller :387–409, :470–505),
+citing the fix's mutation log. Fixed names follow this record's English precedent.
+
+### Run evidence
+
+Handed targeted verification log, not rerun: `logs/targeted-snap-r4.log`, byte-identical (`cmp`) to the
+scratchpad log written by `targeted-snap.sh`, whose echo lines it reproduces. The pre-review gate log
+predates the fixes and U14 and is not used for this round's object.
+
+| Log requirement (full verification gate) | Log content | Verdict |
+|---|---|---|
+| Tested version | `git rev-parse HEAD` = `f3d18f9…` (:3); porcelain (:5–9) lists 3 modified and 2 untracked files, hashed at :12–16. The UI test file (`9d8504e…`), this record (`08488a8…`) and `logs/change-scope-after-findings-9-12.txt` (`263afe1…`) equal `git rev-parse e938a1f:<path>`; `:-` (`208ccf64…`) is untracked and unchanged today. `tasklist.md` (`08b0016…`) equals neither `f3d18f9` (`4594d26…`) nor `e938a1f` (`b261ef0…`): an intermediate edit of an inert file no test reads (inert per `logs/change-scope-after-findings-13-14.txt`), completed afterwards to record the run. Files of `e938a1f` not listed: this log (written by the run), and `snap-mutations-r4.log` and `snap-r4-unit.log`, which the run-start porcelain shows were not yet in the working tree | Matches `e938a1f` for every file a test reads |
+| Every command | strict build; `build --build-tests`; non-App suite; App suite; three native cases (:17–1581) | Present |
+| Exit code not taken through a pipe | `== exit: N` from `local c=$?` right after a redirect (`run()` in the script); all 0, `== overall: 0` (:1582) | Present; the version commands log no exit code, their outputs prove themselves |
+| Full output | Build and test output of every command | Present |
+
+Reviewed object in the log: U14 started :1385, passed :1389 (0.379 s). Each of the 16 UI `@Test` names
+matches exactly one `✔ Test "<name>" passed` line; suite :1409; no `✘` in the log (`grep -c` → 0).
+Non-App total 384 (:1413) = 383 + U14; App 36 (:1523); the three native cases pass (:1525–1581).
+Conclusion: the log meets the log requirements and is this round's run evidence.
+
+### Test design table check
+
+| Row | Written test | Verdict |
+|---|---|---|
+| U14 | UI :228–243: `presentPending` without commit (pending overlay), `twoWindowResolver`, press (250, h − 200) (:237), drag events to (251.4, h − 198.6) and (252.8, h − 197.2) (:239–240), no release, `renderedAlpha` at (150, h − 250) `> 100` (:242) | Matches (seam S2, driving input, assertion and its source, fixture, no resource) |
+
+Test-file gap notes: no header changed in the range. U14 sends synthetic drag events as U8 and U13 do;
+physical mouse delivery stays in the recorded installed-build gap (UI comment :54–59). No new gap note
+is needed.
+
+### Dimension 1: Coverage
+
+| Spec item | Rows | Verdict |
+|---|---|---|
+| AC-07 (spec :91) / FM-47 (:346): moved past 3 pt from the press "改为手绘矩形，吸附区域停止跟随", reached in steps under 3 pt | U14 | Covered: the drag starts once the press is 3.96 pt away although no step exceeds 1.98 pt, and is read before any release, so the release-only rule (controller :416–418) cannot supply it. Finding 13 closed |
+| The switch "just past 3 pt" (round 2's wording) | U8, U9 (carried), U14 | Both handlers read the one `Self.dragThreshold` (controller :404, :416), held in [3, 3.54) pt by U8 (3 pt is a click) and U9 (3.54 pt is a rectangle); U14 adds a ceiling of hypot(2.8, 2.8) ≈ 3.96 pt for the drag handler. Only a second, drag-handler-only threshold in (3, 3.96) pt would escape — no realistic source; no finding |
+
+Fixture shape: mouse events come from the window server. U14 has the structure round 2 named for a
+physical drag — several drag events after the press, each under 3 pt, at fractional coordinates,
+crossing 3 pt cumulatively; the step sizes are chosen, not recorded, and physical delivery is the
+recorded gap. The resolver is the two-window fixture of U8–U13 (carried). Touched regression points:
+none (no product code).
+
+Conclusion: no finding.
+
+### Dimension 2: Case design
+
+U14 acts through the public controller API (`presentPending`, `attachSnapRegions`), sends events to the
+real panel and reads the rendered layer, as U5/U6, U11 and U13 do. The opening region from the real
+`NSEvent.mouseLocation` is replaced by the press (`mouseDown` sets the region at the press, controller
+:396), so the result does not depend on where the pointer is. The second drag event alone decides what
+is read: before it, window A is the clear snap region (both mutation runs fail the assertion in that
+state); no release follows. The pending overlay is the state production is in when a drag starts during
+the freeze (AC-08). Isolation as for U13: `defer controller.close()`, suite `.serialized`, the next test
+builds its own controller.
+
+Conclusion: no finding.
+
+### Dimension 3: False greens
+
+Mutation check: not run (finding 1). Red evidence: `logs/snap-mutations-r4.log`, byte-identical to the
+scratchpad copy. The scratchpad `mut4-from-previous-event.log` and `mut4-drag-threshold-4.log` show, for
+each mutation, U14 failing at :242 ("Expectation failed: try renderedAlpha(panel, at: NSPoint(x: 150,
+y: height - 250)) > 100") while the other 15 UI tests, U2, U8, U9 and U13 among them, pass — the
+pattern the code predicts for these two mutations. The scratchpad build logs show the controller
+recompiled for the mutation and after the restore; the backup `m-c.keep` and today's controller both
+have the `HEAD` blob `6f582b4…`: source restored.
+
+| Test | Goes red when | Stays green although wrong |
+|---|---|---|
+| U14 (:242) | drag start measured from the previous drag event (shown: 1.98 pt steps never start a drag); a threshold ≥ 3.96 pt in `mouseDragged`, shared or there alone (4 pt there alone shown); a `mouseDragged` that never starts a drag or skips `updateLayers` (by analysis; U13 shows the first) | guard `<` or `!=` (the 1.98 pt event starts the drag, A is dimmed either way) — U8's (round 2: `<` shown, `!=` by analysis); a drag that clears the snap region but cuts no rectangle — U13 :224 (by analysis); a drag-handler-only threshold in (3, 3.96) pt (Dimension 1; no finding) |
+
+Forms: always-true — none: correct code renders the 48 % dim (alpha ≈ 122, controller :477) at
+(150, h − 250), the fault renders window A's hole (alpha 0), and both mutations produced the latter;
+tautology — none (a literal threshold, as in U5/U11/U13); stale path — none (the rendered layer is what
+the user sees); conditional skip — none (`#require` throws); assertions that may not run — none (one
+unconditional `#expect`).
+
+UI and rendered assertions (`review-code/false-greens.md`): the effect is asserted, not existence
+(form 1), and "the snap region is no longer shown" was made to fail once with the region still shown
+(both mutations); synthetic events (form 2): physical delivery is the recorded gap, the event shape is
+Dimension 1's; reading too early (form 5): U14 reads right after `sendEvent`, and `mouseDragged`
+updates the layers within that call with actions disabled (controller :407–408, :471–472), so the read
+is final. No new gate.
+
+Conclusion: no finding.
+
+### Dimension 4: Resource reuse
+
+| Resource | Built | Measured | Expensive (≥ 1 s)? |
+|---|---|---|---|
+| Overlay panels (`presentPending`, `primaryOverlay`) | per UI test | U14 0.379 s in `targeted-snap-r4.log` (:1389; an unrelated suite's test reports the same figure at that moment, :1390); 0.023 s alone (`logs/snap-r4-unit.log` :35) | No |
+| Resolver window list (`twoWindowResolver`) | per call, in memory | within U14's 0.023 s | No |
+
+No expensive resource, so no load count to compare; U14 clears no shared resource (`close()` retires
+its own controller's panels), so the collection-order rule does not apply. U14 reuses existing helpers.
+
+Conclusion: no finding.
+
+### Document sync
+
+Range as in the previous rounds (same documents, Ticket 24 included, same exclusions). `find
+docs/.workings/capture-region-snapping` (hidden entries included): 25 files (4 at the top, 21 under
+`logs/`), one subdirectory, no dotfiles; `git check-ignore` matched none (exit 1). Changed facts, from
+the range only: U14, the mutation batch `logs/snap-mutations-r4.log`, the isolated run
+`logs/snap-r4-unit.log`, the targeted run `logs/targeted-snap-r4.log` (all pass; 384 / 36 / 3), and the
+records the fix changed (`tasklist.md` :64, :98–100; this record :758–760, the round-2 section and the
+handling of findings 13–14; `logs/change-scope-after-findings-9-12.txt`, now committed). Content
+search: the scratchpad `r5-sync.sh` runs `/usr/bin/grep -a -n -E` for test IDs (U13, U14, U1–U12,
+U8–U1x), small-step, jitter and mid-drag terms, the r4 log names, 384, findings 13–14 and the Chinese
+AC-07/FM-47 terms over `final-regression.md`, `review-code.md`, `tasklist.md`, this record, the three
+`change-scope` outputs, the v1-core checklist, spec, feature catalogue, `CONTEXT.md`, ADR-0014,
+`AGENTS.md`, `CODEX.md`, Ticket 24 and the UI test file (16 files, 392,322 bytes; 80 hits, the 20
+outside this record all read; this record, `tasklist.md`, `final-regression.md` and `review-code.md`
+read in full).
+
+Previous round's list: corrected — `tasklist.md` :64 (names U13 and U14) and this record :758–760
+(matches the table :738–749 and `logs/snap-mutations-r3.log`); true now without edits — `tasklist.md`
+:70 ("No missing or partial item": finding 13 closed by U14). Verified: `tasklist.md` :98–100 (U14; two
+mutations, red at :242; targeted 384 / 36 / three native cases). Still true as written:
+`final-regression.md` :16 (it judges the Testing Decisions paragraph — crop end points, toolbar
+position, single read — which U14 does not touch) and :51–53 (converged "as of the test-hardening
+commits after `48610ef`"; this review still listed as remaining); checklist :21 (names earlier tests
+and logs, claims no completeness); `review-code.md` :19–22. Ticket 24: not contradicted (all three
+native cases passed). Spec, feature catalogue, `CONTEXT.md` and ADR-0014 state behaviour and are
+unaffected. The untracked `logs/change-scope-after-findings-13-14.txt` (base `f3d18f9`, exit 1) is cited
+by no record.
+
+Statements this round makes untrue or incomplete: none.
+
+### Findings
+
+None.
