@@ -1,0 +1,17 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 21:32:05.751.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 21:32:05.752.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 21:32:05.752.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 21:32:05.752.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test lateWindowListOfReplacedCaptureIsIgnored() started.
+✘ Test lateWindowListOfReplacedCaptureIsIgnored() recorded an issue at ProviderApplicationTests.swift:1350:13: Expectation failed: (abs(toolbar.frame.minX - screen.visibleFrame.minX) → 200.0) <= (1 → 1.0)
+↳ // Local x 300 has no window in the replacement's list: the whole display is selected.
+✘ Test lateWindowListOfReplacedCaptureIsIgnored() failed after 0.589 seconds with 1 issue.
+✘ Suite ProviderApplicationTests failed after 0.590 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.590 seconds with 1 issue.

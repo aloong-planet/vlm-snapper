@@ -1,0 +1,64 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 22:29:19.084.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:29:19.085.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 22:29:19.085.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' started.
+[NATIVE-DIAG] paste pid=52492 elapsed=1.525216041598469
+t=1.1962537083309144 stage=before-activation target=77826 active=false policy=1 key=-1 main=-1 frontPID=52492 windows=[id=77822,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77823,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77825,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77826,visible=true,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77827,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2808416250627488 stage=key-window-wait target=77826 active=true policy=1 key=77826 main=77826 frontPID=52492 windows=[id=77822,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77823,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77825,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77826,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77827,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2809132083784789 stage=key-window-ready target=77826 active=true policy=1 key=77826 main=77826 frontPID=52492 windows=[id=77822,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77823,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77825,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77826,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77827,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.3257627917919308 stage=paste-dispatched target=77826 active=true policy=1 key=77826 main=77826 frontPID=52492 windows=[id=77822,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77823,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77825,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77826,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77827,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.342183958273381 stage=validate-dispatched target=77826 active=true policy=1 key=77826 main=77826 frontPID=52492 windows=[id=77822,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77823,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77825,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77826,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77827,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' passed (1.527 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 22:29:20.612.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.527 (1.527) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:29:20.612.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.527 (1.527) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:29:20.612.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.527 (1.528) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+Test Suite 'Selected tests' started at 2026-10-28 22:29:21.302.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:29:21.304.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 22:29:21.304.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' started.
+[NATIVE-DIAG] paste pid=52812 elapsed=1.4855272499844432
+t=1.12008195836097 stage=before-activation target=77836 active=false policy=1 key=-1 main=-1 frontPID=52812 windows=[id=77832,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77833,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77835,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77836,visible=true,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77837,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.1981004166882485 stage=key-window-wait target=77836 active=true policy=1 key=77836 main=77836 frontPID=52812 windows=[id=77832,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77833,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77835,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77836,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77837,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.1981674167327583 stage=key-window-ready target=77836 active=true policy=1 key=77836 main=77836 frontPID=52812 windows=[id=77832,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77833,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77835,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77836,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77837,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2337842916604131 stage=paste-dispatched target=77836 active=true policy=1 key=77836 main=77836 frontPID=52812 windows=[id=77832,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77833,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77835,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77836,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77837,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2513256666716188 stage=validate-dispatched target=77836 active=true policy=1 key=77836 main=77836 frontPID=52812 windows=[id=77832,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77833,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77835,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77836,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77837,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' passed (1.487 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 22:29:22.791.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.487 (1.487) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:29:22.791.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.487 (1.487) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:29:22.791.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.487 (1.488) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+Test Suite 'Selected tests' started at 2026-10-28 22:29:23.465.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:29:23.466.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 22:29:23.466.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' started.
+[NATIVE-DIAG] paste pid=52847 elapsed=1.4417391666211188
+t=1.1228464583400637 stage=before-activation target=77846 active=false policy=1 key=-1 main=-1 frontPID=52847 windows=[id=77842,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77843,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77845,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77846,visible=true,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77847,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2101372501347214 stage=key-window-wait target=77846 active=true policy=1 key=77846 main=77846 frontPID=52847 windows=[id=77842,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77843,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77845,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77846,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77847,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.210205833427608 stage=key-window-ready target=77846 active=true policy=1 key=77846 main=77846 frontPID=52847 windows=[id=77842,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77843,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77845,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77846,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77847,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2400624584406614 stage=paste-dispatched target=77846 active=true policy=1 key=77846 main=77846 frontPID=52847 windows=[id=77842,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77843,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77845,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77846,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77847,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.255191250005737 stage=validate-dispatched target=77846 active=true policy=1 key=77846 main=77846 frontPID=52847 windows=[id=77842,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77843,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77845,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77846,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77847,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' passed (1.443 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 22:29:24.909.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.443 (1.443) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:29:24.909.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.443 (1.443) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:29:24.909.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.443 (1.444) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

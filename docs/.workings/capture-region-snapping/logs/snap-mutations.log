@@ -1,0 +1,7 @@
+== drag-guard: exit 1; ✘ Test "pointer jitter of up to three points while pressed is still a click" recorded an issue at FrozenCaptureOverlayControllerTests.swift:195:9: Expectation f
+== threshold-ge: exit 1; ✘ Test "pointer jitter of up to three points while pressed is still a click" recorded an issue at FrozenCaptureOverlayControllerTests.swift:195:9: Expectation f
+== release-only: exit 1; ✘ Test "a release far from the press is a rectangle even without drag events" recorded an issue at FrozenCaptureOverlayControllerTests.swift:215:9: Expectation 
+== settled-move: exit 1; ✘ Test "a clicked region stays put while the pointer moves on" recorded an issue at FrozenCaptureOverlayControllerTests.swift:231:9: Expectation failed: try ren
+== pixel-scale: exit 1; ✘ Test "the two-pixel minimum counts physical pixels in both directions" recorded an issue at CaptureSnapRegionResolverTests.swift:171:9: Expectation failed: (r
+== side-dock: exit 1; ✘ Test "a Dock on the left or right side is one strip along that edge" recorded an issue at CaptureSnapRegionResolverTests.swift:116:9: Expectation failed: (Sel
+== own-pid: exit 1; ✘ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() recorded an issue at ProviderApplicationTests.swift:1385:13: Expectation failed: (abs(toolbar.frame.minX

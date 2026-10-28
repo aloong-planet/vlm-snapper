@@ -4,77 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VLMSnapper · 截图操作栏方向</title>
-  <!-- Demo harness: the theme control is not product UI. -->
+  <!-- Demo harness: the theme control is not product UI.
+       2026-10-28: the user made the shipped app the reference for the selection look: a 1 px border,
+       no corner handles, no size label and no inner hairline (they were drawn here before). -->
+  <link rel="stylesheet" href="../_shared/capture-overlay.css">
   <style>
-    :root {
-      color-scheme: light;
-      --selection-border-width: 2px;
-      --toolbar-gap: 4px;
-      --desktop-a: #c9d9e8;
-      --desktop-b: #8aa7bf;
-      --desktop-glow: rgba(255, 255, 255, .44);
-      --menubar: rgba(249, 251, 254, .86);
-      --window: rgba(249, 250, 252, .98);
-      --surface: #ffffff;
-      --surface-subtle: #eef1f5;
-      --surface-hover: #e8edf3;
-      --surface-selected: #dce8f8;
-      --text: #20242a;
-      --text-secondary: #646c77;
-      --text-tertiary: #88919d;
-      --line: rgba(49, 58, 69, .18);
-      --line-strong: rgba(49, 58, 69, .3);
-      --accent: #276bd8;
-      --accent-hover: #1f5fc4;
-      --accent-soft: #e5efff;
-      --on-accent: #ffffff;
-      --capture-border: #69a5ff;
-      --outside-mask: rgba(8, 13, 20, .54);
-      --selection-inner: rgba(255, 255, 255, .34);
-      --traffic-red: #ff5f57;
-      --traffic-yellow: #febc2e;
-      --traffic-green: #28c840;
-      --shadow: rgba(19, 27, 37, .35);
-      --shadow-soft: rgba(19, 27, 37, .16);
-      --focus: rgba(39, 107, 216, .46);
-      --browser-line: rgba(36, 43, 52, .13);
-      --article-ink: #32373e;
-      --article-muted: #858c96;
-    }
-
-    html[data-theme="dark"] {
-      color-scheme: dark;
-      --desktop-a: #334353;
-      --desktop-b: #17212b;
-      --desktop-glow: rgba(119, 146, 171, .26);
-      --menubar: rgba(24, 29, 35, .88);
-      --window: rgba(36, 40, 47, .98);
-      --surface: #2c3138;
-      --surface-subtle: #252a31;
-      --surface-hover: #363d47;
-      --surface-selected: #304765;
-      --text: #f2f4f7;
-      --text-secondary: #b5bcc6;
-      --text-tertiary: #88919d;
-      --line: rgba(230, 234, 240, .14);
-      --line-strong: rgba(230, 234, 240, .26);
-      --accent: #6ba3f7;
-      --accent-hover: #82b2f8;
-      --accent-soft: #293f60;
-      --on-accent: #ffffff;
-      --capture-border: #86b7ff;
-      --outside-mask: rgba(2, 5, 9, .62);
-      --selection-inner: rgba(255, 255, 255, .24);
-      --traffic-red: #ff5f57;
-      --traffic-yellow: #febc2e;
-      --traffic-green: #28c840;
-      --shadow: rgba(0, 0, 0, .58);
-      --shadow-soft: rgba(0, 0, 0, .3);
-      --focus: rgba(107, 163, 247, .54);
-      --browser-line: rgba(233, 237, 242, .12);
-      --article-ink: #e8ebef;
-      --article-muted: #969eaa;
-    }
 
     * { box-sizing: border-box; }
     html, body { width: 100%; min-width: 1120px; height: 100%; min-height: 720px; margin: 0; }
@@ -110,28 +44,8 @@
     .article-image { min-height: 160px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-soft), var(--surface-subtle)); }
     .quote { padding: 20px; border-left: 3px solid var(--accent); color: var(--text-secondary); background: var(--surface-subtle); font-family: Georgia, serif; line-height: 1.5; }
 
-    .capture-selection { position: absolute; z-index: 10; left: 18%; right: 18%; top: 16%; bottom: 22%; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask), 0 0 0 1px var(--selection-inner) inset; }
-    .selection-handle { position: absolute; width: 8px; height: 8px; border: 1px solid var(--capture-border); background: var(--surface); }
-    .selection-handle.nw { left: -5px; top: -5px; }
-    .selection-handle.ne { right: -5px; top: -5px; }
-    .selection-handle.sw { left: -5px; bottom: -5px; }
-    .selection-handle.se { right: -5px; bottom: -5px; }
-    .size-label { position: absolute; left: -2px; top: -27px; height: 22px; display: flex; align-items: center; padding: 0 8px; border-radius: 5px; color: var(--on-accent); background: var(--accent); box-shadow: 0 3px 10px var(--shadow-soft); font-size: 11px; font-weight: 650; }
+    .capture-selection { position: absolute; z-index: 10; left: 18%; right: 18%; top: 16%; bottom: 22%; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask); }
 
-    .capture-toolbar { position: absolute; z-index: 14; left: 0; top: calc(100% + var(--selection-border-width) + var(--toolbar-gap)); display: flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text); background: var(--window); box-shadow: 0 14px 38px var(--shadow), 0 2px 8px var(--shadow-soft); backdrop-filter: blur(24px); }
-
-    .tool-button, .action-button, .value-button { height: 25px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 6px; white-space: nowrap; }
-    .tool-button { width: 25px; padding: 0; border: 1px solid transparent; color: var(--text-secondary); background: transparent; }
-    .tool-button:hover { color: var(--text); background: var(--surface-hover); }
-    .action-button { padding: 0 9px; border: 1px solid var(--line); color: var(--text); background: var(--surface); font-weight: 650; }
-    .action-button:hover { background: var(--surface-hover); }
-    .action-button.primary { border-color: var(--accent); color: var(--on-accent); background: var(--accent); }
-    .action-button.primary:hover { background: var(--accent-hover); }
-    .value-button { max-width: 228px; padding: 0 7px; border: 1px solid var(--line); color: var(--text-secondary); background: var(--surface); }
-    .value-button:hover { color: var(--text); background: var(--surface-hover); }
-    .value-button strong { max-width: 172px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
-    .toolbar-divider { width: 1px; height: 20px; margin: 0 1px; background: var(--line); }
-    .icon { width: 15px; height: 15px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
     .harness { position: fixed; z-index: 30; left: 0; right: 0; bottom: 18px; width: fit-content; max-width: calc(100vw - 32px); margin-inline: auto; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 999px; color: #f6f7f9; background: rgba(22, 25, 30, .95); box-shadow: 0 8px 28px rgba(0, 0, 0, .38); font-size: 12px; white-space: nowrap; }
     .harness-label { padding: 0 3px; color: #aeb5bf; font-weight: 600; }
@@ -140,7 +54,6 @@
 
     @media (max-width: 1240px) {
       .capture-selection { left: 13%; right: 13%; }
-      .value-button.model strong { max-width: 128px; }
     }
   </style>
 </head>
@@ -153,25 +66,17 @@
     </article>
 
     <section class="capture-selection" aria-label="已完成的截图选区">
-      <span class="selection-handle nw"></span><span class="selection-handle ne"></span><span class="selection-handle sw"></span><span class="selection-handle se"></span>
-      <span class="size-label">1280 × 720</span>
 
-      <div class="capture-toolbar" aria-label="选区底部贴附式操作栏">
-        <button class="action-button primary"><svg class="icon" viewBox="0 0 24 24"><path d="M4 5h16M4 10h11M4 15h16M4 20h11"/></svg>提取文字</button>
-        <button class="action-button"><svg class="icon" viewBox="0 0 24 24"><path d="m5 8 4 4m-6 2 6-6 2-3M4 5h8M13 19l4-10 4 10m-6-4h4"/></svg>翻译</button>
-        <span class="toolbar-divider"></span>
-        <button class="value-button"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg><strong>简体中文</strong><svg class="icon" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
-        <button class="value-button model"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 3v4m8-4v4M8 17v4m8-4v4"/></svg><strong>DeepSeek · deepseek-v4-flash-vision-exp</strong><svg class="icon" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
-        <span class="toolbar-divider"></span>
-        <button class="tool-button" aria-label="取消截图"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-      </div>
+      <div class="capture-toolbar" data-shared-block="capture-toolbar" aria-label="选区底部贴附式操作栏"></div>
 
     </section>
   </main>
 
   <div class="harness" data-demo-harness aria-label="演示控制，非产品界面"><span class="harness-label">演示·外观</span><button id="theme-control">切换深浅色</button></div>
 
+  <script src="../_shared/capture-toolbar.js"></script>
   <script>
+    CaptureToolbar.render(document.querySelector('[data-shared-block="capture-toolbar"]'));
     document.querySelector('#theme-control').addEventListener('click', () => {
       document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     });

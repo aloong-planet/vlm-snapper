@@ -1,0 +1,9 @@
+Command: node ~/.claude/skills/implement/change-scope.mjs --base 8c5a59b
+changed :-  (added)
+inert   docs/.workings/capture-region-snapping/final-regression.md
+inert   docs/.workings/capture-region-snapping/logs/change-scope-after-full-gate.txt
+inert   docs/.workings/capture-region-snapping/logs/gate-snap-full.log
+inert   docs/.workings/capture-region-snapping/tasklist.md
+verdict: run (5 files differ from the base)
+exit: 1
+untracked :- hash: 208ccf64622a6373abcaded4092ab9be44679863 (gate manifest: 208ccf64622a6373abcaded4092ab9be44679863)

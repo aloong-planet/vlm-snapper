@@ -1,0 +1,1594 @@
+== version
+$ git rev-parse HEAD
+14336d6975b48ae8b2aaa96089eb0d555431417b
+$ git status --porcelain --untracked-files=all
+ M Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+ M Tests/VLMSnapperCoreTests/CaptureSnapRegionResolverTests.swift
+ M Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift
+ M docs/.workings/capture-region-snapping/final-regression.md
+ M docs/.workings/capture-region-snapping/review-code.md
+ M docs/.workings/capture-region-snapping/review-tests.md
+ M docs/.workings/capture-region-snapping/tasklist.md
+ M docs/.workings/v1-core/checklist.md
+ M docs/specs/v1-core.md
+?? :-
+?? docs/.workings/capture-region-snapping/logs/snap-findings-app.log
+?? docs/.workings/capture-region-snapping/logs/snap-findings-unit.log
+?? docs/.workings/capture-region-snapping/logs/snap-mutations.log
+-- manifest
+$ git status --porcelain --untracked-files=all | while IFS= read -r l; do p="${l:3}"; if [ -e "$p" ]; then echo "$(git hash-object -- "$p")  $p"; else echo "deleted  $p"; fi; done
+a02e9c6e25797b0557139f2cb1e69f7f70abd884  Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+39663d1abb487f5dc7629872f6e58be45fedbbe8  Tests/VLMSnapperCoreTests/CaptureSnapRegionResolverTests.swift
+7e44c674a663f171000cc2d20a7e052c3e9abd6f  Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift
+7d135ddbbd25efb3b7060f5388a8f9ddc13b5cf7  docs/.workings/capture-region-snapping/final-regression.md
+bd06aa2a2a6f9e05cbde908340c1e047f8bebf6d  docs/.workings/capture-region-snapping/review-code.md
+adfc3a15fe1901b437b39c3ebae6d692a3a63f8b  docs/.workings/capture-region-snapping/review-tests.md
+bea1a6d0667b639eec7a053704192f1407a37c53  docs/.workings/capture-region-snapping/tasklist.md
+36484e2aaef80591bc921828fe75da819f2427d6  docs/.workings/v1-core/checklist.md
+e9e2439de8ad135f1dba72efbc5ab72fedce6f77  docs/specs/v1-core.md
+208ccf64622a6373abcaded4092ab9be44679863  :-
+9189efb63436110015b9b257b5032b2ec72ce506  docs/.workings/capture-region-snapping/logs/snap-findings-app.log
+b497acf62d7c282caf7ebcc7e369717382cd2c63  docs/.workings/capture-region-snapping/logs/snap-findings-unit.log
+5099302336c57a49454155a4c290de0950429c6b  docs/.workings/capture-region-snapping/logs/snap-mutations.log
+== command: /usr/bin/xcrun swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+[0/1] Planning build
+Building for debugging...
+[0/18] Compiling VLMSnapperProcessShim VLMSnapperProcessShim.c
+[1/18] Compiling VLMSnapperHotKeyShim VLMSnapperHotKeyShim.c
+[2/18] Write swift-version--58304C5D6DBC2206.txt
+[4/68] Compiling VLMSnapperReleaseSupport DeveloperIDProfilePreparation.swift
+[5/68] Emitting module VLMSnapperReleaseSupport
+[6/68] Compiling VLMSnapperReleaseSupport DeveloperIDProvisioningProfile.swift
+[7/70] Compiling VLMSnapperSigningTool main.swift
+[8/70] Emitting module VLMSnapperSigningTool
+[9/69] Compiling VLMSnapperCore OrderedStructuredOutputParser.swift
+[10/69] Compiling VLMSnapperCore PersistedOperationWorkspaceRunner.swift
+[11/69] Compiling VLMSnapperCore PrimaryInstanceCoordinator.swift
+[12/69] Compiling VLMSnapperCore ProviderAPIKeyInput.swift
+[13/69] Compiling VLMSnapperCore ProviderAdapterError.swift
+[14/74] Compiling VLMSnapperCore LoginItemCoordinator.swift
+[15/74] Compiling VLMSnapperCore ManagedScreenshotRoot.swift
+[16/74] Compiling VLMSnapperCore OnboardingSession.swift
+[17/74] Compiling VLMSnapperCore OpenAIResponsesStreamDecoder.swift
+[18/74] Compiling VLMSnapperCore OperationWorkspaceSession.swift
+[18/74] Linking VLMSnapperSigningTool
+[20/74] Emitting module VLMSnapperCore
+[20/74] Applying VLMSnapperSigningTool
+[22/74] Compiling VLMSnapperCore CaptureSelectionSession.swift
+[23/74] Compiling VLMSnapperCore CaptureSnapRegionResolver.swift
+[24/74] Compiling VLMSnapperCore CarbonGlobalShortcutBackend.swift
+[25/74] Compiling VLMSnapperCore DataProtectionKeychainSmokeTest.swift
+[26/74] Compiling VLMSnapperCore DeepSeekChatStreamDecoder.swift
+[27/74] Compiling VLMSnapperCore DiagnosticLogStore.swift
+[28/74] Compiling VLMSnapperCore ExtractionCoordinator.swift
+[29/74] Compiling VLMSnapperCore FileProviderMetadataStore.swift
+[30/74] Compiling VLMSnapperCore FileSystemScreenshotStore.swift
+[31/74] Compiling VLMSnapperCore GeminiStreamDecoder.swift
+[32/74] Compiling VLMSnapperCore ProviderPreparedOperationStreamer.swift
+[33/74] Compiling VLMSnapperCore ProviderRequestFactory.swift
+[34/74] Compiling VLMSnapperCore ProviderSetupSession.swift
+[35/74] Compiling VLMSnapperCore ProviderStreamContract.swift
+[36/74] Compiling VLMSnapperCore ProviderStreamTimeout.swift
+[37/74] Compiling VLMSnapperCore AlignedTranslationParser.swift
+[38/74] Compiling VLMSnapperCore AppleKeychainProviderCredentialStore.swift
+[39/74] Compiling VLMSnapperCore ApplicationLanguage.swift
+[40/74] Compiling VLMSnapperCore ApplicationWorkflow.swift
+[41/74] Compiling VLMSnapperCore CaptureCoordinateMapper.swift
+[42/74] Compiling VLMSnapperCore CaptureFreezeCoordinator.swift
+[43/74] Compiling VLMSnapperCore GlobalShortcutCoordinator.swift
+[44/74] Compiling VLMSnapperCore HistoryDatabaseResetter.swift
+[45/74] Compiling VLMSnapperCore HistoryManagement.swift
+[46/74] Compiling VLMSnapperCore HistoryRetention.swift
+[47/74] Compiling VLMSnapperCore LiveProviderContractGate.swift
+[48/74] Compiling VLMSnapperCore ProviderAdapterExecutor.swift
+[49/74] Compiling VLMSnapperCore ProviderConfiguration.swift
+[50/74] Compiling VLMSnapperCore ProviderHTTPErrorNormalizer.swift
+[51/74] Compiling VLMSnapperCore ProviderHTTPStreaming.swift
+[52/74] Compiling VLMSnapperCore ProviderModelCatalog.swift
+[53/74] Compiling VLMSnapperCore ReleaseManifest.swift
+[54/74] Compiling VLMSnapperCore SQLiteHistoryStore.swift
+[55/74] Compiling VLMSnapperCore SRGBPNGCropper.swift
+[56/74] Compiling VLMSnapperCore ScreenCaptureKitFrozenDisplayCapturer.swift
+[57/74] Compiling VLMSnapperCore ScreenCapturePermissionCoordinator.swift
+[58/74] Compiling VLMSnapperCore ServerSentEventDecoder.swift
+[59/74] Compiling VLMSnapperCore TargetLanguageCatalog.swift
+[60/74] Compiling VLMSnapperCore TranslationSegment.swift
+[61/74] Compiling VLMSnapperCore UpdateLifecycle.swift
+[62/74] Compiling VLMSnapperCore UserDefaultsPermissionRequestHistoryStore.swift
+[63/110] Compiling VLMSnapperSparkle SparkleUpdateDriver.swift
+[64/110] Emitting module VLMSnapperSparkle
+[65/110] Emitting module VLMSnapperLiveProviderGate
+[66/110] Compiling VLMSnapperLiveProviderGate main.swift
+[66/110] Write Objects.LinkFileList
+[68/110] Compiling VLMSnapperUI VLMSnapperIcons.swift
+[69/110] Compiling VLMSnapperUI VLMSnapperLocalization.swift
+[70/110] Compiling VLMSnapperUI VLMSnapperStrings.swift
+[71/113] Compiling VLMSnapperUI ProviderFieldLayout.swift
+[72/113] Compiling VLMSnapperUI ProviderModelPicker.swift
+[73/113] Compiling VLMSnapperUI ProviderPasteMenu.swift
+[74/113] Compiling VLMSnapperUI ScreenCapturePermissionRecoveryView.swift
+[75/113] Compiling VLMSnapperUI StoragePrivacyDetailView.swift
+[76/113] Compiling VLMSnapperUI VLMSnapperApplicationMenu.swift
+[76/113] Linking VLMSnapperLiveProviderGate
+[77/113] Applying VLMSnapperLiveProviderGate
+[79/113] Compiling VLMSnapperUI OnboardingView.swift
+[80/113] Compiling VLMSnapperUI ProviderAPIKeyField.swift
+[81/113] Compiling VLMSnapperUI ProviderCredentialEditor.swift
+[82/113] Compiling VLMSnapperUI VLMSnapperTheme.swift
+[83/113] Compiling VLMSnapperUI VLMSnapperUIConstants.swift
+[84/113] Compiling VLMSnapperUI resource_bundle_accessor.swift
+[85/113] Compiling VLMSnapperUI ProviderSettingsPresentation.swift
+[86/113] Compiling VLMSnapperUI ResultWorkspaceView.swift
+[87/113] Compiling VLMSnapperUI ResultWorkspaceWindowController.swift
+[88/113] Compiling VLMSnapperUI FrozenCaptureOverlayController.swift
+[89/113] Compiling VLMSnapperUI GlobalShortcutRecorder.swift
+[90/113] Compiling VLMSnapperUI HistoryImagePreview.swift
+[91/113] Compiling VLMSnapperUI HistoryRetryPresentation.swift
+[92/113] Emitting module VLMSnapperUI
+[93/113] Compiling VLMSnapperUI ApplicationTerminationSheet.swift
+[94/113] Compiling VLMSnapperUI BilingualResultView.swift
+[95/113] Compiling VLMSnapperUI CaptureOperationToolbar.swift
+[96/113] Compiling VLMSnapperUI CaptureToolbarPanelController.swift
+[97/113] Compiling VLMSnapperUI MenuBarPanelController.swift
+[98/113] Compiling VLMSnapperUI MenuBarPanelView.swift
+[99/113] Compiling VLMSnapperUI NativeLifecycleAdapters.swift
+[100/113] Compiling VLMSnapperUI OnboardingContainerView.swift
+[101/113] Compiling VLMSnapperUI ManagementCenterView.swift
+[102/113] Compiling VLMSnapperUI ManagementCenterWindowController.swift
+[103/113] Compiling VLMSnapperUI MarkdownResultView.swift
+[104/113] Compiling VLMSnapperUI MenuBarContainerView.swift
+[105/127] Compiling VLMSnapperApp ApplicationModelDependencies.swift
+[106/127] Compiling VLMSnapperApp ApplicationDirectories.swift
+[107/127] Compiling VLMSnapperApp CoreGraphicsCaptureWindowListing.swift
+[108/127] Compiling VLMSnapperApp main.swift
+[109/127] Compiling VLMSnapperApp ApplicationStartupDependencies.swift
+[110/127] Compiling VLMSnapperApp CaptureDisplayMonitor.swift
+[111/127] Emitting module VLMSnapperApp
+[112/127] Compiling VLMSnapperAXFixture main.swift
+[113/127] Emitting module VLMSnapperAXFixture
+[113/127] Write Objects.LinkFileList
+[115/127] Emitting module VLMSnapperUIHarness
+[116/127] Compiling VLMSnapperUIHarness VLMSnapperUIHarness.swift
+[117/127] Compiling VLMSnapperUIHarness ProviderEditingSmoke.swift
+[117/127] Write Objects.LinkFileList
+[119/127] Compiling VLMSnapperApp VLMSnapperApplicationDelegate.swift
+[119/127] Linking VLMSnapperAXFixture
+[120/127] Linking VLMSnapperUIHarness
+[121/127] Applying VLMSnapperAXFixture
+[122/127] Applying VLMSnapperUIHarness
+[124/127] Compiling VLMSnapperApp VLMSnapperApplicationModel.swift
+[124/127] Write Objects.LinkFileList
+[125/127] Linking VLMSnapperApp
+[126/127] Applying VLMSnapperApp
+Build complete! (9.65s)
+== exit: 0
+== command: /usr/bin/xcrun swift build --build-tests
+[0/1] Planning build
+Building for debugging...
+[0/19] Compiling VLMSnapperProcessShim VLMSnapperProcessShim.c
+[1/19] Write swift-version--58304C5D6DBC2206.txt
+[2/19] Compiling VLMSnapperHotKeyShim VLMSnapperHotKeyShim.c
+[4/69] Emitting module VLMSnapperReleaseSupport
+[5/69] Compiling VLMSnapperReleaseSupport DeveloperIDProvisioningProfile.swift
+[6/69] Compiling VLMSnapperReleaseSupport DeveloperIDProfilePreparation.swift
+[7/71] Emitting module VLMSnapperSigningTool
+[8/71] Compiling VLMSnapperSigningTool main.swift
+[9/70] Compiling VLMSnapperCore OrderedStructuredOutputParser.swift
+[10/70] Compiling VLMSnapperCore PersistedOperationWorkspaceRunner.swift
+[11/70] Compiling VLMSnapperCore PrimaryInstanceCoordinator.swift
+[12/70] Compiling VLMSnapperCore ProviderAPIKeyInput.swift
+[13/70] Compiling VLMSnapperCore ProviderAdapterError.swift
+[14/75] Compiling VLMSnapperCore AlignedTranslationParser.swift
+[15/75] Compiling VLMSnapperCore AppleKeychainProviderCredentialStore.swift
+[16/75] Compiling VLMSnapperCore ApplicationLanguage.swift
+[17/75] Compiling VLMSnapperCore ApplicationWorkflow.swift
+[18/75] Compiling VLMSnapperCore CaptureCoordinateMapper.swift
+[19/75] Compiling VLMSnapperCore CaptureFreezeCoordinator.swift
+[19/75] Linking VLMSnapperSigningTool
+[21/75] Compiling VLMSnapperCore LoginItemCoordinator.swift
+[22/75] Compiling VLMSnapperCore ManagedScreenshotRoot.swift
+[23/75] Compiling VLMSnapperCore OnboardingSession.swift
+[24/75] Compiling VLMSnapperCore OpenAIResponsesStreamDecoder.swift
+[25/75] Compiling VLMSnapperCore OperationWorkspaceSession.swift
+[26/75] Compiling VLMSnapperCore ProviderPreparedOperationStreamer.swift
+[27/75] Compiling VLMSnapperCore ProviderRequestFactory.swift
+[28/75] Compiling VLMSnapperCore ProviderSetupSession.swift
+[29/75] Compiling VLMSnapperCore ProviderStreamContract.swift
+[30/75] Compiling VLMSnapperCore ProviderStreamTimeout.swift
+[30/75] Applying VLMSnapperSigningTool
+[32/75] Compiling VLMSnapperCore DiagnosticLogStore.swift
+[33/75] Compiling VLMSnapperCore ExtractionCoordinator.swift
+[34/75] Compiling VLMSnapperCore FileProviderMetadataStore.swift
+[35/75] Compiling VLMSnapperCore FileSystemScreenshotStore.swift
+[36/75] Compiling VLMSnapperCore GeminiStreamDecoder.swift
+[37/75] Emitting module VLMSnapperCore
+[38/75] Compiling VLMSnapperCore CaptureSelectionSession.swift
+[39/75] Compiling VLMSnapperCore CaptureSnapRegionResolver.swift
+[40/75] Compiling VLMSnapperCore CarbonGlobalShortcutBackend.swift
+[41/75] Compiling VLMSnapperCore DataProtectionKeychainSmokeTest.swift
+[42/75] Compiling VLMSnapperCore DeepSeekChatStreamDecoder.swift
+[43/75] Compiling VLMSnapperCore ProviderAdapterExecutor.swift
+[44/75] Compiling VLMSnapperCore ProviderConfiguration.swift
+[45/75] Compiling VLMSnapperCore ProviderHTTPErrorNormalizer.swift
+[46/75] Compiling VLMSnapperCore ProviderHTTPStreaming.swift
+[47/75] Compiling VLMSnapperCore ProviderModelCatalog.swift
+[48/75] Compiling VLMSnapperCore GlobalShortcutCoordinator.swift
+[49/75] Compiling VLMSnapperCore HistoryDatabaseResetter.swift
+[50/75] Compiling VLMSnapperCore HistoryManagement.swift
+[51/75] Compiling VLMSnapperCore HistoryRetention.swift
+[52/75] Compiling VLMSnapperCore LiveProviderContractGate.swift
+[53/75] Compiling VLMSnapperCore ReleaseManifest.swift
+[54/75] Compiling VLMSnapperCore SQLiteHistoryStore.swift
+[55/75] Compiling VLMSnapperCore SRGBPNGCropper.swift
+[56/75] Compiling VLMSnapperCore ScreenCaptureKitFrozenDisplayCapturer.swift
+[57/75] Compiling VLMSnapperCore ScreenCapturePermissionCoordinator.swift
+[58/75] Compiling VLMSnapperCore ServerSentEventDecoder.swift
+[59/75] Compiling VLMSnapperCore TargetLanguageCatalog.swift
+[60/75] Compiling VLMSnapperCore TranslationSegment.swift
+[61/75] Compiling VLMSnapperCore UpdateLifecycle.swift
+[62/75] Compiling VLMSnapperCore UserDefaultsPermissionRequestHistoryStore.swift
+[63/111] Emitting module VLMSnapperSparkle
+[64/111] Compiling VLMSnapperSparkle SparkleUpdateDriver.swift
+[65/111] Compiling VLMSnapperLiveProviderGate main.swift
+[66/111] Emitting module VLMSnapperLiveProviderGate
+[66/111] Write Objects.LinkFileList
+[68/111] Compiling VLMSnapperUI VLMSnapperIcons.swift
+[69/111] Compiling VLMSnapperUI VLMSnapperLocalization.swift
+[70/111] Compiling VLMSnapperUI VLMSnapperStrings.swift
+[71/114] Compiling VLMSnapperUI ProviderFieldLayout.swift
+[72/114] Compiling VLMSnapperUI ProviderModelPicker.swift
+[73/114] Compiling VLMSnapperUI ProviderPasteMenu.swift
+[74/114] Compiling VLMSnapperUI ScreenCapturePermissionRecoveryView.swift
+[75/114] Compiling VLMSnapperUI StoragePrivacyDetailView.swift
+[76/114] Compiling VLMSnapperUI VLMSnapperApplicationMenu.swift
+[76/114] Linking VLMSnapperLiveProviderGate
+[77/114] Applying VLMSnapperLiveProviderGate
+[79/114] Emitting module VLMSnapperUI
+[80/114] Compiling VLMSnapperUI VLMSnapperTheme.swift
+[81/114] Compiling VLMSnapperUI VLMSnapperUIConstants.swift
+[82/114] Compiling VLMSnapperUI resource_bundle_accessor.swift
+[83/114] Compiling VLMSnapperUI OnboardingView.swift
+[84/114] Compiling VLMSnapperUI ProviderAPIKeyField.swift
+[85/114] Compiling VLMSnapperUI ProviderCredentialEditor.swift
+[86/114] Compiling VLMSnapperUI FrozenCaptureOverlayController.swift
+[87/114] Compiling VLMSnapperUI GlobalShortcutRecorder.swift
+[88/114] Compiling VLMSnapperUI HistoryImagePreview.swift
+[89/114] Compiling VLMSnapperUI HistoryRetryPresentation.swift
+[90/114] Compiling VLMSnapperUI ApplicationTerminationSheet.swift
+[91/114] Compiling VLMSnapperUI BilingualResultView.swift
+[92/114] Compiling VLMSnapperUI CaptureOperationToolbar.swift
+[93/114] Compiling VLMSnapperUI CaptureToolbarPanelController.swift
+[94/114] Compiling VLMSnapperUI MenuBarPanelController.swift
+[95/114] Compiling VLMSnapperUI MenuBarPanelView.swift
+[96/114] Compiling VLMSnapperUI NativeLifecycleAdapters.swift
+[97/114] Compiling VLMSnapperUI OnboardingContainerView.swift
+[98/114] Compiling VLMSnapperUI ProviderSettingsPresentation.swift
+[99/114] Compiling VLMSnapperUI ResultWorkspaceView.swift
+[100/114] Compiling VLMSnapperUI ResultWorkspaceWindowController.swift
+[101/114] Compiling VLMSnapperUI ManagementCenterView.swift
+[102/114] Compiling VLMSnapperUI ManagementCenterWindowController.swift
+[103/114] Compiling VLMSnapperUI MarkdownResultView.swift
+[104/114] Compiling VLMSnapperUI MenuBarContainerView.swift
+[105/128] Compiling VLMSnapperApp main.swift
+[106/128] Compiling VLMSnapperApp CaptureDisplayMonitor.swift
+[107/128] Compiling VLMSnapperApp ApplicationStartupDependencies.swift
+[108/128] Emitting module VLMSnapperApp
+[109/128] Compiling VLMSnapperAXFixture main.swift
+[110/128] Emitting module VLMSnapperAXFixture
+[111/128] Compiling VLMSnapperUIHarness VLMSnapperUIHarness.swift
+[111/128] Write Objects.LinkFileList
+[113/128] Compiling VLMSnapperUIHarness ProviderEditingSmoke.swift
+[114/128] Emitting module VLMSnapperUIHarness
+[114/128] Write Objects.LinkFileList
+[116/128] Compiling VLMSnapperApp VLMSnapperApplicationDelegate.swift
+[117/128] Compiling VLMSnapperApp ApplicationDirectories.swift
+[118/128] Compiling VLMSnapperApp CoreGraphicsCaptureWindowListing.swift
+[118/128] Linking VLMSnapperAXFixture
+[119/128] Applying VLMSnapperAXFixture
+[120/128] Linking VLMSnapperUIHarness
+[121/128] Applying VLMSnapperUIHarness
+[123/128] Compiling VLMSnapperApp VLMSnapperApplicationModel.swift
+[124/128] Compiling VLMSnapperApp ApplicationModelDependencies.swift
+[124/128] Write Objects.LinkFileList
+[125/129] Linking VLMSnapperApp
+[126/129] Applying VLMSnapperApp
+[128/130] Emitting module VLMSnapperAppTests
+[128/130] Write Objects.LinkFileList
+[129/130] Linking VLMSnapperPackageTests
+Build complete! (11.01s)
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --skip ProviderApplicationTests
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 22:03:17.542.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:03:17.543.
+Test Suite 'BilingualResultTests' started at 2026-10-28 22:03:17.543.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testClickingSurfaceWhitespaceClearsLinkedSelection]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testClickingSurfaceWhitespaceClearsLinkedSelection]' passed (0.106 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testHistoryRendersBilingualLayoutInBothAppearances]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testHistoryRendersBilingualLayoutInBothAppearances]' passed (0.433 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testHoverAndClickUseGlyphIdentityWithoutOverridingSelection]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testHoverAndClickUseGlyphIdentityWithoutOverridingSelection]' passed (0.020 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testLongLegacyHistoryKeepsEntireTextInsideBilingualSection]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testLongLegacyHistoryKeepsEntireTextInsideBilingualSection]' passed (0.222 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testMeasuringAlternativeWidthsDoesNotChangeVisibleLineWrapping]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testMeasuringAlternativeWidthsDoesNotChangeVisibleLineWrapping]' passed (0.009 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testProductionResultUsesIndependentSelectableColumns]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testProductionResultUsesIndependentSelectableColumns]' passed (0.051 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testSelectionUsesIdentityAndSurvivesStreamingAppend]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testSelectionUsesIdentityAndSurvivesStreamingAppend]' passed (0.003 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testStreamingColumnsReflowAndKeepLinkedSelectionAcrossWidths]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testStreamingColumnsReflowAndKeepLinkedSelectionAcrossWidths]' passed (0.066 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testStructuredBlocksAndUntrustedTextStayLiteralAndCopyable]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testStructuredBlocksAndUntrustedTextStayLiteralAndCopyable]' passed (0.004 seconds).
+Test Case '-[VLMSnapperUITests.BilingualResultTests testUnicodeSelectionAndColumnCopyRemainIndependent]' started.
+Test Case '-[VLMSnapperUITests.BilingualResultTests testUnicodeSelectionAndColumnCopyRemainIndependent]' passed (0.009 seconds).
+Test Suite 'BilingualResultTests' passed at 2026-10-28 22:03:18.467.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.922 (0.924) seconds
+Test Suite 'HistoryImageZoomTests' started at 2026-10-28 22:03:18.467.
+Test Case '-[VLMSnapperUITests.HistoryImageZoomTests testDraggingPansMagnifiedImageWithoutChangingZoom]' started.
+Test Case '-[VLMSnapperUITests.HistoryImageZoomTests testDraggingPansMagnifiedImageWithoutChangingZoom]' passed (0.152 seconds).
+Test Case '-[VLMSnapperUITests.HistoryImageZoomTests testWheelZoomsAroundPointerAndReverses]' started.
+Test Case '-[VLMSnapperUITests.HistoryImageZoomTests testWheelZoomsAroundPointerAndReverses]' passed (0.149 seconds).
+Test Case '-[VLMSnapperUITests.HistoryImageZoomTests testZoomLimitsAndIgnoredEvents]' started.
+Test Case '-[VLMSnapperUITests.HistoryImageZoomTests testZoomLimitsAndIgnoredEvents]' passed (0.125 seconds).
+Test Suite 'HistoryImageZoomTests' passed at 2026-10-28 22:03:18.893.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.426 (0.426) seconds
+Test Suite 'HistoryInteractionTests' started at 2026-10-28 22:03:18.894.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test01InitialDetailLoadsForRetry]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test01InitialDetailLoadsForRetry]' passed (0.102 seconds).
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test02HistoricalProviderFiltersList]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test02HistoricalProviderFiltersList]' passed (1.464 seconds).
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test03QueryWindowLifetime]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test03QueryWindowLifetime]' passed (2.849 seconds).
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test04CombinedQueryAndSelection]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test04CombinedQueryAndSelection]' passed (5.919 seconds).
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test05HistoryRenders]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test05HistoryRenders]' passed (5.054 seconds).
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test06HistoryThumbnailKeepsAspectRatioAndHeight]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test06HistoryThumbnailKeepsAspectRatioAndHeight]' passed (2.397 seconds).
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test07ArrowKeysSelectHistoryAndRespectSearchFocus]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test07ArrowKeysSelectHistoryAndRespectSearchFocus]' passed (5.788 seconds).
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test08ArrowSelectionScrollsAndKeyboardCanEnterList]' started.
+Test Case '-[VLMSnapperUITests.HistoryInteractionTests test08ArrowSelectionScrollsAndKeyboardCanEnterList]' passed (1.780 seconds).
+Test Suite 'HistoryInteractionTests' passed at 2026-10-28 22:03:44.248.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 25.353 (25.354) seconds
+Test Suite 'HistoryPreviewDismissalTests' started at 2026-10-28 22:03:44.248.
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testBackdropClickDismissesOnlyPreview]' started.
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testBackdropClickDismissesOnlyPreview]' passed (0.700 seconds).
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testBackdropPressMustEndAsClickRatherThanDrag]' started.
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testBackdropPressMustEndAsClickRatherThanDrag]' passed (0.642 seconds).
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testDismissReopenAndRemoveMonitor]' started.
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testDismissReopenAndRemoveMonitor]' passed (1.860 seconds).
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testDragFromPreviewToBackdropDoesNotDismiss]' started.
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testDragFromPreviewToBackdropDoesNotDismiss]' passed (0.621 seconds).
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testInteriorAndOtherWindowClicksDoNotDismiss]' started.
+Test Case '-[VLMSnapperUITests.HistoryPreviewDismissalTests testInteriorAndOtherWindowClicksDoNotDismiss]' passed (0.658 seconds).
+Test Suite 'HistoryPreviewDismissalTests' passed at 2026-10-28 22:03:48.730.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 4.481 (4.482) seconds
+Test Suite 'HistoryWindowNativeTests' started at 2026-10-28 22:03:48.730.
+Test Case '-[VLMSnapperUITests.HistoryWindowNativeTests testMenuFooterRoutesExistingManagementWindow]' started.
+Test Case '-[VLMSnapperUITests.HistoryWindowNativeTests testMenuFooterRoutesExistingManagementWindow]' passed (1.748 seconds).
+Test Case '-[VLMSnapperUITests.HistoryWindowNativeTests testOpeningFillsAvailableScreenAndPreservesUserResize]' started.
+Test Case '-[VLMSnapperUITests.HistoryWindowNativeTests testOpeningFillsAvailableScreenAndPreservesUserResize]' passed (0.264 seconds).
+Test Case '-[VLMSnapperUITests.HistoryWindowNativeTests testSingleClickSelectsAnotherHistoryRecord]' started.
+Test Case '-[VLMSnapperUITests.HistoryWindowNativeTests testSingleClickSelectsAnotherHistoryRecord]' passed (2.150 seconds).
+Test Suite 'HistoryWindowNativeTests' passed at 2026-10-28 22:03:52.893.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 4.162 (4.163) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:03:52.893.
+	 Executed 29 tests, with 0 failures (0 unexpected) in 35.345 (35.349) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:03:52.893.
+	 Executed 29 tests, with 0 failures (0 unexpected) in 35.345 (35.351) seconds
+Bilingual render evidence: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/vlmsnapper-bilingual-renders-EBD8C301-F534-4730-AA66-58EE4FE67EF7
+Long history render evidence: /var/folders/9h/52q4kxb115j2nglbz0kfpkh00000gn/T/vlmsnapper-long-history-E01C0724-9F2D-42FD-8A51-02EF7D4795E7
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Sparkle product user driver" started.
+◇ Suite "Localization test coordination" started.
+◇ Suite "Ticket 08 UI rendering" started.
+◇ Suite "Native condition wait" started.
+◇ Suite "Native Provider API Key editing" started.
+◇ Suite "Provider credential editor session" started.
+◇ Suite "Ticket 10 UI rendering" started.
+◇ Suite "Ticket 13 menu bar presentation" started.
+◇ Suite "Ticket 07 UI rendering" started.
+◇ Suite "Theme surface rendering" started.
+◇ Suite "Menu bar panel action buttons" started.
+◇ Suite "Ticket 13 confirmed surface contracts" started.
+◇ Suite "Ticket 13 production UI rendering" started.
+◇ Suite "Capture toolbar placement" started.
+◇ Suite "Provider credential interaction" started.
+◇ Suite "Ticket 09 UI rendering" started.
+◇ Suite "Provider settings presentation" started.
+◇ Suite "Provider visual geometry" started.
+◇ Suite "Application termination sheets" started.
+◇ Suite "Result workspace window" started.
+◇ Suite "Frozen capture overlay" started.
+◇ Suite "Ticket 12 menu bar interactions" started.
+◇ Suite "Developer ID provisioning profile" started.
+◇ Suite "Data Protection Keychain smoke test" started.
+◇ Suite "Management center window contract" started.
+◇ Suite "Developer ID profile preparation" started.
+◇ Suite "Target language catalog" started.
+◇ Suite "Operation workspace session" started.
+◇ Suite "Provider HTTP error normalizer" started.
+◇ Suite "Global shortcut coordinator" started.
+◇ Suite "DeepSeek Chat stream decoder" started.
+◇ Suite "Ticket 13 application menu" started.
+◇ Suite "Provider configuration coordinator" started.
+◇ Suite "Capture coordinate mapper" started.
+◇ Suite "Official provider model catalog" started.
+◇ Suite "Capture freeze coordinator" started.
+◇ Suite "SQLite history store" started.
+◇ Suite "Recorded provider adapter contract" started.
+◇ Suite "File provider metadata store" started.
+◇ Suite "Capture snap region resolver" started.
+◇ Suite "ScreenCaptureKit frozen display capture" started.
+◇ Suite "Global shortcut preference" started.
+◇ Suite "Live provider result validation" started.
+◇ Suite "Update lifecycle" started.
+◇ Suite "Historical workspace snapshot" started.
+◇ Suite "Live provider contract gate" started.
+◇ Suite "Ordered structured output parser" started.
+◇ Suite "Provider request factory" started.
+◇ Suite "Extraction coordinator" started.
+◇ Suite "History retention" started.
+◇ Suite "Server-sent event decoder" started.
+◇ Suite "Provider API Key safety boundary" started.
+◇ Suite "Managed screenshot root" started.
+◇ Suite "Diagnostic log" started.
+◇ Suite "Release appcast script" started.
+◇ Suite "sRGB PNG cropper" started.
+◇ Suite "Screen capture permission coordinator" started.
+◇ Suite "Gemini stream decoder" started.
+◇ Suite "Login item" started.
+◇ Suite "Application language" started.
+◇ Suite "Provider stream contract" started.
+◇ Suite "History deletion coordinator" started.
+◇ Suite "Persisted operation workspace runner" started.
+◇ Suite "Release manifest" started.
+◇ Suite "Apple Keychain provider credential store" started.
+◇ Suite "Capture selection session" started.
+◇ Suite "Restored history retry identity" started.
+◇ Suite "Release provisioning script" started.
+◇ Suite "OpenAI Responses stream decoder" started.
+◇ Suite "Primary instance" started.
+◇ Suite "Provider adapter executor" started.
+◇ Suite "Provider setup session" started.
+◇ Suite "Carbon global shortcut backend" started.
+◇ Suite "Aligned translation" started.
+◇ Suite "Provider adapter error" started.
+◇ Suite "File system screenshot store" started.
+◇ Suite "Onboarding readiness" started.
+◇ Suite "Distribution privacy metadata" started.
+◇ Test "information-only update cannot enter the download path" started.
+◇ Test "Sparkle callbacks reach Core in callback order" started.
+◇ Test "localization test sections cannot overlap" started.
+◇ Test "credential baselines compare exact bytes, not Unicode equivalence" started.
+◇ Test "reopening waits for a canceled physical read to leave its boundary" started.
+◇ Test "management center states render in light and dark appearances" started.
+◇ Test "closing or switching cancels only the window-owned load" started.
+◇ Test "download reply is consumed exactly once" started.
+◇ Test "closing does not cancel submission or resurrect a closed draft" started.
+◇ Test "a submitted key belongs to its Provider after switching cards" started.
+◇ Test "an older read cannot populate a new visit to the same Provider" started.
+◇ Test "submission is claimed synchronously, with exact immutable input" started.
+◇ Test "production toolbar renders localized target-language selection" started.
+◇ Test "closing discards a draft and invalidates pending reads" started.
+◇ Test "confirmed entry surfaces render in light and dark appearances" started.
+◇ Test "recent records map to real operation, time, status, and screenshot data" started.
+◇ Test "editing or removing a failed credential discards its retained candidate" started.
+◇ Test "configured model refresh renders stable idle busy and failure surfaces" started.
+◇ Test "result and management shells use the accepted hierarchy geometry" started.
+◇ Test "termination discards both in-flight and failed memory candidates" started.
+◇ Test "the complete visible row is clickable" started.
+◇ Test "a toolbar wider than the screen keeps its leading edge visible" started.
+◇ Test "a toolbar that would leave the screen moves above the selection" started.
+◇ Test "a validation that fails while closed restores its candidate when reopened" started.
+◇ Test "the toolbar is left aligned exactly four points below the selection" started.
+◇ Test "inline credential states expose validation only when needed" started.
+◇ Test "an already satisfied condition returns without waiting" started.
+◇ Test "expanded Provider preference is explicit target then current then DeepSeek" started.
+◇ Test "accessibility edits update the credential without submitting" started.
+◇ Test "an unchanged credential cannot be resubmitted after a model refresh failure" started.
+◇ Test "configured model control stretches across the narrow card at the confirmed height" started.
+◇ Test "All application-owned sheets permit coordinated application termination" started.
+◇ Test "the smoke test verifies a complete credential lifecycle" started.
+◇ Test "onboarding and attached sheets use the accepted dimensions" started.
+◇ Test "closing and reopening the production window reloads instead of retaining a draft" started.
+◇ Test "an expired profile is rejected" started.
+◇ Test "recovery and read failures do not offer an unusable validation action" started.
+◇ Test "right mouse up opens the context action and other activations use the panel" started.
+◇ Test "the secondary surface stays light in Aqua appearance" started.
+◇ Test "validation and failure override the inline credential status" started.
+◇ Test "base entitlements cannot hard-code profile-managed identity keys" started.
+◇ Test "a profile that excludes the signing certificate is rejected" started.
+◇ Test "a failed smoke test still attempts to delete its credential" started.
+◇ Test "a device-specific profile is rejected" started.
+◇ Test "an active credential job blocks validation without blocking another card's draft" started.
+◇ Test "a profile without an authorizing Keychain group is rejected" started.
+◇ Test "Provider card distinguishes validated credentials awaiting a model" started.
+◇ Test "local input errors have specific localized hints" started.
+◇ Test "preparation refuses to replace an existing signing output" started.
+◇ Test "a completed workspace retires before a new capture" started.
+◇ Test "provider rows preserve configuration state for non-selected providers" started.
+◇ Test "a matching distribution profile derives the exact signing identity" started.
+◇ Test "a retired workspace cannot start another model request" started.
+◇ Test "traditional Chinese and free-form values are unavailable" started.
+◇ Test "a profile for another bundle identifier is rejected" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+◇ Test "the minimum applies to the complete content area" started.
+◇ Test "the workspace uses normal window ordering and content refresh does not present it" started.
+◇ Test "tab changes while acquiring the gate do not change the requested operation" started.
+◇ Test "effective entitlements preserve the sandbox and add exact identity claims" started.
+◇ Test "closing while waiting for the global gate prevents the request" started.
+◇ Test "workspace capture preparation is consumed exactly once" started.
+◇ Test "configured localization bundle changes visible strings" started.
+◇ Test "the default shortcut is Option Shift S" started.
+◇ Test "escape return and arrow keys are rejected even with modifiers" started.
+◇ Test "an unsaved result keeps its recovery workspace in front" started.
+◇ Test "a failed capture restores the prepared workspace" started.
+◇ Test "closing during a stream cancels the attempt and discards partial text" started.
+◇ Test "switching operation tabs changes presentation without starting work" started.
+◇ Test "a failed workspace retires before a new capture" started.
+◇ Test "a successful replacement activates immediately then unregisters the old shortcut" started.
+◇ Test "a failed replacement keeps the old registration active" started.
+◇ Test "confirming discard clears an unsaved completed result" started.
+◇ Test "onboarding return is consumed by completion or early close exactly once" started.
+◇ Test "destroying the coordinator unregisters its active shortcut" started.
+◇ Test "the extraction alias does not permit extra fields" started.
+◇ Test "a canceled workspace retires before a new capture" started.
+◇ Test "priority languages lead the complete standard catalog" started.
+◇ Test "the application gate blocks a second workspace before its runner starts" started.
+◇ Test "a stop and DONE stream envelope carries paired translation fixtures" started.
+◇ Test "only nonempty reasoning is reported as private provider activity" started.
+◇ Test "the text alias remains invalid for translation" started.
+◇ Test "an active request keeps the current workspace in front" started.
+◇ Test "a failed rerun keeps the previous success and discards partial text" started.
+◇ Test "shortcut and menu capture route active credential work without freezing" started.
+◇ Test "Provider-specific error bodies retain actionable categories" started.
+◇ Test "an unsaved completed result blocks another model operation" started.
+◇ Test "clean EOF without DONE is incomplete" started.
+◇ Test "model selection is frozen while a request is active" started.
+◇ Test "replacing a current provider preserves an available model and current selection" started.
+◇ Test "Gemini repeated page tokens are rejected" started.
+◇ Test "capture owns configuration until its atomic transition to a model request" started.
+◇ Test "the Edit menu exposes the complete confirmed hierarchy" started.
+◇ Test "only explicit image-input rejection marks a model incompatible" started.
+◇ Test "replacement model-list failure discards the previous provider configuration" started.
+◇ Test "AppKit points map to top-left physical pixels on a Retina display" started.
+◇ Test "points outside the overlay clamp to the frozen image bounds" started.
+◇ Test "an uploading extraction remains uploading after reopening" started.
+◇ Test "Gemini rejects a later-page failure instead of returning a partial list" started.
+◇ Test "the saved API key can be loaded for inline editing" started.
+◇ Test "recovery waits for selection to end and a canceled waiter cannot recover" started.
+◇ Test "missing permission is recovered separately and capture is not attempted" started.
+◇ Test "a newer schema version blocks opening the history store" started.
+◇ Test "other terminal completions persist their exact status" started.
+◇ Test "pinning and terminal metrics survive the complete history filter" started.
+◇ Test "OpenAI-compatible model lists use one official Bearer request" started.
+◇ Test "only the owning operation lease can release configuration exclusion" started.
+◇ Test "the observed text field is normalized for extraction" started.
+◇ Test "shortcuts without Command Option or Control are rejected" started.
+◇ Test "closing with an unsaved completed result requires confirmation" started.
+◇ Test "an orphaned durable credential recovers the complete model configuration" started.
+◇ Test "selection handoff remains exclusive and releases after an operation failure" started.
+◇ Test "unsafe local API keys cannot replace a saved credential" started.
+◇ Test "version-one rows migrate to typed extraction operations" started.
+◇ Test "one display failure preserves successful frozen displays" started.
+◇ Test "recovery waits for a model operation rather than failing configuration" started.
+◇ Test "reset never overwrites an existing recovery file from the same second" started.
+◇ Test "a complete model list is saved with the validated key" started.
+◇ Test "a prepared extraction survives reopening the database" started.
+◇ Test "authentication rejection is normalized for provider setup" started.
+◇ Test "a request cannot begin while provider configuration is being mutated" started.
+◇ Test "a symbolic link in the metadata directory ancestry is rejected" started.
+◇ Test "a permission denial reported during discovery uses permission recovery" started.
+◇ Test "an incomplete version-one schema is blocked without modification" started.
+◇ Test "a replacement is rejected without network access when retirement cannot be persisted" started.
+◇ Test "all per-display failures exit without a selection session" started.
+◇ Test "a normalized failure reason survives reopening the database" started.
+◇ Test "Gemini follows every page token and returns one complete model list" started.
+◇ Test "version-three translations migrate without inventing alignment" started.
+◇ Test "startup recovery interrupts only unfinished operations" started.
+◇ Test "a corrupted database is blocked without changing its bytes" started.
+◇ Test "one explicit extraction action starts one run and commits its success" started.
+◇ Test "a successful result survives reopening the database" started.
+◇ Test "one model-unavailable attempt can claim at most one list refresh" started.
+◇ Test "Try Again during credential work cannot request or alter persisted history" started.
+◇ Test "own, transparent, off-screen and system overlay windows are skipped" started.
+◇ Test "replacing a result preserves identity and pin state" started.
+◇ Test "reset preserves a corrupted database before creating an empty store" started.
+◇ Test "the topmost window under the pointer is snapped as a whole window" started.
+◇ Test "a canceled recovery waiter finishes before the capture owner releases" started.
+◇ Test "opening provider settings refreshes only a missing or 24-hour-old cache" started.
+◇ Test "regions stay on the pointer's display and skip windows under two pixels" started.
+◇ Test "a Dock on the left or right side is one strip along that edge" started.
+◇ Test "a status item is snapped on its own and the rest of the menu bar as a whole" started.
+◇ Test "the Dock strip is one region and an auto-hidden Dock falls through" started.
+◇ Test "provider metadata survives reopening without storing an API key" started.
+◇ Test "all recorded transport envelopes carry the same synthetic paired translation contract" started.
+◇ Test "a successful refresh replaces the cache and clears a missing selection" started.
+◇ Test "invalid metadata is reported without overwriting its bytes" started.
+◇ Test "a missing durable credential clears its cache and global selection" started.
+◇ Test "a replacement credential write failure does not restore the previous configuration" started.
+◇ Test "known text fixture rejects a completed but incorrect extraction" started.
+◇ Test "cancellation after a submitted request cannot persist its memory-only candidate" started.
+◇ Test "the user can switch the global current provider only to a usable configuration" started.
+◇ Test "a failed old-key deletion cannot resurrect that key through recovery" started.
+◇ Test "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test "history query combines operation type and local result search" started.
+◇ Test "metadata publication failure is local secure storage rather than a Provider outage" started.
+◇ Test "the two-pixel minimum counts physical pixels in both directions" started.
+◇ Test "correct source with blank translation still fails" started.
+◇ Test "a recorded shortcut persists across store instances" started.
+◇ Test "A one-times display preserves its logical dimensions" started.
+◇ Test "observed bold extraction preserves known text but translation source remains plain" started.
+◇ Test "clearing a provider removes its key and metadata without switching providers" started.
+◇ Test "A raster dimension outside the Int range is rejected" started.
+◇ Test "reports do not contain response text or credentials" started.
+◇ Test "incomplete persisted values fall back to the default" started.
+◇ Test "configuring another provider never replaces a remembered current provider" started.
+◇ Test "A raster dimension that rounds to zero is rejected" started.
+◇ Test "selecting the first usable provider makes it current" started.
+◇ Test "Fractional physical dimensions round to the nearest pixel" started.
+◇ Test "generic credential write failures are secure-storage failures, not Provider outages" started.
+◇ Test "refresh failure preserves the previous cache and selection" started.
+◇ Test "Startup fixes the six hour schedule and disables automatic downloads" started.
+◇ Test "publication failure leaves the durable new key recoverable from a fresh model list" started.
+◇ Test "provider failures are normalized without leaking request content" started.
+◇ Test "known text extraction rejects empty or whitespace output" started.
+◇ Test "environment configuration requires a key and model for each provider" started.
+◇ Test "Failed download never reports ready and permits explicit retry" started.
+◇ Test "a failed extraction restores its normalized failure" started.
+◇ Test "Information-only updates never begin a download" started.
+◇ Test "Download intent waits for driver events and is consumed once" started.
+◇ Test "a stream without a completed output fails validation" started.
+◇ Test "a translation failure prevents a provider from passing" started.
+◇ Test "inline styling does not change extraction text" started.
+◇ Test "known text matches across harmless whitespace and validates both operations" started.
+◇ Test "Unicode escape and surrogate boundaries do not emit malformed text" started.
+◇ Test "a configured provider passes only after extraction and translation complete" started.
+◇ Test "translation JSON streams sentence pairs across arbitrary chunks" started.
+◇ Test "OpenAI request sends the original PNG in one structured streaming request" started.
+◇ Test "a succeeded extraction remains succeeded after reopening" started.
+◇ Test "translation rejects the obsolete unpaired envelope" started.
+◇ Test "reserving a history replacement closes the start race" started.
+◇ Test "Gemini request uses inline PNG data and JSON schema streaming" started.
+◇ Test "a combining mark arriving later extends the streamed source" started.
+◇ Test "a prepared record with a different model selection never reaches the provider" started.
+◇ Test "finish rejects incomplete JSON" started.
+◇ Test "DeepSeek extraction prompt requires the canonical source field" started.
+◇ Test "a screenshot persistence failure never reaches the provider" started.
+◇ Test "missing provider configuration is blocked without a network request" started.
+◇ Test "blank model or credential is blocked without a network request" started.
+◇ Test "the desktop snaps to the whole display" started.
+◇ Test "shortening requires confirmation while extending saves without cleanup" started.
+◇ Test "a saved translation restores the selected slot and committed text" started.
+◇ Test "SSE data survives arbitrary byte boundaries and ignores comments" started.
+◇ Test "DeepSeek request uses the vision Chat Completions contract" started.
+◇ Test "a history preparation failure rolls back the screenshot and never reaches the provider" started.
+◇ Test "Retina filter geometry converts to physical pixel dimensions" started.
+◇ Test "a sandbox Pictures proxy resolves to a direct user Pictures path" started.
+◇ Test "DeepSeek JSON mode explicitly instructs JSON in the user message" started.
+◇ Test "an extraction failure prevents a provider from passing" started.
+◇ Test "Gemini rejects a serialized request body at the configured byte limit" started.
+◇ Test "a failed rollback reports the orphan path and never reaches the provider" started.
+◇ Test "Export passes retained JSONL through a compressor" started.
+◇ Test "Generated appcast stays in staging and preserves the versioned download directory" started.
+◇ Test "translation requests ask for identified sentence pairs rather than whole-document ordering" started.
+◇ Test "Cleanup removes only expired managed files" started.
+◇ Test "pixel coordinates crop the matching source rows without resizing" started.
+◇ Test "Event encoding omits rejected dynamic identifiers" started.
+◇ Test "extreme coordinates are rejected instead of overflowing" started.
+◇ Test "only empty newline or more than 4096 UTF-8 bytes are rejected" started.
+◇ Test "a mismatched prepared record is rolled back and never reaches the provider" started.
+◇ Test "crop output is an exact-size 8-bit sRGB PNG" started.
+◇ Test "Default enablement rereads approval state" started.
+◇ Test "Gzip compressor emits a gzip stream" started.
+◇ Test "Disabled user preference survives the next launch" started.
+◇ Test "a legacy replacement journal recovers a durable new credential with a fresh list" started.
+◇ Test "a later action opens settings without repeating the system request" started.
+◇ Test "an out-of-bounds crop is rejected" started.
+◇ Test "a persisted extraction reaches the selected provider" started.
+◇ Test "a recorded STOP stream completes only after clean EOF" started.
+◇ Test "refreshing status never requests permission" started.
+◇ Test "MAX_TOKENS is rejected as truncated" started.
+◇ Test "Preference store preserves the system strategy" started.
+◇ Test "Manual strategy remains independent from region and system order" started.
+◇ Test "extraction completes without a translation event" started.
+◇ Test "source events cannot resume after translation starts" started.
+◇ Test "preflight access is ready without requesting" started.
+◇ Test "missing or replaced screenshots never block internal history deletion" started.
+◇ Test "System strategy scans the full preference list" started.
+◇ Test "a batch continues after file failure and skips active and pinned records" started.
+◇ Test "completion rejects a stream without terminal metadata" started.
+◇ Test "automatic cleanup runs once at startup and at most every twenty four hours" started.
+◇ Test "A formal release rejects a malformed Sparkle public key" started.
+◇ Test "usage metadata may arrive after STOP before clean EOF" started.
+◇ Test "a provider cancellation persists canceled instead of failed" started.
+◇ Test "the first explicit action records the attempt and requests once" started.
+◇ Test "an accepted request requires restart until a later process sees access" started.
+◇ Test "partial usage metadata does not invalidate a completed response" started.
+◇ Test "A complete three-architecture release manifest is accepted" started.
+◇ Test "mismatched prepared operation never reaches the provider" started.
+◇ Test "a stream without completion persists failure instead of remaining in flight" started.
+◇ Test "A formal release rejects an insecure architecture feed" started.
+◇ Test "overlapping permission actions never open settings during the system request" started.
+◇ Test "aligned translation survives persistence and a fresh workspace restore" started.
+◇ Test "retrying final persistence does not start another provider stream" started.
+◇ Test "terminal history includes first text total latency and provider usage" started.
+◇ Test "rerunning one operation replaces its existing history record" started.
+◇ Test "a canceled first history preparation rolls back and forgets the screenshot" started.
+◇ Test "a first history preparation failure rolls back and forgets the screenshot" started.
+◇ Test "geometry changes invalidate only the affected display and cancel its drag" started.
+◇ Test failedOrCanceledRetryPreservesEntireArchivedRecord(status:) started.
+◇ Test restoredTranslationKeepsLanguageAndMetadata() started.
+◇ Test "a formal release requires an external provisioning profile" started.
+◇ Test "two operations reuse one screenshot and each start one typed provider stream" started.
+◇ Test restoredRetryRejectsMissingRecordOrChangedImage(removeRecord:) started.
+◇ Test "a typed translation operation persists its target language" started.
+◇ Test "retrying a failed replacement save reuses its history identity" started.
+◇ Test "a successful image request verifies only the used model" started.
+◇ Test "The total deadline terminates the whole operation" started.
+◇ Test "a completed response envelope carries paired translation fixtures" started.
+◇ Test "a provider credential can be added, replaced, read, and deleted" started.
+◇ Test "a selection smaller than two physical pixels is rejected" started.
+◇ Test "A formal release rejects an artifact name from another architecture" started.
+◇ Test "translation completes after ordered source, translation, and metadata events" started.
+◇ Test "an incomplete terminal response is rejected as truncated" started.
+◇ Test "Secondary activation exits before protected initialization" started.
+◇ Test "A transport failure terminates after exactly one request" started.
+◇ Test "disconnecting every frozen display makes the session unavailable" started.
+◇ Test "POSIX lease excludes a second owner and releases on deinit" started.
+◇ Test "The stall deadline resets after text and terminates an idle stream" started.
+◇ Test pinChangedDuringRetryAndUnrelatedRowsSurviveCommit() started.
+◇ Test "concurrent refresh activations retain one busy owner until the external request finishes" started.
+◇ Test "DeepSeek reasoning activity keeps the first-text deadline alive" started.
+◇ Test "a stale model selection cannot replace the newly selected provider" started.
+◇ Test deletingTargetBeforeCommitCannotRecreateIt() started.
+◇ Test "selection is cropped from the trigger-time frozen frame and releases all displays" started.
+◇ Test "Primary holds lease, observes activation, and initializes once" started.
+◇ Test "the native registrar installs and releases in a test host" started.
+◇ Test "a pending validation ignores duplicates and releases its slot after success or failure" started.
+◇ Test "cancellation wins when a suspended crop later fails" started.
+◇ Test "The first-text deadline terminates a silent stream" started.
+◇ Test "a first translation is available before the next source sentence" started.
+◇ Test "read-only activity state permits viewing another Provider but blocks configuration mutations" started.
+◇ Test "invalid structures cannot complete" started.
+◇ Test "selecting a model enables Done without replacing the current provider" started.
+◇ Test "escaped Unicode survives every scalar chunk boundary with any field order" started.
+◇ Test "a failed rerun preserves the previous persisted result" started.
+◇ Test "a selected display changing during crop preserves other displays" started.
+◇ Test "a late editing read error cannot lock a closed or newly reopened card" started.
+◇ Test "a Keychain write failure is reported as local secure storage" started.
+◇ Test "returning after validation failure shows its original failure" started.
+◇ Test "a submitted key keeps its original Provider when dispatch occurs after a card switch" started.
+◇ Test "cancelling while the crop is suspended cannot resurrect the session" started.
+◇ Test case passing 1 argument switchCard → false to "closing or switching cancels only the window-owned load" started.
+◇ Test "recovery is observable and read-only until the complete model list arrives" started.
+◇ Test case passing 1 argument switchCard → true to "closing or switching cancels only the window-owned load" started.
+◇ Test "validation reveals the complete model list without choosing a model" started.
+◇ Test "Rate limits preserve a clamped Retry-After without retrying" started.
+◇ Test "empty images complete without inventing text" started.
+◇ Test case passing 1 argument reopenBeforeCompletion → true to "closing does not cancel submission or resurrect a closed draft" started.
+◇ Test "A successful operation makes one request and streams normalized events" started.
+◇ Test "another Provider keeps editing but duplicate submissions cannot overlap the active job" started.
+◇ Test "Keychain read failure preserves metadata and locks editing until reopening retries" started.
+◇ Test "a completed refresh that removes the selected model requires explicit reselection" started.
+◇ Test "every adapter failure has a stable normalized history code" started.
+◇ Test "model refresh keeps configured content visible while conflicting changes stay blocked" started.
+◇ Test "canceling a card load before Keychain responds cannot start recovery" started.
+◇ Test "selecting another provider clears only transient presentation state" started.
+◇ Test case passing 1 argument succeeded → true to "submission is claimed synchronously, with exact immutable input" started.
+◇ Test case passing 1 argument reopenBeforeCompletion → false to "closing does not cancel submission or resurrect a closed draft" started.
+◇ Test case passing 1 argument succeeded → false to "submission is claimed synchronously, with exact immutable input" started.
+◇ Test "a rejected API key is reported as invalid credentials" started.
+◇ Test case passing 1 argument remove → false to "editing or removing a failed credential discards its retained candidate" started.
+◇ Test "returning to a refreshing card preserves its model and a network failure is not a credential failure" started.
+◇ Test "real coordinator capture state makes configuration read-only until release" started.
+◇ Test "a Provider outage is not reported as invalid credentials" started.
+◇ Test case passing 1 argument failed → false to "termination discards both in-flight and failed memory candidates" started.
+◇ Test "capture and model owners preserve every saved configuration mutation" started.
+◇ Test case passing 1 argument remove → true to "editing or removing a failed credential discards its retained candidate" started.
+◇ Test case passing 1 argument revealed → false to "accessibility edits update the credential without submitting" started.
+◇ Test "loading a deleted managed screenshot reports a missing file" started.
+◇ Test "discarding a matching managed screenshot removes its PNG" started.
+◇ Test "screenshots created in the same second use a suffix without overwriting" started.
+◇ Test "a symbolic-link month directory is rejected" started.
+◇ Test "a managed path replaced by a symbolic link is neither loaded nor deleted" started.
+◇ Test "canceling validation before a delayed credential read returns never starts a Provider request" started.
+◇ Test "loading a matching managed screenshot returns its original PNG" started.
+◇ Test "a symbolic link in the screenshot root ancestry is rejected" started.
+◇ Test "a replaced screenshot is neither returned nor deleted" started.
+◇ Test "a newly created root supports load and discard regardless of its URL directory hint" started.
+◇ Test "saving an original PNG preserves its bytes, local timestamp name, and SHA-256" started.
+◇ Test case passing 1 argument failed → true to "termination discards both in-flight and failed memory candidates" started.
+◇ Test case passing 1 argument draft → "new-key" to "an active credential job blocks validation without blocking another card's draft" started.
+◇ Test case passing 1 argument draft → "" to "an active credential job blocks validation without blocking another card's draft" started.
+◇ Test case passing 1 argument draft → "bad
+key" to "an active credential job blocks validation without blocking another card's draft" started.
+◇ Test "a symbolic-link screenshot root is rejected without writing through it" started.
+◇ Test case passing 1 argument source → .shortcut to "shortcut and menu capture route active credential work without freezing" started.
+◇ Test case passing 1 argument source → .menu to "shortcut and menu capture route active credential work without freezing" started.
+◇ Test case passing 1 argument testCase → openai-429-insufficientBalance to "Provider-specific error bodies retain actionable categories" started.
+◇ Test case passing 1 argument testCase → gemini-400-imageTooLarge to "Provider-specific error bodies retain actionable categories" started.
+◇ Test case passing 1 argument testCase → deepseek-400-imageTooLarge to "Provider-specific error bodies retain actionable categories" started.
+◇ Test case passing 1 argument testCase → deepseek-400-imageInputUnsupported to "Provider-specific error bodies retain actionable categories" started.
+◇ Test case passing 1 argument cancel → false to "recovery waits for selection to end and a canceled waiter cannot recover" started.
+◇ Test case passing 1 argument cancel → true to "recovery waits for selection to end and a canceled waiter cannot recover" started.
+◇ Test case passing 2 arguments completion → .canceled, expectedStatus → "canceled" to "other terminal completions persist their exact status" started.
+◇ Test case passing 2 arguments completion → .resultPersistenceFailed, expectedStatus → "resultPersistenceFailed" to "other terminal completions persist their exact status" started.
+◇ Test "Screen capture purpose is exact in the fallback and supported localizations" started.
+◇ Test case passing 5 arguments provider → .openAI, urlString → "https://api.openai.com/v1/models", apiKey → "openai-secret", responseJSON → "{"object":"list","data":[{"id":"gpt-4o","object":"model","created":1715367049,"owned_by":"system"},{"id":"text-embedding-3-small","object":"model","created":1705948997,"owned_by":"system"}]}", expectedModels → ["gpt-4o", "text-embedding-3-small"] to "OpenAI-compatible model lists use one official Bearer request" started.
+◇ Test case passing 5 arguments provider → .deepSeek, urlString → "https://api.deepseek.com/models", apiKey → "deepseek-secret", responseJSON → "{"object":"list","data":[{"id":"deepseek-chat","object":"model","owned_by":"deepseek"},{"id":"deepseek-v4-flash-vision-exp","object":"model","owned_by":"deepseek"}]}", expectedModels → ["deepseek-chat", "deepseek-v4-flash-vision-exp"] to "OpenAI-compatible model lists use one official Bearer request" started.
+◇ Test case passing 1 argument key → "" to "unsafe local API keys cannot replace a saved credential" started.
+◇ Test case passing 1 argument key → "key
+" to "unsafe local API keys cannot replace a saved credential" started.
+◇ Test case passing 1 argument key → "keyvalue" to "unsafe local API keys cannot replace a saved credential" started.
+◇ Test case passing 1 argument key → "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" to "unsafe local API keys cannot replace a saved credential" started.
+◇ Test "permission is the first blocker and Later is always available" started.
+◇ Test "a configured provider becomes the blocker after permission is ready" started.
+◇ Test "menu capture routes missing provider before permission recovery" started.
+◇ Test "both required items enable Start" started.
+◇ Test case passing 1 argument fixture → openai to "all recorded transport envelopes carry the same synthetic paired translation contract" started.
+◇ Test case passing 1 argument fixture → gemini to "all recorded transport envelopes carry the same synthetic paired translation contract" started.
+◇ Test case passing 1 argument fixture → deepseek to "all recorded transport envelopes carry the same synthetic paired translation contract" started.
+◇ Test case passing 1 argument allowDeletionOnRestart → false to "a failed old-key deletion cannot resurrect that key through recovery" started.
+◇ Test case passing 1 argument allowDeletionOnRestart → true to "a failed old-key deletion cannot resurrect that key through recovery" started.
+◇ Test case passing 1 argument source → "**Wrong**" to "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test case passing 1 argument source → "**VLMSnapper** extra" to "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test case passing 1 argument source → "**VLMSnapper!**" to "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test case passing 1 argument source → "**vlmsnapper**" to "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test case passing 1 argument source → "\*\*VLMSnapper\*\*" to "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test case passing 1 argument source → "**VLMSnapper" to "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test case passing 1 argument source → "****" to "formatting cannot hide wrong, extra, or literal punctuation text" started.
+◇ Test case passing 1 argument source → "" to "known text extraction rejects empty or whitespace output" started.
+◇ Test case passing 1 argument source → " 
+	" to "known text extraction rejects empty or whitespace output" started.
+◇ Test case passing 1 argument source → "*VLMSnapper*" to "inline styling does not change extraction text" started.
+◇ Test case passing 1 argument source → "__VLMSnapper__" to "inline styling does not change extraction text" started.
+◇ Test case passing 1 argument source → "`VLMSnapper`" to "inline styling does not change extraction text" started.
+◇ Test case passing 1 argument operation → .extractText to "DeepSeek JSON mode explicitly instructs JSON in the user message" started.
+◇ Test case passing 1 argument provider → .openAI to "translation requests ask for identified sentence pairs rather than whole-document ordering" started.
+◇ Test case passing 1 argument provider → .gemini to "translation requests ask for identified sentence pairs rather than whole-document ordering" started.
+◇ Test case passing 1 argument provider → .deepSeek to "translation requests ask for identified sentence pairs rather than whole-document ordering" started.
+◇ Test case passing 1 argument operation → .translate(targetLanguage: "fr") to "DeepSeek JSON mode explicitly instructs JSON in the user message" started.
+◇ Test case passing 1 argument status → .succeeded to failedOrCanceledRetryPreservesEntireArchivedRecord(status:) started.
+◇ Test case passing 1 argument status → .failed to failedOrCanceledRetryPreservesEntireArchivedRecord(status:) started.
+◇ Test case passing 1 argument status → .canceled to failedOrCanceledRetryPreservesEntireArchivedRecord(status:) started.
+◇ Test case passing 1 argument status → .interrupted to failedOrCanceledRetryPreservesEntireArchivedRecord(status:) started.
+◇ Test case passing 1 argument removeRecord → false to restoredRetryRejectsMissingRecordOrChangedImage(removeRecord:) started.
+◇ Test case passing 1 argument removeRecord → true to restoredRetryRejectsMissingRecordOrChangedImage(removeRecord:) started.
+◇ Test case passing 1 argument failFirst → false to "a pending validation ignores duplicates and releases its slot after success or failure" started.
+◇ Test case passing 1 argument failFirst → true to "a pending validation ignores duplicates and releases its slot after success or failure" started.
+◇ Test case passing 1 argument json → "{"segments":[{"id":"a","block":"p","kind":"paragraph","source":"A","translation":"甲"},{"id":"a","block":"p","kind":"paragraph","source":"B","translation":"乙"}]}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[{"id":"a","block":"p","kind":"paragraph","source":"A"}]}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[{"id":"a","block":"p","kind":"paragraph","source":"A","translation":""}]}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[{"id":"a","block":"p","kind":"unknown","source":"A","translation":"甲"}]}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[{"id":"a","id":"b","block":"p","kind":"paragraph","source":"A","translation":"甲"}]}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[],}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[]} extra" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[{"id":"a","block":"p","kind":"paragraph","source":"A","translation":"甲"},]}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument json → "{"segments":[{"id":"a","block":"p","kind":"paragraph","source":"A","translation":"甲"}" to "invalid structures cannot complete" started.
+◇ Test case passing 1 argument reopen → false to "a late editing read error cannot lock a closed or newly reopened card" started.
+◇ Test case passing 1 argument reopen → true to "a late editing read error cannot lock a closed or newly reopened card" started.
+◇ Test case passing 1 argument reopen → false to "recovery is observable and read-only until the complete model list arrives" started.
+◇ Test case passing 1 argument reopen → true to "recovery is observable and read-only until the complete model list arrives" started.
+◇ Test case passing 1 argument failFirst → false to "another Provider keeps editing but duplicate submissions cannot overlap the active job" started.
+◇ Test case passing 1 argument failFirst → true to "another Provider keeps editing but duplicate submissions cannot overlap the active job" started.
+◇ Test case passing 1 argument genericFailure → false to "Keychain read failure preserves metadata and locks editing until reopening retries" started.
+◇ Test case passing 1 argument genericFailure → true to "Keychain read failure preserves metadata and locks editing until reopening retries" started.
+◇ Test case passing 1 argument fails → false to "returning to a refreshing card preserves its model and a network failure is not a credential failure" started.
+◇ Test case passing 1 argument fails → true to "returning to a refreshing card preserves its model and a network failure is not a credential failure" started.
+◇ Test case passing 1 argument capturing → false to "capture and model owners preserve every saved configuration mutation" started.
+◇ Test case passing 1 argument capturing → true to "capture and model owners preserve every saved configuration mutation" started.
+✔ Test "the toolbar is left aligned exactly four points below the selection" passed after 0.102 seconds.
+✔ Test "expanded Provider preference is explicit target then current then DeepSeek" passed after 0.102 seconds.
+✔ Test "onboarding and attached sheets use the accepted dimensions" passed after 0.102 seconds.
+✔ Test "a toolbar that would leave the screen moves above the selection" passed after 0.102 seconds.
+✔ Test "inline credential states expose validation only when needed" passed after 0.102 seconds.
+✔ Test "the smoke test verifies a complete credential lifecycle" passed after 0.102 seconds.
+✔ Test "a toolbar wider than the screen keeps its leading edge visible" passed after 0.104 seconds.
+✔ Test "result and management shells use the accepted hierarchy geometry" passed after 0.104 seconds.
+◇ Test case passing 1 argument directoryHint → false to "a newly created root supports load and discard regardless of its URL directory hint" started.
+◇ Test case passing 1 argument directoryHint → true to "a newly created root supports load and discard regardless of its URL directory hint" started.
+✔ Test "validation and failure override the inline credential status" passed after 0.108 seconds.
+✔ Test "a device-specific profile is rejected" passed after 0.107 seconds.
+✔ Test "base entitlements cannot hard-code profile-managed identity keys" passed after 0.107 seconds.
+✔ Test "a failed smoke test still attempts to delete its credential" passed after 0.107 seconds.
+✔ Test "an expired profile is rejected" passed after 0.108 seconds.
+✔ Test "a profile that excludes the signing certificate is rejected" passed after 0.108 seconds.
+✔ Test "Provider card distinguishes validated credentials awaiting a model" passed after 0.108 seconds.
+✔ Test "a profile without an authorizing Keychain group is rejected" passed after 0.108 seconds.
+✔ Test "provider rows preserve configuration state for non-selected providers" passed after 0.109 seconds.
+✔ Test "workspace capture preparation is consumed exactly once" passed after 0.108 seconds.
+✔ Test "a profile for another bundle identifier is rejected" passed after 0.109 seconds.
+✔ Test "a retired workspace cannot start another model request" passed after 0.108 seconds.
+✔ Test "a matching distribution profile derives the exact signing identity" passed after 0.108 seconds.
+✔ Test "onboarding return is consumed by completion or early close exactly once" passed after 0.108 seconds.
+✔ Test "effective entitlements preserve the sandbox and add exact identity claims" passed after 0.108 seconds.
+✔ Test "switching operation tabs changes presentation without starting work" passed after 0.108 seconds.
+✔ Test "the text alias remains invalid for translation" passed after 0.108 seconds.
+✔ Test "only nonempty reasoning is reported as private provider activity" passed after 0.108 seconds.
+✔ Test "the extraction alias does not permit extra fields" passed after 0.108 seconds.
+✔ Test "Provider-specific error bodies retain actionable categories" with 4 test cases passed after 0.108 seconds.
+✔ Test "a stop and DONE stream envelope carries paired translation fixtures" passed after 0.108 seconds.
+✔ Test "clean EOF without DONE is incomplete" passed after 0.108 seconds.
+✔ Test "model selection is frozen while a request is active" passed after 0.108 seconds.
+✔ Test "only explicit image-input rejection marks a model incompatible" passed after 0.108 seconds.
+✔ Test "capture owns configuration until its atomic transition to a model request" passed after 0.108 seconds.
+✔ Test "replacement model-list failure discards the previous provider configuration" passed after 0.108 seconds.
+✔ Test "points outside the overlay clamp to the frozen image bounds" passed after 0.108 seconds.
+✔ Test "AppKit points map to top-left physical pixels on a Retina display" passed after 0.108 seconds.
+✔ Test "traditional Chinese and free-form values are unavailable" passed after 0.109 seconds.
+✔ Test "the saved API key can be loaded for inline editing" passed after 0.108 seconds.
+✔ Test "priority languages lead the complete standard catalog" passed after 0.109 seconds.
+✔ Test "preparation refuses to replace an existing signing output" passed after 0.109 seconds.
+✔ Test "Gemini rejects a later-page failure instead of returning a partial list" passed after 0.108 seconds.
+✔ Test "Gemini repeated page tokens are rejected" passed after 0.108 seconds.
+✔ Test "replacing a current provider preserves an available model and current selection" passed after 0.109 seconds.
+✔ Test "only the owning operation lease can release configuration exclusion" passed after 0.108 seconds.
+✔ Test "missing permission is recovered separately and capture is not attempted" passed after 0.109 seconds.
+✔ Test "the observed text field is normalized for extraction" passed after 0.108 seconds.
+✔ Test "an orphaned durable credential recovers the complete model configuration" passed after 0.109 seconds.
+✔ Test "one display failure preserves successful frozen displays" passed after 0.109 seconds.
+✔ Test "unsafe local API keys cannot replace a saved credential" with 4 test cases passed after 0.109 seconds.
+✔ Test "recovery and read failures do not offer an unusable validation action" passed after 0.110 seconds.
+✔ Test "OpenAI-compatible model lists use one official Bearer request" with 2 test cases passed after 0.109 seconds.
+✔ Test "a complete model list is saved with the validated key" passed after 0.109 seconds.
+✔ Test "authentication rejection is normalized for provider setup" passed after 0.109 seconds.
+✔ Test "recent records map to real operation, time, status, and screenshot data" passed after 0.110 seconds.
+✔ Test "a newer schema version blocks opening the history store" passed after 0.109 seconds.
+✔ Test "a symbolic link in the metadata directory ancestry is rejected" passed after 0.109 seconds.
+✔ Test "a permission denial reported during discovery uses permission recovery" passed after 0.109 seconds.
+✔ Test "all per-display failures exit without a selection session" passed after 0.109 seconds.
+✔ Test "an uploading extraction remains uploading after reopening" passed after 0.109 seconds.
+✔ Test "Gemini follows every page token and returns one complete model list" passed after 0.109 seconds.
+✔ Test "other terminal completions persist their exact status" with 2 test cases passed after 0.109 seconds.
+✔ Test "pinning and terminal metrics survive the complete history filter" passed after 0.109 seconds.
+✔ Test "an incomplete version-one schema is blocked without modification" passed after 0.109 seconds.
+✔ Test "one model-unavailable attempt can claim at most one list refresh" passed after 0.109 seconds.
+✔ Test "own, transparent, off-screen and system overlay windows are skipped" passed after 0.109 seconds.
+✔ Test "a replacement is rejected without network access when retirement cannot be persisted" passed after 0.109 seconds.
+✔ Test "a prepared extraction survives reopening the database" passed after 0.109 seconds.
+✔ Test "the topmost window under the pointer is snapped as a whole window" passed after 0.109 seconds.
+✔ Test "a corrupted database is blocked without changing its bytes" passed after 0.109 seconds.
+✔ Test "reset never overwrites an existing recovery file from the same second" passed after 0.109 seconds.
+✔ Test "regions stay on the pointer's display and skip windows under two pixels" passed after 0.109 seconds.
+✔ Test "opening provider settings refreshes only a missing or 24-hour-old cache" passed after 0.109 seconds.
+✔ Test "a Dock on the left or right side is one strip along that edge" passed after 0.109 seconds.
+✔ Test "the Dock strip is one region and an auto-hidden Dock falls through" passed after 0.109 seconds.
+✔ Test "a status item is snapped on its own and the rest of the menu bar as a whole" passed after 0.109 seconds.
+✔ Test "a successful refresh replaces the cache and clears a missing selection" passed after 0.109 seconds.
+✔ Test "a normalized failure reason survives reopening the database" passed after 0.109 seconds.
+✔ Test "a missing durable credential clears its cache and global selection" passed after 0.109 seconds.
+✔ Test "a replacement credential write failure does not restore the previous configuration" passed after 0.109 seconds.
+✔ Test "the user can switch the global current provider only to a usable configuration" passed after 0.109 seconds.
+✔ Test "invalid metadata is reported without overwriting its bytes" passed after 0.110 seconds.
+✔ Test "a failed old-key deletion cannot resurrect that key through recovery" with 2 test cases passed after 0.109 seconds.
+✔ Test "the two-pixel minimum counts physical pixels in both directions" passed after 0.109 seconds.
+✔ Test "metadata publication failure is local secure storage rather than a Provider outage" passed after 0.109 seconds.
+✔ Test "provider metadata survives reopening without storing an API key" passed after 0.110 seconds.
+✔ Test "A one-times display preserves its logical dimensions" passed after 0.109 seconds.
+✔ Test "clearing a provider removes its key and metadata without switching providers" passed after 0.109 seconds.
+✔ Test "A raster dimension outside the Int range is rejected" passed after 0.109 seconds.
+✔ Test "selecting the first usable provider makes it current" passed after 0.109 seconds.
+✔ Test "startup recovery interrupts only unfinished operations" passed after 0.110 seconds.
+✔ Test "configuring another provider never replaces a remembered current provider" passed after 0.109 seconds.
+✔ Test "Startup fixes the six hour schedule and disables automatic downloads" passed after 0.109 seconds.
+✔ Test "Fractional physical dimensions round to the nearest pixel" passed after 0.109 seconds.
+✔ Test "refresh failure preserves the previous cache and selection" passed after 0.110 seconds.
+✔ Test "generic credential write failures are secure-storage failures, not Provider outages" passed after 0.109 seconds.
+✔ Test "publication failure leaves the durable new key recoverable from a fresh model list" passed after 0.109 seconds.
+✔ Test "Failed download never reports ready and permits explicit retry" passed after 0.109 seconds.
+✔ Test "a failed extraction restores its normalized failure" passed after 0.109 seconds.
+✔ Test "environment configuration requires a key and model for each provider" passed after 0.109 seconds.
+✔ Test "Download intent waits for driver events and is consumed once" passed after 0.109 seconds.
+✔ Test "A raster dimension that rounds to zero is rejected" passed after 0.109 seconds.
+✔ Test "Information-only updates never begin a download" passed after 0.109 seconds.
+✔ Test "provider failures are normalized without leaking request content" passed after 0.109 seconds.
+✔ Test "Unicode escape and surrogate boundaries do not emit malformed text" passed after 0.109 seconds.
+✔ Test "translation rejects the obsolete unpaired envelope" passed after 0.109 seconds.
+✔ Test "version-one rows migrate to typed extraction operations" passed after 0.110 seconds.
+✔ Test "finish rejects incomplete JSON" passed after 0.109 seconds.
+✔ Test "Gemini request uses inline PNG data and JSON schema streaming" passed after 0.109 seconds.
+✔ Test "translation JSON streams sentence pairs across arbitrary chunks" passed after 0.109 seconds.
+✔ Test "reserving a history replacement closes the start race" passed after 0.109 seconds.
+✔ Test "a combining mark arriving later extends the streamed source" passed after 0.109 seconds.
+✔ Test "OpenAI request sends the original PNG in one structured streaming request" passed after 0.109 seconds.
+✔ Test "a prepared record with a different model selection never reaches the provider" passed after 0.109 seconds.
+✔ Test "a screenshot persistence failure never reaches the provider" passed after 0.109 seconds.
+✔ Test "blank model or credential is blocked without a network request" passed after 0.109 seconds.
+✔ Test "DeepSeek extraction prompt requires the canonical source field" passed after 0.109 seconds.
+✔ Test "shortening requires confirmation while extending saves without cleanup" passed after 0.109 seconds.
+✔ Test "DeepSeek request uses the vision Chat Completions contract" passed after 0.109 seconds.
+✔ Test "a saved translation restores the selected slot and committed text" passed after 0.109 seconds.
+✔ Test "Retina filter geometry converts to physical pixel dimensions" passed after 0.109 seconds.
+✔ Test "missing provider configuration is blocked without a network request" passed after 0.109 seconds.
+✔ Test "SSE data survives arbitrary byte boundaries and ignores comments" passed after 0.109 seconds.
+✔ Test "the desktop snaps to the whole display" passed after 0.109 seconds.
+✔ Test "a history preparation failure rolls back the screenshot and never reaches the provider" passed after 0.109 seconds.
+✔ Test "DeepSeek JSON mode explicitly instructs JSON in the user message" with 2 test cases passed after 0.109 seconds.
+✔ Test "Gemini rejects a serialized request body at the configured byte limit" passed after 0.109 seconds.
+✔ Test "a failed rollback reports the orphan path and never reaches the provider" passed after 0.109 seconds.
+✔ Test "replacing a result preserves identity and pin state" passed after 0.110 seconds.
+✔ Test "a successful result survives reopening the database" passed after 0.110 seconds.
+✔ Test "version-three translations migrate without inventing alignment" passed after 0.110 seconds.
+✔ Test "history query combines operation type and local result search" passed after 0.110 seconds.
+✔ Test "only empty newline or more than 4096 UTF-8 bytes are rejected" passed after 0.109 seconds.
+✔ Test "pixel coordinates crop the matching source rows without resizing" passed after 0.109 seconds.
+✔ Test "translation requests ask for identified sentence pairs rather than whole-document ordering" with 3 test cases passed after 0.109 seconds.
+✔ Test "extreme coordinates are rejected instead of overflowing" passed after 0.109 seconds.
+✔ Test "crop output is an exact-size 8-bit sRGB PNG" passed after 0.109 seconds.
+✔ Test "a later action opens settings without repeating the system request" passed after 0.109 seconds.
+✔ Test "a persisted extraction reaches the selected provider" passed after 0.109 seconds.
+✔ Test "a legacy replacement journal recovers a durable new credential with a fresh list" passed after 0.109 seconds.
+✔ Test "Default enablement rereads approval state" passed after 0.109 seconds.
+✔ Test "reset preserves a corrupted database before creating an empty store" passed after 0.110 seconds.
+✔ Test "refreshing status never requests permission" passed after 0.109 seconds.
+✔ Test "an out-of-bounds crop is rejected" passed after 0.109 seconds.
+✔ Test "Disabled user preference survives the next launch" passed after 0.109 seconds.
+✔ Test "a recorded STOP stream completes only after clean EOF" passed after 0.109 seconds.
+✔ Test "MAX_TOKENS is rejected as truncated" passed after 0.109 seconds.
+✔ Test "a mismatched prepared record is rolled back and never reaches the provider" passed after 0.109 seconds.
+✔ Test "Manual strategy remains independent from region and system order" passed after 0.109 seconds.
+✔ Test "Cleanup removes only expired managed files" passed after 0.109 seconds.
+✔ Test "preflight access is ready without requesting" passed after 0.109 seconds.
+✔ Test "source events cannot resume after translation starts" passed after 0.109 seconds.
+✔ Test "Event encoding omits rejected dynamic identifiers" passed after 0.109 seconds.
+✔ Test "System strategy scans the full preference list" passed after 0.109 seconds.
+✔ Test "completion rejects a stream without terminal metadata" passed after 0.109 seconds.
+✔ Test "extraction completes without a translation event" passed after 0.109 seconds.
+✔ Test "a batch continues after file failure and skips active and pinned records" passed after 0.108 seconds.
+✔ Test "automatic cleanup runs once at startup and at most every twenty four hours" passed after 0.108 seconds.
+✔ Test "usage metadata may arrive after STOP before clean EOF" passed after 0.108 seconds.
+✔ Test "the first explicit action records the attempt and requests once" passed after 0.108 seconds.
+✔ Test "partial usage metadata does not invalidate a completed response" passed after 0.109 seconds.
+✔ Test "missing or replaced screenshots never block internal history deletion" passed after 0.109 seconds.
+✔ Test "A formal release rejects a malformed Sparkle public key" passed after 0.109 seconds.
+✔ Test "A complete three-architecture release manifest is accepted" passed after 0.108 seconds.
+✔ Test "an accepted request requires restart until a later process sees access" passed after 0.109 seconds.
+✔ Test "A formal release rejects an insecure architecture feed" passed after 0.108 seconds.
+✔ Test "geometry changes invalidate only the affected display and cancel its drag" passed after 0.108 seconds.
+✔ Test "Export passes retained JSONL through a compressor" passed after 0.109 seconds.
+✔ Test "Preference store preserves the system strategy" passed after 0.109 seconds.
+✔ Test "a succeeded extraction remains succeeded after reopening" passed after 0.110 seconds.
+✔ Test "a sandbox Pictures proxy resolves to a direct user Pictures path" passed after 0.109 seconds.
+✔ Test "a successful image request verifies only the used model" passed after 0.108 seconds.
+✔ Test "A formal release rejects an artifact name from another architecture" passed after 0.108 seconds.
+✔ Test "a completed response envelope carries paired translation fixtures" passed after 0.108 seconds.
+✔ Test "translation completes after ordered source, translation, and metadata events" passed after 0.108 seconds.
+✔ Test "an incomplete terminal response is rejected as truncated" passed after 0.108 seconds.
+✔ Test "Gzip compressor emits a gzip stream" passed after 0.109 seconds.
+✔ Test "Secondary activation exits before protected initialization" passed after 0.108 seconds.
+✔ Test "disconnecting every frozen display makes the session unavailable" passed after 0.108 seconds.
+✔ Test "POSIX lease excludes a second owner and releases on deinit" passed after 0.108 seconds.
+✔ Test "selection is cropped from the trigger-time frozen frame and releases all displays" passed after 0.109 seconds.
+✔ Test "Primary holds lease, observes activation, and initializes once" passed after 0.108 seconds.
+✔ Test "read-only activity state permits viewing another Provider but blocks configuration mutations" passed after 0.108 seconds.
+✔ Test "a first translation is available before the next source sentence" passed after 0.108 seconds.
+✔ Test "invalid structures cannot complete" with 9 test cases passed after 0.108 seconds.
+✔ Test "selecting a model enables Done without replacing the current provider" passed after 0.108 seconds.
+✔ Test "a late editing read error cannot lock a closed or newly reopened card" with 2 test cases passed after 0.108 seconds.
+✔ Test "a Keychain write failure is reported as local secure storage" passed after 0.108 seconds.
+✔ Test "a submitted key keeps its original Provider when dispatch occurs after a card switch" passed after 0.108 seconds.
+✔ Test "a formal release requires an external provisioning profile" passed after 0.109 seconds.
+✔ Test "validation reveals the complete model list without choosing a model" passed after 0.108 seconds.
+✔ Test "every adapter failure has a stable normalized history code" passed after 0.108 seconds.
+✔ Test "a typed translation operation persists its target language" passed after 0.109 seconds.
+✔ Test "empty images complete without inventing text" passed after 0.108 seconds.
+✔ Test "escaped Unicode survives every scalar chunk boundary with any field order" passed after 0.108 seconds.
+✔ Test "a rejected API key is reported as invalid credentials" passed after 0.105 seconds.
+✔ Test "selecting another provider clears only transient presentation state" passed after 0.105 seconds.
+✔ Test "Keychain read failure preserves metadata and locks editing until reopening retries" with 2 test cases passed after 0.108 seconds.
+✔ Test "a Provider outage is not reported as invalid credentials" passed after 0.108 seconds.
+✔ Test "capture and model owners preserve every saved configuration mutation" with 2 test cases passed after 0.108 seconds.
+✔ Test "an unchanged credential cannot be resubmitted after a model refresh failure" passed after 0.113 seconds.
+✔ Test "real coordinator capture state makes configuration read-only until release" passed after 0.105 seconds.
+✔ Test "a symbolic-link month directory is rejected" passed after 0.104 seconds.
+✔ Test "screenshots created in the same second use a suffix without overwriting" passed after 0.104 seconds.
+✔ Test "a selection smaller than two physical pixels is rejected" passed after 0.108 seconds.
+✔ Test "discarding a matching managed screenshot removes its PNG" passed after 0.104 seconds.
+✔ Test "a symbolic link in the screenshot root ancestry is rejected" passed after 0.104 seconds.
+✔ Test "a managed path replaced by a symbolic link is neither loaded nor deleted" passed after 0.104 seconds.
+✔ Test "loading a matching managed screenshot returns its original PNG" passed after 0.104 seconds.
+✔ Test "an active credential job blocks validation without blocking another card's draft" with 3 test cases passed after 0.113 seconds.
+✔ Test "loading a deleted managed screenshot reports a missing file" passed after 0.104 seconds.
+✔ Test "a newly created root supports load and discard regardless of its URL directory hint" with 2 test cases passed after 0.104 seconds.
+✔ Test "local input errors have specific localized hints" passed after 0.113 seconds.
+✔ Test "a symbolic-link screenshot root is rejected without writing through it" passed after 0.104 seconds.
+✔ Test "a configured provider becomes the blocker after permission is ready" passed after 0.056 seconds.
+✔ Test "permission is the first blocker and Later is always available" passed after 0.057 seconds.
+✔ Test "saving an original PNG preserves its bytes, local timestamp name, and SHA-256" passed after 0.104 seconds.
+✔ Test "menu capture routes missing provider before permission recovery" passed after 0.056 seconds.
+✔ Test "both required items enable Start" passed after 0.056 seconds.
+✔ Test "a replaced screenshot is neither returned nor deleted" passed after 0.104 seconds.
+✔ Test "Screen capture purpose is exact in the fallback and supported localizations" passed after 0.098 seconds.
+✔ Suite "Capture toolbar placement" passed after 0.116 seconds.
+✔ Suite "Ticket 13 confirmed surface contracts" passed after 0.116 seconds.
+✔ Suite "Data Protection Keychain smoke test" passed after 0.116 seconds.
+✔ Suite "Developer ID provisioning profile" passed after 0.116 seconds.
+✔ Test "a failed capture restores the prepared workspace" passed after 0.114 seconds.
+✔ Test "an unsaved result keeps its recovery workspace in front" passed after 0.114 seconds.
+✔ Test "confirming discard clears an unsaved completed result" passed after 0.114 seconds.
+✔ Test "a completed workspace retires before a new capture" passed after 0.114 seconds.
+✔ Suite "DeepSeek Chat stream decoder" passed after 0.116 seconds.
+✔ Suite "Capture coordinate mapper" passed after 0.116 seconds.
+✔ Suite "Target language catalog" passed after 0.116 seconds.
+✔ Test "an unsaved completed result blocks another model operation" passed after 0.114 seconds.
+✔ Suite "Developer ID profile preparation" passed after 0.116 seconds.
+✔ Suite "Official provider model catalog" passed after 0.116 seconds.
+✔ Suite "Capture freeze coordinator" passed after 0.116 seconds.
+✔ Suite "Provider HTTP error normalizer" passed after 0.116 seconds.
+✔ Test "closing with an unsaved completed result requires confirmation" passed after 0.113 seconds.
+✔ Suite "File provider metadata store" passed after 0.116 seconds.
+✔ Test "one explicit extraction action starts one run and commits its success" passed after 0.113 seconds.
+✔ Suite "Capture snap region resolver" passed after 0.116 seconds.
+✔ Suite "SQLite history store" passed after 0.116 seconds.
+✔ Suite "ScreenCaptureKit frozen display capture" passed after 0.117 seconds.
+✔ Suite "Update lifecycle" passed after 0.117 seconds.
+✔ Suite "Historical workspace snapshot" passed after 0.117 seconds.
+✔ Suite "Ordered structured output parser" passed after 0.117 seconds.
+✔ Suite "Provider request factory" passed after 0.117 seconds.
+✔ Suite "Extraction coordinator" passed after 0.117 seconds.
+✔ Suite "History retention" passed after 0.117 seconds.
+✔ Suite "Server-sent event decoder" passed after 0.117 seconds.
+✔ Suite "Provider API Key safety boundary" passed after 0.117 seconds.
+✔ Suite "sRGB PNG cropper" passed after 0.117 seconds.
+✔ Suite "Login item" passed after 0.117 seconds.
+✔ Suite "Application language" passed after 0.117 seconds.
+✔ Suite "Diagnostic log" passed after 0.117 seconds.
+✔ Suite "Gemini stream decoder" passed after 0.117 seconds.
+✔ Suite "History deletion coordinator" passed after 0.117 seconds.
+✔ Suite "Provider stream contract" passed after 0.117 seconds.
+✔ Suite "Release manifest" passed after 0.117 seconds.
+✔ Test "a failed workspace retires before a new capture" passed after 0.115 seconds.
+✔ Test "terminal history includes first text total latency and provider usage" passed after 0.112 seconds.
+✔ Test "retrying final persistence does not start another provider stream" passed after 0.112 seconds.
+✔ Suite "Managed screenshot root" passed after 0.117 seconds.
+✔ Test "mismatched prepared operation never reaches the provider" passed after 0.112 seconds.
+✔ Test "a provider cancellation persists canceled instead of failed" passed after 0.112 seconds.
+✔ Test "a stream without completion persists failure instead of remaining in flight" passed after 0.112 seconds.
+✔ Suite "Primary instance" passed after 0.117 seconds.
+✔ Suite "OpenAI Responses stream decoder" passed after 0.117 seconds.
+✔ Suite "Aligned translation" passed after 0.117 seconds.
+✔ Suite "Release provisioning script" passed after 0.117 seconds.
+✔ Suite "Provider adapter error" passed after 0.117 seconds.
+✔ Suite "Provider settings presentation" passed after 0.118 seconds.
+✔ Suite "File system screenshot store" passed after 0.117 seconds.
+✔ Suite "Onboarding readiness" passed after 0.117 seconds.
+✔ Suite "Distribution privacy metadata" passed after 0.117 seconds.
+✔ Test "closing while waiting for the global gate prevents the request" passed after 0.117 seconds.
+◇ Test "provider badge never claims availability before a selected model exists" started.
+✔ Test "a request cannot begin while provider configuration is being mutated" passed after 0.116 seconds.
+✔ Test "a failed rerun keeps the previous success and discards partial text" passed after 0.117 seconds.
+✔ Test "cancellation after a submitted request cannot persist its memory-only candidate" passed after 0.116 seconds.
+✔ Test "recovery waits for a model operation rather than failing configuration" passed after 0.116 seconds.
+✔ Test "a stream without a completed output fails validation" passed after 0.115 seconds.
+✔ Test "recovery waits for selection to end and a canceled waiter cannot recover" with 2 test cases passed after 0.117 seconds.
+✔ Test "a translation failure prevents a provider from passing" passed after 0.115 seconds.
+✔ Test "an extraction failure prevents a provider from passing" passed after 0.115 seconds.
+✔ Test "rerunning one operation replaces its existing history record" passed after 0.114 seconds.
+✔ Test "overlapping permission actions never open settings during the system request" passed after 0.115 seconds.
+✔ Test "two operations reuse one screenshot and each start one typed provider stream" passed after 0.114 seconds.
+✔ Test "a canceled first history preparation rolls back and forgets the screenshot" passed after 0.114 seconds.
+✔ Test "retrying a failed replacement save reuses its history identity" passed after 0.114 seconds.
+✔ Test "a stale model selection cannot replace the newly selected provider" passed after 0.114 seconds.
+✔ Test "a configured provider passes only after extraction and translation complete" passed after 0.116 seconds.
+✔ Test "cancellation wins when a suspended crop later fails" passed after 0.114 seconds.
+✔ Test "a pending validation ignores duplicates and releases its slot after success or failure" with 2 test cases passed after 0.115 seconds.
+✔ Test "a selected display changing during crop preserves other displays" passed after 0.115 seconds.
+✔ Test "recovery is observable and read-only until the complete model list arrives" with 2 test cases passed after 0.114 seconds.
+✔ Test "a failed rerun preserves the previous persisted result" passed after 0.115 seconds.
+✔ Test "returning after validation failure shows its original failure" passed after 0.114 seconds.
+✔ Test "cancelling while the crop is suspended cannot resurrect the session" passed after 0.115 seconds.
+✔ Test "another Provider keeps editing but duplicate submissions cannot overlap the active job" with 2 test cases passed after 0.114 seconds.
+✔ Test "model refresh keeps configured content visible while conflicting changes stay blocked" passed after 0.112 seconds.
+✔ Test "canceling a card load before Keychain responds cannot start recovery" passed after 0.112 seconds.
+✔ Test "a completed refresh that removes the selected model requires explicit reselection" passed after 0.114 seconds.
+✔ Test "returning to a refreshing card preserves its model and a network failure is not a credential failure" with 2 test cases passed after 0.112 seconds.
+✔ Test "canceling validation before a delayed credential read returns never starts a Provider request" passed after 0.111 seconds.
+✔ Test "a first history preparation failure rolls back and forgets the screenshot" passed after 0.116 seconds.
+✔ Test "The total deadline terminates the whole operation" passed after 0.116 seconds.
+✔ Test "The first-text deadline terminates a silent stream" passed after 0.116 seconds.
+✔ Test "tab changes while acquiring the gate do not change the requested operation" passed after 0.120 seconds.
+✔ Test "closing during a stream cancels the attempt and discards partial text" passed after 0.120 seconds.
+✔ Test "a canceled workspace retires before a new capture" passed after 0.120 seconds.
+✔ Test "an active request keeps the current workspace in front" passed after 0.120 seconds.
+✔ Test "the application gate blocks a second workspace before its runner starts" passed after 0.120 seconds.
+✔ Test "provider badge never claims availability before a selected model exists" passed after 0.004 seconds.
+✔ Suite "Live provider contract gate" passed after 0.124 seconds.
+✔ Test "A transport failure terminates after exactly one request" passed after 0.118 seconds.
+✔ Suite "Capture selection session" passed after 0.123 seconds.
+✔ Suite "Screen capture permission coordinator" passed after 0.124 seconds.
+✔ Test restoredTranslationKeepsLanguageAndMetadata() passed after 0.118 seconds.
+✔ Test "aligned translation survives persistence and a fresh workspace restore" passed after 0.119 seconds.
+✔ Test "Rate limits preserve a clamped Retry-After without retrying" passed after 0.117 seconds.
+✔ Test restoredRetryRejectsMissingRecordOrChangedImage(removeRecord:) with 2 test cases passed after 0.120 seconds.
+✔ Test "a canceled recovery waiter finishes before the capture owner releases" passed after 0.122 seconds.
+✔ Test deletingTargetBeforeCommitCannotRecreateIt() passed after 0.119 seconds.
+✔ Suite "Operation workspace session" passed after 0.125 seconds.
+✔ Test pinChangedDuringRetryAndUnrelatedRowsSurviveCommit() passed after 0.119 seconds.
+✔ Test "A successful operation makes one request and streams normalized events" passed after 0.119 seconds.
+✔ Suite "Persisted operation workspace runner" passed after 0.125 seconds.
+◇ Test "confirmed menu panel geometry remains independent from toolbar geometry" started.
+✔ Test "The stall deadline resets after text and terminates an idle stream" passed after 0.120 seconds.
+✔ Test "all recorded transport envelopes carry the same synthetic paired translation contract" with 3 test cases passed after 0.123 seconds.
+✔ Test "confirmed menu panel geometry remains independent from toolbar geometry" passed after 0.001 seconds.
+✔ Suite "Recorded provider adapter contract" passed after 0.127 seconds.
+✔ Suite "Ticket 13 menu bar presentation" passed after 0.127 seconds.
+✔ Test "known text fixture rejects a completed but incorrect extraction" passed after 0.123 seconds.
+✔ Test "correct source with blank translation still fails" passed after 0.123 seconds.
+✔ Test "formatting cannot hide wrong, extra, or literal punctuation text" with 7 test cases passed after 0.123 seconds.
+✔ Test "known text extraction rejects empty or whitespace output" with 2 test cases passed after 0.123 seconds.
+✔ Test "reports do not contain response text or credentials" passed after 0.123 seconds.
+✔ Test "known text matches across harmless whitespace and validates both operations" passed after 0.123 seconds.
+✔ Test "observed bold extraction preserves known text but translation source remains plain" passed after 0.123 seconds.
+✔ Test "inline styling does not change extraction text" with 3 test cases passed after 0.123 seconds.
+✔ Suite "Live provider result validation" passed after 0.127 seconds.
+✔ Test "concurrent refresh activations retain one busy owner until the external request finishes" passed after 0.121 seconds.
+✔ Suite "Provider setup session" passed after 0.127 seconds.
+✔ Test failedOrCanceledRetryPreservesEntireArchivedRecord(status:) with 4 test cases passed after 0.125 seconds.
+✔ Suite "Restored history retry identity" passed after 0.131 seconds.
+✔ Test "a provider credential can be added, replaced, read, and deleted" passed after 0.197 seconds.
+✔ Suite "Apple Keychain provider credential store" passed after 0.203 seconds.
+✔ Test "localization test sections cannot overlap" passed after 0.228 seconds.
+✔ Suite "Localization test coordination" passed after 0.229 seconds.
+✔ Test "DeepSeek reasoning activity keeps the first-text deadline alive" passed after 0.418 seconds.
+✔ Suite "Provider adapter executor" passed after 0.423 seconds.
+✔ Test "Generated appcast stays in staging and preserves the versioned download directory" passed after 0.676 seconds.
+✔ Suite "Release appcast script" passed after 0.680 seconds.
+✔ Test "information-only update cannot enter the download path" passed after 7.007 seconds.
+✔ Test "credential baselines compare exact bytes, not Unicode equivalence" passed after 7.007 seconds.
+✔ Test "management center states render in light and dark appearances" passed after 7.007 seconds.
+✔ Test "download reply is consumed exactly once" passed after 7.008 seconds.
+✔ Test "a submitted key belongs to its Provider after switching cards" passed after 7.007 seconds.
+✔ Test "production toolbar renders localized target-language selection" passed after 7.007 seconds.
+✔ Test "an older read cannot populate a new visit to the same Provider" passed after 7.008 seconds.
+✔ Test "closing discards a draft and invalidates pending reads" passed after 7.007 seconds.
+✔ Test "closing does not cancel submission or resurrect a closed draft" with 2 test cases passed after 7.008 seconds.
+✔ Test "confirmed entry surfaces render in light and dark appearances" passed after 7.008 seconds.
+✔ Suite "Ticket 10 UI rendering" passed after 7.009 seconds.
+✔ Suite "Ticket 08 UI rendering" passed after 7.009 seconds.
+✔ Test "closing or switching cancels only the window-owned load" with 2 test cases passed after 7.008 seconds.
+✔ Suite "Ticket 07 UI rendering" passed after 7.009 seconds.
+✔ Test "submission is claimed synchronously, with exact immutable input" with 2 test cases passed after 7.033 seconds.
+✔ Test "the complete visible row is clickable" passed after 7.033 seconds.
+✔ Test "editing or removing a failed credential discards its retained candidate" with 2 test cases passed after 7.033 seconds.
+✔ Test "configured model refresh renders stable idle busy and failure surfaces" passed after 7.033 seconds.
+✔ Test "a validation that fails while closed restores its candidate when reopened" passed after 7.033 seconds.
+✔ Test "configured model control stretches across the narrow card at the confirmed height" passed after 7.033 seconds.
+◇ Test "every action role has a visible hover response" started.
+◇ Test "a cleared candidate after a storage write failure renders the empty validation form" started.
+◇ Test case passing 1 argument revealed → true to "accessibility edits update the credential without submitting" started.
+◇ Test "native model selection follows refreshed items and cannot submit while read-only" started.
+✔ Test "an already satisfied condition returns without waiting" passed after 7.033 seconds.
+✔ Test "All application-owned sheets permit coordinated application termination" passed after 7.033 seconds.
+✔ Test "closing and reopening the production window reloads instead of retaining a draft" passed after 7.033 seconds.
+✔ Test "right mouse up opens the context action and other activations use the panel" passed after 7.033 seconds.
+✔ Test "the minimum applies to the complete content area" passed after 7.033 seconds.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 7.033 seconds.
+✔ Test "termination discards both in-flight and failed memory candidates" with 2 test cases passed after 7.034 seconds.
+✔ Test "the workspace uses normal window ordering and content refresh does not present it" passed after 7.033 seconds.
+✔ Suite "Application termination sheets" passed after 7.035 seconds.
+✔ Test "the default shortcut is Option Shift S" passed after 7.033 seconds.
+✔ Test "escape return and arrow keys are rejected even with modifiers" passed after 7.033 seconds.
+✔ Test "configured localization bundle changes visible strings" passed after 7.033 seconds.
+✔ Test "a failed replacement keeps the old registration active" passed after 7.033 seconds.
+✔ Test "a successful replacement activates immediately then unregisters the old shortcut" passed after 7.033 seconds.
+✔ Test "destroying the coordinator unregisters its active shortcut" passed after 7.033 seconds.
+✔ Test "the Edit menu exposes the complete confirmed hierarchy" passed after 7.033 seconds.
+✔ Test "shortcuts without Command Option or Control are rejected" passed after 7.032 seconds.
+◇ Test "a pending condition is rechecked every ten milliseconds and stops when ready" started.
+✔ Test "incomplete persisted values fall back to the default" passed after 7.032 seconds.
+✔ Test "a recorded shortcut persists across store instances" passed after 7.032 seconds.
+✔ Suite "Result workspace window" passed after 7.036 seconds.
+◇ Test "reverting a loaded credential prevents Return from resubmitting it" started.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+◇ Test "closing the management center reports the user-initiated close" started.
+✔ Test "the secondary surface stays light in Aqua appearance" passed after 7.033 seconds.
+✔ Test "the native registrar installs and releases in a test host" passed after 7.029 seconds.
+◇ Test "panel stays below the menu bar and clamps horizontally to the visible screen" started.
+✔ Suite "Global shortcut coordinator" passed after 7.036 seconds.
+✔ Suite "Global shortcut preference" passed after 7.035 seconds.
+◇ Test "editing commands use native responder selectors and confirmed shortcuts" started.
+◇ Test "menu and General Settings render updater callback states" started.
+◇ Test "the secondary surface stays dark in Dark Aqua appearance" started.
+✔ Suite "Carbon global shortcut backend" passed after 7.035 seconds.
+✔ Test "accessibility edits update the credential without submitting" with 2 test cases passed after 10.272 seconds.
+✔ Test "a cleared candidate after a storage write failure renders the empty validation form" passed after 3.239 seconds.
+✔ Test "every action role has a visible hover response" passed after 3.239 seconds.
+✔ Test "native model selection follows refreshed items and cannot submit while read-only" passed after 3.239 seconds.
+◇ Test "every confirmed production surface renders in both languages and appearances" started.
+◇ Test "accessibility writes respect unavailable fields" started.
+✔ Suite "Menu bar panel action buttons" passed after 10.275 seconds.
+✔ Suite "Provider visual geometry" passed after 10.275 seconds.
+◇ Test case passing 1 argument revealed → false to "accessibility writes respect unavailable fields" started.
+✔ Test "a pending condition is rechecked every ten milliseconds and stops when ready" passed after 3.298 seconds.
+✔ Test "reverting a loaded credential prevents Return from resubmitting it" passed after 3.298 seconds.
+✔ Test "the pending overlay covers each display without an opening animation" passed after 3.298 seconds.
+✔ Test "editing commands use native responder selectors and confirmed shortcuts" passed after 3.298 seconds.
+✔ Test "reopening waits for a canceled physical read to leave its boundary" passed after 10.332 seconds.
+✔ Test "closing the management center reports the user-initiated close" passed after 3.298 seconds.
+✔ Test "the secondary surface stays dark in Dark Aqua appearance" passed after 3.297 seconds.
+✔ Test "panel stays below the menu bar and clamps horizontally to the visible screen" passed after 3.298 seconds.
+✔ Suite "Theme surface rendering" passed after 10.334 seconds.
+◇ Test "Paste resolves through the active responder" started.
+✔ Suite "Provider credential editor session" passed after 10.334 seconds.
+◇ Test "an unmet condition fails at the original deadline without a full final polling delay" started.
+✔ Suite "Management center window contract" passed after 10.334 seconds.
+◇ Test "only clicks outside the panel and status item dismiss the panel" started.
+◇ Test "a click selects the whole snap region under the pointer" started.
+◇ Test "unsafe typed keys cannot be submitted by Return" started.
+✔ Test "menu and General Settings render updater callback states" passed after 3.298 seconds.
+◇ Test case passing 1 argument value → "key
+value" to "unsafe typed keys cannot be submitted by Return" started.
+✔ Suite "Ticket 09 UI rendering" passed after 10.334 seconds.
+✔ Test "every confirmed production surface renders in both languages and appearances" passed after 4.639 seconds.
+◇ Test case passing 1 argument revealed → true to "accessibility writes respect unavailable fields" started.
+✔ Suite "Ticket 13 production UI rendering" passed after 14.915 seconds.
+✔ Test "an unmet condition fails at the original deadline without a full final polling delay" passed after 4.731 seconds.
+✔ Test "Paste resolves through the active responder" passed after 4.731 seconds.
+✔ Test "shortcut and menu capture route active credential work without freezing" with 2 test cases passed after 15.063 seconds.
+✔ Test "only clicks outside the panel and status item dismiss the panel" passed after 4.731 seconds.
+✔ Test "a click selects the whole snap region under the pointer" passed after 4.731 seconds.
+◇ Test "zero timeout still checks the current state without waiting" started.
+◇ Test case passing 1 argument value → "key" to "unsafe typed keys cannot be submitted by Return" started.
+◇ Test "a press moved past three points draws a manual rectangle instead" started.
+◇ Test "the context menu contains only localized Quit and invokes the quit action" started.
+◇ Test "the complete Edit menu is localized in Simplified Chinese" started.
+◇ Test case passing 1 argument ready → false to "zero timeout still checks the current state without waiting" started.
+✔ Test "selection handoff remains exclusive and releases after an operation failure" passed after 15.064 seconds.
+✔ Test "Sparkle callbacks reach Core in callback order" passed after 15.065 seconds.
+✔ Test "accessibility writes respect unavailable fields" with 2 test cases passed after 4.792 seconds.
+✔ Suite "Sparkle product user driver" passed after 15.067 seconds.
+◇ Test "accessibility clearing is an edit but loading and invalid types are not" started.
+◇ Test case passing 1 argument revealed → false to "accessibility clearing is an edit but loading and invalid types are not" started.
+✔ Test "the complete Edit menu is localized in Simplified Chinese" passed after 0.161 seconds.
+✔ Test "a press moved past three points draws a manual rectangle instead" passed after 0.161 seconds.
+◇ Test case passing 1 argument value → "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" to "unsafe typed keys cannot be submitted by Return" started.
+✔ Suite "Ticket 13 application menu" passed after 15.227 seconds.
+✔ Test "the context menu contains only localized Quit and invokes the quit action" passed after 0.161 seconds.
+◇ Test case passing 1 argument ready → true to "zero timeout still checks the current state without waiting" started.
+◇ Test "a click before the window list and the frame completes once both arrive" started.
+◇ Test "every capture route enters application readiness handling immediately" started.
+◇ Test case passing 1 argument revealed → true to "accessibility clearing is an edit but loading and invalid types are not" started.
+✔ Test "every capture route enters application readiness handling immediately" passed after 0.137 seconds.
+✔ Test "a click before the window list and the frame completes once both arrive" passed after 0.137 seconds.
+✔ Test "zero timeout still checks the current state without waiting" with 2 test cases passed after 0.299 seconds.
+◇ Test "without a window list a click selects nothing" started.
+✔ Test "unsafe typed keys cannot be submitted by Return" with 3 test cases passed after 5.031 seconds.
+✔ Suite "Native condition wait" passed after 15.365 seconds.
+◇ Test "system paste preserves opaque text and removes just one trailing newline" started.
+✔ Suite "Ticket 12 menu bar interactions" passed after 15.365 seconds.
+✔ Test "accessibility clearing is an edit but loading and invalid types are not" with 2 test cases passed after 0.299 seconds.
+◇ Test "accessibility edits keep an attached system editor synchronized" started.
+◇ Test case passing 1 argument revealed → false to "accessibility edits keep an attached system editor synchronized" started.
+✔ Test "without a window list a click selects nothing" passed after 0.170 seconds.
+✔ Test "system paste preserves opaque text and removes just one trailing newline" passed after 0.170 seconds.
+◇ Test "the overlay opens on the snap region under the pointer and follows it" started.
+◇ Test "typed and pasted credentials submit once via Return and survive window refreshes" started.
+◇ Test case passing 2 arguments initialKey → "", paste → false to "typed and pasted credentials submit once via Return and survive window refreshes" started.
+✔ Test "Try Again during credential work cannot request or alter persisted history" passed after 15.555 seconds.
+✔ Suite "Provider configuration coordinator" passed after 15.559 seconds.
+◇ Test case passing 1 argument revealed → true to "accessibility edits keep an attached system editor synchronized" started.
+✔ Test "the overlay opens on the snap region under the pointer and follows it" passed after 0.191 seconds.
+◇ Test case passing 2 arguments initialKey → "", paste → true to "typed and pasted credentials submit once via Return and survive window refreshes" started.
+◇ Test "a replacement's window list does not reach the overlay it may roll back to" started.
+✔ Test "accessibility edits keep an attached system editor synchronized" with 2 test cases passed after 0.370 seconds.
+◇ Test "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+◇ Test case passing 2 arguments input → "X
+", expected → "X" to "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+✔ Test "a replacement's window list does not reach the overlay it may roll back to" passed after 0.188 seconds.
+◇ Test case passing 2 arguments initialKey → "initial-key", paste → false to "typed and pasted credentials submit once via Return and survive window refreshes" started.
+◇ Test "pointer jitter of up to three points while pressed is still a click" started.
+◇ Test case passing 2 arguments input → "X", expected → "X" to "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+✔ Test "pointer jitter of up to three points while pressed is still a click" passed after 0.321 seconds.
+◇ Test case passing 2 arguments initialKey → "initial-key", paste → true to "typed and pasted credentials submit once via Return and survive window refreshes" started.
+◇ Test "a press moved just over three points draws a rectangle" started.
+◇ Test case passing 2 arguments input → "X
+", expected → "X" to "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+✔ Test "a press moved just over three points draws a rectangle" passed after 0.308 seconds.
+✔ Test "typed and pasted credentials submit once via Return and survive window refreshes" with 4 test cases passed after 1.010 seconds.
+◇ Test "a release far from the press is a rectangle even without drag events" started.
+◇ Test "another active Provider job permits native editing but blocks Return until it ends" started.
+◇ Test case passing 2 arguments input → "X
+
+", expected → "X
+" to "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+✔ Test "a release far from the press is a rectangle even without drag events" passed after 0.185 seconds.
+✔ Test "another active Provider job permits native editing but blocks Return until it ends" passed after 0.185 seconds.
+◇ Test "a clicked region stays put while the pointer moves on" started.
+◇ Test "an explicit active-job focus request navigates an existing history window to that Provider" started.
+◇ Test case passing 2 arguments input → " X	 ", expected → " X	 " to "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+✔ Test "a clicked region stays put while the pointer moves on" passed after 0.245 seconds.
+✔ Test "an explicit active-job focus request navigates an existing history window to that Provider" passed after 0.245 seconds.
+◇ Test "a clicked region is handed over as its physical pixel corners" started.
+✔ Suite "Provider credential interaction" passed after 16.977 seconds.
+◇ Test case passing 2 arguments input → "é", expected → "é" to "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+✔ Test "a clicked region is handed over as its physical pixel corners" passed after 0.109 seconds.
+◇ Test "a failure alert stays visible above a retained overlay" started.
+◇ Test case passing 2 arguments input → "x
+Y", expected → "x
+Y" to "paste normalization preserves all content except one trailing CRLF LF or CR" started.
+✔ Test "a failure alert stays visible above a retained overlay" passed after 0.045 seconds.
+✔ Suite "Frozen capture overlay" passed after 17.133 seconds.
+✔ Test "paste normalization preserves all content except one trailing CRLF LF or CR" with 7 test cases passed after 1.412 seconds.
+◇ Test "visibility changes keep the system editor selection and exact value" started.
+✔ Test "visibility changes keep the system editor selection and exact value" passed after 0.020 seconds.
+◇ Test "standard keyboard paste removes one trailing sequence" started.
+◇ Test case passing 1 argument revealed → false to "standard keyboard paste removes one trailing sequence" started.
+◇ Test case passing 1 argument revealed → true to "standard keyboard paste removes one trailing sequence" started.
+✔ Test "standard keyboard paste removes one trailing sequence" with 2 test cases passed after 0.118 seconds.
+✔ Suite "Native Provider API Key editing" passed after 17.290 seconds.
+✔ Test run with 382 tests in 78 suites passed after 17.290 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu
+Test Suite 'Selected tests' started at 2026-10-28 22:04:10.962.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:04:10.963.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:04:10.963.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:04:10.963.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 0 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 2 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 5 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+◇ Test case passing 1 argument count → 6 to recentMenuShowsAtMostFiveSavedRecords(count:) started.
+✔ Test recentMenuShowsAtMostFiveSavedRecords(count:) with 4 test cases passed after 1.232 seconds.
+◇ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() started.
+✔ Test historyImageDoesNotReportFailureBeforeLoadingCompletes() passed after 0.629 seconds.
+◇ Test historyImageRemainsVisibleWhileSameRecordReloads() started.
+✔ Test historyImageRemainsVisibleWhileSameRecordReloads() passed after 0.039 seconds.
+◇ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() started.
+✔ Test historyImageSwitchesIgnoreLateReadsAndRecoverAfterFailure() passed after 0.651 seconds.
+◇ Test historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .extract to historyRetryUpdatesOriginalRecord(kind:) started.
+◇ Test case passing 1 argument kind → .translate to historyRetryUpdatesOriginalRecord(kind:) started.
+✔ Test historyRetryUpdatesOriginalRecord(kind:) with 2 test cases passed after 5.984 seconds.
+◇ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() started.
+✔ Test historyRetrySurvivesWindowChangesAndRejectsLateDeletion() passed after 2.057 seconds.
+◇ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() started.
+✔ Test modelRefreshPublishesProgressAndFailureWithoutChangingCredentialState() passed after 0.071 seconds.
+◇ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() started.
+✔ Test nativeValidateSurvivesCloseAndReopenWhileResponseIsPending() passed after 1.975 seconds.
+◇ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() started.
+[NATIVE-DIAG] capture pid=48127 elapsed=1.2589045001659542
+t=0.10399929177947342 stage=overlay-ready target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.1041897083632648 stage=before-mouse-1 target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.12162450002506375 stage=after-mouse-1 target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.12172141671180725 stage=before-mouse-6 target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.13417933345772326 stage=after-mouse-6 target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.1342773751821369 stage=before-mouse-2 target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.14730754168704152 stage=after-mouse-2 target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.14748758333735168 stage=toolbar-wait target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.26572158350609243 stage=toolbar-wait target=77195 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=true,key=false,canKey=false,level=1001,size=(539.0, 31.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.26582612516358495 stage=toolbar-ready target=-1 active=true policy=2 key=77195 main=-1 frontPID=687 windows=[id=77166,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=77191,visible=false,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77194,visible=true,key=false,canKey=false,level=1001,size=(539.0, 31.0);id=77195,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+✔ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() passed after 1.259 seconds.
+◇ Test displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .sleep to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .disconnect to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .scale to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .rotate to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .move to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+✔ Test displayChangesCancelSelectionBeforeMouseUp(change:) with 5 test cases passed after 0.500 seconds.
+◇ Test replacementAndEscapeRetireDisplaySubscriptions() started.
+✔ Test replacementAndEscapeRetireDisplaySubscriptions() passed after 0.202 seconds.
+◇ Test overlayCoversDisplaysBeforeFreezeCompletes() started.
+✔ Test overlayCoversDisplaysBeforeFreezeCompletes() passed after 0.088 seconds.
+◇ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() started.
+✔ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() passed after 0.201 seconds.
+◇ Test escapeWhileFreezingExitsCapture() started.
+✔ Test escapeWhileFreezingExitsCapture() passed after 0.082 seconds.
+◇ Test terminationWhileFreezingWithdrawsOverlay() started.
+✔ Test terminationWhileFreezingWithdrawsOverlay() passed after 0.065 seconds.
+◇ Test failedFreezeRestoresPreviousSelection() started.
+✔ Test failedFreezeRestoresPreviousSelection() passed after 0.217 seconds.
+◇ Test escapeWhileReplacingSelectionReleasesActivity() started.
+✔ Test escapeWhileReplacingSelectionReleasesActivity() passed after 0.204 seconds.
+◇ Test escapeWhileFreezingFromResultRestoresWorkspace() started.
+✔ Test escapeWhileFreezingFromResultRestoresWorkspace() passed after 0.865 seconds.
+◇ Test selectionStartedBeforeFramesFinishesAfterThem() started.
+✔ Test selectionStartedBeforeFramesFinishesAfterThem() passed after 0.199 seconds.
+◇ Test clickOnWindowSelectsWholeWindow() started.
+✔ Test clickOnWindowSelectsWholeWindow() passed after 0.212 seconds.
+◇ Test clickOnDesktopSelectsWholeDisplay() started.
+✔ Test clickOnDesktopSelectsWholeDisplay() passed after 0.237 seconds.
+◇ Test clickWhileFreezingSelectsWindowOnceFramesArrive() started.
+✔ Test clickWhileFreezingSelectsWindowOnceFramesArrive() passed after 0.220 seconds.
+◇ Test clickWithoutWindowListSelectsNothingButDragStillWorks() started.
+✔ Test clickWithoutWindowListSelectsNothingButDragStillWorks() passed after 0.204 seconds.
+◇ Test lateWindowListOfReplacedCaptureIsIgnored() started.
+✔ Test lateWindowListOfReplacedCaptureIsIgnored() passed after 0.422 seconds.
+◇ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() started.
+✔ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() passed after 0.329 seconds.
+◇ Test heldWindowListDoesNotDelayOverlay() started.
+✔ Test heldWindowListDoesNotDelayOverlay() passed after 0.088 seconds.
+◇ Test displayChangeWhileReplacingAbandonsPendingCapture() started.
+✔ Test displayChangeWhileReplacingAbandonsPendingCapture() passed after 0.223 seconds.
+◇ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() started.
+✔ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() passed after 0.106 seconds.
+◇ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() started.
+✔ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() passed after 0.080 seconds.
+◇ Test nativeOnboardingValidatesSelectsAndReturns() started.
+✔ Test nativeOnboardingValidatesSelectsAndReturns() passed after 2.029 seconds.
+◇ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() started.
+✔ Test applicationStartupOwnsRealWindowsAndReleasesPrimaryLock() passed after 0.390 seconds.
+◇ Test injectedUpdateEventsReachTheApplicationPresentation() started.
+✔ Test injectedUpdateEventsReachTheApplicationPresentation() passed after 0.025 seconds.
+◇ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 401 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+◇ Test case passing 1 argument status → 500 to failedValidationKeepsCandidateAndAllowsManualRetry(status:) started.
+✔ Test failedValidationKeepsCandidateAndAllowsManualRetry(status:) with 2 test cases passed after 0.050 seconds.
+◇ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() started.
+✔ Test permissionAndRetentionUseOnlyTheIsolatedPreferences() passed after 0.049 seconds.
+◇ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() started.
+✔ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() passed after 0.034 seconds.
+◇ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() started.
+✔ Test validatesSelectsAndRestoresProviderThroughApplicationCallbacks() passed after 0.046 seconds.
+✔ Suite ProviderApplicationTests passed after 21.285 seconds.
+✔ Test run with 36 tests in 1 suite passed after 21.286 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTestsNativeMenu.testNativeMainMenuPasteValidatesThroughRealKeyWindow
+Test Suite 'Selected tests' started at 2026-10-28 22:04:32.920.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:04:32.921.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 22:04:32.921.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' started.
+[NATIVE-DIAG] paste pid=48962 elapsed=1.5006981666665524
+t=1.2033754168078303 stage=before-activation target=77284 active=false policy=1 key=-1 main=-1 frontPID=48962 windows=[id=77280,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77281,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77283,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77284,visible=true,key=false,canKey=true,level=0,size=(1512.0, 868.0);id=77285,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.2974300417117774 stage=key-window-wait target=77284 active=true policy=1 key=77284 main=77284 frontPID=48962 windows=[id=77280,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77281,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77283,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77284,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77285,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.297507208539173 stage=key-window-ready target=77284 active=true policy=1 key=77284 main=77284 frontPID=48962 windows=[id=77280,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77281,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77283,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77284,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77285,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.3223570834379643 stage=paste-dispatched target=77284 active=true policy=1 key=77284 main=77284 frontPID=48962 windows=[id=77280,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77281,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77283,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77284,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77285,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+t=1.346984000178054 stage=validate-dispatched target=77284 active=true policy=1 key=77284 main=77284 frontPID=48962 windows=[id=77280,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=77281,visible=false,key=false,canKey=true,level=101,size=(300.0, 203.0);id=77283,visible=false,key=false,canKey=true,level=0,size=(900.0, 604.0);id=77284,visible=true,key=true,canKey=true,level=0,size=(1512.0, 868.0);id=77285,visible=false,key=false,canKey=false,level=0,size=(500.0, 500.0);id=4294967296,visible=true,key=false,canKey=false,level=25,size=(32.0, 33.0)]
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testNativeMainMenuPasteValidatesThroughRealKeyWindow]' passed (1.502 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 22:04:34.423.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.502 (1.502) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:04:34.423.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.502 (1.502) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:04:34.423.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.502 (1.503) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTestsNativeMenu.testValidationCompletesWhileManagementRemainsClosed
+Test Suite 'Selected tests' started at 2026-10-28 22:04:35.105.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:04:35.106.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 22:04:35.106.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testValidationCompletesWhileManagementRemainsClosed]' started.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testValidationCompletesWhileManagementRemainsClosed]' passed (3.941 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 22:04:39.047.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.941 (3.941) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:04:39.047.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.941 (3.941) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:04:39.047.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.941 (3.942) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTestsNativeMenu.testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows
+Test Suite 'Selected tests' started at 2026-10-28 22:04:39.721.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:04:39.723.
+Test Suite 'ProviderApplicationTestsNativeMenu' started at 2026-10-28 22:04:39.723.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows]' started.
+Test Case '-[VLMSnapperAppTests.ProviderApplicationTestsNativeMenu testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows]' passed (2.027 seconds).
+Test Suite 'ProviderApplicationTestsNativeMenu' passed at 2026-10-28 22:04:41.750.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.027 (2.027) seconds
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:04:41.750.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.027 (2.027) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:04:41.750.
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.027 (2.029) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== exit: 0
+== overall: 0

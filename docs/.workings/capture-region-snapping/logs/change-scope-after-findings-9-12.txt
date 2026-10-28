@@ -1,0 +1,17 @@
+Command: node ~/.claude/skills/implement/change-scope.mjs --base 48610ef
+changed :-  (added)
+changed Tests/VLMSnapperAppTests/ProviderApplicationTests.swift  (no syntax tree comparison for this type)
+changed Tests/VLMSnapperCoreTests/CaptureSnapRegionResolverTests.swift  (no syntax tree comparison for this type)
+changed Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift  (no syntax tree comparison for this type)
+inert   docs/.workings/capture-region-snapping/final-regression.md
+inert   docs/.workings/capture-region-snapping/logs/change-scope-after-findings-9-12.txt
+inert   docs/.workings/capture-region-snapping/logs/change-scope-after-findings.txt
+inert   docs/.workings/capture-region-snapping/logs/native-paste-reruns.log
+inert   docs/.workings/capture-region-snapping/logs/snap-mutations-r3.log
+inert   docs/.workings/capture-region-snapping/logs/snap-r3-unit.log
+inert   docs/.workings/capture-region-snapping/logs/targeted-snap-r3-native-paste-flake.log
+inert   docs/.workings/capture-region-snapping/logs/targeted-snap-r3b.log
+inert   docs/.workings/capture-region-snapping/review-tests.md
+inert   docs/.workings/capture-region-snapping/tasklist.md
+verdict: run (14 files differ from the base)
+exit: 1

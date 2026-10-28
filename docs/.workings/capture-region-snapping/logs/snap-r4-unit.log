@@ -1,0 +1,45 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-28 22:45:29.253.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-28 22:45:29.254.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-28 22:45:29.254.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-28 22:45:29.254.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 0.177 seconds.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+✔ Test "the pending overlay covers each display without an opening animation" passed after 0.031 seconds.
+◇ Test "a click selects the whole snap region under the pointer" started.
+✔ Test "a click selects the whole snap region under the pointer" passed after 0.023 seconds.
+◇ Test "a press moved past three points draws a manual rectangle instead" started.
+✔ Test "a press moved past three points draws a manual rectangle instead" passed after 0.020 seconds.
+◇ Test "a click before the window list and the frame completes once both arrive" started.
+✔ Test "a click before the window list and the frame completes once both arrive" passed after 0.024 seconds.
+◇ Test "without a window list a click selects nothing" started.
+✔ Test "without a window list a click selects nothing" passed after 0.031 seconds.
+◇ Test "the overlay opens on the snap region under the pointer and follows it" started.
+✔ Test "the overlay opens on the snap region under the pointer and follows it" passed after 0.021 seconds.
+◇ Test "a replacement's window list does not reach the overlay it may roll back to" started.
+✔ Test "a replacement's window list does not reach the overlay it may roll back to" passed after 0.040 seconds.
+◇ Test "pointer jitter of up to three points while pressed is still a click" started.
+✔ Test "pointer jitter of up to three points while pressed is still a click" passed after 0.019 seconds.
+◇ Test "a press moved just over three points draws a rectangle" started.
+✔ Test "a press moved just over three points draws a rectangle" passed after 0.027 seconds.
+◇ Test "while dragging the rectangle is drawn instead of the snap region" started.
+✔ Test "while dragging the rectangle is drawn instead of the snap region" passed after 0.031 seconds.
+◇ Test "a drag passing three points in small steps stops showing the snap region" started.
+✔ Test "a drag passing three points in small steps stops showing the snap region" passed after 0.023 seconds.
+◇ Test "a release far from the press is a rectangle even without drag events" started.
+✔ Test "a release far from the press is a rectangle even without drag events" passed after 0.015 seconds.
+◇ Test "a clicked region stays put while the pointer moves on" started.
+✔ Test "a clicked region stays put while the pointer moves on" passed after 0.026 seconds.
+◇ Test "a clicked region is handed over as its physical pixel corners" started.
+✔ Test "a clicked region is handed over as its physical pixel corners" passed after 0.017 seconds.
+◇ Test "a failure alert stays visible above a retained overlay" started.
+✔ Test "a failure alert stays visible above a retained overlay" passed after 0.060 seconds.
+✔ Suite "Frozen capture overlay" passed after 0.593 seconds.
+✔ Test run with 16 tests in 1 suite passed after 0.593 seconds.

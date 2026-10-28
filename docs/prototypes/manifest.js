@@ -1,3 +1,5 @@
+window.PROTOTYPE_APP = { name: "VLMSnapper", icon: null };
+
 window.PROTOTYPES = [
   {
     module: "core-result",
@@ -47,6 +49,13 @@ window.PROTOTYPES = [
     id: "attached-toolbar",
     name: "Attached capture toolbar",
     path: "capture-overlay/prototype-toolbar-directions.html"
+  },
+  {
+    module: "capture-overlay",
+    type: "ui",
+    id: "snap-region",
+    name: "Capture snap region",
+    path: "capture-overlay/prototype-snap-region.html"
   },
   {
     module: "onboarding",

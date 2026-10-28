@@ -1,0 +1,136 @@
+HEAD 41020b5b3b3cea7625e892e1287892342f8f240d
+Command: swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+[0/1] Planning build
+Building for debugging...
+[0/17] Write swift-version--58304C5D6DBC2206.txt
+[1/20] Compiling VLMSnapperProcessShim VLMSnapperProcessShim.c
+[2/21] Compiling VLMSnapperHotKeyShim VLMSnapperHotKeyShim.c
+[4/68] Compiling VLMSnapperReleaseSupport DeveloperIDProvisioningProfile.swift
+[5/68] Compiling VLMSnapperReleaseSupport DeveloperIDProfilePreparation.swift
+[6/68] Emitting module VLMSnapperReleaseSupport
+[7/70] Emitting module VLMSnapperSigningTool
+[8/70] Compiling VLMSnapperSigningTool main.swift
+[9/69] Compiling VLMSnapperCore OrderedStructuredOutputParser.swift
+[10/69] Compiling VLMSnapperCore PersistedOperationWorkspaceRunner.swift
+[11/69] Compiling VLMSnapperCore PrimaryInstanceCoordinator.swift
+[12/69] Compiling VLMSnapperCore ProviderAPIKeyInput.swift
+[13/69] Compiling VLMSnapperCore ProviderAdapterError.swift
+[14/74] Compiling VLMSnapperCore LoginItemCoordinator.swift
+[15/74] Compiling VLMSnapperCore ManagedScreenshotRoot.swift
+[16/74] Compiling VLMSnapperCore OnboardingSession.swift
+[17/74] Compiling VLMSnapperCore OpenAIResponsesStreamDecoder.swift
+[18/74] Compiling VLMSnapperCore OperationWorkspaceSession.swift
+[19/74] Compiling VLMSnapperCore ProviderPreparedOperationStreamer.swift
+[20/74] Compiling VLMSnapperCore ProviderRequestFactory.swift
+[21/74] Compiling VLMSnapperCore ProviderSetupSession.swift
+[22/74] Compiling VLMSnapperCore ProviderStreamContract.swift
+[23/74] Compiling VLMSnapperCore ProviderStreamTimeout.swift
+[23/74] Linking VLMSnapperSigningTool
+[24/74] Applying VLMSnapperSigningTool
+[26/74] Compiling VLMSnapperCore DiagnosticLogStore.swift
+[27/74] Compiling VLMSnapperCore ExtractionCoordinator.swift
+[28/74] Compiling VLMSnapperCore FileProviderMetadataStore.swift
+[29/74] Compiling VLMSnapperCore FileSystemScreenshotStore.swift
+[30/74] Compiling VLMSnapperCore GeminiStreamDecoder.swift
+[31/74] Emitting module VLMSnapperCore
+[32/74] Compiling VLMSnapperCore GlobalShortcutCoordinator.swift
+[33/74] Compiling VLMSnapperCore HistoryDatabaseResetter.swift
+[34/74] Compiling VLMSnapperCore HistoryManagement.swift
+[35/74] Compiling VLMSnapperCore HistoryRetention.swift
+[36/74] Compiling VLMSnapperCore LiveProviderContractGate.swift
+[37/74] Compiling VLMSnapperCore AlignedTranslationParser.swift
+[38/74] Compiling VLMSnapperCore AppleKeychainProviderCredentialStore.swift
+[39/74] Compiling VLMSnapperCore ApplicationLanguage.swift
+[40/74] Compiling VLMSnapperCore ApplicationWorkflow.swift
+[41/74] Compiling VLMSnapperCore CaptureCoordinateMapper.swift
+[42/74] Compiling VLMSnapperCore CaptureFreezeCoordinator.swift
+[43/74] Compiling VLMSnapperCore ProviderAdapterExecutor.swift
+[44/74] Compiling VLMSnapperCore ProviderConfiguration.swift
+[45/74] Compiling VLMSnapperCore ProviderHTTPErrorNormalizer.swift
+[46/74] Compiling VLMSnapperCore ProviderHTTPStreaming.swift
+[47/74] Compiling VLMSnapperCore ProviderModelCatalog.swift
+[48/74] Compiling VLMSnapperCore ReleaseManifest.swift
+[49/74] Compiling VLMSnapperCore SQLiteHistoryStore.swift
+[50/74] Compiling VLMSnapperCore SRGBPNGCropper.swift
+[51/74] Compiling VLMSnapperCore ScreenCaptureKitFrozenDisplayCapturer.swift
+[52/74] Compiling VLMSnapperCore ScreenCapturePermissionCoordinator.swift
+[53/74] Compiling VLMSnapperCore CaptureSelectionSession.swift
+[54/74] Compiling VLMSnapperCore CaptureSnapRegionResolver.swift
+[55/74] Compiling VLMSnapperCore CarbonGlobalShortcutBackend.swift
+[56/74] Compiling VLMSnapperCore DataProtectionKeychainSmokeTest.swift
+[57/74] Compiling VLMSnapperCore DeepSeekChatStreamDecoder.swift
+[58/74] Compiling VLMSnapperCore ServerSentEventDecoder.swift
+[59/74] Compiling VLMSnapperCore TargetLanguageCatalog.swift
+[60/74] Compiling VLMSnapperCore TranslationSegment.swift
+[61/74] Compiling VLMSnapperCore UpdateLifecycle.swift
+[62/74] Compiling VLMSnapperCore UserDefaultsPermissionRequestHistoryStore.swift
+[63/110] Compiling VLMSnapperSparkle SparkleUpdateDriver.swift
+[64/110] Emitting module VLMSnapperSparkle
+[65/110] Emitting module VLMSnapperLiveProviderGate
+[66/110] Compiling VLMSnapperLiveProviderGate main.swift
+[66/110] Write Objects.LinkFileList
+[68/110] Compiling VLMSnapperUI ScreenCapturePermissionRecoveryView.swift
+[69/110] Compiling VLMSnapperUI StoragePrivacyDetailView.swift
+[70/110] Compiling VLMSnapperUI VLMSnapperApplicationMenu.swift
+[70/113] Linking VLMSnapperLiveProviderGate
+[71/113] Applying VLMSnapperLiveProviderGate
+[73/113] Compiling VLMSnapperUI ProviderSettingsPresentation.swift
+[74/113] Compiling VLMSnapperUI ResultWorkspaceView.swift
+[75/113] Compiling VLMSnapperUI ResultWorkspaceWindowController.swift
+[76/113] Compiling VLMSnapperUI OnboardingView.swift
+[77/113] Compiling VLMSnapperUI ProviderAPIKeyField.swift
+[78/113] Compiling VLMSnapperUI ProviderCredentialEditor.swift
+[79/113] Compiling VLMSnapperUI ProviderFieldLayout.swift
+[80/113] Compiling VLMSnapperUI ProviderModelPicker.swift
+[81/113] Compiling VLMSnapperUI ProviderPasteMenu.swift
+[82/113] Compiling VLMSnapperUI VLMSnapperIcons.swift
+[83/113] Compiling VLMSnapperUI VLMSnapperLocalization.swift
+[84/113] Compiling VLMSnapperUI VLMSnapperStrings.swift
+[85/113] Compiling VLMSnapperUI ApplicationTerminationSheet.swift
+[86/113] Compiling VLMSnapperUI BilingualResultView.swift
+[87/113] Compiling VLMSnapperUI CaptureOperationToolbar.swift
+[88/113] Compiling VLMSnapperUI CaptureToolbarPanelController.swift
+[89/113] Compiling VLMSnapperUI VLMSnapperTheme.swift
+[90/113] Compiling VLMSnapperUI VLMSnapperUIConstants.swift
+[91/113] Compiling VLMSnapperUI resource_bundle_accessor.swift
+[92/113] Compiling VLMSnapperUI MenuBarPanelController.swift
+[93/113] Compiling VLMSnapperUI MenuBarPanelView.swift
+[94/113] Compiling VLMSnapperUI NativeLifecycleAdapters.swift
+[95/113] Compiling VLMSnapperUI OnboardingContainerView.swift
+[96/113] Compiling VLMSnapperUI ManagementCenterView.swift
+[97/113] Compiling VLMSnapperUI ManagementCenterWindowController.swift
+[98/113] Compiling VLMSnapperUI MarkdownResultView.swift
+[99/113] Compiling VLMSnapperUI MenuBarContainerView.swift
+[100/113] Compiling VLMSnapperUI FrozenCaptureOverlayController.swift
+[101/113] Compiling VLMSnapperUI GlobalShortcutRecorder.swift
+[102/113] Compiling VLMSnapperUI HistoryImagePreview.swift
+[103/113] Compiling VLMSnapperUI HistoryRetryPresentation.swift
+[104/113] Emitting module VLMSnapperUI
+[105/127] Compiling VLMSnapperApp CaptureDisplayMonitor.swift
+[106/127] Compiling VLMSnapperApp main.swift
+[107/127] Compiling VLMSnapperApp ApplicationStartupDependencies.swift
+[108/127] Compiling VLMSnapperAXFixture main.swift
+[109/127] Emitting module VLMSnapperAXFixture
+[109/127] Write Objects.LinkFileList
+[111/127] Compiling VLMSnapperUIHarness ProviderEditingSmoke.swift
+[112/127] Compiling VLMSnapperUIHarness VLMSnapperUIHarness.swift
+[113/127] Emitting module VLMSnapperUIHarness
+[113/127] Write Objects.LinkFileList
+[115/127] Compiling VLMSnapperApp CoreGraphicsCaptureWindowListing.swift
+[116/127] Compiling VLMSnapperApp VLMSnapperApplicationDelegate.swift
+[116/127] Linking VLMSnapperAXFixture
+[117/127] Linking VLMSnapperUIHarness
+[118/127] Applying VLMSnapperAXFixture
+[119/127] Applying VLMSnapperUIHarness
+[121/127] Emitting module VLMSnapperApp
+[122/127] Compiling VLMSnapperApp ApplicationModelDependencies.swift
+[123/127] Compiling VLMSnapperApp ApplicationDirectories.swift
+[124/127] Compiling VLMSnapperApp VLMSnapperApplicationModel.swift
+[124/127] Write Objects.LinkFileList
+[125/127] Linking VLMSnapperApp
+[126/127] Applying VLMSnapperApp
+Build complete! (9.49s)
+exit: 0
+Command: python3 Scripts/verify-feature-checklist.py docs/.workings/v1-core/checklist.md
+Checklist ownership passed: 58 requirements
+exit: 0

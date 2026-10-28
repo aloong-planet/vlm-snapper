@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-Hans" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>截图吸附区域</title>
+  <script src="../manifest.js"></script>
+  <script src="../app-identity.js"></script>
+  <link rel="stylesheet" href="../_shared/capture-overlay.css">
+  <!--
+    Question: while the capture overlay is up and nothing has been dragged yet, does highlighting the
+    snap region under the pointer look and behave right?
+    - Topmost ordinary window: the whole window (Terminal, browser), never an element inside it.
+    - Menu bar: one status icon on its own; anywhere else on the menu bar, the whole menu bar.
+    - Dock: the strip the Dock occupies, as one region (single icons are not picked: the app stays in
+      the App Sandbox). With the Dock hidden automatically there is no strip; the window or desktop
+      below applies.
+    - Desktop (no window): the whole display.
+    - Click (pointer moved 3 px or less while pressed) selects the highlighted region; moving further
+      draws a manual rectangle instead and the highlight stops following.
+    Structure is fixed, not a choice: the highlight is the selection look (dimmed outside, clear
+    inside, 1 px accent border) as the user asked ("区域会加上边框"); no text, size label or loading
+    hint is added. After a click the selection keeps that look and the shared attached toolbar appears
+    below it. Decided 2026-10-28: the shipped app is the reference for the selection look (1 px border,
+    no corner handles, no size label, no inner hairline). Confirmed by the user on 2026-10-28.
+    Not covered on this page: UI language and appearance (shown in Simplified Chinese, light). The
+    desktop, windows, menu bar and Dock are mock context drawn by other apps, not VLMSnapper UI.
+    Demo scaffolding (not part of the design, do not implement): the floating bar marked
+    data-demo-harness with the Dock-visibility switch and the restart action.
+  -->
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button { font: inherit; color: inherit; }
+
+    .snap-screen {
+      position: relative;
+      width: 100vw;
+      min-width: 1120px;
+      height: 100vh;
+      min-height: 720px;
+      overflow: hidden;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      font-size: 13px;
+      background:
+        radial-gradient(circle at 24% 14%, var(--desktop-glow), transparent 30%),
+        linear-gradient(150deg, var(--desktop-a), var(--desktop-b));
+      cursor: crosshair;
+      user-select: none;
+    }
+
+    .snap-menubar { position: absolute; left: 0; top: 0; right: 0; height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 16px; border-bottom: 1px solid var(--line); background: var(--menubar); font-size: 12px; font-weight: 600; }
+    .snap-menus { display: flex; align-items: center; gap: 18px; }
+    .snap-menus span + span { color: var(--text-secondary); font-weight: 500; }
+    .snap-status { display: flex; align-items: stretch; height: 100%; }
+    .snap-status-item { display: flex; align-items: center; justify-content: center; min-width: 30px; padding: 0 7px; color: var(--text); }
+    .snap-status-item svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .snap-window { position: absolute; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--window); box-shadow: 0 22px 60px var(--shadow-soft); }
+    .snap-titlebar { height: 34px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-bottom: 1px solid var(--browser-line); color: var(--text-secondary); font-size: 12px; }
+    .snap-traffic { display: flex; gap: 8px; }
+    .snap-traffic span { width: 12px; height: 12px; border-radius: 50%; }
+    .snap-traffic span:nth-child(1) { background: var(--traffic-red); }
+    .snap-traffic span:nth-child(2) { background: var(--traffic-yellow); }
+    .snap-traffic span:nth-child(3) { background: var(--traffic-green); }
+    .snap-browser { left: 24%; top: 8%; width: 70%; height: 76%; }
+    .snap-address { flex: 0 1 48%; height: 23px; margin: 0 auto; display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; color: var(--text-tertiary); background: var(--surface-subtle); font-size: 11px; }
+    .snap-article { width: 70%; margin: 44px auto; color: var(--article-ink); }
+    .snap-article h1 { margin: 0 0 14px; font-family: Georgia, serif; font-size: 40px; line-height: 1.05; }
+    .snap-article p { margin: 0 0 12px; color: var(--article-muted); font-family: Georgia, serif; font-size: 15px; line-height: 1.6; }
+    .snap-terminal { left: 5%; top: 17%; width: 43%; height: 56%; }
+    .snap-terminal-body { padding: 12px 14px; color: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.7; white-space: pre; }
+
+    .snap-dock { position: absolute; left: 50%; bottom: 5px; height: 50px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--menubar); }
+    .snap-dock span { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(150deg, var(--accent-soft), var(--accent)); }
+    .snap-dock span:nth-child(3n) { background: linear-gradient(150deg, var(--surface-subtle), var(--text-tertiary)); }
+    .snap-screen[data-dock="hidden"] .snap-dock { display: none; }
+
+    .snap-highlight { position: absolute; z-index: 10; pointer-events: none; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask); }
+    .snap-highlight[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <main class="snap-screen" id="screen" data-dock="pinned" aria-label="截图选区遮罩：吸附区域">
+    <article class="snap-window snap-browser" data-snap="window" aria-hidden="true">
+      <header class="snap-titlebar"><div class="snap-traffic"><span></span><span></span><span></span></div><div class="snap-address">example.com/designing-calm-software</div></header>
+      <div class="snap-article"><h1>Designing Calm Software</h1><p>Good utility software stays close to the task. It reduces ceremony, preserves context, and makes the next action obvious.</p><p>The best interface is the one that leaves attention for the work itself.</p></div>
+    </article>
+    <article class="snap-window snap-terminal" data-snap="window" aria-hidden="true">
+      <header class="snap-titlebar"><div class="snap-traffic"><span></span><span></span><span></span></div><span>zsh — 120×32</span></header>
+      <div class="snap-terminal-body">~/projects $ git status
+On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
+~/projects $ swift build
+Building for debugging...
+Build complete! (4.21s)
+~/projects $ </div>
+    </article>
+    <header class="snap-menubar" data-snap="menubar" aria-hidden="true">
+      <div class="snap-menus"><span>Terminal</span><span>Shell</span><span>Edit</span><span>View</span><span>Window</span></div>
+      <div class="snap-status">
+        <span class="snap-status-item" data-snap="status"><svg viewBox="0 0 24 24"><path d="M12 20h.01M2 8.82a15 15 0 0 1 20 0M5 12.86a10 10 0 0 1 14 0M8.5 16.43a5 5 0 0 1 7 0"/></svg></span>
+        <span class="snap-status-item" data-snap="status"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2M6 11v2"/></svg></span>
+        <span class="snap-status-item" data-snap="status"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <span class="snap-status-item" data-snap="status">10月28日 周二 21:05</span>
+      </div>
+    </header>
+    <nav class="snap-dock" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></nav>
+    <div class="snap-highlight" id="highlight" hidden></div>
+    <div class="capture-toolbar" id="toolbar" data-shared-block="capture-toolbar" aria-label="选区底部贴附式操作栏" hidden></div>
+  </main>
+
+  <div data-demo-harness>
+    <span class="dh-tag">演示 ·</span>
+    <div class="dh-group">
+      <span class="dh-title">Dock</span>
+      <div class="dh-opts" id="dock-options">
+        <button type="button" class="dh-opt" data-dock-option="pinned" aria-pressed="true">固定显示</button>
+        <button type="button" class="dh-opt" data-dock-option="hidden" aria-pressed="false">自动隐藏</button>
+      </div>
+    </div>
+    <div class="dh-group dh-actions">
+      <span class="dh-title">操作</span>
+      <div class="dh-acts"><button type="button" class="dh-act" id="restart">重新开始截图</button></div>
+    </div>
+    <p class="dh-note">App 内无这些控件：Dock 是否自动隐藏由系统的 Dock 设置决定；重新开始等同再按一次截图快捷键。</p>
+  </div>
+  <script src="../demo-harness.js"></script>
+  <script src="../_shared/capture-toolbar.js"></script>
+  <script>
+    const screen = document.querySelector('#screen');
+    const highlight = document.querySelector('#highlight');
+    const toolbar = document.querySelector('#toolbar');
+    CaptureToolbar.render(toolbar);
+
+    const DRAG_THRESHOLD = 3;
+    const DOCK_STRIP_HEIGHT = 60;
+    let phase = 'picking';        // picking → dragging → selected
+    let pointer = { x: 0, y: 0 };
+    let press = null;
+
+    function local(rect) {
+      const s = screen.getBoundingClientRect();
+      return { x: rect.left - s.left, y: rect.top - s.top, w: rect.width, h: rect.height };
+    }
+    function contains(r, p) { return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h; }
+
+    // Front to back, as the window list orders them: status icons, menu bar, Dock strip, windows, desktop.
+    function snapRegion(p) {
+      const full = { x: 0, y: 0, w: screen.clientWidth, h: screen.clientHeight };
+      for (const item of screen.querySelectorAll('[data-snap="status"]')) {
+        const r = local(item.getBoundingClientRect());
+        if (contains(r, p)) return r;
+      }
+      const menubar = local(screen.querySelector('[data-snap="menubar"]').getBoundingClientRect());
+      if (contains(menubar, p)) return menubar;
+      if (screen.dataset.dock === 'pinned') {
+        const strip = { x: 0, y: full.h - DOCK_STRIP_HEIGHT, w: full.w, h: DOCK_STRIP_HEIGHT };
+        if (contains(strip, p)) return strip;
+      }
+      const windows = [...screen.querySelectorAll('[data-snap="window"]')].reverse();
+      for (const win of windows) {
+        const r = local(win.getBoundingClientRect());
+        if (contains(r, p)) return r;
+      }
+      return full;
+    }
+
+    function show(r) {
+      Object.assign(highlight.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+      highlight.hidden = false;
+    }
+    function placeToolbar(r) {
+      toolbar.hidden = false;
+      const gap = 4;
+      const top = Math.min(r.y + r.h + gap, screen.clientHeight - toolbar.offsetHeight - 8);
+      const left = Math.min(r.x, screen.clientWidth - toolbar.offsetWidth - 8);
+      Object.assign(toolbar.style, { left: `${Math.max(8, left)}px`, top: `${top}px` });
+    }
+    function point(event) {
+      const s = screen.getBoundingClientRect();
+      return { x: event.clientX - s.left, y: event.clientY - s.top };
+    }
+    function restart() {
+      phase = 'picking';
+      press = null;
+      toolbar.hidden = true;
+      show(snapRegion(pointer));
+    }
+
+    screen.addEventListener('mousemove', (event) => {
+      pointer = point(event);
+      if (phase === 'picking') {
+        if (press && Math.hypot(pointer.x - press.x, pointer.y - press.y) > DRAG_THRESHOLD) phase = 'dragging';
+        else return void show(snapRegion(pointer));
+      }
+      if (phase === 'dragging') {
+        show({ x: Math.min(press.x, pointer.x), y: Math.min(press.y, pointer.y), w: Math.abs(pointer.x - press.x), h: Math.abs(pointer.y - press.y) });
+      }
+    });
+    screen.addEventListener('mousedown', (event) => {
+      if (phase === 'selected') return;
+      press = point(event);
+    });
+    window.addEventListener('mouseup', (event) => {
+      if (!press || phase === 'selected') return;
+      const end = point(event);
+      const r = phase === 'dragging'
+        ? { x: Math.min(press.x, end.x), y: Math.min(press.y, end.y), w: Math.abs(end.x - press.x), h: Math.abs(end.y - press.y) }
+        : snapRegion(press);
+      press = null;
+      phase = 'selected';
+      show(r);
+      placeToolbar(r);
+    });
+    window.addEventListener('keydown', (event) => { if (event.key === 'Escape') restart(); });
+
+    document.querySelector('#dock-options').addEventListener('click', (event) => {
+      const option = event.target.closest('[data-dock-option]');
+      if (!option) return;
+      screen.dataset.dock = option.dataset.dockOption;
+      for (const button of document.querySelectorAll('[data-dock-option]')) button.setAttribute('aria-pressed', String(button === option));
+      restart();
+    });
+    document.querySelector('#restart').addEventListener('click', restart);
+
+    // The overlay opens with the pointer where it was: start over the Terminal window.
+    const terminal = local(screen.querySelector('.snap-terminal').getBoundingClientRect());
+    pointer = { x: terminal.x + terminal.w / 2, y: terminal.y + terminal.h / 2 };
+    restart();
+  </script>
+</body>
+</html>
