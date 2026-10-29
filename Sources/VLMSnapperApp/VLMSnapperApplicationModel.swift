@@ -1283,7 +1283,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private func showCaptureFailure() {
         let alert = NSAlert()
-        captureOverlayController.prepareFailurePresentation(alert)
         alert.alertStyle = .warning
         alert.messageText = VLMSnapperLocalization.localizedString(
             forKey: "capture.failed.title"
@@ -1301,8 +1300,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 forKey: "action.cancel"
             )
         )
-        if alert.runModal() == .alertFirstButtonReturn {
-            capture()
+        Task {
+            // A retained overlay's toolbar takes no action while the alert is shown over it.
+            captureActionInProgress = true
+            let response = await captureOverlayController.presentAlert(alert)
+            captureActionInProgress = false
+            if response == .alertFirstButtonReturn {
+                capture()
+            }
         }
     }
 
@@ -1449,7 +1454,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     /// Copy and Save end the capture like Cancel: no history, no model request (v1-core::REQ-008, REQ-009).
     private func copyCapturedImage(_ png: Data, generation: UUID) async {
         guard dependencies.captureClipboard.write(png: png) else {
-            presentCaptureActionFailure(
+            await presentCaptureActionFailure(
                 title: VLMSnapperLocalization.localizedString(forKey: "capture.copyFailed.title"),
                 body: VLMSnapperLocalization.localizedString(forKey: "capture.copyFailed.body")
             )
@@ -1459,10 +1464,13 @@ final class VLMSnapperApplicationModel: ObservableObject {
     }
 
     private func saveCapturedImage(_ png: Data, generation: UUID) async {
+        // The save panel is not modal, so the overlay is held still while it is open (v1-core::REQ-009/AC-04).
+        captureOverlayController.setSelectionEnabled(false)
         let outcome = await dependencies.captureImageSaver.save(
             png: png,
             suggestedName: CaptureImageFileName.suggested()
         )
+        captureOverlayController.setSelectionEnabled(true)
         guard activeCaptureGeneration == generation else { return }
         switch outcome {
         case .saved:
@@ -1470,20 +1478,19 @@ final class VLMSnapperApplicationModel: ObservableObject {
         case .cancelled:
             break
         case .failed:
-            presentCaptureActionFailure(
+            await presentCaptureActionFailure(
                 title: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.title"),
                 body: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.body")
             )
         }
     }
 
-    private func presentCaptureActionFailure(title: String, body: String) {
+    private func presentCaptureActionFailure(title: String, body: String) async {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = title
         alert.informativeText = body
-        captureOverlayController.prepareFailurePresentation(alert)
-        alert.runModal()
+        _ = await captureOverlayController.presentAlert(alert)
     }
 
     private func openWorkspace(

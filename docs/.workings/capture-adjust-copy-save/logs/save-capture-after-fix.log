@@ -1,0 +1,509 @@
+== version
+$ git rev-parse HEAD
+c568bf3974c0fd1107698452ba7d6ea5373caa7b
+$ git status --porcelain --untracked-files=all
+ M Sources/VLMSnapperApp/CaptureImageExport.swift
+ M Sources/VLMSnapperApp/VLMSnapperApplicationModel.swift
+ M Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+ M Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift
+ M VLMSnapper/UI/FrozenCaptureOverlayController.swift
+?? :-
+-- manifest
+f7ed62b8d54b88fbb0c8799ed92d41021ec01249  Sources/VLMSnapperApp/CaptureImageExport.swift
+37a9a5b52a036e397a08f2e72a5442d5dc8b3495  Sources/VLMSnapperApp/VLMSnapperApplicationModel.swift
+ad2aeb19a042e7c4b624da159925b5c9d644e55d  Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+15e61c3c8bd2cbe31576c203e0ac7c662070fff5  Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift
+9423a6044837702494651defea91e125293bab0f  VLMSnapper/UI/FrozenCaptureOverlayController.swift
+208ccf64622a6373abcaded4092ab9be44679863  :-
+== command: /usr/bin/xcrun swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror
+[0/1] Planning build
+Building for debugging...
+[0/19] Write sources
+[1/19] Write swift-version--58304C5D6DBC2206.txt
+[2/19] Compiling VLMSnapperProcessShim VLMSnapperProcessShim.c
+[3/19] Compiling VLMSnapperHotKeyShim VLMSnapperHotKeyShim.c
+[5/69] Compiling VLMSnapperReleaseSupport DeveloperIDProvisioningProfile.swift
+[6/69] Emitting module VLMSnapperReleaseSupport
+[7/69] Compiling VLMSnapperReleaseSupport DeveloperIDProfilePreparation.swift
+[8/71] Emitting module VLMSnapperSigningTool
+[9/71] Compiling VLMSnapperSigningTool main.swift
+[10/70] Compiling VLMSnapperCore AlignedTranslationParser.swift
+[11/70] Compiling VLMSnapperCore AppleKeychainProviderCredentialStore.swift
+[12/70] Compiling VLMSnapperCore ApplicationLanguage.swift
+[13/70] Compiling VLMSnapperCore ApplicationWorkflow.swift
+[14/70] Compiling VLMSnapperCore CaptureCoordinateMapper.swift
+[15/70] Compiling VLMSnapperCore CaptureFreezeCoordinator.swift
+[16/75] Compiling VLMSnapperCore LoginItemCoordinator.swift
+[17/75] Compiling VLMSnapperCore ManagedScreenshotRoot.swift
+[18/75] Compiling VLMSnapperCore OnboardingSession.swift
+[19/75] Compiling VLMSnapperCore OpenAIResponsesStreamDecoder.swift
+[20/75] Compiling VLMSnapperCore OperationWorkspaceSession.swift
+[20/75] Linking VLMSnapperSigningTool
+[21/75] Applying VLMSnapperSigningTool
+[23/75] Compiling VLMSnapperCore DiagnosticLogStore.swift
+[24/75] Compiling VLMSnapperCore ExtractionCoordinator.swift
+[25/75] Compiling VLMSnapperCore FileProviderMetadataStore.swift
+[26/75] Compiling VLMSnapperCore FileSystemScreenshotStore.swift
+[27/75] Compiling VLMSnapperCore GeminiStreamDecoder.swift
+[28/75] Emitting module VLMSnapperCore
+[29/75] Compiling VLMSnapperCore CaptureSelectionSession.swift
+[30/75] Compiling VLMSnapperCore CaptureSnapRegionResolver.swift
+[31/75] Compiling VLMSnapperCore CarbonGlobalShortcutBackend.swift
+[32/75] Compiling VLMSnapperCore DataProtectionKeychainSmokeTest.swift
+[33/75] Compiling VLMSnapperCore DeepSeekChatStreamDecoder.swift
+[34/75] Compiling VLMSnapperCore GlobalShortcutCoordinator.swift
+[35/75] Compiling VLMSnapperCore HistoryDatabaseResetter.swift
+[36/75] Compiling VLMSnapperCore HistoryManagement.swift
+[37/75] Compiling VLMSnapperCore HistoryRetention.swift
+[38/75] Compiling VLMSnapperCore LiveProviderContractGate.swift
+[39/75] Compiling VLMSnapperCore OrderedStructuredOutputParser.swift
+[40/75] Compiling VLMSnapperCore PersistedOperationWorkspaceRunner.swift
+[41/75] Compiling VLMSnapperCore PrimaryInstanceCoordinator.swift
+[42/75] Compiling VLMSnapperCore ProviderAPIKeyInput.swift
+[43/75] Compiling VLMSnapperCore ProviderAdapterError.swift
+[44/75] Compiling VLMSnapperCore ProviderPreparedOperationStreamer.swift
+[45/75] Compiling VLMSnapperCore ProviderRequestFactory.swift
+[46/75] Compiling VLMSnapperCore ProviderSetupSession.swift
+[47/75] Compiling VLMSnapperCore ProviderStreamContract.swift
+[48/75] Compiling VLMSnapperCore ProviderStreamTimeout.swift
+[49/75] Compiling VLMSnapperCore ReleaseManifest.swift
+[50/75] Compiling VLMSnapperCore SQLiteHistoryStore.swift
+[51/75] Compiling VLMSnapperCore SRGBPNGCropper.swift
+[52/75] Compiling VLMSnapperCore ScreenCaptureKitFrozenDisplayCapturer.swift
+[53/75] Compiling VLMSnapperCore ScreenCapturePermissionCoordinator.swift
+[54/75] Compiling VLMSnapperCore ProviderAdapterExecutor.swift
+[55/75] Compiling VLMSnapperCore ProviderConfiguration.swift
+[56/75] Compiling VLMSnapperCore ProviderHTTPErrorNormalizer.swift
+[57/75] Compiling VLMSnapperCore ProviderHTTPStreaming.swift
+[58/75] Compiling VLMSnapperCore ProviderModelCatalog.swift
+[59/75] Compiling VLMSnapperCore ServerSentEventDecoder.swift
+[60/75] Compiling VLMSnapperCore TargetLanguageCatalog.swift
+[61/75] Compiling VLMSnapperCore TranslationSegment.swift
+[62/75] Compiling VLMSnapperCore UpdateLifecycle.swift
+[63/75] Compiling VLMSnapperCore UserDefaultsPermissionRequestHistoryStore.swift
+[64/111] Emitting module VLMSnapperSparkle
+[65/111] Compiling VLMSnapperSparkle SparkleUpdateDriver.swift
+[66/111] Emitting module VLMSnapperLiveProviderGate
+[67/111] Compiling VLMSnapperLiveProviderGate main.swift
+[67/111] Write Objects.LinkFileList
+[69/111] Compiling VLMSnapperUI VLMSnapperIcons.swift
+[70/111] Compiling VLMSnapperUI VLMSnapperLocalization.swift
+[71/111] Compiling VLMSnapperUI VLMSnapperStrings.swift
+[72/114] Compiling VLMSnapperUI ProviderFieldLayout.swift
+[73/114] Compiling VLMSnapperUI ProviderModelPicker.swift
+[74/114] Compiling VLMSnapperUI ProviderPasteMenu.swift
+[75/114] Compiling VLMSnapperUI ScreenCapturePermissionRecoveryView.swift
+[76/114] Compiling VLMSnapperUI StoragePrivacyDetailView.swift
+[77/114] Compiling VLMSnapperUI VLMSnapperApplicationMenu.swift
+[77/114] Linking VLMSnapperLiveProviderGate
+[78/114] Applying VLMSnapperLiveProviderGate
+[80/114] Emitting module VLMSnapperUI
+[81/114] Compiling VLMSnapperUI VLMSnapperTheme.swift
+[82/114] Compiling VLMSnapperUI VLMSnapperUIConstants.swift
+[83/114] Compiling VLMSnapperUI resource_bundle_accessor.swift
+[84/114] Compiling VLMSnapperUI OnboardingView.swift
+[85/114] Compiling VLMSnapperUI ProviderAPIKeyField.swift
+[86/114] Compiling VLMSnapperUI ProviderCredentialEditor.swift
+[87/114] Compiling VLMSnapperUI ProviderSettingsPresentation.swift
+[88/114] Compiling VLMSnapperUI ResultWorkspaceView.swift
+[89/114] Compiling VLMSnapperUI ResultWorkspaceWindowController.swift
+[90/114] Compiling VLMSnapperUI ApplicationTerminationSheet.swift
+[91/114] Compiling VLMSnapperUI BilingualResultView.swift
+[92/114] Compiling VLMSnapperUI CaptureOperationToolbar.swift
+[93/114] Compiling VLMSnapperUI CaptureToolbarPanelController.swift
+[94/114] Compiling VLMSnapperUI FrozenCaptureOverlayController.swift
+[95/114] Compiling VLMSnapperUI GlobalShortcutRecorder.swift
+[96/114] Compiling VLMSnapperUI HistoryImagePreview.swift
+[97/114] Compiling VLMSnapperUI HistoryRetryPresentation.swift
+[98/114] Compiling VLMSnapperUI MenuBarPanelController.swift
+[99/114] Compiling VLMSnapperUI MenuBarPanelView.swift
+[100/114] Compiling VLMSnapperUI NativeLifecycleAdapters.swift
+[101/114] Compiling VLMSnapperUI OnboardingContainerView.swift
+[102/114] Compiling VLMSnapperUI ManagementCenterView.swift
+[103/114] Compiling VLMSnapperUI ManagementCenterWindowController.swift
+[104/114] Compiling VLMSnapperUI MarkdownResultView.swift
+[105/114] Compiling VLMSnapperUI MenuBarContainerView.swift
+[106/129] Compiling VLMSnapperApp ApplicationStartupDependencies.swift
+[107/129] Compiling VLMSnapperApp main.swift
+[108/129] Compiling VLMSnapperApp CaptureDisplayMonitor.swift
+[109/129] Compiling VLMSnapperApp ApplicationModelDependencies.swift
+[110/129] Compiling VLMSnapperApp CaptureImageExport.swift
+[111/129] Compiling VLMSnapperAXFixture main.swift
+[112/129] Emitting module VLMSnapperAXFixture
+[113/129] Compiling VLMSnapperApp ApplicationDirectories.swift
+[114/129] Emitting module VLMSnapperApp
+[114/129] Write Objects.LinkFileList
+[116/129] Emitting module VLMSnapperUIHarness
+[117/129] Compiling VLMSnapperUIHarness VLMSnapperUIHarness.swift
+[118/129] Compiling VLMSnapperApp CoreGraphicsCaptureWindowListing.swift
+[119/129] Compiling VLMSnapperApp VLMSnapperApplicationDelegate.swift
+[120/129] Compiling VLMSnapperUIHarness ProviderEditingSmoke.swift
+[120/129] Write Objects.LinkFileList
+[121/129] Linking VLMSnapperAXFixture
+[122/129] Applying VLMSnapperAXFixture
+[123/129] Linking VLMSnapperUIHarness
+[124/129] Applying VLMSnapperUIHarness
+[126/129] Compiling VLMSnapperApp VLMSnapperApplicationModel.swift
+[126/129] Write Objects.LinkFileList
+[127/129] Linking VLMSnapperApp
+[128/129] Applying VLMSnapperApp
+Build complete! (8.83s)
+== exit: 0
+== command: /usr/bin/xcrun swift build --build-tests
+[0/1] Planning build
+Building for debugging...
+[0/20] Write sources
+[1/20] Compiling VLMSnapperProcessShim VLMSnapperProcessShim.c
+[2/20] Write swift-version--58304C5D6DBC2206.txt
+[3/20] Compiling VLMSnapperHotKeyShim VLMSnapperHotKeyShim.c
+[5/70] Compiling VLMSnapperReleaseSupport DeveloperIDProfilePreparation.swift
+[6/70] Emitting module VLMSnapperReleaseSupport
+[7/70] Compiling VLMSnapperReleaseSupport DeveloperIDProvisioningProfile.swift
+[8/72] Emitting module VLMSnapperSigningTool
+[9/72] Compiling VLMSnapperSigningTool main.swift
+[10/71] Compiling VLMSnapperCore AlignedTranslationParser.swift
+[11/71] Compiling VLMSnapperCore AppleKeychainProviderCredentialStore.swift
+[12/71] Compiling VLMSnapperCore ApplicationLanguage.swift
+[13/71] Compiling VLMSnapperCore ApplicationWorkflow.swift
+[14/71] Compiling VLMSnapperCore CaptureCoordinateMapper.swift
+[15/71] Compiling VLMSnapperCore CaptureFreezeCoordinator.swift
+[16/76] Compiling VLMSnapperCore OrderedStructuredOutputParser.swift
+[17/76] Compiling VLMSnapperCore PersistedOperationWorkspaceRunner.swift
+[18/76] Compiling VLMSnapperCore PrimaryInstanceCoordinator.swift
+[19/76] Compiling VLMSnapperCore ProviderAPIKeyInput.swift
+[20/76] Compiling VLMSnapperCore ProviderAdapterError.swift
+[20/76] Linking VLMSnapperSigningTool
+[21/76] Applying VLMSnapperSigningTool
+[23/76] Compiling VLMSnapperCore LoginItemCoordinator.swift
+[24/76] Compiling VLMSnapperCore ManagedScreenshotRoot.swift
+[25/76] Compiling VLMSnapperCore OnboardingSession.swift
+[26/76] Compiling VLMSnapperCore OpenAIResponsesStreamDecoder.swift
+[27/76] Compiling VLMSnapperCore OperationWorkspaceSession.swift
+[28/76] Compiling VLMSnapperCore ProviderPreparedOperationStreamer.swift
+[29/76] Compiling VLMSnapperCore ProviderRequestFactory.swift
+[30/76] Compiling VLMSnapperCore ProviderSetupSession.swift
+[31/76] Compiling VLMSnapperCore ProviderStreamContract.swift
+[32/76] Compiling VLMSnapperCore ProviderStreamTimeout.swift
+[33/76] Compiling VLMSnapperCore CaptureSelectionSession.swift
+[34/76] Compiling VLMSnapperCore CaptureSnapRegionResolver.swift
+[35/76] Compiling VLMSnapperCore CarbonGlobalShortcutBackend.swift
+[36/76] Compiling VLMSnapperCore DataProtectionKeychainSmokeTest.swift
+[37/76] Compiling VLMSnapperCore DeepSeekChatStreamDecoder.swift
+[38/76] Emitting module VLMSnapperCore
+[39/76] Compiling VLMSnapperCore DiagnosticLogStore.swift
+[40/76] Compiling VLMSnapperCore ExtractionCoordinator.swift
+[41/76] Compiling VLMSnapperCore FileProviderMetadataStore.swift
+[42/76] Compiling VLMSnapperCore FileSystemScreenshotStore.swift
+[43/76] Compiling VLMSnapperCore GeminiStreamDecoder.swift
+[44/76] Compiling VLMSnapperCore GlobalShortcutCoordinator.swift
+[45/76] Compiling VLMSnapperCore HistoryDatabaseResetter.swift
+[46/76] Compiling VLMSnapperCore HistoryManagement.swift
+[47/76] Compiling VLMSnapperCore HistoryRetention.swift
+[48/76] Compiling VLMSnapperCore LiveProviderContractGate.swift
+[49/76] Compiling VLMSnapperCore ProviderAdapterExecutor.swift
+[50/76] Compiling VLMSnapperCore ProviderConfiguration.swift
+[51/76] Compiling VLMSnapperCore ProviderHTTPErrorNormalizer.swift
+[52/76] Compiling VLMSnapperCore ProviderHTTPStreaming.swift
+[53/76] Compiling VLMSnapperCore ProviderModelCatalog.swift
+[54/76] Compiling VLMSnapperCore ReleaseManifest.swift
+[55/76] Compiling VLMSnapperCore SQLiteHistoryStore.swift
+[56/76] Compiling VLMSnapperCore SRGBPNGCropper.swift
+[57/76] Compiling VLMSnapperCore ScreenCaptureKitFrozenDisplayCapturer.swift
+[58/76] Compiling VLMSnapperCore ScreenCapturePermissionCoordinator.swift
+[59/76] Compiling VLMSnapperCore ServerSentEventDecoder.swift
+[60/76] Compiling VLMSnapperCore TargetLanguageCatalog.swift
+[61/76] Compiling VLMSnapperCore TranslationSegment.swift
+[62/76] Compiling VLMSnapperCore UpdateLifecycle.swift
+[63/76] Compiling VLMSnapperCore UserDefaultsPermissionRequestHistoryStore.swift
+[64/112] Emitting module VLMSnapperSparkle
+[65/112] Compiling VLMSnapperSparkle SparkleUpdateDriver.swift
+[66/112] Emitting module VLMSnapperLiveProviderGate
+[67/112] Compiling VLMSnapperLiveProviderGate main.swift
+[67/112] Write Objects.LinkFileList
+[69/112] Compiling VLMSnapperUI VLMSnapperIcons.swift
+[70/112] Compiling VLMSnapperUI VLMSnapperLocalization.swift
+[71/112] Compiling VLMSnapperUI VLMSnapperStrings.swift
+[72/115] Compiling VLMSnapperUI ProviderFieldLayout.swift
+[73/115] Compiling VLMSnapperUI ProviderModelPicker.swift
+[74/115] Compiling VLMSnapperUI ProviderPasteMenu.swift
+[74/115] Linking VLMSnapperLiveProviderGate
+[76/115] Compiling VLMSnapperUI ScreenCapturePermissionRecoveryView.swift
+[77/115] Compiling VLMSnapperUI StoragePrivacyDetailView.swift
+[78/115] Compiling VLMSnapperUI VLMSnapperApplicationMenu.swift
+[78/115] Applying VLMSnapperLiveProviderGate
+[80/115] Emitting module VLMSnapperUI
+[81/115] Compiling VLMSnapperUI OnboardingView.swift
+[82/115] Compiling VLMSnapperUI ProviderAPIKeyField.swift
+[83/115] Compiling VLMSnapperUI ProviderCredentialEditor.swift
+[84/115] Compiling VLMSnapperUI VLMSnapperTheme.swift
+[85/115] Compiling VLMSnapperUI VLMSnapperUIConstants.swift
+[86/115] Compiling VLMSnapperUI resource_bundle_accessor.swift
+[87/115] Compiling VLMSnapperUI ProviderSettingsPresentation.swift
+[88/115] Compiling VLMSnapperUI ResultWorkspaceView.swift
+[89/115] Compiling VLMSnapperUI ResultWorkspaceWindowController.swift
+[90/115] Compiling VLMSnapperUI ApplicationTerminationSheet.swift
+[91/115] Compiling VLMSnapperUI BilingualResultView.swift
+[92/115] Compiling VLMSnapperUI CaptureOperationToolbar.swift
+[93/115] Compiling VLMSnapperUI CaptureToolbarPanelController.swift
+[94/115] Compiling VLMSnapperUI FrozenCaptureOverlayController.swift
+[95/115] Compiling VLMSnapperUI GlobalShortcutRecorder.swift
+[96/115] Compiling VLMSnapperUI HistoryImagePreview.swift
+[97/115] Compiling VLMSnapperUI HistoryRetryPresentation.swift
+[98/115] Compiling VLMSnapperUI MenuBarPanelController.swift
+[99/115] Compiling VLMSnapperUI MenuBarPanelView.swift
+[100/115] Compiling VLMSnapperUI NativeLifecycleAdapters.swift
+[101/115] Compiling VLMSnapperUI OnboardingContainerView.swift
+[102/115] Compiling VLMSnapperUI ManagementCenterView.swift
+[103/115] Compiling VLMSnapperUI ManagementCenterWindowController.swift
+[104/115] Compiling VLMSnapperUI MarkdownResultView.swift
+[105/115] Compiling VLMSnapperUI MenuBarContainerView.swift
+[106/130] Compiling VLMSnapperApp CoreGraphicsCaptureWindowListing.swift
+[107/130] Compiling VLMSnapperApp main.swift
+[108/130] Compiling VLMSnapperApp ApplicationStartupDependencies.swift
+[109/130] Compiling VLMSnapperApp CaptureDisplayMonitor.swift
+[110/130] Compiling VLMSnapperApp ApplicationModelDependencies.swift
+[111/130] Compiling VLMSnapperApp CaptureImageExport.swift
+[112/130] Emitting module VLMSnapperApp
+[113/130] Compiling VLMSnapperApp ApplicationDirectories.swift
+[114/130] Emitting module VLMSnapperAXFixture
+[115/130] Compiling VLMSnapperAXFixture main.swift
+[115/130] Write Objects.LinkFileList
+[117/130] Emitting module VLMSnapperUIHarness
+[118/130] Compiling VLMSnapperUIHarness VLMSnapperUIHarness.swift
+[119/130] Compiling VLMSnapperUIHarness ProviderEditingSmoke.swift
+[119/130] Write Objects.LinkFileList
+[121/130] Compiling VLMSnapperApp VLMSnapperApplicationDelegate.swift
+[121/130] Linking VLMSnapperAXFixture
+[122/130] Applying VLMSnapperAXFixture
+[123/130] Linking VLMSnapperUIHarness
+[124/130] Applying VLMSnapperUIHarness
+[126/130] Compiling VLMSnapperApp VLMSnapperApplicationModel.swift
+[126/130] Write Objects.LinkFileList
+[127/131] Linking VLMSnapperApp
+[128/131] Applying VLMSnapperApp
+[130/133] Compiling VLMSnapperAppTests ProviderApplicationTests.swift
+[131/133] Emitting module VLMSnapperAppTests
+[131/133] Write Objects.LinkFileList
+[132/133] Linking VLMSnapperPackageTests
+Build complete! (22.10s)
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter CaptureSelectionSessionTests|CaptureSnapRegionResolverTests|CaptureFreezeCoordinatorTests|CaptureCoordinateMapperTests|FrozenCaptureOverlayControllerTests|Ticket10RenderingTests
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 12:50:06.994.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 12:50:06.995.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 12:50:06.995.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 12:50:06.995.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Capture coordinate mapper" started.
+◇ Suite "Ticket 10 UI rendering" started.
+◇ Suite "Capture snap region resolver" started.
+◇ Suite "Capture freeze coordinator" started.
+◇ Test "a status item is snapped on its own and the rest of the menu bar as a whole" started.
+◇ Test "production toolbar renders localized target-language selection" started.
+◇ Suite "Frozen capture overlay" started.
+◇ Suite "Capture selection session" started.
+◇ Test "the desktop snaps to the whole display" started.
+◇ Test "the Dock strip is one region and an auto-hidden Dock falls through" started.
+◇ Test "own, transparent, off-screen and system overlay windows are skipped" started.
+◇ Test "regions stay on the pointer's display and skip windows under two pixels" started.
+◇ Test "the two-pixel minimum counts physical pixels in both directions" started.
+◇ Test "a Dock on the left or right side is one strip along that edge" started.
+◇ Test "points outside the overlay clamp to the frozen image bounds" started.
+◇ Test "missing permission is recovered separately and capture is not attempted" started.
+◇ Test "the topmost window under the pointer is snapped as a whole window" started.
+◇ Test "all per-display failures exit without a selection session" started.
+◇ Test "one display failure preserves successful frozen displays" started.
+◇ Test "a permission denial reported during discovery uses permission recovery" started.
+◇ Test "cancellation wins when a suspended crop later fails" started.
+◇ Test "cancelling while the crop is suspended cannot resurrect the session" started.
+◇ Test "AppKit points map to top-left physical pixels on a Retina display" started.
+◇ Test "a selection smaller than two physical pixels is rejected" started.
+◇ Test "selection is cropped from the trigger-time frozen frame and keeps the frames for adjustment" started.
+◇ Test "a selected display changing during crop preserves other displays" started.
+◇ Test "a display change after a selection invalidates that display" started.
+◇ Test "cancelling after a selection ends the session" started.
+◇ Test "a confirmed selection can be adjusted and is cropped again from the same frame" started.
+◇ Test "disconnecting every frozen display makes the session unavailable" started.
+◇ Test "an adjustment under two pixels is rejected and the selection can still be adjusted" started.
+◇ Test "geometry changes invalidate only the affected display and cancel its drag" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+✔ Test "own, transparent, off-screen and system overlay windows are skipped" passed after 0.004 seconds.
+✔ Test "a status item is snapped on its own and the rest of the menu bar as a whole" passed after 0.004 seconds.
+✔ Test "missing permission is recovered separately and capture is not attempted" passed after 0.004 seconds.
+✔ Test "regions stay on the pointer's display and skip windows under two pixels" passed after 0.004 seconds.
+✔ Test "a Dock on the left or right side is one strip along that edge" passed after 0.004 seconds.
+✔ Test "the two-pixel minimum counts physical pixels in both directions" passed after 0.004 seconds.
+✔ Test "the desktop snaps to the whole display" passed after 0.004 seconds.
+✔ Test "the Dock strip is one region and an auto-hidden Dock falls through" passed after 0.004 seconds.
+✔ Test "points outside the overlay clamp to the frozen image bounds" passed after 0.004 seconds.
+✔ Test "the topmost window under the pointer is snapped as a whole window" passed after 0.004 seconds.
+✔ Test "a permission denial reported during discovery uses permission recovery" passed after 0.004 seconds.
+✔ Test "all per-display failures exit without a selection session" passed after 0.004 seconds.
+✔ Test "AppKit points map to top-left physical pixels on a Retina display" passed after 0.004 seconds.
+✔ Test "one display failure preserves successful frozen displays" passed after 0.004 seconds.
+✔ Test "selection is cropped from the trigger-time frozen frame and keeps the frames for adjustment" passed after 0.004 seconds.
+✔ Test "geometry changes invalidate only the affected display and cancel its drag" passed after 0.004 seconds.
+✔ Test "a confirmed selection can be adjusted and is cropped again from the same frame" passed after 0.004 seconds.
+✔ Test "cancelling after a selection ends the session" passed after 0.004 seconds.
+✔ Test "an adjustment under two pixels is rejected and the selection can still be adjusted" passed after 0.004 seconds.
+✔ Test "a display change after a selection invalidates that display" passed after 0.004 seconds.
+✔ Test "disconnecting every frozen display makes the session unavailable" passed after 0.004 seconds.
+✔ Suite "Capture snap region resolver" passed after 0.004 seconds.
+✔ Suite "Capture coordinate mapper" passed after 0.004 seconds.
+✔ Suite "Capture freeze coordinator" passed after 0.004 seconds.
+✔ Test "a selection smaller than two physical pixels is rejected" passed after 0.004 seconds.
+✔ Test "cancellation wins when a suspended crop later fails" passed after 0.004 seconds.
+✔ Test "cancelling while the crop is suspended cannot resurrect the session" passed after 0.004 seconds.
+✔ Test "a selected display changing during crop preserves other displays" passed after 0.004 seconds.
+✔ Suite "Capture selection session" passed after 0.004 seconds.
+✔ Test "production toolbar renders localized target-language selection" passed after 0.161 seconds.
+✔ Suite "Ticket 10 UI rendering" passed after 0.161 seconds.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 0.196 seconds.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+✔ Test "the pending overlay covers each display without an opening animation" passed after 0.015 seconds.
+◇ Test "a click selects the whole snap region under the pointer" started.
+✔ Test "a click selects the whole snap region under the pointer" passed after 0.018 seconds.
+◇ Test "a press moved past three points draws a manual rectangle instead" started.
+✔ Test "a press moved past three points draws a manual rectangle instead" passed after 0.017 seconds.
+◇ Test "a click before the window list and the frame completes once both arrive" started.
+✔ Test "a click before the window list and the frame completes once both arrive" passed after 0.017 seconds.
+◇ Test "without a window list a click selects nothing" started.
+✔ Test "without a window list a click selects nothing" passed after 0.008 seconds.
+◇ Test "the overlay opens on the snap region under the pointer and follows it" started.
+✔ Test "the overlay opens on the snap region under the pointer and follows it" passed after 0.023 seconds.
+◇ Test "a replacement's window list does not reach the overlay it may roll back to" started.
+✔ Test "a replacement's window list does not reach the overlay it may roll back to" passed after 0.029 seconds.
+◇ Test "pointer jitter of up to three points while pressed is still a click" started.
+✔ Test "pointer jitter of up to three points while pressed is still a click" passed after 0.015 seconds.
+◇ Test "a press moved just over three points draws a rectangle" started.
+✔ Test "a press moved just over three points draws a rectangle" passed after 0.017 seconds.
+◇ Test "while dragging the rectangle is drawn instead of the snap region" started.
+✔ Test "while dragging the rectangle is drawn instead of the snap region" passed after 0.012 seconds.
+◇ Test "a drag passing three points in small steps stops showing the snap region" started.
+✔ Test "a drag passing three points in small steps stops showing the snap region" passed after 0.019 seconds.
+◇ Test "a release far from the press is a rectangle even without drag events" started.
+✔ Test "a release far from the press is a rectangle even without drag events" passed after 0.019 seconds.
+◇ Test "a clicked region stays put while the pointer moves on" started.
+✔ Test "a clicked region stays put while the pointer moves on" passed after 0.016 seconds.
+◇ Test "a clicked region is handed over as its physical pixel corners" started.
+✔ Test "a clicked region is handed over as its physical pixel corners" passed after 0.013 seconds.
+◇ Test "a confirmed selection shows handles at its corners and edge midpoints" started.
+✔ Test "a confirmed selection shows handles at its corners and edge midpoints" passed after 0.022 seconds.
+◇ Test "corner handles move two sides and edge handles one" started.
+✔ Test "corner handles move two sides and edge handles one" passed after 0.012 seconds.
+◇ Test "dragging a side past the opposite side flips the selection" started.
+✔ Test "dragging a side past the opposite side flips the selection" passed after 0.017 seconds.
+◇ Test "dragging inside moves the selection and keeps it on the display" started.
+✔ Test "dragging inside moves the selection and keeps it on the display" passed after 0.017 seconds.
+◇ Test "a press outside a confirmed selection starts a new one" started.
+✔ Test "a press outside a confirmed selection starts a new one" passed after 0.017 seconds.
+◇ Test "a selection under two pixels gets no handles, so a press on it starts a new one" started.
+✔ Test "a selection under two pixels gets no handles, so a press on it starts a new one" passed after 0.009 seconds.
+◇ Test "a selection that the crop rounds up to two pixels gets handles" started.
+✔ Test "a selection that the crop rounds up to two pixels gets handles" passed after 0.019 seconds.
+◇ Test "handles are filled with the surface colour of the current appearance" started.
+✔ Test "handles are filled with the surface colour of the current appearance" passed after 0.010 seconds.
+◇ Test "an adjustment under two pixels snaps back to the previous selection" started.
+✔ Test "an adjustment under two pixels snaps back to the previous selection" passed after 0.016 seconds.
+◇ Test "an alert over the overlay is a sheet of it and blocks selections until it ends" started.
+✔ Test "an alert over the overlay is a sheet of it and blocks selections until it ends" passed after 0.657 seconds.
+◇ Test "presses start nothing while selection is paused, and work again after" started.
+✔ Test "presses start nothing while selection is paused, and work again after" passed after 0.051 seconds.
+✔ Suite "Frozen capture overlay" passed after 1.301 seconds.
+✔ Test run with 52 tests in 6 suites passed after 1.302 seconds.
+== exit: 0
+== command: /usr/bin/xcrun swift test --skip-build --filter ProviderApplicationTests/(replacementAndEscape|overlayCovers|selection|escape|termination|failedFreeze|click|lateWindowList|windowListIsReadOnce|heldWindowList|displayChange|nativeCaptureAndRerun|credentialValidationAndFreezing|copy|save|cancelledSave|adjust|confirmed|secondAdjustment|doubleClickOnSave|overlayTakesNoSelection)
+Test Suite 'Selected tests' started at 2026-10-29 12:50:08.972.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 12:50:08.974.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 12:50:08.974.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 12:50:08.974.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() started.
+[NATIVE-DIAG] capture pid=10259 elapsed=1.34976250003092
+t=0.10470004170201719 stage=overlay-ready target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.10481412499211729 stage=before-mouse-1 target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.14996012509800494 stage=after-mouse-1 target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.1500425001140684 stage=before-mouse-6 target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.16246633348055184 stage=after-mouse-6 target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.16287745838053524 stage=before-mouse-2 target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.17551358346827328 stage=after-mouse-2 target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.17562604183331132 stage=toolbar-wait target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=false,key=false,canKey=false,level=1001,size=(0.0, 0.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.2918108750600368 stage=toolbar-wait target=85696 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=true,key=false,canKey=false,level=1001,size=(576.0, 31.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+t=0.29188987519592047 stage=toolbar-ready target=-1 active=true policy=2 key=85696 main=-1 frontPID=687 windows=[id=85695,visible=true,key=false,canKey=false,level=1001,size=(576.0, 31.0);id=85696,visible=true,key=true,canKey=true,level=1000,size=(1512.0, 982.0)]
+✔ Test nativeCaptureAndRerunPreserveHistoryWhileProviderValidationIsExclusive() passed after 1.350 seconds.
+◇ Test displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .sleep to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .disconnect to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .scale to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .rotate to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+◇ Test case passing 1 argument change → .move to displayChangesCancelSelectionBeforeMouseUp(change:) started.
+✔ Test displayChangesCancelSelectionBeforeMouseUp(change:) with 5 test cases passed after 0.548 seconds.
+◇ Test replacementAndEscapeRetireDisplaySubscriptions() started.
+✔ Test replacementAndEscapeRetireDisplaySubscriptions() passed after 0.167 seconds.
+◇ Test overlayCoversDisplaysBeforeFreezeCompletes() started.
+✔ Test overlayCoversDisplaysBeforeFreezeCompletes() passed after 0.099 seconds.
+◇ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() started.
+✔ Test selectionDraggedWhileFreezingCompletesWithFrozenFrames() passed after 0.170 seconds.
+◇ Test escapeWhileFreezingExitsCapture() started.
+✔ Test escapeWhileFreezingExitsCapture() passed after 0.095 seconds.
+◇ Test terminationWhileFreezingWithdrawsOverlay() started.
+✔ Test terminationWhileFreezingWithdrawsOverlay() passed after 0.038 seconds.
+◇ Test failedFreezeRestoresPreviousSelection() started.
+✔ Test failedFreezeRestoresPreviousSelection() passed after 0.214 seconds.
+◇ Test escapeWhileReplacingSelectionReleasesActivity() started.
+✔ Test escapeWhileReplacingSelectionReleasesActivity() passed after 0.217 seconds.
+◇ Test escapeWhileFreezingFromResultRestoresWorkspace() started.
+✔ Test escapeWhileFreezingFromResultRestoresWorkspace() passed after 0.753 seconds.
+◇ Test selectionStartedBeforeFramesFinishesAfterThem() started.
+✔ Test selectionStartedBeforeFramesFinishesAfterThem() passed after 0.177 seconds.
+◇ Test clickOnWindowSelectsWholeWindow() started.
+✔ Test clickOnWindowSelectsWholeWindow() passed after 0.219 seconds.
+◇ Test clickOnDesktopSelectsWholeDisplay() started.
+✔ Test clickOnDesktopSelectsWholeDisplay() passed after 0.234 seconds.
+◇ Test clickWhileFreezingSelectsWindowOnceFramesArrive() started.
+✔ Test clickWhileFreezingSelectsWindowOnceFramesArrive() passed after 0.199 seconds.
+◇ Test clickWithoutWindowListSelectsNothingButDragStillWorks() started.
+✔ Test clickWithoutWindowListSelectsNothingButDragStillWorks() passed after 0.194 seconds.
+◇ Test lateWindowListOfReplacedCaptureIsIgnored() started.
+✔ Test lateWindowListOfReplacedCaptureIsIgnored() passed after 0.424 seconds.
+◇ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() started.
+✔ Test windowListIsReadOnceAtTriggerWithoutOwnWindows() passed after 0.363 seconds.
+◇ Test heldWindowListDoesNotDelayOverlay() started.
+✔ Test heldWindowListDoesNotDelayOverlay() passed after 0.089 seconds.
+◇ Test copyPutsSelectionOnClipboardAndEndsCapture() started.
+✔ Test copyPutsSelectionOnClipboardAndEndsCapture() passed after 0.175 seconds.
+◇ Test saveWritesSelectionWhereTheUserChoseAndEndsCapture() started.
+✔ Test saveWritesSelectionWhereTheUserChoseAndEndsCapture() passed after 0.158 seconds.
+◇ Test cancelledSaveKeepsTheSelection() started.
+✔ Test cancelledSaveKeepsTheSelection() passed after 0.200 seconds.
+◇ Test adjustedSelectionIsWhatCopyUses() started.
+✔ Test adjustedSelectionIsWhatCopyUses() passed after 0.249 seconds.
+◇ Test secondAdjustmentDuringCropIsWhatCopyUses() started.
+✔ Test secondAdjustmentDuringCropIsWhatCopyUses() passed after 0.277 seconds.
+◇ Test doubleClickOnSaveOpensOneSavePanel() started.
+✔ Test doubleClickOnSaveOpensOneSavePanel() passed after 0.157 seconds.
+◇ Test overlayTakesNoSelectionWhileSavePanelIsOpen() started.
+✔ Test overlayTakesNoSelectionWhileSavePanelIsOpen() passed after 0.266 seconds.
+◇ Test displayChangeAfterSelectionEndsCapture() started.
+✔ Test displayChangeAfterSelectionEndsCapture() passed after 0.190 seconds.
+◇ Test displayChangeWhileReplacingAbandonsPendingCapture() started.
+✔ Test displayChangeWhileReplacingAbandonsPendingCapture() passed after 0.165 seconds.
+◇ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() started.
+✔ Test displayChangeBetweenFreezeValidationAndObserverRegistrationIsNotLost() passed after 0.079 seconds.
+◇ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() started.
+✔ Test credentialValidationAndFreezingExcludeEachOtherThroughApplicationWiring() passed after 0.065 seconds.
+◇ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() started.
+✔ Test terminationPreparationDoesNotUnregisterBeforeExitIsCommitted() passed after 0.023 seconds.
+✔ Suite ProviderApplicationTests passed after 7.571 seconds.
+✔ Test run with 30 tests in 1 suite passed after 7.571 seconds.
+== exit: 0
+== overall: 0

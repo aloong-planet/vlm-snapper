@@ -1,0 +1,19 @@
+### mode modal
+runModal starting at 0.057874083518981934
+background dump at 2.505099058151245
+front-to-back 1 Probe layer 1000 1512 x 982
+front-to-back 19 Probe layer 8 370 x 204
+runModal returned -1001 after 2.523769974708557
+### mode level
+mode level panel.level 1001 panel.isVisible true NSApp.isActive true modalWindow nil
+front-to-back 1 Probe layer 1001 370 x 204
+front-to-back 2 Probe layer 1000 1512 x 982
+### mode alert
+background dump at 2.0051299333572388
+front-to-back 1 Probe layer 1000 1512 x 982
+front-to-back 19 Probe layer 8 260 x 176
+alert runModal returned -1001 level after 8
+### mode alertsheet
+alert sheet attached true key 1000
+front-to-back 1 Probe layer 1000 260 x 96
+front-to-back 2 Probe layer 1000 1512 x 982

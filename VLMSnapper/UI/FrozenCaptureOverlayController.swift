@@ -17,6 +17,8 @@ public final class FrozenCaptureOverlayController {
     }
 
     private var panels: [CaptureOverlayPanel] = []
+
+    private weak var keyPanelBeforePause: CaptureOverlayPanel?
     private var pendingPanels: [CaptureOverlayPanel] = []
     private let pointerLocation: @MainActor () -> CGPoint
 
@@ -180,15 +182,40 @@ public final class FrozenCaptureOverlayController {
         retire(retired)
     }
 
-    public func prepareFailurePresentation(_ alert: NSAlert) {
-        guard !panels.isEmpty else { return }
-        alert.window.level = NSWindow.Level(
-            rawValue: NSWindow.Level.screenSaver.rawValue + 1
-        )
+    /// Shows an alert over the overlay as a sheet of its key panel. A modal session would put the
+    /// alert at the modal-panel level, under the overlay at the screen saver level (measured
+    /// 2026-10-29 in a sandboxed app: layer 8 under 1000). No overlay takes a selection while the
+    /// alert is shown. Without an overlay the alert runs modally.
+    public func presentAlert(_ alert: NSAlert) async -> NSApplication.ModalResponse {
+        // Keep the overlay that has the keyboard; the sheet goes on it.
+        guard let window = panels.first(where: \.isKeyWindow) ?? panels.last else {
+            return alert.runModal()
+        }
+        setSelectionEnabled(false)
+        defer { setSelectionEnabled(true) }
+        return await alert.beginSheetModal(for: window)
+    }
+
+    /// While `false`, presses on the overlays start no selection or adjustment: the save panel or an
+    /// alert is shown above them (v1-core::REQ-009/AC-04). Turning it back on returns the keyboard to
+    /// the overlay that had it, which the panel or alert took, so Esc and the next press reach it again.
+    public func setSelectionEnabled(_ enabled: Bool) {
+        if !enabled {
+            keyPanelBeforePause = panels.first(where: \.isKeyWindow) ?? panels.last
+        }
+        for panel in pendingPanels + panels {
+            panel.overlayView?.selectionEnabled = enabled
+        }
+        if enabled, let panel = keyPanelBeforePause, panels.contains(where: { $0 === panel }) {
+            panel.makeKey()
+        }
+        if enabled { keyPanelBeforePause = nil }
     }
 
     private func retire(_ panels: [CaptureOverlayPanel]) {
         for panel in panels {
+            // An alert shown as a sheet ends with its overlay.
+            if let sheet = panel.attachedSheet { panel.endSheet(sheet) }
             panel.orderOut(nil)
             panel.contentView = nil
         }
@@ -303,6 +330,8 @@ private final class CaptureOverlayView: NSView {
     private static let handleSize: CGFloat = 7
     private static let handleHitSize: CGFloat = 12
     private var geometry: CaptureDisplayGeometry?
+    /// Presses start nothing while the save panel or an alert is shown above the overlay.
+    var selectionEnabled = true
     private var snapRegions = SnapRegions.awaiting
     private var press: CGPoint?
     private var dragStart: CGPoint?
@@ -421,6 +450,7 @@ private final class CaptureOverlayView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard selectionEnabled else { return }
         window?.makeKey()
         let point = convert(event.locationInWindow, from: nil)
         if let confirmed = confirmedSelection {

@@ -49,10 +49,15 @@ struct SavePanelCaptureImageSaver: CaptureImageSaving {
             .resolvingSymlinksInPath() {
             panel.directoryURL = pictures
         }
-        // The capture overlay sits at the screen saver level.
+        // Above the capture overlay, which sits at the screen saver level. `runModal` would move the
+        // panel back to the modal-panel level, under the overlay (measured 2026-10-29: layer 8 under
+        // 1000), so the panel is shown without a modal session and keeps this level.
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
         NSApp.activate(ignoringOtherApps: true)
-        guard panel.runModal() == .OK, let url = panel.url else { return .cancelled }
+        let response = await withCheckedContinuation { continuation in
+            panel.begin { continuation.resume(returning: $0) }
+        }
+        guard response == .OK, let url = panel.url else { return .cancelled }
         do {
             try png.write(to: url, options: .atomic)
         } catch {

@@ -1,0 +1,14 @@
+MUTATION: panel.level line removed from Sources/VLMSnapperApp/CaptureImageExport.swift
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 12:48:40.399.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 12:48:40.400.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 12:48:40.400.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 12:48:40.400.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test savePanelOpensWithoutModalSessionAboveOverlay() started.
+✘ Test savePanelOpensWithoutModalSessionAboveOverlay() recorded an issue at ProviderApplicationTests.swift:1526:9: Expectation failed: (panel.level.rawValue → 0) > (NSWindow.Level.screenSaver.rawValue → 1000)

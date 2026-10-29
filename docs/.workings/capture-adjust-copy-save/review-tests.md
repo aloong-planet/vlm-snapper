@@ -36,11 +36,16 @@ save adapters (as the REQ-006 app tests). Expected values are literals or hand-c
 | U9 | REQ-007/AC-01 (prototype colours) | S2 | confirm a selection; render in light, then dark appearance | pixel inside the top-left handle: red above 230 in light, below 60 in dark (prototype surface `#ffffff` / `#2c3138`) | two-window resolver | none |
 | A6 | REQ-007/AC-05, FM-48 | S3 | select; release two adjustments before the main actor yields; Copy | clipboard PNG has the second adjustment's size (250 × 175 pt × scale, hand-computed) | snap fixture | app composition (existing per-test fixture) |
 | A7 | FM-48 (one action per click) | S3 | select; two clicks on Save before yielding, the panel cancels; then Copy | one save request; Copy still works after the cancelled panel | snap fixture | same |
+| U10 | REQ-009/AC-04, FM-48 (alerts over the overlay) | S2 | show an alert through the controller; end it with the second button; click window A | the alert is the overlay's attached sheet; the response is the second button; once detached the overlay is key again and the click selects window A (literal) | two-window resolver | none |
+| U11 | REQ-009/AC-04, FM-48 | S2 | pause selection; click and drag; another panel takes the keyboard; resume; click window A | no selection while paused; the overlay is key again after resuming; the click selects window A | two-window resolver | none |
+| A8 | REQ-009/AC-04 | S3 | select; Save with the fixture panel held open; press outside and drag a handle; release the panel cancelled; Copy | toolbar stays; Copy gives the window's size (300 × 200 pt × scale) | snap fixture with a held save answer | app composition (existing per-test fixture) |
 
 Not covered by tests (gap notes in the test files): the real system save panel and clipboard (installed
 build), the modal failure alerts of REQ-008/AC-02 and REQ-009/AC-04 (modal `NSAlert`, as the existing
 diagnostics export), cursor shapes over handles (AppKit cursor rects; installed build), withdrawing a settled
-selection when a new one starts on another display (needs two displays; installed build).
+selection when a new one starts on another display (needs two displays; installed build), and the window
+layer the save panel and alerts land on (the test process keeps levels that the sandboxed app's modal
+sessions change; measured with a sandboxed probe, checked on the installed build).
 
 ### Incremental design review (2026-10-29, code review)
 
@@ -77,3 +82,16 @@ Application composition per test as existing capture tests; no new expensive res
 ### Findings
 
 None.
+
+### Incremental design review (2026-10-29, installed-build feedback: Save did nothing)
+
+Rows U10, U11 and A8 (`review-code.md` findings 6–8). U10 replaces the old "failure alert stays visible
+above a retained overlay" test, which only read the level property set before the modal session — the
+property the sandboxed app's modal session then changed, so it could not catch this defect. A8 and U10 were
+run red before their fixes (A8: `logs/save-red-hold.log`; U10: `logs/save-red-alert-key.log`). A real-panel
+adapter test was written and removed (process exits silently after the panel closes; see `review-code.md`).
+Coverage: AC-04 now has rows; the layer itself is a recorded gap. Case design: public seams (controller API,
+events to the production overlay, injected saver). False greens: U10 waits until the sheet is detached
+before the click, because AppKit drops presses during the sheet's exit animation; every capture run now
+requires the test summary line. Resources: none new. No findings.
+

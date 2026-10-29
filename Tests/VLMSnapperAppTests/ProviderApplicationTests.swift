@@ -1512,6 +1512,32 @@ struct ProviderApplicationTests {
     }
 
     @Test
+    func overlayTakesNoSelectionWhileSavePanelIsOpen() async throws {
+        try await withSnapFixture { fixture, screen, _ in
+            fixture.imageSaver.answer = .hold
+            let toolbar = try await selectWindow(fixture)
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 1))
+            try await eventually { fixture.imageSaver.requests.count == 1 }
+            let overlay = try requireFixture(try mainScreenOverlay())
+            // A press outside the selection and a drag on its bottom-right handle: neither applies.
+            try sendMouse(.leftMouseDown, at: NSPoint(x: 800, y: 500), to: overlay)
+            try sendMouse(.leftMouseUp, at: NSPoint(x: 800, y: 500), to: overlay)
+            try drag(overlay, from: NSPoint(x: 500, y: 150), to: NSPoint(x: 400, y: 200))
+            #expect(captureToolbar() != nil)
+            fixture.imageSaver.release(.cancelled)
+            // The save action ends after the panel; a Copy click is taken once it has.
+            try await eventually {
+                if fixture.clipboard.written.isEmpty {
+                    try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
+                }
+                return !fixture.clipboard.written.isEmpty
+            }
+            let copied = try pngPixelSize(try #require(fixture.clipboard.written.last))
+            #expect(copied == pixelSize(width: 300, height: 200, on: screen))
+        }
+    }
+
+    @Test
     func displayChangeAfterSelectionEndsCapture() async throws {
         try await withSnapFixture { fixture, _, model in
             let historyCount = model.historyRecords.count
@@ -2619,12 +2645,20 @@ private final class FixtureClipboard: CaptureImageClipboard {
 /// Save double: answers like the save panel would and, when saving, writes the file as the live adapter does.
 @MainActor
 private final class FixtureImageSaver: CaptureImageSaving {
-    enum Answer { case saveTo(URL), cancel }
+    /// `hold` keeps the panel open until `release(_:)`.
+    enum Answer { case saveTo(URL), cancel, hold }
     var answer = Answer.cancel
     private(set) var requests: [(png: Data, suggestedName: String)] = []
+    private var held: CheckedContinuation<CaptureImageSaveOutcome, Never>?
+    func release(_ outcome: CaptureImageSaveOutcome) {
+        held?.resume(returning: outcome)
+        held = nil
+    }
     func save(png: Data, suggestedName: String) async -> CaptureImageSaveOutcome {
         requests.append((png, suggestedName))
         switch answer {
+        case .hold:
+            return await withCheckedContinuation { held = $0 }
         case .cancel:
             return .cancelled
         case .saveTo(let url):

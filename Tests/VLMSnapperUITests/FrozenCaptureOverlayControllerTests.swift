@@ -416,23 +416,53 @@ struct FrozenCaptureOverlayControllerTests {
         #expect(log.changes.last == CGRect(x: 100, y: height - 300, width: 300, height: 200))
     }
 
-    @Test("a failure alert stays visible above a retained overlay")
-    func failureAlertStaysAboveRetainedOverlay() throws {
-        let screen = try #require(NSScreen.screens.first)
-        let displayID = try #require(
-            (screen.deviceDescription[
-                NSDeviceDescriptionKey("NSScreenNumber")
-            ] as? NSNumber)?.uint32Value
-        )
-        let controller = FrozenCaptureOverlayController()
+    // A modal session would put an alert under the overlay in the sandboxed app (layer 8 under 1000);
+    // this test process keeps the level, so which layer it lands on is checked on the installed build.
+    @Test("an alert over the overlay is a sheet of it and blocks selections until it ends")
+    func alertIsSheetOfOverlay() async throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay()
         defer { controller.close() }
-        #expect(present(controller))
-        #expect(controller.commit(displays: [makeDisplay(id: displayID, screen: screen)]))
         let alert = NSAlert()
+        alert.addButton(withTitle: "Retry")
+        alert.addButton(withTitle: "Cancel")
+        let shown = Task { await controller.presentAlert(alert) }
+        for _ in 0..<100 where panel.attachedSheet == nil { await Task.yield() }
+        #expect(panel.attachedSheet === alert.window)
+        panel.endSheet(alert.window, returnCode: .alertSecondButtonReturn)
+        #expect(await shown.value == .alertSecondButtonReturn)
+        // AppKit drops presses while the sheet is still sliding away; wait until it is detached.
+        for _ in 0..<500 where panel.attachedSheet != nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(panel.attachedSheet == nil)
+        // The overlay has the keyboard again, so Esc and the next press reach it.
+        #expect(panel.isKeyWindow)
+        // Window A, once the alert has ended.
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        #expect(log.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
+    }
 
-        controller.prepareFailurePresentation(alert)
-
-        #expect(alert.window.level.rawValue > NSWindow.Level.screenSaver.rawValue)
+    @Test("presses start nothing while selection is paused, and work again after")
+    func pausedSelectionIgnoresPresses() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay()
+        defer { controller.close() }
+        controller.setSelectionEnabled(false)
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        try drag(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 600, y: height - 400))
+        #expect(log.frames.isEmpty)
+        // A panel shown meanwhile takes the keyboard, as the save panel does.
+        let other = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+                            styleMask: [.titled], backing: .buffered, defer: false)
+        other.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+        other.makeKeyAndOrderFront(nil)
+        defer { other.orderOut(nil) }
+        #expect(!panel.isKeyWindow)
+        controller.setSelectionEnabled(true)
+        #expect(panel.isKeyWindow)
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        #expect(log.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
     }
 }
 
@@ -544,16 +574,7 @@ private func renderedRGBA(_ window: NSWindow, at point: NSPoint) throws -> [UInt
 /// Alpha the overlay renders at one point of its window.
 @MainActor
 private func renderedAlpha(_ window: NSWindow, at point: NSPoint) throws -> UInt8 {
-    let layer = try #require(window.contentView?.layer)
-    let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
-    let context = try #require(CGContext(
-        data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
-        space: space,
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-    ))
-    context.translateBy(x: -point.x, y: -point.y)
-    layer.render(in: context)
-    return try #require(context.data).load(fromByteOffset: 3, as: UInt8.self)
+    try renderedRGBA(window, at: point)[3]
 }
 
 /// Selections made on an overlay, collected by reference so tests can read them after events.

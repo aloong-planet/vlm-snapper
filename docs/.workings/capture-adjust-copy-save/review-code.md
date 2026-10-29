@@ -113,12 +113,61 @@ Rescanned after the runnability fixes.
 
 | # | Content | Reason | Impact | Recommendation |
 |---|---|---|---|---|
-| R1 | Make the overlay tests' `renderedAlpha` read the alpha from `renderedRGBA` | Duplicated code (introduced here) | Self-harm: test helpers only | Do now: two-line change, same tests |
+| R1 | Make the overlay tests' `renderedAlpha` read the alpha from `renderedRGBA` | Duplicated code (introduced here) | Self-harm: test helpers only | Done 2026-10-29 at the user's request |
+
+## Installed-build feedback (2026-10-29, build `c568bf3`)
+
+The user reported that clicking Save did nothing; everything else worked. R1 (above) was approved and done
+(`renderedAlpha` now reads `renderedRGBA`).
+
+6. **Bug, fixed (upper-layer escape: the save action and the capture hang behind an invisible panel).**
+   Premise that failed (underlying premises layer): "setting `panel.level` above the screen saver level
+   puts the save panel above the overlay". The installed app's log
+   (`logs/save-installed-syslog-excerpt.log`) shows the panel was opened (`beginServicePanel` 12:30:47), a
+   system beep at 12:30:51 (a press outside a modal window) and the panel ending at 12:30:54 — it was open
+   but not visible. Measured in a sandboxed probe app with a full-screen non-activating overlay at the screen
+   saver level (`logs/save-probe-sandboxed-app.log`, source `logs/save-probe-main.swift.txt`): `runModal`
+   puts the save panel at layer 8 under the overlay at 1000; `NSApp.runModal(for:)` does the same; a panel
+   shown with `begin` keeps level 1001 in front; an alert run modally is also at layer 8, while an alert
+   shown as a sheet of the overlay is in front at 1000. Fix: the save panel is shown without a modal session
+   (`begin`, awaited); alerts over the overlay are sheets of the key overlay panel. Because nothing is modal
+   any more, the app keeps the guarantees itself: the overlays take no selection while the panel or an alert
+   is shown (REQ-009/AC-04), toolbar actions stay locked while their action (including its alert) runs, and
+   closing the panel or alert returns the keyboard to the overlay.
+   - Class-level check (a window shown with a modal session over the overlay): every `runModal`,
+     `beginSheetModal` and `prepareFailurePresentation` use enumerated with
+     `grep -rn -E 'prepareFailurePresentation|runModal\(|beginSheetModal' Sources VLMSnapper` — the save panel
+     (fixed), the Copy/Save failure alert (fixed), the capture-failure alert with Retry shown over a retained
+     overlay (pre-existing since #21; same defect, fixed with the same sheet presentation), and three that are
+     not over the overlay (diagnostics export panel and its alert, the workspace's close confirmation) — not
+     hits.
+   - The test process does not reproduce the level change: in a red reproduction run with `swift test`, an
+     alert run modally stayed at layer 1001 in front of the overlay. Automated tests therefore cannot guard
+     the layer; they guard the structure. Gap: which layer the panel and alerts land on is checked on the
+     sandboxed installed build.
+7. **Bug, fixed (same-layer escape), found by the new alert test.** After a sheet (or the save panel)
+   closed, no window had the keyboard: Esc no longer ended the capture and the next press on the overlay
+   only activated it. Test `alertIsSheetOfOverlay` was red first (`logs/save-red-alert-key.log`: overlay not
+   key, no key window, the following click selected nothing). Fix: pausing selection remembers the overlay
+   panel that had the keyboard and resuming makes it key again. `pausedSelectionIgnoresPresses` covers a
+   panel taking the keyboard during the pause.
+8. **REQ-009/AC-04 without a modal session.** Test `overlayTakesNoSelectionWhileSavePanelIsOpen` was red
+   before the pause existed (`logs/save-red-hold.log`: a press during the open panel started a new selection
+   and hid the toolbar), green after.
+
+A test of the real save panel adapter in the test process was tried and removed: it showed the panel's
+level and non-modality as intended, and a mutation without the level line failed it
+(`logs/save-mutation-level.log`), but after the panel closed the test process exited with status 0 before
+reporting a summary, which would skip later tests in the same run and look green. The capture test script
+now also fails a `swift test` run that prints no passing summary.
 
 ## Findings and outcome
 
-Findings 1–5 fixed with tests red first and green after; capture-only test run after all fixes:
-`logs/review-capture-after-review.log` (51 Core and UI tests, 29 App composition tests, all passing).
-Spec updated: FM-48 gains the four boundaries (crop order, one action per click, another display, no
-handles under two pixels) and the implementation decisions record the crop order, the click lock and the
-TIFF representation.
+Findings 1–8 fixed; 1, 3, 4, 5, 7 and 8 with tests red first and green after, 2 without a test (two
+displays), 6 with the sandboxed probe as its red and green evidence and structural tests. Capture-only test
+run after all fixes: `logs/save-capture-after-fix.log` (52 Core and UI tests, 30 App composition tests, all
+passing, each run with its summary line). Spec updated: FM-48 gains the crop order, one action per click,
+another display, no handles under two pixels, and the keyboard returning after the panel or alert; the
+implementation decisions record the crop order, the click lock, the TIFF representation, the non-modal save
+panel, alerts as sheets of the overlay and why; the testing decisions record that the window layer is
+checked on the installed build.
