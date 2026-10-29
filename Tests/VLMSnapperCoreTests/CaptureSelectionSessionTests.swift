@@ -5,8 +5,8 @@ import Testing
 
 @Suite("Capture selection session")
 struct CaptureSelectionSessionTests {
-    @Test("selection is cropped from the trigger-time frozen frame and releases all displays")
-    func selectionUsesFrozenFrameAndReleasesDisplays() async throws {
+    @Test("selection is cropped from the trigger-time frozen frame and keeps the frames for adjustment")
+    func selectionUsesFrozenFrameAndKeepsDisplays() async throws {
         let first = makeDisplay(id: 1, width: 100, height: 80)
         let second = makeDisplay(id: 2, width: 200, height: 120)
         let cropper = CropperProbe(result: Data([0x89, 0x50, 0x4E, 0x47]))
@@ -29,8 +29,90 @@ struct CaptureSelectionSessionTests {
         #expect(result.originalPNG == Data([0x89, 0x50, 0x4E, 0x47]))
         #expect(await cropper.lastDisplayID == 2)
         #expect(await cropper.lastRect == result.pixelRect)
-        #expect(await session.state == .completed)
+        #expect(await session.state == .selected)
+        #expect(await session.availableDisplayIDs == [1, 2])
+    }
+
+    // v1-core::REQ-007: a confirmed selection can be replaced or adjusted until the session ends.
+    @Test("a confirmed selection can be adjusted and is cropped again from the same frame")
+    func confirmedSelectionCanBeAdjusted() async throws {
+        let display = makeDisplay(id: 1, width: 100, height: 80)
+        let cropper = CropperProbe(result: Data([0x89, 0x50, 0x4E, 0x47]))
+        let session = CaptureSelectionSession(displays: [display], cropper: cropper)
+        try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
+        try await session.updateSelection(to: CapturePoint(x: 30, y: 20))
+        let first = try await session.finishSelection(currentGeometry: display.geometry)
+
+        try await session.beginSelection(on: 1, at: CapturePoint(x: 5, y: 6))
+        try await session.updateSelection(to: CapturePoint(x: 45, y: 36))
+        let adjusted = try await session.finishSelection(currentGeometry: display.geometry)
+
+        #expect(first.pixelRect == PixelRect(x: 10, y: 10, width: 20, height: 10))
+        #expect(adjusted.pixelRect == PixelRect(x: 5, y: 6, width: 40, height: 30))
+        #expect(await cropper.lastRect == adjusted.pixelRect)
+        #expect(await session.state == .selected)
+    }
+
+    @Test("an adjustment under two pixels is rejected and the selection can still be adjusted")
+    func tinyAdjustmentKeepsSelectionAdjustable() async throws {
+        let display = makeDisplay(id: 1, width: 100, height: 80)
+        let session = CaptureSelectionSession(
+            displays: [display],
+            cropper: CropperProbe(result: Data([0x89]))
+        )
+        try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
+        try await session.updateSelection(to: CapturePoint(x: 30, y: 20))
+        _ = try await session.finishSelection(currentGeometry: display.geometry)
+
+        try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
+        try await session.updateSelection(to: CapturePoint(x: 11, y: 11))
+        await #expect(throws: CaptureSelectionError.selectionTooSmall) {
+            _ = try await session.finishSelection(currentGeometry: display.geometry)
+        }
+        #expect(await session.state == .selected)
+        try await session.beginSelection(on: 1, at: CapturePoint(x: 0, y: 0))
+        try await session.updateSelection(to: CapturePoint(x: 4, y: 4))
+        let valid = try await session.finishSelection(currentGeometry: display.geometry)
+        #expect(valid.pixelRect == PixelRect(x: 0, y: 0, width: 4, height: 4))
+    }
+
+    @Test("a display change after a selection invalidates that display")
+    func displayChangeAfterSelectionInvalidatesDisplay() async throws {
+        let display = makeDisplay(id: 1, width: 100, height: 80)
+        let session = CaptureSelectionSession(
+            displays: [display],
+            cropper: CropperProbe(result: Data([0x89]))
+        )
+        try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
+        try await session.updateSelection(to: CapturePoint(x: 30, y: 20))
+        _ = try await session.finishSelection(currentGeometry: display.geometry)
+
+        let invalidated = await session.applyCurrentDisplayGeometries([])
+        #expect(invalidated == [1])
+        #expect(await session.state == .noDisplaysAvailable)
+        await #expect(throws: CaptureSelectionError.inactiveSession) {
+            try await session.beginSelection(on: 1, at: CapturePoint(x: 1, y: 1))
+        }
+    }
+
+    @Test("cancelling after a selection ends the session")
+    func cancelAfterSelectionEndsSession() async throws {
+        let display = makeDisplay(id: 1, width: 100, height: 80)
+        let session = CaptureSelectionSession(
+            displays: [display],
+            cropper: CropperProbe(result: Data([0x89]))
+        )
+        try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
+        try await session.updateSelection(to: CapturePoint(x: 30, y: 20))
+        _ = try await session.finishSelection(currentGeometry: display.geometry)
+
+        await session.cancel()
+
+        #expect(await session.state == .cancelled)
         #expect(await session.availableDisplayIDs.isEmpty)
+        await #expect(throws: CaptureSelectionError.inactiveSession) {
+            try await session.beginSelection(on: 1, at: CapturePoint(x: 1, y: 1))
+        }
     }
 
     @Test("a selection smaller than two physical pixels is rejected")
