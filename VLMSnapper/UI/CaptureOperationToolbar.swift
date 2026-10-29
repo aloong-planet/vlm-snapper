@@ -19,6 +19,8 @@ public struct CaptureOperationToolbar: View {
     private let targetLanguages: [TargetLanguageOption]
     private let providerSummary: String
     private let onStart: (WorkspaceOperationKind) -> Void
+    private let onCopy: () -> Void
+    private let onSave: () -> Void
     private let onCancel: () -> Void
 
     public init(
@@ -27,6 +29,8 @@ public struct CaptureOperationToolbar: View {
         targetLanguages: [TargetLanguageOption],
         providerSummary: String,
         onStart: @escaping (WorkspaceOperationKind) -> Void,
+        onCopy: @escaping () -> Void,
+        onSave: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
         _operation = operation
@@ -34,12 +38,14 @@ public struct CaptureOperationToolbar: View {
         self.targetLanguages = targetLanguages
         self.providerSummary = providerSummary
         self.onStart = onStart
+        self.onCopy = onCopy
+        self.onSave = onSave
         self.onCancel = onCancel
     }
 
     public var body: some View {
         HStack(spacing: VLMSnapperUIConstants.toolbarControlGap) {
-            operationButton(.extract, icon: .extract, title: VLMSnapperStrings.extract)
+            operationButton(.extract, icon: .extract, title: VLMSnapperStrings.captureExtract)
             operationButton(.translate, icon: .translate, title: VLMSnapperStrings.translate)
             TargetLanguagePicker(
                 selection: $targetLanguageCode,
@@ -47,17 +53,15 @@ public struct CaptureOperationToolbar: View {
             )
             valueLabel(icon: .provider, text: providerSummary)
             Divider().frame(height: 19)
-            Button(action: onCancel) {
-                VLMSnapperIcon.close.image
-                    .frame(width: 13, height: 13)
-                    .frame(
-                        width: VLMSnapperUIConstants.toolbarControlHeight,
-                        height: VLMSnapperUIConstants.toolbarControlHeight
-                    )
+            iconButton(VLMSnapperStrings.copyImage, action: onCopy) {
+                VLMSnapperIcon.copy.image
             }
-            .buttonStyle(.plain)
-            .help(VLMSnapperStrings.cancel)
-            .accessibilityLabel(VLMSnapperStrings.cancel)
+            iconButton(VLMSnapperStrings.saveImage, action: onSave) {
+                FloppyDiskIcon()
+            }
+            iconButton(VLMSnapperStrings.cancel, action: onCancel) {
+                VLMSnapperIcon.close.image
+            }
         }
         .padding(VLMSnapperUIConstants.toolbarPadding)
         .background(.regularMaterial)
@@ -78,6 +82,26 @@ public struct CaptureOperationToolbar: View {
         .fixedSize()
     }
 
+    private func iconButton<Icon: View>(
+        _ label: String,
+        action: @escaping () -> Void,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
+        Button(action: action) {
+            icon()
+                .frame(width: 13, height: 13)
+                .frame(
+                    width: VLMSnapperUIConstants.toolbarControlHeight,
+                    height: VLMSnapperUIConstants.toolbarControlHeight
+                )
+        }
+        // The style makes the whole box take the press, not only the icon's drawn pixels: the floppy
+        // disk is a thin outline that a press would mostly miss.
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .icon))
+        .help(label)
+        .accessibilityLabel(label)
+    }
+
     private func operationButton(
         _ kind: WorkspaceOperationKind,
         icon: VLMSnapperIcon,
@@ -91,16 +115,17 @@ public struct CaptureOperationToolbar: View {
                 .font(.system(size: 12, weight: .semibold))
                 .padding(.horizontal, 9)
                 .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
-                .foregroundStyle(operation == kind ? Color.white : VLMSnapperTheme.primaryText)
-                .background(operation == kind ? VLMSnapperTheme.accent : Color.clear)
-                .clipShape(
+                .foregroundStyle(VLMSnapperTheme.primaryText)
+                .overlay {
                     RoundedRectangle(
                         cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
                         style: .continuous
                     )
-                )
+                    .stroke(VLMSnapperTheme.border, lineWidth: 1)
+                }
         }
-        .buttonStyle(.plain)
+        // Both actions look alike: no action is shown as selected before the user picks one.
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .field))
     }
 
     private func valueLabel(icon: VLMSnapperIcon, text: String) -> some View {
@@ -147,13 +172,6 @@ private struct TargetLanguagePicker: View {
             .foregroundStyle(VLMSnapperTheme.secondaryText)
             .padding(.horizontal, 9)
             .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
-            .background(VLMSnapperTheme.surface)
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
-                    style: .continuous
-                )
-            )
             .overlay {
                 RoundedRectangle(
                     cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
@@ -162,7 +180,7 @@ private struct TargetLanguagePicker: View {
                 .stroke(VLMSnapperTheme.border, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .field))
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(spacing: 8) {
                 TextField(VLMSnapperStrings.targetLanguageSearch, text: $searchText)

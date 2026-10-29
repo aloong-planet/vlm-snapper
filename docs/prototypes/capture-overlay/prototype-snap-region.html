@@ -23,6 +23,11 @@
     hint is added. After a click the selection keeps that look and the shared attached toolbar appears
     below it. Decided 2026-10-28: the shipped app is the reference for the selection look (1 px border,
     no corner handles, no size label, no inner hairline). Confirmed by the user on 2026-10-28.
+    Confirmed selection (confirmed by the user on 2026-10-29): small handles at the four
+    corners and four edge midpoints; dragging a handle resizes, dragging inside moves the selection, a
+    press outside starts a new selection; the toolbar follows. Copy puts the image on the clipboard and
+    Save opens the system save panel (not drawn: system UI); both then close the capture, as Cancel does.
+    The Save icon is a floppy disk (chosen by the user on 2026-10-29).
     Not covered on this page: UI language and appearance (shown in Simplified Chinese, light). The
     desktop, windows, menu bar and Dock are mock context drawn by other apps, not VLMSnapper UI.
     Demo scaffolding (not part of the design, do not implement): the floating bar marked
@@ -79,6 +84,7 @@
 
     .snap-highlight { position: absolute; z-index: 10; pointer-events: none; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask); }
     .snap-highlight[hidden] { display: none; }
+    .snap-highlight .selection-handle { pointer-events: auto; }
   </style>
 </head>
 <body>
@@ -138,9 +144,11 @@ Build complete! (4.21s)
 
     const DRAG_THRESHOLD = 3;
     const DOCK_STRIP_HEIGHT = 60;
-    let phase = 'picking';        // picking → dragging → selected
+    let phase = 'picking';        // picking → dragging → selected → closed
     let pointer = { x: 0, y: 0 };
     let press = null;
+    let selection = null;         // the confirmed rectangle
+    let adjust = null;            // { mode: 'move' | handle name, start, rect }
 
     function local(rect) {
       const s = screen.getBoundingClientRect();
@@ -172,13 +180,48 @@ Build complete! (4.21s)
     function show(r) {
       Object.assign(highlight.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
       highlight.hidden = false;
+      const wantsHandles = phase === 'selected';
+      if (wantsHandles !== (highlight.childElementCount > 0)) highlight.innerHTML = wantsHandles ? CaptureToolbar.handles() : '';
+    }
+    function adjusted(rect, mode, dx, dy) {
+      let { x, y, w, h } = rect;
+      if (mode === 'move') {
+        x = Math.min(Math.max(0, x + dx), screen.clientWidth - w);
+        y = Math.min(Math.max(0, y + dy), screen.clientHeight - h);
+        return { x, y, w, h };
+      }
+      let left = x, top = y, right = x + w, bottom = y + h;
+      if (mode.includes('w')) left += dx;
+      if (mode.includes('e')) right += dx;
+      if (mode.includes('n')) top += dy;
+      if (mode.includes('s')) bottom += dy;
+      [left, right] = [Math.max(0, Math.min(left, right)), Math.min(screen.clientWidth, Math.max(left, right))];
+      [top, bottom] = [Math.max(0, Math.min(top, bottom)), Math.min(screen.clientHeight, Math.max(top, bottom))];
+      return { x: left, y: top, w: right - left, h: bottom - top };
+    }
+    function inside(r, p) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h; }
+    function closeCapture() {
+      phase = 'closed';
+      press = adjust = selection = null;
+      highlight.hidden = true;
+      toolbar.hidden = true;
+      screen.style.cursor = 'default';
     }
     function placeToolbar(r) {
       toolbar.hidden = false;
-      const gap = 4;
-      const top = Math.min(r.y + r.h + gap, screen.clientHeight - toolbar.offsetHeight - 8);
-      const left = Math.min(r.x, screen.clientWidth - toolbar.offsetWidth - 8);
-      Object.assign(toolbar.style, { left: `${Math.max(8, left)}px`, top: `${top}px` });
+      const gap = 4, w = toolbar.offsetWidth, h = toolbar.offsetHeight;
+      const W = screen.clientWidth, H = screen.clientHeight;
+      const below = r.y + r.h + gap, above = r.y - gap - h;
+      let left, top;
+      if (below + h <= H || above >= 0) {
+        top = below + h <= H ? below : above;
+        left = Math.max(8, Math.min(r.x, W - w - 8));
+      } else {
+        // No room below or above, as for a whole display: inside the selection's bottom-right corner.
+        top = Math.min(r.y + r.h, H) - gap - h;
+        left = Math.max(0, Math.min(r.x + r.w, W) - gap - w);
+      }
+      Object.assign(toolbar.style, { left: `${left}px`, top: `${top}px` });
     }
     function point(event) {
       const s = screen.getBoundingClientRect();
@@ -186,13 +229,20 @@ Build complete! (4.21s)
     }
     function restart() {
       phase = 'picking';
-      press = null;
+      press = adjust = selection = null;
       toolbar.hidden = true;
+      screen.style.cursor = '';
       show(snapRegion(pointer));
     }
 
     screen.addEventListener('mousemove', (event) => {
       pointer = point(event);
+      if (adjust) {
+        selection = adjusted(adjust.rect, adjust.mode, pointer.x - adjust.start.x, pointer.y - adjust.start.y);
+        show(selection);
+        placeToolbar(selection);
+        return;
+      }
       if (phase === 'picking') {
         if (press && Math.hypot(pointer.x - press.x, pointer.y - press.y) > DRAG_THRESHOLD) phase = 'dragging';
         else return void show(snapRegion(pointer));
@@ -202,19 +252,38 @@ Build complete! (4.21s)
       }
     });
     screen.addEventListener('mousedown', (event) => {
-      if (phase === 'selected') return;
-      press = point(event);
+      if (phase === 'closed' || event.target.closest('#toolbar')) return;
+      const at = point(event);
+      if (phase === 'selected') {
+        const handle = event.target.closest('[data-handle]');
+        if (handle || inside(selection, at)) {
+          adjust = { mode: handle ? handle.dataset.handle : 'move', start: at, rect: selection };
+          return;
+        }
+        // A press outside the selection starts a new one.
+        phase = 'picking';
+        selection = null;
+        toolbar.hidden = true;
+        show(snapRegion(at));
+      }
+      press = at;
     });
     window.addEventListener('mouseup', (event) => {
-      if (!press || phase === 'selected') return;
+      if (adjust) { adjust = null; return; }
+      if (!press || phase !== 'picking' && phase !== 'dragging') return;
       const end = point(event);
       const r = phase === 'dragging'
         ? { x: Math.min(press.x, end.x), y: Math.min(press.y, end.y), w: Math.abs(end.x - press.x), h: Math.abs(end.y - press.y) }
         : snapRegion(press);
       press = null;
       phase = 'selected';
+      selection = r;
       show(r);
       placeToolbar(r);
+    });
+    toolbar.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-toolbar-action]');
+      if (action) closeCapture();
     });
     window.addEventListener('keydown', (event) => { if (event.key === 'Escape') restart(); });
 

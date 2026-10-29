@@ -292,23 +292,177 @@ struct FrozenCaptureOverlayControllerTests {
         #expect(abs(end.x - 400 * scale) < 0.001 && abs(end.y - 100 * scale) < 0.001)
     }
 
-    @Test("a failure alert stays visible above a retained overlay")
-    func failureAlertStaysAboveRetainedOverlay() throws {
-        let screen = try #require(NSScreen.screens.first)
-        let displayID = try #require(
-            (screen.deviceDescription[
-                NSDeviceDescriptionKey("NSScreenNumber")
-            ] as? NSNumber)?.uint32Value
-        )
-        let controller = FrozenCaptureOverlayController()
+    // Confirmed selection adjustment (v1-core::REQ-007). Window A is (100, H − 300, 300, 200) in local
+    // AppKit points; expected frames are computed by hand from it. The display has real pixel sizes so
+    // the two-pixel minimum applies as on a screen. Cursor shapes are checked on the installed build, and
+    // withdrawing a selection when a new one starts on another display needs two displays (installed build).
+    @Test("a confirmed selection shows handles at its corners and edge midpoints")
+    func confirmedSelectionShowsHandles() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, _) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
         defer { controller.close() }
-        #expect(present(controller))
-        #expect(controller.commit(displays: [makeDisplay(id: displayID, screen: screen)]))
+        // Just outside the top-left corner: dimmed before, covered by the opaque handle after.
+        let outsideCorner = NSPoint(x: 97.5, y: height - 97.5)
+        #expect(try renderedAlpha(panel, at: outsideCorner) < 200)
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        for point in [outsideCorner, NSPoint(x: 250, y: height - 97.5), NSPoint(x: 402.5, y: height - 97.5),
+                      NSPoint(x: 402.5, y: height - 200), NSPoint(x: 402.5, y: height - 302.5),
+                      NSPoint(x: 250, y: height - 302.5), NSPoint(x: 97.5, y: height - 302.5),
+                      NSPoint(x: 97.5, y: height - 200)] {
+            #expect(try renderedAlpha(panel, at: point) == 255)
+        }
+    }
+
+    @Test("corner handles move two sides and edge handles one")
+    func handlesResizeSelection() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        try drag(panel, from: NSPoint(x: 400, y: height - 300), to: NSPoint(x: 300, y: height - 250))
+        try drag(panel, from: NSPoint(x: 200, y: height - 100), to: NSPoint(x: 200, y: height - 70))
+        #expect(log.frames == [
+            CGRect(x: 100, y: height - 300, width: 300, height: 200),
+            CGRect(x: 100, y: height - 250, width: 200, height: 150),
+            CGRect(x: 100, y: height - 250, width: 200, height: 180),
+        ])
+    }
+
+    @Test("dragging a side past the opposite side flips the selection")
+    func handlePastOppositeSideFlips() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        try drag(panel, from: NSPoint(x: 100, y: height - 200), to: NSPoint(x: 450, y: height - 200))
+        #expect(log.frames.last == CGRect(x: 400, y: height - 300, width: 50, height: 200))
+    }
+
+    @Test("dragging inside moves the selection and keeps it on the display")
+    func dragInsideMovesSelection() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        try drag(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 290, y: height - 220))
+        try drag(panel, from: NSPoint(x: 250, y: height - 220), to: NSPoint(x: -750, y: height - 220))
+        #expect(log.frames == [
+            CGRect(x: 100, y: height - 300, width: 300, height: 200),
+            CGRect(x: 140, y: height - 320, width: 300, height: 200),
+            CGRect(x: 0, y: height - 320, width: 300, height: 200),
+        ])
+        // The toolbar was told about every intermediate frame.
+        #expect(log.changes.contains(CGRect(x: 140, y: height - 320, width: 300, height: 200)))
+    }
+
+    @Test("a press outside a confirmed selection starts a new one")
+    func pressOutsideStartsNewSelection() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        try click(panel, from: NSPoint(x: 750, y: height - 200), to: NSPoint(x: 750, y: height - 200))
+        #expect(log.changes.contains(nil))
+        #expect(log.frames.last == CGRect(x: 600, y: height - 300, width: 300, height: 200))
+    }
+
+    @Test("a selection under two pixels gets no handles, so a press on it starts a new one")
+    func tinySelectionHasNoHandles() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: screen.backingScaleFactor)
+        defer { controller.close() }
+        // Past the drag threshold but only 0.25 pt tall: under two physical pixels at any scale here.
+        try drag(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 510, y: height - 499.75))
+        #expect(log.frames.count == 1)
+        try click(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 500, y: height - 500))
+        #expect(log.frames.last == screen.frame)
+    }
+
+    @Test("a selection that the crop rounds up to two pixels gets handles")
+    func selectionRoundedUpToTwoPixelsHasHandles() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: 2)
+        defer { controller.close() }
+        // 0.75 pt at 2 px per point is 1.5 px straddling a pixel row, which the crop takes as 2 px.
+        try drag(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 510, y: height - 499.25))
+        // Its bottom-left handle: a press there adjusts the selection instead of starting a new one.
+        try click(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 500, y: height - 500))
+        #expect(log.frames.last == CGRect(x: 500, y: height - 500, width: 10, height: 0.75))
+    }
+
+    @Test("handles are filled with the surface colour of the current appearance")
+    func handleFillFollowsAppearance() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, _) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        // Inside the top-left handle, clear of its 1 pt outline.
+        let fill = NSPoint(x: 99.5, y: height - 101.5)
+        panel.appearance = NSAppearance(named: .aqua)
+        #expect(try renderedRGBA(panel, at: fill)[0] > 230)
+        panel.appearance = NSAppearance(named: .darkAqua)
+        #expect(try renderedRGBA(panel, at: fill)[0] < 60)
+    }
+
+    @Test("an adjustment under two pixels snaps back to the previous selection")
+    func tinyAdjustmentSnapsBack() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        try drag(panel, from: NSPoint(x: 400, y: height - 200), to: NSPoint(x: 100.4, y: height - 200))
+        #expect(log.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
+        #expect(log.changes.last == CGRect(x: 100, y: height - 300, width: 300, height: 200))
+    }
+
+    // A modal session would put an alert under the overlay in the sandboxed app (layer 8 under 1000);
+    // this test process keeps the level, so which layer it lands on is checked on the installed build.
+    @Test("an alert over the overlay is a sheet of it and blocks selections until it ends")
+    func alertIsSheetOfOverlay() async throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay()
+        defer { controller.close() }
         let alert = NSAlert()
+        alert.addButton(withTitle: "Retry")
+        alert.addButton(withTitle: "Cancel")
+        let shown = Task { await controller.presentAlert(alert) }
+        for _ in 0..<100 where panel.attachedSheet == nil { await Task.yield() }
+        #expect(panel.attachedSheet === alert.window)
+        panel.endSheet(alert.window, returnCode: .alertSecondButtonReturn)
+        #expect(await shown.value == .alertSecondButtonReturn)
+        // AppKit drops presses while the sheet is still sliding away; wait until it is detached.
+        for _ in 0..<500 where panel.attachedSheet != nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(panel.attachedSheet == nil)
+        // The overlay has the keyboard again, so Esc and the next press reach it.
+        #expect(panel.isKeyWindow)
+        // Window A, once the alert has ended.
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        #expect(log.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
+    }
 
-        controller.prepareFailurePresentation(alert)
-
-        #expect(alert.window.level.rawValue > NSWindow.Level.screenSaver.rawValue)
+    @Test("presses start nothing while selection is paused, and work again after")
+    func pausedSelectionIgnoresPresses() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay()
+        defer { controller.close() }
+        controller.setSelectionEnabled(false)
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        try drag(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 600, y: height - 400))
+        #expect(log.frames.isEmpty)
+        // A panel shown meanwhile takes the keyboard, as the save panel does.
+        let other = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+                            styleMask: [.titled], backing: .buffered, defer: false)
+        other.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+        other.makeKeyAndOrderFront(nil)
+        defer { other.orderOut(nil) }
+        #expect(!panel.isKeyWindow)
+        controller.setSelectionEnabled(true)
+        #expect(panel.isKeyWindow)
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        #expect(log.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
     }
 }
 
@@ -401,9 +555,9 @@ private func click(_ window: NSWindow, from down: NSPoint, to up: NSPoint) throw
     try send(.leftMouseUp, at: up, to: window)
 }
 
-/// Alpha the overlay renders at one point of its window.
+/// Red, green, blue and alpha the overlay renders at one point of its window.
 @MainActor
-private func renderedAlpha(_ window: NSWindow, at point: NSPoint) throws -> UInt8 {
+private func renderedRGBA(_ window: NSWindow, at point: NSPoint) throws -> [UInt8] {
     let layer = try #require(window.contentView?.layer)
     let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
     let context = try #require(CGContext(
@@ -413,26 +567,52 @@ private func renderedAlpha(_ window: NSWindow, at point: NSPoint) throws -> UInt
     ))
     context.translateBy(x: -point.x, y: -point.y)
     layer.render(in: context)
-    return try #require(context.data).load(fromByteOffset: 3, as: UInt8.self)
+    let data = try #require(context.data)
+    return (0..<4).map { data.load(fromByteOffset: $0, as: UInt8.self) }
+}
+
+/// Alpha the overlay renders at one point of its window.
+@MainActor
+private func renderedAlpha(_ window: NSWindow, at point: NSPoint) throws -> UInt8 {
+    try renderedRGBA(window, at: point)[3]
 }
 
 /// Selections made on an overlay, collected by reference so tests can read them after events.
 @MainActor
 private final class SelectionLog {
     var frames: [CGRect] = []
+    /// Frames reported while a confirmed selection is adjusted; `nil` when a press outside discards it.
+    var changes: [CGRect?] = []
 }
 
 /// A committed overlay on the primary display with the two-window snap regions attached.
 @MainActor
-private func committedSnapOverlay() throws -> (FrozenCaptureOverlayController, NSWindow, SelectionLog) {
+private func committedSnapOverlay(
+    pixelScale: CGFloat? = nil
+) throws -> (FrozenCaptureOverlayController, NSWindow, SelectionLog) {
     let screen = try primaryScreen()
     let log = SelectionLog()
     let controller = FrozenCaptureOverlayController()
-    let presented = controller.presentPending(onSelection: { log.frames.append($0.screenFrame) }, onCancel: {})
+    let presented = controller.presentPending(
+        onSelection: { log.frames.append($0.screenFrame) },
+        onCancel: {},
+        onSelectionChanging: { frame, _ in log.changes.append(frame) }
+    )
     #expect(presented)
-    let committed = controller.commit(displays: [makeDisplay(id: try displayID(screen), screen: screen)])
+    let committed = controller.commit(displays: [
+        makeDisplay(id: try displayID(screen), screen: screen, pixelScale: pixelScale)
+    ])
     #expect(committed)
     controller.attachSnapRegions(twoWindowResolver())
     return (controller, try primaryOverlay(), log)
 }
 
+
+
+/// Presses, drags once and releases, as a pointer drag arrives.
+@MainActor
+private func drag(_ window: NSWindow, from start: NSPoint, to end: NSPoint) throws {
+    try send(.leftMouseDown, at: start, to: window)
+    try send(.leftMouseDragged, at: end, to: window)
+    try send(.leftMouseUp, at: end, to: window)
+}

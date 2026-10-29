@@ -28,6 +28,7 @@ public struct ScreenCapturePermissionRecoveryView: View {
                 Spacer()
                 Button(action: onDismiss) {
                     VLMSnapperIcon.close.image.frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(VLMSnapperStrings.close)

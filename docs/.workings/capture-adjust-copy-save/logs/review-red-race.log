@@ -1,0 +1,17 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 11:44:34.422.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 11:44:34.423.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 11:44:34.423.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 11:44:34.423.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test secondAdjustmentDuringCropIsWhatCopyUses() started.
+✘ Test secondAdjustmentDuringCropIsWhatCopyUses() recorded an issue at ProviderApplicationTests.swift:1494:13: Expectation failed: (copied → [600, 400]) == (pixelSize(width: 250, height: 175, on: screen) → [500, 350])
+± inserted [600, 400], removed [500, 350]
+✘ Test secondAdjustmentDuringCropIsWhatCopyUses() failed after 0.353 seconds with 1 issue.
+✘ Suite ProviderApplicationTests failed after 0.353 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.353 seconds with 1 issue.

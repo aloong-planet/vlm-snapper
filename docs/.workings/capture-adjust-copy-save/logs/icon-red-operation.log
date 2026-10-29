@@ -1,0 +1,33 @@
+HEAD c0288b690bfd5e9057680cc3009b722d95198912
+ M VLMSnapper/UI/CaptureOperationToolbar.swift
+ M VLMSnapper/UI/VLMSnapperIcons.swift
+ M docs/prototypes/_shared/capture-overlay.css
+ M docs/prototypes/capture-overlay/README.md
+ M docs/specs/v1-core.md
+?? :-
+?? Tests/VLMSnapperUITests/CaptureToolbarIconButtonTests.swift
+?? docs/.workings/capture-adjust-copy-save/logs/icon-capture-after-fix.log
+?? docs/.workings/capture-adjust-copy-save/logs/icon-green.log
+?? docs/.workings/capture-adjust-copy-save/logs/icon-red.log
+?? docs/.workings/capture-adjust-copy-save/logs/icon-save-timing-syslog.log
+?? docs/.workings/capture-adjust-copy-save/logs/icon-symbol-ink.log
+?? docs/.workings/capture-adjust-copy-save/renders/
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 13:14:04.029.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 13:14:04.031.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 13:14:04.031.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 13:14:04.031.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Capture toolbar icon buttons" started.
+◇ Test "an operation button that is not selected answers a press in its padding" started.
+✘ Test "an operation button that is not selected answers a press in its padding" recorded an issue at CaptureToolbarIconButtonTests.swift:34:9: Expectation failed: (presses.names → []) == ["extract"]
+± removed ["extract"]
+✘ Test "an operation button that is not selected answers a press in its padding" failed after 0.116 seconds with 1 issue.
+✘ Suite "Capture toolbar icon buttons" failed after 0.117 seconds with 1 issue.
+↳ // The toolbar's icon buttons (v1-core::REQ-008, REQ-009): Copy, Save and Close. Positions come from the
+↳ // toolbar's fixed geometry — padding 3 pt, 25 pt boxes, 3 pt gaps — counted from the right end.
+✘ Test run with 1 test in 1 suite failed after 0.117 seconds with 1 issue.

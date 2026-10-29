@@ -21,6 +21,13 @@
 "result.discardUnsaved.action" = "Discard";
 "capture.failed.title" = "Could Not Capture the Screen";
 "capture.failed.body" = "No display returned a usable frozen frame. You can try again.";
+"capture.extract" = "Extract";
+"capture.copyImage" = "Copy Image";
+"capture.saveImage" = "Save Image";
+"capture.copyFailed.title" = "Could Not Copy the Image";
+"capture.copyFailed.body" = "The screenshot was not placed on the clipboard. The selection is still open, so you can try again.";
+"capture.saveFailed.title" = "Could Not Save the Image";
+"capture.saveFailed.body" = "The screenshot could not be written to the chosen location. The selection is still open, so you can try again or choose another location.";
 "action.retry" = "Retry";
 "failure.invalidCredential" = "The API key is invalid or expired. Check the Provider configuration.";
 "failure.modelUnavailable" = "The current model is unavailable. Refresh the model list and choose again.";

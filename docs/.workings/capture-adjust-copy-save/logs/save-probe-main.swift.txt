@@ -1,0 +1,133 @@
+import AppKit
+
+// Probe: where does a sandboxed save panel land relative to a screen-saver-level window?
+final class Probe: NSObject, NSApplicationDelegate {
+    var overlay: NSWindow!
+    let mode = CommandLine.arguments.dropFirst().first ?? "level"
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let panelOverlay = NSPanel(contentRect: NSScreen.main!.frame,
+                                   styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panelOverlay.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panelOverlay.hidesOnDeactivate = false
+        overlay = panelOverlay
+        overlay.level = .screenSaver
+        overlay.backgroundColor = NSColor.systemRed.withAlphaComponent(0.5)
+        overlay.orderFrontRegardless()
+        overlay.makeKey()
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "probe.png"
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+        if mode != "modal" { DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { self.dump(panel) } }
+        if mode == "alert" {
+            let started = Date()
+            Thread.detachNewThread {
+                Thread.sleep(forTimeInterval: 2.0)
+                print("background dump at", Date().timeIntervalSince(started))
+                Probe.dumpWindows()
+                NSApp.abortModal()
+            }
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "probe"
+                alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+                let response = alert.runModal()
+                print("alert runModal returned", response.rawValue, "level after", alert.window.level.rawValue)
+                exit(0)
+            }
+            return
+        }
+        if mode == "alertfor" || mode == "panelfor" {
+            let started = Date()
+            Thread.detachNewThread {
+                Thread.sleep(forTimeInterval: 2.0)
+                print("background dump at", Date().timeIntervalSince(started))
+                Probe.dumpWindows()
+                NSApp.abortModal()
+            }
+            DispatchQueue.main.async {
+                if self.mode == "alertfor" {
+                    let alert = NSAlert()
+                    alert.messageText = "probe"
+                    alert.layout()
+                    alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+                    let response = NSApp.runModal(for: alert.window)
+                    print("alertfor returned", response.rawValue, "level after", alert.window.level.rawValue)
+                } else {
+                    let panel = NSSavePanel()
+                    panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+                    panel.begin { NSApp.stopModal(withCode: $0) }
+                    let response = NSApp.runModal(for: panel)
+                    print("panelfor returned", response.rawValue, "level after", panel.level.rawValue)
+                }
+                exit(0)
+            }
+            return
+        }
+        if mode == "alertsheet" {
+            let alert = NSAlert()
+            alert.messageText = "probe"
+            alert.beginSheetModal(for: overlay) { _ in }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                print("alert sheet attached", self.overlay.attachedSheet != nil, "key", NSApp.keyWindow.map { "\($0.level.rawValue)" } ?? "nil")
+                Probe.dumpWindows()
+                exit(0)
+            }
+            return
+        }
+        if mode == "sheet" {
+            panel.beginSheetModal(for: overlay) { _ in }
+        } else if mode == "modal" {
+            let started = Date()
+            Thread.detachNewThread {
+                Thread.sleep(forTimeInterval: 2.5)
+                print("background dump at", Date().timeIntervalSince(started))
+                Probe.dumpWindows()
+                NSApp.abortModal()
+            }
+            DispatchQueue.main.async {
+                print("runModal starting at", Date().timeIntervalSince(started))
+                let response = panel.runModal()
+                print("runModal returned", response.rawValue, "after", Date().timeIntervalSince(started))
+                exit(0)
+            }
+            return
+        } else {
+            panel.begin { _ in }
+        }
+    }
+
+    static func dumpWindows() {
+        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
+        for (index, w) in list.enumerated() {
+            let owner = w[kCGWindowOwnerName as String] as? String ?? ""
+            let pid = w[kCGWindowOwnerPID as String] as? Int32 ?? 0
+            guard pid == getpid() || owner.contains("Open and Save") else { continue }
+            let b = w[kCGWindowBounds as String] as? [String: Any] ?? [:]
+            print("front-to-back", index, owner, "layer", w[kCGWindowLayer as String] ?? "", b["Width"] ?? "", "x", b["Height"] ?? "")
+        }
+    }
+
+    func dump(_ panel: NSSavePanel) {
+        print("mode", mode, "panel.level", panel.level.rawValue, "panel.isVisible", panel.isVisible,
+              "NSApp.isActive", NSApp.isActive, "modalWindow", NSApp.modalWindow.map { "\($0.level.rawValue)" } ?? "nil")
+        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
+        for (index, w) in list.enumerated() {
+            let owner = w[kCGWindowOwnerName as String] as? String ?? ""
+            let pid = w[kCGWindowOwnerPID as String] as? Int32 ?? 0
+            guard pid == getpid() || owner.contains("Open and Save") else { continue }
+            let b = w[kCGWindowBounds as String] as? [String: Any] ?? [:]
+            print("front-to-back", index, owner, "layer", w[kCGWindowLayer as String] ?? "", b["Width"] ?? "", "x", b["Height"] ?? "")
+        }
+        panel.cancel(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { exit(0) }
+        if mode == "modal" { NSApp.stopModal(withCode: .cancel) }
+    }
+}
+
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
+let delegate = Probe()
+app.delegate = delegate
+app.run()

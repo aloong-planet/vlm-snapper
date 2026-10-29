@@ -1,0 +1,20 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 12:47:38.423.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 12:47:38.425.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 12:47:38.425.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 12:47:38.425.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "an alert over the overlay is a sheet of it and blocks selections until it ends" started.
+DIAG key false keyWindow nil modal nil
+✘ Test "an alert over the overlay is a sheet of it and blocks selections until it ends" recorded an issue at FrozenCaptureOverlayControllerTests.swift:442:9: Expectation failed: (log.frames → []) == ([CGRect(x: 100, y: height - 300, width: 300, height: 200)] → [(100.0, 682.0, 300.0, 200.0)])
+± removed [(100.0, 682.0, 300.0, 200.0)]
+✘ Test "an alert over the overlay is a sheet of it and blocks selections until it ends" failed after 0.745 seconds with 1 issue.
+↳ // A modal session would put an alert under the overlay in the sandboxed app (layer 8 under 1000);
+↳ // this test process keeps the level, so which layer it lands on is checked on the installed build.
+✘ Suite "Frozen capture overlay" failed after 0.746 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.746 seconds with 1 issue.

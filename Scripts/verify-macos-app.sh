@@ -126,6 +126,8 @@ assert_entitlement_value() {
 
 assert_entitlement_value com.apple.security.app-sandbox true
 assert_entitlement_value com.apple.security.assets.pictures.read-write true
+# The capture toolbar's Save asks for a location in the system save panel (v1-core::REQ-009).
+assert_entitlement_value com.apple.security.files.user-selected.read-write true
 assert_entitlement_value com.apple.security.network.client true
 assert_entitlement_value \
     com.apple.security.temporary-exception.mach-lookup.global-name:0 \

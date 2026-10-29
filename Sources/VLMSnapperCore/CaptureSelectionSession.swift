@@ -92,8 +92,10 @@ public struct SelectedCapture: Equatable, Sendable {
 
 public enum CaptureSelectionState: Equatable, Sendable {
     case selecting
+    /// A selection was cropped; the frames stay so the selection can still be adjusted or replaced
+    /// until the session is dropped or cancelled (v1-core::REQ-007).
+    case selected
     case cropping
-    case completed
     case cancelled
     case noDisplaysAvailable
 }
@@ -143,7 +145,7 @@ public actor CaptureSelectionSession {
         on displayID: UInt32,
         at point: CapturePoint
     ) throws {
-        guard state == .selecting else {
+        guard acceptsSelection else {
             throw CaptureSelectionError.inactiveSession
         }
         guard let display = displays[displayID] else {
@@ -158,7 +160,7 @@ public actor CaptureSelectionSession {
     }
 
     public func updateSelection(to point: CapturePoint) throws {
-        guard state == .selecting else {
+        guard acceptsSelection else {
             throw CaptureSelectionError.inactiveSession
         }
         guard let drag,
@@ -176,9 +178,10 @@ public actor CaptureSelectionSession {
     public func finishSelection(
         currentGeometry: CaptureDisplayGeometry
     ) async throws -> SelectedCapture {
-        guard state == .selecting else {
+        guard acceptsSelection else {
             throw CaptureSelectionError.inactiveSession
         }
+        let resumeState = state
         guard let drag,
               let display = displays[drag.displayID]
         else {
@@ -190,7 +193,7 @@ public actor CaptureSelectionSession {
             updateAvailabilityState()
             throw CaptureSelectionError.displayGeometryChanged
         }
-        let rect = integralRect(
+        let rect = Self.integralRect(
             from: drag.start,
             to: drag.current,
             geometry: display.geometry
@@ -210,19 +213,19 @@ public actor CaptureSelectionSession {
             )
         } catch {
             switch state {
-            case .cancelled, .completed:
+            case .cancelled:
                 throw CaptureSelectionError.inactiveSession
             case .noDisplaysAvailable:
                 throw CaptureSelectionError.displayGeometryChanged
             case .cropping:
                 guard displays[drag.displayID]?.geometry == currentGeometry else {
                     self.drag = nil
-                    state = displays.isEmpty ? .noDisplaysAvailable : .selecting
+                    state = displays.isEmpty ? .noDisplaysAvailable : resumeState
                     throw CaptureSelectionError.displayGeometryChanged
                 }
-                state = .selecting
+                state = resumeState
                 throw error
-            case .selecting:
+            case .selecting, .selected:
                 throw CaptureSelectionError.inactiveSession
             }
         }
@@ -234,7 +237,7 @@ public actor CaptureSelectionSession {
         }
         guard displays[drag.displayID]?.geometry == currentGeometry else {
             self.drag = nil
-            state = displays.isEmpty ? .noDisplaysAvailable : .selecting
+            state = displays.isEmpty ? .noDisplaysAvailable : resumeState
             throw CaptureSelectionError.displayGeometryChanged
         }
         let result = SelectedCapture(
@@ -242,9 +245,8 @@ public actor CaptureSelectionSession {
             pixelRect: rect,
             originalPNG: png
         )
-        displays.removeAll()
         self.drag = nil
-        state = .completed
+        state = .selected
         return result
     }
 
@@ -252,7 +254,7 @@ public actor CaptureSelectionSession {
     public func applyCurrentDisplayGeometries(
         _ currentGeometries: [CaptureDisplayGeometry]
     ) -> [UInt32] {
-        guard state == .selecting || state == .cropping else {
+        guard state == .selecting || state == .selected || state == .cropping else {
             return []
         }
         let currentByID = Dictionary(
@@ -275,12 +277,16 @@ public actor CaptureSelectionSession {
     }
 
     public func cancel() {
-        guard state == .selecting || state == .cropping else {
+        guard state == .selecting || state == .selected || state == .cropping else {
             return
         }
         displays.removeAll()
         drag = nil
         state = .cancelled
+    }
+
+    private var acceptsSelection: Bool {
+        state == .selecting || state == .selected
     }
 
     private func clamp(
@@ -293,7 +299,9 @@ public actor CaptureSelectionSession {
         )
     }
 
-    private func integralRect(
+    /// The pixels a selection between two pixel points crops: its corners rounded outwards and
+    /// clamped to the display. The overlay uses it to judge the 2 × 2 minimum the same way.
+    public static func integralRect(
         from start: CapturePoint,
         to end: CapturePoint,
         geometry: CaptureDisplayGeometry

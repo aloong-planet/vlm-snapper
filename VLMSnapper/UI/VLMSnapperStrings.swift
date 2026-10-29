@@ -3,6 +3,8 @@ import VLMSnapperCore
 
 enum VLMSnapperStrings {
     static var extract: String { localized("operation.extract") }
+    /// The capture toolbar's shorter label for the same operation.
+    static var captureExtract: String { localized("capture.extract") }
     static var translate: String { localized("operation.translate") }
     static var operationSelector: String { localized("operation.selector") }
     static var targetLanguageSearch: String { localized("operation.targetLanguageSearch") }
@@ -25,6 +27,12 @@ enum VLMSnapperStrings {
     static var discardUnsavedAction: String { localized("result.discardUnsaved.action") }
     static var captureFailedTitle: String { localized("capture.failed.title") }
     static var captureFailedBody: String { localized("capture.failed.body") }
+    static var copyImage: String { localized("capture.copyImage") }
+    static var saveImage: String { localized("capture.saveImage") }
+    static var copyImageFailedTitle: String { localized("capture.copyFailed.title") }
+    static var copyImageFailedBody: String { localized("capture.copyFailed.body") }
+    static var saveImageFailedTitle: String { localized("capture.saveFailed.title") }
+    static var saveImageFailedBody: String { localized("capture.saveFailed.body") }
     static var retry: String { localized("action.retry") }
     static var onboardingTitle: String { localized("onboarding.title") }
     static var onboardingIntroTitle: String { localized("onboarding.intro.title") }

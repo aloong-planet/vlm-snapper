@@ -1,0 +1,9 @@
+# Installed 0.1.6 (c568bf3), user's Save click, 2026-10-29. Source: log show --predicate 'process == "VLMSnapperApp" OR process == "com.apple.appkit.xpc.openAndSavePanelService"'
+2026-10-29 12:30:46.722 A  VLMSnapperApp[51399:5ead51d] (AppKit) _initBridgeAndStuff
+2026-10-29 12:30:46.727 Df VLMSnapperApp[51399:5ec0cdd] [com.apple.xpc:connection] [0xb57447700] activating connection: mach=false listener=false peer=false name=com.apple.appkit.xpc.openAndSavePanelS
+2026-10-29 12:30:47.283 A  VLMSnapperApp[51399:5ead51d] (AppKit) beginServicePanel
+2026-10-29 12:30:51.476 Df VLMSnapperApp[51399:5ead51d] [com.apple.xpc:connection] [0xb57447d40] activating connection: mach=true listener=false peer=false name=com.apple.audio.SystemSoundServer-OSX
+2026-10-29 12:30:54.085 Df VLMSnapperApp[51399:5ead51d] [com.apple.xpc:connection] [0xb57447480] invalidated after the last release of the connection object
+2026-10-29 12:30:54.345 Df VLMSnapperApp[51399:5ead51d] [com.apple.xpc:connection] [0xb574475c0] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-10-29 12:30:46.759 Df com.apple.appkit.xpc.openAndSavePanelService[78088:5ec0e46] [com.apple.processmanager:front-35286506] CHECKIN: pid=78088
+2026-10-29 12:30:46.779 Df com.apple.appkit.xpc.openAndSavePanelService[78088:5ec0e48] [com.apple.runningboard:connection] Identity resolved as xpcservice<com.apple.appkit.xpc.openAndSavePanelService([app<application.com.loong.vlmsnapper.3848332979.3849471538(

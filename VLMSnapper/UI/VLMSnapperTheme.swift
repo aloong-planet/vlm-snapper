@@ -31,6 +31,10 @@ enum VLMSnapperTheme {
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .white : .white
     })
     static let accentSoft = tint(.controlAccentColor, light: 0.09, dark: 0.18)
+    // Capture toolbar hover and press: the label colour laid over the control, so the state reads on the
+    // toolbar's material and on a white field alike, in both appearances.
+    static let toolbarHover = tint(.labelColor, light: 0.1, dark: 0.16)
+    static let toolbarPressed = tint(.labelColor, light: 0.16, dark: 0.24)
     // Provider identity tiles use the approved prototype palette, independent
     // of the user's action accent. Both foreground and surface follow appearance.
     static let providerMarkForeground = Color(nsColor: NSColor(name: nil) { appearance in
@@ -137,6 +141,50 @@ struct HistoryTypeButtonStyle: ButtonStyle {
         private var background: Color {
             if isSelected { return VLMSnapperTheme.surface }
             return isHovered || configuration.isPressed ? VLMSnapperTheme.subtleSurface : .clear
+        }
+    }
+}
+
+/// Capture toolbar buttons: icon buttons have no background until hovered; actions and the language
+/// field sit on the surface. Hover and press lay the toolbar hover colours over either, and the whole
+/// rounded box takes the press.
+struct CaptureToolbarButtonStyle: ButtonStyle {
+    enum Kind {
+        case icon
+        case field
+    }
+
+    let kind: Kind
+
+    func makeBody(configuration: Configuration) -> some View {
+        StyledLabel(configuration: configuration, kind: kind)
+    }
+
+    private struct StyledLabel: View {
+        let configuration: Configuration
+        let kind: Kind
+        @State private var isHovered = false
+
+        var body: some View {
+            let shape = RoundedRectangle(
+                cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
+                style: .continuous
+            )
+            configuration.label
+                .background { background.clipShape(shape) }
+                .contentShape(shape)
+                .onHover { isHovered = $0 }
+        }
+
+        @ViewBuilder private var background: some View {
+            ZStack {
+                if case .field = kind { VLMSnapperTheme.surface }
+                if configuration.isPressed {
+                    VLMSnapperTheme.toolbarPressed
+                } else if isHovered {
+                    VLMSnapperTheme.toolbarHover
+                }
+            }
         }
     }
 }

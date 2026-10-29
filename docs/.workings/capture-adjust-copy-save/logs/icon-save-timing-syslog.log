@@ -1,0 +1,11 @@
+# Installed-build timing runs, 2026-10-29 (build c0288b6): synthetic capture, window click, Save click.
+# Two of eight Save clicks started no save panel (no _initBridgeAndStuff in the app log).
+2026-10-29 13:03:22.749 Df VLMSnapperApp[16316:5ee1d05] (ScreenCaptureKit)  [INFO] -[SCContentFilter setContentsAndStreamType]:495 streamType=1 conten
+2026-10-29 13:03:23.310 A  VLMSnapperApp[16316:5ed9426] (AppKit) _initBridgeAndStuff
+2026-10-29 13:03:23.578 A  VLMSnapperApp[16316:5ed9426] (AppKit) beginServicePanel
+2026-10-29 13:03:58.036 Df VLMSnapperApp[16316:5ee1d3d] (ScreenCaptureKit)  [INFO] -[SCContentFilter setContentsAndStreamType]:495 streamType=1 conten
+2026-10-29 13:03:58.577 A  VLMSnapperApp[16316:5ed9426] (AppKit) _initBridgeAndStuff
+2026-10-29 13:03:58.728 A  VLMSnapperApp[16316:5ed9426] (AppKit) beginServicePanel
+2026-10-29 13:04:01.043 Df VLMSnapperApp[16316:5ee25f6] (ScreenCaptureKit)  [INFO] -[SCContentFilter setContentsAndStreamType]:495 streamType=1 conten
+2026-10-29 13:04:01.044 Df VLMSnapperApp[16316:5ee25f6] (ScreenCaptureKit)  [INFO] -[SCContentFilter setContentsAndStreamType]:495 streamType=1 conten
+2026-10-29 13:04:15.783 Df VLMSnapperApp[16316:5ee25f5] (ScreenCaptureKit)  [INFO] -[SCContentFilter setContentsAndStreamType]:495 streamType=1 conten
