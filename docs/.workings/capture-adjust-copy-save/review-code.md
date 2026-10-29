@@ -195,6 +195,25 @@ the first seconds after a selection and only worked after a wait.
     `saveIconMatchesCopyIconWidth` checks the rendered ink. Renders: `renders/toolbar-zhHans-light.png`,
     `renders/toolbar-zhHans-dark.png`, `renders/proto-toolbar.png`.
 
+## Installed-build feedback 3 (2026-10-29, build `66f9079`; changes in `c4c236b`)
+
+The user accepted the build and asked for visual fixes only, with no test runs: the four out-of-capture
+buttons with dead areas take presses in their whole frame (the cleanup retry row, the API key clear and
+reveal buttons, the permission-recovery close); toolbar buttons show the prototype's hover backgrounds
+(`CaptureToolbarButtonStyle`; the new `accentHover` resolves to #006de6 in light and #3a8fff in dark against
+the accent #007aff, darker and lighter as the prototype's accent hover); a selection with no room below or
+above (a whole display) gets the toolbar inside its bottom-right corner, 4 pt in.
+
+Correction to finding 9's class-level list: the history row (`HistoryRecordSurface` sets a content shape)
+and the clear-history text button (its text frame takes presses) were not affected; the privacy-details
+close button has no larger frame to fill and is unchanged.
+
+Not run, at the user's request: any test. The two whole-display app tests and a new placement unit test
+were updated to the new rule and compile, but have not run. Checked instead on the installed build with
+synthetic events: a whole-display drag put the toolbar at 4 pt from the visible bottom and 4 pt inside the
+selection's right edge; hover renders in `renders/installed-whole-display-hover-save.png` (Save hovered)
+and `renders/installed-whole-display-hover-action.png` (the selected action hovered).
+
 ## Findings and outcome
 
 Findings 1–10 fixed; 1, 3, 4, 5, 7, 8, 9 and 10 with tests red first and green after, 2 without a test
