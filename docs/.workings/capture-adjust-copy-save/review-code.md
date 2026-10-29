@@ -214,6 +214,22 @@ synthetic events: a whole-display drag put the toolbar at 4 pt from the visible 
 selection's right edge; hover renders in `renders/installed-whole-display-hover-save.png` (Save hovered)
 and `renders/installed-whole-display-hover-action.png` (the selected action hovered).
 
+## Installed-build feedback 4 (2026-10-29, changes in `2b60f93`)
+
+The user asked for a stronger hover, for Extract not to stand out in blue while every other control is
+neutral, and for the toolbar to label Extract 提取. Extract and Translate now share the language field's look
+(surface and border); no action is shown as selected (the selection was only visual: no shortcut or
+default action depends on it, and a click still records the operation for the result window). Hover and
+press lay the label colour over the control: measured black at 10 % / 16 % in light, white at 16 % / 24 % in
+dark. The toolbar uses its own string `capture.extract` (提取 / Extract) because `operation.extract` also
+labels the menu bar's recent items and the result window. `accentHover`, added in the previous round for
+the selected action, is removed with it. The prototype follows.
+
+Not run, at the user's request: any test (the build and tests compile). Checked on the installed build:
+`renders/installed-toolbar-rest.png` (uniform actions, 提取), `renders/installed-toolbar-hover-save.png`,
+`renders/installed-toolbar-hover-extract.png`. A synthetic pointer that jumps straight onto a button shows
+no hover until it moves again; moving continuously, as a real pointer does, shows it.
+
 ## Findings and outcome
 
 Findings 1–10 fixed; 1, 3, 4, 5, 7, 8, 9 and 10 with tests red first and green after, 2 without a test
