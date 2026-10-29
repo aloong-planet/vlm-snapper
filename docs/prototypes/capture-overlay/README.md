@@ -14,3 +14,7 @@ Superseded on 2026-10-28 for the selection itself: the user made the shipped app
 
 Before anything is dragged, the overlay highlights the snap region under the pointer with the selection look: the whole topmost window (never an element inside it), a single menu bar status icon or the rest of the menu bar, the Dock strip as one region (no single icons: the app stays sandboxed), and the whole display over the desktop. A click (3 px or less of movement) selects the highlighted region and shows the shared toolbar; moving further draws a manual rectangle. Confirmed by the user on 2026-10-28. The colour tokens and the toolbar are shared with the attached-toolbar page through `_shared/capture-overlay.css` and `_shared/capture-toolbar.js`.
 
+## Confirmed selection, Copy and Save (2026-10-29)
+
+Confirmed by the user: a confirmed selection shows small handles at its four corners and four edge midpoints; dragging a handle resizes, dragging inside moves, a press outside starts a new selection, and the toolbar follows. The toolbar has icon buttons Copy (the app's copy icon) and Save (a floppy disk, chosen by the user; SF Symbols has none, so it is Lucide's save icon) before Close; Copy and Save close the capture, Save first opening the system save panel.
+
