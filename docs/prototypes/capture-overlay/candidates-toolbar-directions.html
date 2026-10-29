@@ -10,8 +10,10 @@
   <!--
     Candidates for the Save button icon of the attached capture toolbar (prototype-toolbar-directions.html,
     shared toolbar block). Each cell shows the whole toolbar with the candidate between Copy and Close,
-    light and dark side by side. Glyphs are the app's SF Symbols rendered by AppKit at 15 pt (the toolbar's
-    icon size) and used as masks. The recommended candidate is what the prototype pages show until chosen.
+    light and dark side by side. The user asked for a disk (2026-10-29). SF Symbols has no floppy disk, so the
+    floppy is Lucide's "save" (official paths, 1.8 stroke like the other prototype icons); the drives are the
+    app's SF Symbols rendered by AppKit at 15 pt. All are used as masks. The recommended candidate is what the
+    prototype pages show until chosen.
   -->
   <style>
     * { box-sizing: border-box; }
@@ -24,42 +26,33 @@
     .pair { display: grid; grid-template-columns: 680px 680px; gap: 12px; }
     .column { position: relative; height: 64px; padding: 14px; border-radius: 8px; color: var(--text); background: linear-gradient(150deg, var(--desktop-a), var(--desktop-b)); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; font-size: 13px; }
     .column .capture-toolbar { top: 14px; left: 14px; }
-    .cand-0 .icon-save { --icon: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAoCAYAAACWwljjAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAACSgAwAEAAAAAQAAACgAAAAAhdTn+wAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAnFJREFUWAntlr9PFFEQxxGMDYTCqA0GUCsNjZ2F0VNjCRWh0EQK/ww7o6VAY6dSYWGHsbGysbCyQaVFSegIAdHgr+j3A29y73Zn7/bubYHJTvK9N2/m+75vbnbf7vb11VZ3oO7A4e/AeZUIDoWdVBU/Ak5VUVF/oggFHQs4kai1vzy1oCpqaNGoC2pphzOpO+Q0pSV0tGWWn4wodE0YFYai9EP536J57A5qci8K7Mr/LLwRNqJ4Vy6iT4Xfwl8HdsQvRDl8jJy3Bq0nAtqF5nVoQOxXQiNatS7/azT/E/lZl9ynKDgs/7SA7l3hrHBTaKehdNNm5do/XJY/1kzlPK9DOVLQeKnRdO94pKLY67BwVSNP4XZWtiA00EKTotjDNe/YXwzM5xp/uqt6C6KFJmZ7HMyiX6+g4yH/JeJV5XLaMNvjYBb9egVx82Gciqw9UOCR4B0G45KbE+5bIBrtRrY9olSxazfebYeyrRj5JYE/w3eQ8fGJkSMGN2toGj+b2597HXKJITit8btwS3gs7Alm+MTIwYFbidk/8DrEBlcEnknwFsOI/yz45K4KnnXskLcIcVBUEGsuCVuCcW0kRq7IOhbU7SWzjd7JuSFsWiD4xMj1bL0WxIbvhYawEYBPLMnaHd8ywh9EOheI8Q1eZq3LSS0I0UoKsepSLplpVDr+FwXZlyDfMVWbadoeOX2vQ/YCvJxjpwdM0/YopbggFg+6X8L1UivKkXhGoYk2e7h2xImeUWxF4NuXN/4L4a2wI/RiXCY6MyNwqrlcE8KaUNqmxNwV7JVQ1YjmZOkqMkQ6RWs/CinFsRaNeWFcqC2pA/8AaDeovo0o+QcAAAAASUVORK5CYII=); }
-    .cand-1 .icon-save { --icon: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAmCAYAAAC/H3lnAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAACygAwAEAAAAAQAAACYAAAAA3PQWBAAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAA0ZJREFUWAntmFuITWEUx8cll1zmQYyX0SgJk4QoiSK5pChFuZQXRUnIpZSQB0opibyQM2+TROJFUozyoEa5lJRpGmIUkcZ9DH5/863aZ5999vn2nL2Pps6q36zvstb61v72+r5zztTUVKX/7cA6Us7B2P6SehuJ/oHtWSQ8MIOgQ1xM06kukUXCqSYYDlZNOLwjaferO5z2jobjDQ4PJOgPwHaQs+9B6yorJrKTveRXr+rb36QlUccy56ETfkO3YwM6Th4yabbfabfC5jiHYnNJdriBIC1QXyyY5/hQ7GZBDmbCLkhdaon4DPTa22E1jIERjuCDv2JMdrvBZDgN2Y6ESXASZCP2QqqisrkBCv4OGiBOohKOsj/CoGKq/pdBanKMSAqsw7I4FPUw/TewKDAeTlgHrgk0PiFgp0N4DRT7A2jny5a1RFBAsSci2lk314We4+Y73NhOtJK64Po/0JMhKKPpPAfFfwoqmT7LDDy/gII1F4miLzhXnc17dCNYrW+hbbX6jfYKiJJpDOqBtc4V0EMmFh2odlCQJ6ADU0x04PRAsn0NVhIP3NhndLiUGMqTNfTkLw7lzXh0lMBtkPNH8Kkt1WkObFHTnxibDz5yHCP56X5f5eNgNgdpmONKG/TQepXnnK/8dZCsrmmWFN1GN0G+2qg6KJCoeunASqf5Hqwv8Cgc0I68BS0kOQpLYSs8AokOU+2/VvyfqUzfciY70GfizXtndX1p8SRcjgk8hTkduiTxZKsSKRC9hrCoHpPKghiH2cwNi5kvNhWZR1TCFkDX0qgS2FU1Drvp5hjSS1y/FV0qnuZ1HycSe3UbPbx0D1v93qcdvviXM2YldsAjnkxU98rhhDph0RVWjvzEeT80wTx4DBdB3znU10Pr1b6A05CJJNlhS0BfEZW8+Qa1HmKiGXroTHfY1j9F4zqo7ueCPhlfgsaaoRtSkXJLIphEGx3fOg36JWrH3RKJAlXKOCphfXJJ9Cvhf4it2xO1eFTC+pooWdirKvq3ntXsgFoeeQlE1fAdLPQv002g094C+qWbtYxngW1gOd31XbARwy4IXk2Vbl/yTdbs9CtA11En2CdV1kl/ZS3dwfvAdplmVSq7A38BOZH/NNj0ljcAAAAASUVORK5CYII=); }
-    .cand-2 .icon-save { --icon: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAkCAYAAADsHujfAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAACKgAwAEAAAAAQAAACQAAAAA5xC98gAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAppJREFUWAntlz1rFUEUhq9GohKUiIkIQgoLq4BgFcTG3soijUGvSCQKioltLEQtRBCJBEwQDUQE9Q+INkoahVRJoVam8qsQxCB+m+e9nNG9OjM7m91bCDnw3Pk6c+a9Z2d3dmu1FWvOwKrmZlNrC63d0A1tTSN/Gj+pfoCnsACV2wUifoVfifzAbwzWQGV2mEhZAV9ofwwgAVnfu7RD2WOomD3BXcHfgC7NagjZHAPynbdS9dtQiZhFCzpKmWdOyBEcL4LLzjT12B/Ii9sYd8EGEryzQuR+Gdz8G9RjN4P8f1tMtQIWtREmXLVJ2msTkCQmJsTiFS5OMuOazRqkHE+J0AohWvc4XDcBxyjHrB4sWiVEl/UoTNnKJyi1f4LWKiFaUGJ0N91SAxuGM42a56eskG8Wc5sntrp0BNThDsjOws5GLeHH3X4HEnz18HL+WjSG85OYf6xsRs4RccGi6jaNYW61HlfJlmUPqWcE2wHboTMb2FO/Ql8feNf0dnqCxLq0T17EHGxMrwtBK3tpThP5NewJrpA4UFbIPtbZCnsT1wu6lRWizVmJlRVSiQgF+W+FdCB+Q04aYi/bwalFM6JXwpewyyLqnVWmJ6pMZ4vuIvcaoL4kW46QzUR+CDozPtkqKg/CJLSBHnSlzZ0JvrOmneh6U5fPO5i1+gPK76DM6Nnis/t0at60b9DXFxMif2VRqXd+rpSQOoQsKqTopdEi+tdDoI8wZ5+p7Icp11G09J01WkgC1+UEG2X8FWiDnoIZiNlaG3QbPObbGNOHldJ9M9cz3WEjru9BcS/5pvky8hjHfjgEeoTrnyr1y7UuJtZhkwVQ/CTrxct97ekfVMkj4hXalxJzD97C3x/aRYUpm8/hPKyHFUvKwBLmxr/xRnCFdwAAAABJRU5ErkJggg==); }
-    .cand-3 .icon-save { --icon: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAkCAYAAADPRbkKAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAADCgAwAEAAAAAQAAACQAAAAAJH20SAAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAA2dJREFUWAntmFuIjVEUx88Y45Jbci+XM8WD3F7kEiHMxItHNW4lHpQiiVLy4IGSBy9IeTBEKS94UG5NLkWTB7cYTTSJB0QY1xnD7z/O0nba3z7fN+d8M/Mwq36z915r7b3W3t+397fPZDI90rUrUBYRvj/6tbAQRkI5pC1fCdAIp6G+mGBD6fwAfncRbcTdBrHE9wQO0XNrrvdzyjvwPddOsxjN4FVQAa0wEZogsShprf5N0GCdKYsIZk9+U5zAvTxOY3O6s5QtHnuaqjoGf5kLYHkE4/kmYKv+IdgzPaPF7RMnhG8CcfrJp5i+cWMU9OtIEhMY9SJoYzfDcRgEXSK9E0YdgH8dZEGi120DjIdq6HRJ+gRqyDDrybIK3UyPPnVV0glkAxmFbIFuxZmSTuBRIFzIFuhWnCnpBM4RzndPOYH+aSCVUdiyAXtJTfYlXB0x6mD0B+Ex3IMdEHXZG4btAtiY96lPgZDIPgmyIaeQzYJFTSDU17XpuNVTsfGsfI9ututY6roFKmYCM0jqNdhY+eVnbAvyEl9M+xjo8tgAN2AfTIZEYsF8E1jDSLWwCwZGjLoE/UewcXzlT+zzcv3HUF4N+LdiOwx9IJZYQHcC+uApcbOp1B4YB67U0PgBrp+vrn0jUX9d3lyfNtqv8nSyX4dYk7DBbAL6+l7yDCg/BbdNuZ26glv/qPIFPn1BJ2C9x/8AOsk1yB9Dv1UKinXSBIbDXTCdr9SmPFXAx+23B1+JXkdXb/Ut7dZM5qTH3oJOP3T+iVYhSiox3IZZUQ45vX6CKpm4oougZN3fItFfvcqr3B6hy9xeHMtc5xLVn+XGmdPB8ea6/UJPII3kvxH8C/QD9wp+lPYRcEXxdVrthsuOYYRTz/iewCcc9LVNQ/TvGiWv3xKajNoSve86/9+B7BIt7ko4D/puVINEey4oOq5sQ6VR2ofplhNHx6adZtp7EitXUNdkLZf9MoZkOUZzTqPUcSvZDO74Wtn/3m/a60EfMvPTMT0NCop2ehNYx1KWDxlXr4c+So15MbQ/loFkJ+THrW23OH/KnLqvWolSm6bcZyxCp8TfwnTQq+Ru6F+0n8BUcEU32fnQ7Cq7Q12JNkD+arttbeQh3SHZqBwqMGyEK/AGdHzqmnIGlkKP9KxAzwpErMAftHRaGNOov+IAAAAASUVORK5CYII=); }
+    .cand-0 .icon-save { --icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M15.2%203a2%202%200%200%201%201.4.6l3.8%203.8a2%202%200%200%201%20.6%201.4V19a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2V5a2%202%200%200%201%202-2z%22/%3E%3Cpath%20d%3D%22M17%2021v-7a1%201%200%200%200-1-1H8a1%201%200%200%200-1%201v7%22/%3E%3Cpath%20d%3D%22M7%203v4a1%201%200%200%200%201%201h7%22/%3E%3C/svg%3E"); }
+    .cand-1 .icon-save { --icon: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAeCAYAAABXNvynAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAACygAwAEAAAAAQAAAB4AAAAATaXlQwAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAo5JREFUWAntl02ITmEUx18zkY98xSj52MhHiaRooiQfCzsWMitJscOCYsVCxsZSE7YWVpMNsZLGRpMokdky0vhIyQwKw+8/zqnHuOM+951zZzWnfu957r3n+Z/znnvvc+9tNCat3g5MCZCvovErIF8liRlEn4JeGAIVUIWfxA9AN2yHWm0J6s+hSoFlsZ11VdyC8EMr9iv+NKyE2TCrAguJ3Qa3wf/MIcbhth9FT7A3QF0NuGuar/FTAzT/knhg4upylG1EyJvQESUqnfWJ8OFIYbQembYaEmZXUVInPsHMMNU/Qkdx3uV1EdpzERk00a4IwVEaumk/m/6VUcea2jxuYurChqYUyiddsxxqzJzy8LEj9ATrAxWrB0VdtglhvyyOjSfJrkToyHiEMuY+sVwvymL/9x5wk8lac3WNrYYFEH3TDaP5EfbAZZDthHsjowo/y4j9ATpV3+C7jf3URXu/8aTbDZXtAjOii8rVU6OWjlVx0SUxjeB+WGSTevBai/Xi88X2RTnlb4MdoBVJ7xqy83B2ZJTxc4AY78bFjPiokMUI+ar0hnFrrrBuNhX8GIrOQK5OWZw6exBWJYFbGHuz1PUse0eUJp3Jim4uSKvNS1Aeva5qFXLT5aj953xH6lvSDRvPM6/C67IVCC838en49iTRWxt7HcmhRqOoYH3CyCRal+kB0WPir/B3kkS+QnjhyaHi4XV265RIKPpBkWZsZWMNqMNuuxkot0i77scL/WaboEm3QG9UE2FrSaKvD+XthcIbvnAnwZfgJMjeww14BtHrsC7J+bAV9oE+lQZt+yk+2yTUCfos91M0Eb6ffNmXArH/mE5TF/TBEEQXPYzmB7gPJ6DOewb5SSvvwG/jHQVRrbab1QAAAABJRU5ErkJggg=="); }
+    .cand-2 .icon-save { --icon: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAeCAYAAABXNvynAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAACygAwAEAAAAAQAAAB4AAAAATaXlQwAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAsJJREFUWAntl02ITlEYx6+ZRhnGxxhfYSUpDCKSj5KPhbJgIbKaFCtDDWXFRkbKUuNjwUJSarKZspMoaRIlIlkZyVdKZlAMfv93nlMz773jPXfe585qnvrNc+65z/mfZ557zpkzSTJmxVZgnIN8Ho2/DvPlkphA9DHohj5QAnnoJ/49dMImKNTmov4c8iRYKba9qIxrEH5oyf7AH4eF0AATc9BE7EbogvDLtNB2t90ohgl2Oqhr3d82zbf4OgfNIRL3TVxV9rKVCIUi7PUSlc6yQcL7PYXRemTaKoibXUJJlfgK9W6qA0IHcaHKzR7aUxDpNdEOD8EyDW3ab6Z/sezdiB4Pm5iqsGJECpUHXbY5VJjJlcOHj9BOfglKVn8oirLVCIdl0VrNJFsHCR2oRihi7BOb60Wl2P/dA24xWGeu1tgimA7em+4Pml9gO5wH2Ra4U2rl+DGf2N+gT/UTflk7fDpvHzaedDsht51mhHdSsXoq1LzhMs5aEuMJ7oGZNugeXmexLj7frc/Laf4ZsBl0IjWB7BScLLUifuwhJlTjTES8V8gchMKp9I52baywNpsSfgxZXyBLR+vurL3Yh9fX0N25EV7BDpBdgKul1sDmek17lj3LrYNQLFU9ZTWpniRZb3038RocY2sIWmWBy/GLQcnOBl1Dm0GmM1fIFLMAdM8O9oCGbm8yXUNTlpXwVIv6mIoenY4PNk3IY8isWQnrXxiZfvtqLOvrZPWVzxFOiJB4+fvU8zV6JPwG6lNvsztO0N1irzbgr0AtaB1LT3df2SFoK7WSZCn+OkyyZ7ltoLnFWogyrccwqIt2Q9So6oOWIKH1q7m7IXPDZ3YSfA6OguwT3IBn4H0Oa0lOA230XVAHvfb8FB9tEmqHfgjVHg3fw3zRS4HYlOkzdYAO9D7wTlqXn89wF45A7J4hdMyKqcA/g0oLROt2X9kAAAAASUVORK5CYII="); }
   </style>
 </head>
 <body>
   <main class="candidates">
-    <h1>保存按钮图标候选（复制、关闭为现有图标）</h1>
+    <h1>保存按钮图标候选：磁盘（复制、关闭为现有图标）</h1>
       <section class="cell cand-0">
-        <h2>square.and.arrow.down（推荐）</h2>
-        <p>推荐：macOS 通用的“存储到”字形，与“共享”同族，含义最直接</p>
+        <h2>floppy disk (Lucide save)（推荐）</h2>
+        <p>推荐：通用的“磁盘即保存”字形；SF Symbols 没有软盘，需在图标模块中以自绘矢量作为明确例外</p>
         <div class="pair">
           <div class="column" data-theme="light"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
           <div class="column" data-theme="dark"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
         </div>
       </section>
       <section class="cell cand-1">
-        <h2>tray.and.arrow.down</h2>
-        <p>存入托盘：更像“下载/收件”，与保存到本地文件的含义稍远</p>
+        <h2>externaldrive</h2>
+        <p>外置硬盘：SF Symbols 原生字形，像磁盘但更像“驱动器/存储设备”</p>
         <div class="pair">
           <div class="column" data-theme="light"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
           <div class="column" data-theme="dark"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
         </div>
       </section>
       <section class="cell cand-2">
-        <h2>arrow.down.doc</h2>
-        <p>下载为文档：强调生成文件，但字形较窄、与复制图标轮廓相近</p>
-        <div class="pair">
-          <div class="column" data-theme="light"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
-          <div class="column" data-theme="dark"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
-        </div>
-      </section>
-      <section class="cell cand-3">
-        <h2>photo.badge.arrow.down</h2>
-        <p>图片加下载角标：强调“图片”，字形最宽，挤在小按钮里偏重</p>
+        <h2>internaldrive</h2>
+        <p>内置硬盘：SF Symbols 原生字形，与外置硬盘相近，略扁</p>
         <div class="pair">
           <div class="column" data-theme="light"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
           <div class="column" data-theme="dark"><div class="capture-toolbar" data-shared-block="capture-toolbar"></div></div>
