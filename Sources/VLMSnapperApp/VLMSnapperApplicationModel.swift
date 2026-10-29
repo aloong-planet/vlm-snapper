@@ -79,6 +79,10 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private let captureCoordinator: CaptureFreezeCoordinator
     /// The display of the selection the toolbar belongs to; a change to it ends the capture (v1-core::REQ-007/AC-07).
     private var confirmedSelectionDisplayID: UInt32?
+    /// The latest crop of the confirmed selection and the crop still running after an adjustment;
+    /// toolbar actions wait for that crop so they never use the selection before it was adjusted.
+    private var confirmedSelectionPNG: Data?
+    private var selectionCropTask: Task<Void, Never>?
     private let captureOverlayController = FrozenCaptureOverlayController()
     private let captureToolbarController = CaptureToolbarPanelController()
     private var captureSelectionSession: CaptureSelectionSession?
@@ -1122,8 +1126,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
         // Cover the displays now; the freeze below excludes VLMSnapper windows.
         if captureOverlayController.presentPending(
             onSelection: { [weak self] selection in
-                Task {
-                    await self?.finishSelection(
+                guard let self else { return }
+                selectionCropTask = Task {
+                    await self.finishSelection(
                         selection,
                         generation: request.generation
                     )
@@ -1335,6 +1340,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                   captureDisplayGeometries[selection.displayID] != nil else { return }
             // Displays stay monitored: the selection can still be adjusted until an action starts.
             confirmedSelectionDisplayID = selection.displayID
+            confirmedSelectionPNG = selected.originalPNG
             originalImage = NSImage(data: selected.originalPNG)
             showCaptureToolbar(
                 originalPNG: selected.originalPNG,
@@ -1389,14 +1395,22 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 targetLanguages: targetLanguageOptions,
                 providerSummary: providerSummary,
                 onStart: { [weak self] operation in
-                    guard self?.activeCaptureGeneration == generation else { return }
-                    self?.openWorkspace(originalPNG: originalPNG, operation: operation)
+                    Task { [weak self] in
+                        guard let png = await self?.latestSelectionPNG(generation: generation) else { return }
+                        self?.openWorkspace(originalPNG: png, operation: operation)
+                    }
                 },
                 onCopy: { [weak self] in
-                    self?.copyCapturedImage(originalPNG, generation: generation)
+                    Task { [weak self] in
+                        guard let png = await self?.latestSelectionPNG(generation: generation) else { return }
+                        self?.copyCapturedImage(png, generation: generation)
+                    }
                 },
                 onSave: { [weak self] in
-                    self?.saveCapturedImage(originalPNG, generation: generation)
+                    Task { [weak self] in
+                        guard let png = await self?.latestSelectionPNG(generation: generation) else { return }
+                        self?.saveCapturedImage(png, generation: generation)
+                    }
                 },
                 onCancel: { [weak self] in
                     Task {
@@ -1407,6 +1421,13 @@ final class VLMSnapperApplicationModel: ObservableObject {
             below: selectionFrame,
             on: screen
         )
+    }
+
+    /// The crop of the selection as it is now, after any adjustment still being cropped.
+    private func latestSelectionPNG(generation: UUID) async -> Data? {
+        await selectionCropTask?.value
+        guard activeCaptureGeneration == generation else { return nil }
+        return confirmedSelectionPNG
     }
 
     /// Copy and Save end the capture like Cancel: no history, no model request (v1-core::REQ-008, REQ-009).
@@ -1658,6 +1679,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
         captureToolbarController.hide()
         captureSelectionSession = nil
         confirmedSelectionDisplayID = nil
+        confirmedSelectionPNG = nil
+        selectionCropTask = nil
         activeCaptureGeneration = nil
     }
 

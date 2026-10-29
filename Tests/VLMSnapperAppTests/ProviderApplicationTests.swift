@@ -1267,7 +1267,7 @@ struct ProviderApplicationTests {
     // freeze. The selection shows through the toolbar, which is left-aligned with it.
     @Test
     func clickOnWindowSelectsWholeWindow() async throws {
-        try await withSnapFixture { fixture, screen in
+        try await withSnapFixture { fixture, screen, model in
             try fixture.shortcuts.fire()
             let overlay = try await frozenMainOverlay()
             try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
@@ -1281,7 +1281,7 @@ struct ProviderApplicationTests {
 
     @Test
     func clickOnDesktopSelectsWholeDisplay() async throws {
-        try await withSnapFixture { fixture, screen in
+        try await withSnapFixture { fixture, screen, model in
             try fixture.shortcuts.fire()
             let overlay = try await frozenMainOverlay()
             try sendMouse(.leftMouseDown, at: NSPoint(x: 60, y: 600), to: overlay)
@@ -1294,7 +1294,7 @@ struct ProviderApplicationTests {
 
     @Test
     func clickWhileFreezingSelectsWindowOnceFramesArrive() async throws {
-        try await withSnapFixture { fixture, screen in
+        try await withSnapFixture { fixture, screen, model in
             await fixture.capture.holdFrames()
             try fixture.shortcuts.fire()
             try await eventually { try mainScreenOverlay() != nil }
@@ -1312,7 +1312,7 @@ struct ProviderApplicationTests {
 
     @Test
     func clickWithoutWindowListSelectsNothingButDragStillWorks() async throws {
-        try await withSnapFixture(windowList: false) { fixture, screen in
+        try await withSnapFixture(windowList: false) { fixture, screen, model in
             try fixture.shortcuts.fire()
             let overlay = try await frozenMainOverlay()
             try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
@@ -1327,7 +1327,7 @@ struct ProviderApplicationTests {
 
     @Test
     func lateWindowListOfReplacedCaptureIsIgnored() async throws {
-        try await withSnapFixture(windowList: false) { fixture, screen in
+        try await withSnapFixture(windowList: false) { fixture, screen, model in
             let flipHeight = try #require(NSScreen.screens.first).frame.height
             func list(atLocalX x: CGFloat) -> CaptureWindowSnapshot {
                 CaptureWindowSnapshot(windows: [CaptureWindowSnapshotEntry(
@@ -1361,7 +1361,7 @@ struct ProviderApplicationTests {
 
     @Test
     func windowListIsReadOnceAtTriggerWithoutOwnWindows() async throws {
-        try await withSnapFixture(windowList: false) { fixture, screen in
+        try await withSnapFixture(windowList: false) { fixture, screen, model in
             let flipHeight = try #require(NSScreen.screens.first).frame.height
             func entry(_ process: Int32, localX x: CGFloat, width: CGFloat) -> CaptureWindowSnapshotEntry {
                 CaptureWindowSnapshotEntry(
@@ -1398,13 +1398,97 @@ struct ProviderApplicationTests {
 
     @Test
     func heldWindowListDoesNotDelayOverlay() async throws {
-        try await withSnapFixture { fixture, _ in
+        try await withSnapFixture { fixture, _, model in
             await fixture.windows.hold()
             try fixture.shortcuts.fire()
             try await eventually { try mainScreenOverlay() != nil }
             let overlay = try #require(try mainScreenOverlay())
             try await eventually { try overlayShowsFrozenFrame(overlay) }
             await fixture.windows.release()
+        }
+    }
+
+    // v1-core::REQ-007–009: Copy and Save end the capture without history or a model request; the
+    // selection can be adjusted first. The window is local (200, 150, 300, 200) of the main screen.
+    // Not covered here: the real save panel and clipboard, and the modal failure alerts.
+    @Test
+    func copyPutsSelectionOnClipboardAndEndsCapture() async throws {
+        try await withSnapFixture { fixture, screen, model in
+            let historyCount = model.historyRecords.count
+            let toolbar = try await selectWindow(fixture)
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
+            try await eventually { try mainScreenOverlay() == nil && captureToolbar() == nil }
+            let png = try #require(fixture.clipboard.written.last)
+            #expect(try pngPixelSize(png) == pixelSize(width: 300, height: 200, on: screen))
+            #expect(model.historyRecords.count == historyCount)
+            #expect(await fixture.http.imageRequests.isEmpty)
+        }
+    }
+
+    @Test
+    func saveWritesSelectionWhereTheUserChoseAndEndsCapture() async throws {
+        try await withSnapFixture { fixture, screen, model in
+            let target = FileManager.default.temporaryDirectory
+                .appendingPathComponent("vlmsnapper-save-\(UUID().uuidString).png")
+            defer { try? FileManager.default.removeItem(at: target) }
+            fixture.imageSaver.answer = .saveTo(target)
+            let historyCount = model.historyRecords.count
+            let toolbar = try await selectWindow(fixture)
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 1))
+            try await eventually { try mainScreenOverlay() == nil && captureToolbar() == nil }
+            #expect(try pngPixelSize(Data(contentsOf: target)) == pixelSize(width: 300, height: 200, on: screen))
+            let name = try #require(fixture.imageSaver.requests.last?.suggestedName)
+            #expect(name.range(of: #"^vlmsnapper-\d{8}-\d{6}\.png$"#, options: .regularExpression) != nil)
+            #expect(model.historyRecords.count == historyCount)
+            #expect(await fixture.http.imageRequests.isEmpty)
+        }
+    }
+
+    @Test
+    func cancelledSaveKeepsTheSelection() async throws {
+        try await withSnapFixture { fixture, _, model in
+            fixture.imageSaver.answer = .cancel
+            let toolbar = try await selectWindow(fixture)
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 1))
+            try await eventually { fixture.imageSaver.requests.count == 1 }
+            pumpNativeEvents(toolbar)
+            #expect(try mainScreenOverlay() != nil)
+            #expect(captureToolbar() != nil)
+            // The selection is still usable afterwards.
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
+            try await eventually { fixture.clipboard.written.count == 1 }
+        }
+    }
+
+    @Test
+    func adjustedSelectionIsWhatCopyUses() async throws {
+        try await withSnapFixture { fixture, screen, model in
+            _ = try await selectWindow(fixture)
+            let overlay = try requireFixture(try mainScreenOverlay())
+            // Bottom-right handle of the window (500, 150) to (400, 200): the selection becomes (200, 200, 200, 150).
+            try drag(overlay, from: NSPoint(x: 500, y: 150), to: NSPoint(x: 400, y: 200))
+            try await eventually {
+                guard let toolbar = captureToolbar() else { return false }
+                return abs(toolbar.frame.maxY - (screen.frame.minY + 200 - 4)) <= 1
+            }
+            let toolbar = try requireFixture(captureToolbar())
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
+            try await eventually { !fixture.clipboard.written.isEmpty }
+            #expect(try pngPixelSize(try #require(fixture.clipboard.written.last))
+                == pixelSize(width: 200, height: 150, on: screen))
+        }
+    }
+
+    @Test
+    func displayChangeAfterSelectionEndsCapture() async throws {
+        try await withSnapFixture { fixture, _, model in
+            let historyCount = model.historyRecords.count
+            _ = try await selectWindow(fixture)
+            let current = try #require(fixture.displayGeometries?.first)
+            fixture.displayGeometries = [changedGeometry(current, scale: true)]
+            fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+            try await eventually { try mainScreenOverlay() == nil && captureToolbar() == nil }
+            #expect(model.historyRecords.count == historyCount)
         }
     }
 
@@ -2000,7 +2084,7 @@ private func sendMouse(_ type: NSEvent.EventType, at point: NSPoint, to window: 
 @MainActor
 private func withSnapFixture(
     windowList: Bool = true,
-    _ body: @MainActor (ApplicationFixture, NSScreen) async throws -> Void
+    _ body: @MainActor (ApplicationFixture, NSScreen, VLMSnapperApplicationModel) async throws -> Void
 ) async throws {
     try await withFixture { fixture in
         fixture.permissionGranted = true
@@ -2023,9 +2107,42 @@ private func withSnapFixture(
         }
         try await fixture.withModel { model in
             try await makeCaptureReady(model, key: "fixture-snap-key")
-            try await body(fixture, screen)
+            try await body(fixture, screen, model)
         }
     }
+}
+
+/// Captures, clicks the fixture window and returns the toolbar shown for it.
+@MainActor
+private func selectWindow(_ fixture: ApplicationFixture) async throws -> NSWindow {
+    try fixture.shortcuts.fire()
+    let overlay = try await frozenMainOverlay()
+    try sendMouse(.leftMouseDown, at: NSPoint(x: 300, y: 250), to: overlay)
+    try sendMouse(.leftMouseUp, at: NSPoint(x: 300, y: 250), to: overlay)
+    try await eventually { captureToolbar() != nil }
+    let toolbar = try requireFixture(captureToolbar())
+    pumpNativeEvents(toolbar)
+    return toolbar
+}
+
+/// Centre of the toolbar's icon button `fromEnd` places before its last one (0 is Close, 1 Save, 2 Copy).
+@MainActor
+private func toolbarIconCenter(_ toolbar: NSWindow, fromEnd index: Int) throws -> NSPoint {
+    let bounds = try requireFixture(toolbar.contentView).bounds
+    let lastCenter = bounds.maxX - VLMSnapperUIConstants.toolbarPadding - VLMSnapperUIConstants.toolbarControlHeight / 2
+    let step = VLMSnapperUIConstants.toolbarControlHeight + VLMSnapperUIConstants.toolbarControlGap
+    return NSPoint(x: lastCenter - CGFloat(index) * step, y: bounds.midY)
+}
+
+private func pngPixelSize(_ data: Data) throws -> [Int] {
+    let source = try requireFixture(CGImageSourceCreateWithData(data as CFData, nil))
+    let image = try requireFixture(CGImageSourceCreateImageAtIndex(source, 0, nil))
+    return [image.width, image.height]
+}
+
+@MainActor
+private func pixelSize(width: CGFloat, height: CGFloat, on screen: NSScreen) -> [Int] {
+    [Int((width * screen.backingScaleFactor).rounded()), Int((height * screen.backingScaleFactor).rounded())]
 }
 
 @MainActor
