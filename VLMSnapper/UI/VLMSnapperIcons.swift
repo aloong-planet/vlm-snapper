@@ -83,7 +83,8 @@ struct OnboardingBrandMark: Shape {
 }
 
 // Save uses a floppy disk, the convention the user chose (2026-10-29). SF Symbols has no floppy disk, so
-// this is the one generic action icon drawn here: Lucide's "save" outline on its 24-unit grid.
+// this is the one generic action icon drawn here: Lucide's "save" outline, whose 24-unit grid draws in
+// 3...21. The outline fills the rect it is given, so its size is set by the frame alone.
 struct FloppyDiskShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -111,14 +112,23 @@ struct FloppyDiskShape: Shape {
         path.addLine(to: CGPoint(x: 7, y: 7))
         path.addArc(tangent1End: CGPoint(x: 7, y: 8), tangent2End: CGPoint(x: 8, y: 8), radius: 1)
         path.addLine(to: CGPoint(x: 15, y: 8))
-        return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24))
+        return path.applying(
+            CGAffineTransform(translationX: rect.minX, y: rect.minY)
+                .scaledBy(x: rect.width / 18, y: rect.height / 18)
+                .translatedBy(x: -3, y: -3)
+        )
     }
 }
 
+/// Drawn as wide as the Copy symbol next to it in the capture toolbar: 13 pt including the stroke, inset
+/// by half the stroke so the outline stays inside its frame.
 struct FloppyDiskIcon: View {
+    private static let lineWidth: CGFloat = 1.2
+
     var body: some View {
         FloppyDiskShape()
-            .stroke(style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
+            .stroke(style: StrokeStyle(lineWidth: Self.lineWidth, lineCap: .round, lineJoin: .round))
+            .padding(Self.lineWidth / 2)
     }
 }
 

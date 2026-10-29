@@ -94,6 +94,9 @@ public struct CaptureOperationToolbar: View {
                     width: VLMSnapperUIConstants.toolbarControlHeight,
                     height: VLMSnapperUIConstants.toolbarControlHeight
                 )
+                // The whole box takes the press, not only the icon's drawn pixels: the floppy disk is
+                // a thin outline that a press would mostly miss.
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(label)
@@ -116,6 +119,13 @@ public struct CaptureOperationToolbar: View {
                 .foregroundStyle(operation == kind ? Color.white : VLMSnapperTheme.primaryText)
                 .background(operation == kind ? VLMSnapperTheme.accent : Color.clear)
                 .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
+                        style: .continuous
+                    )
+                )
+                // A clear background takes no press, so the unselected button needs its shape too.
+                .contentShape(
                     RoundedRectangle(
                         cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
                         style: .continuous

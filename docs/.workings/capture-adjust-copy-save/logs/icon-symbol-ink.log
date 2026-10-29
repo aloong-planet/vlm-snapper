@@ -1,0 +1,21 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 13:10:16.233.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 13:10:16.235.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 13:10:16.235.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 13:10:16.235.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "TEMP symbol ink" started.
+◇ Test measure() started.
+SYMBOL square (6.5, 7.0, 11.5, 11.5)
+SYMBOL doc.on.doc (31.0, 4.5, 13.0, 16.0)
+SYMBOL square.and.arrow.down (57.0, 6.5, 11.0, 13.5)
+SYMBOL xmark (82.5, 8.0, 10.0, 10.0)
+SYMBOL externaldrive (105.0, 7.0, 15.0, 11.0)
+SYMBOL internaldrive (130.0, 7.0, 15.0, 11.0)
+✔ Test measure() passed after 0.118 seconds.
+✔ Suite "TEMP symbol ink" passed after 0.118 seconds.
+✔ Test run with 1 test in 1 suite passed after 0.118 seconds.

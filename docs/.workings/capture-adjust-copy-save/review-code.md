@@ -161,12 +161,46 @@ level and non-modality as intended, and a mutation without the level line failed
 reporting a summary, which would skip later tests in the same run and look green. The capture test script
 now also fails a `swift test` run that prints no passing summary.
 
+## Installed-build feedback 2 (2026-10-29, build `c0288b6`)
+
+The user reported that the Save icon is not the size of the Copy icon, and that Save clicks did nothing for
+the first seconds after a selection and only worked after a wait.
+
+9. **Bug, fixed (upper-layer escape: the Save action is mostly unreachable).** Toolbar icon buttons used the
+   plain button style with no content shape, so only the icon's drawn pixels took a press; the floppy disk
+   is a 1.2 pt outline, so most presses inside it missed and the user kept clicking until one landed on a
+   stroke. Driving the installed build with synthetic events (capture, window click, Save) reproduced
+   presses that started no save panel in 2 of 8 runs (`logs/icon-save-timing-syslog.log`: no
+   `_initBridgeAndStuff` after those captures); the save panel itself opens 0.3–0.7 s after a press that
+   lands. Test `iconButtonsAnswerAnywhereInTheirBox` was red first (`logs/icon-red.log`: a press inside the
+   25 pt box but off the icon reached none of Copy, Save, Close). Fix: the icon buttons' whole box takes the
+   press.
+   - Class-level check (a plain-style button whose label leaves part of its box without hit-testable
+     content): every `.buttonStyle(.plain)` in `VLMSnapper/UI` enumerated (14). In the capture toolbar:
+     the icon buttons (fixed); the operation buttons — an unselected one has a clear background, which takes
+     no press, so its padding was dead (pre-existing; fixed, `unselectedOperationButtonAnswersInPadding`
+     red first, `logs/icon-red-operation.log`); the two value menus (opaque surface background, not a
+     hit); the language rows (content shape set). Outside the capture module (history and settings in the
+     management center: cleanup retry, row, clear history, two key-field icon buttons; privacy details
+     close; screen-capture permission close): the icon-only ones take presses on the glyph only, not their
+     22–28 pt frames. Not changed (the user limited this work to capture); reported to the user for a
+     decision on where it goes.
+10. **Prototype and implementation deviation, fixed.** The floppy disk drew Lucide's 24-unit grid, whose
+    outline spans 3–21, in the 13 pt frame: 11 × 11 pt of ink next to Copy's 13 × 16 pt
+    (`logs/icon-red.log`). The confirmed prototype had the same proportion (the outline at 75 % of its box,
+    Copy's glyph cropped to fill it). For reference, SF Symbols at the toolbar's 13 pt size
+    (`logs/icon-symbol-ink.log`): square 11.5 × 11.5, square.and.arrow.down 11 × 13.5. Rule chosen: the
+    floppy disk is a square as wide as Copy (13 pt including the stroke), not as tall (a 16 pt square
+    would look larger than Copy). Implementation and prototype changed together at the user's request;
+    `saveIconMatchesCopyIconWidth` checks the rendered ink. Renders: `renders/toolbar-zhHans-light.png`,
+    `renders/toolbar-zhHans-dark.png`, `renders/proto-toolbar.png`.
+
 ## Findings and outcome
 
-Findings 1–8 fixed; 1, 3, 4, 5, 7 and 8 with tests red first and green after, 2 without a test (two
-displays), 6 with the sandboxed probe as its red and green evidence and structural tests. Capture-only test
-run after all fixes: `logs/save-capture-after-fix.log` (52 Core and UI tests, 30 App composition tests, all
-passing, each run with its summary line). Spec updated: FM-48 gains the crop order, one action per click,
+Findings 1–10 fixed; 1, 3, 4, 5, 7, 8, 9 and 10 with tests red first and green after, 2 without a test
+(two displays), 6 with the sandboxed probe as its red and green evidence and structural tests. Capture-only
+test run after all fixes: `logs/icon-capture-after-fix.log` (55 Core and UI tests, 30 App composition tests,
+all passing, each run with its summary line). Spec updated: FM-48 gains the crop order, one action per click,
 another display, no handles under two pixels, and the keyboard returning after the panel or alert; the
 implementation decisions record the crop order, the click lock, the TIFF representation, the non-modal save
 panel, alerts as sheets of the overlay and why; the testing decisions record that the window layer is

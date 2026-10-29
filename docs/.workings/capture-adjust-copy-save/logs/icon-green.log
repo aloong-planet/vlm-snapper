@@ -1,0 +1,22 @@
+HEAD c0288b690bfd5e9057680cc3009b722d95198912
+ M VLMSnapper/UI/CaptureOperationToolbar.swift
+ M VLMSnapper/UI/VLMSnapperIcons.swift
+?? :-
+?? Tests/VLMSnapperUITests/CaptureToolbarIconButtonTests.swift
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 13:11:08.902.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 13:11:08.904.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 13:11:08.904.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 13:11:08.904.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Capture toolbar icon buttons" started.
+◇ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" started.
+✔ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" passed after 0.118 seconds.
+◇ Test "the save icon is a square as wide as the copy icon next to it" started.
+✔ Test "the save icon is a square as wide as the copy icon next to it" passed after 0.038 seconds.
+✔ Suite "Capture toolbar icon buttons" passed after 0.157 seconds.
+✔ Test run with 2 tests in 1 suite passed after 0.157 seconds.

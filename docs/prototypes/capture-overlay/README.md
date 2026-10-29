@@ -16,5 +16,5 @@ Before anything is dragged, the overlay highlights the snap region under the poi
 
 ## Confirmed selection, Copy and Save (2026-10-29)
 
-Confirmed by the user: a confirmed selection shows small handles at its four corners and four edge midpoints; dragging a handle resizes, dragging inside moves, a press outside starts a new selection, and the toolbar follows. The toolbar has icon buttons Copy (the app's copy icon) and Save (a floppy disk, chosen by the user; SF Symbols has none, so it is Lucide's save icon) before Close; Copy and Save close the capture, Save first opening the system save panel.
+Confirmed by the user: a confirmed selection shows small handles at its four corners and four edge midpoints; dragging a handle resizes, dragging inside moves, a press outside starts a new selection, and the toolbar follows. The toolbar has icon buttons Copy (the app's copy icon) and Save (a floppy disk, chosen by the user; SF Symbols has none, so it is Lucide's save icon, drawn as a square as wide as the Copy glyph — changed 2026-10-29 after the installed build showed it smaller) before Close; Copy and Save close the capture, Save first opening the system save panel.
 

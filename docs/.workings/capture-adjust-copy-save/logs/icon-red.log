@@ -1,0 +1,33 @@
+HEAD c0288b690bfd5e9057680cc3009b722d95198912
+?? :-
+?? Tests/VLMSnapperUITests/CaptureToolbarIconButtonTests.swift
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 13:09:42.002.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 13:09:42.003.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 13:09:42.004.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 13:09:42.004.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Capture toolbar icon buttons" started.
+◇ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" started.
+✘ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" recorded an issue at CaptureToolbarIconButtonTests.swift:21:13: Expectation failed: (presses.names.last → nil) == (name → "close")
+↳ close
+✘ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" recorded an issue at CaptureToolbarIconButtonTests.swift:21:13: Expectation failed: (presses.names.last → nil) == (name → "save")
+↳ save
+✘ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" recorded an issue at CaptureToolbarIconButtonTests.swift:21:13: Expectation failed: (presses.names.last → nil) == (name → "copy")
+↳ copy
+✘ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" recorded an issue at CaptureToolbarIconButtonTests.swift:23:9: Expectation failed: (presses.names → []) == ["close", "save", "copy"]
+± removed ["close", "save", "copy"]
+✘ Test "an icon button answers a press anywhere in its box, not only on the icon's strokes" failed after 0.175 seconds with 4 issues.
+◇ Test "the save icon is drawn as tall as the copy icon next to it" started.
+ink copy (548.5, 7.5, 13.0, 16.0) save (577.5, 10.0, 11.0, 11.0)
+✘ Test "the save icon is drawn as tall as the copy icon next to it" recorded an issue at CaptureToolbarIconButtonTests.swift:36:9: Expectation failed: (abs(save.height - copy.height) → 5.0) <= (1 → 1.0)
+↳ save (577.5, 10.0, 11.0, 11.0) copy (548.5, 7.5, 13.0, 16.0)
+✘ Test "the save icon is drawn as tall as the copy icon next to it" failed after 0.044 seconds with 1 issue.
+✘ Suite "Capture toolbar icon buttons" failed after 0.220 seconds with 5 issues.
+↳ // The toolbar's icon buttons (v1-core::REQ-008, REQ-009): Copy, Save and Close. Positions come from the
+↳ // toolbar's fixed geometry — padding 3 pt, 25 pt boxes, 3 pt gaps — counted from the right end.
+✘ Test run with 2 tests in 1 suite failed after 0.220 seconds with 5 issues.

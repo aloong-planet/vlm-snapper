@@ -38,6 +38,9 @@ save adapters (as the REQ-006 app tests). Expected values are literals or hand-c
 | A7 | FM-48 (one action per click) | S3 | select; two clicks on Save before yielding, the panel cancels; then Copy | one save request; Copy still works after the cancelled panel | snap fixture | same |
 | U10 | REQ-009/AC-04, FM-48 (alerts over the overlay) | S2 | show an alert through the controller; end it with the second button; click window A | the alert is the overlay's attached sheet; the response is the second button; once detached the overlay is key again and the click selects window A (literal) | two-window resolver | none |
 | U11 | REQ-009/AC-04, FM-48 | S2 | pause selection; click and drag; another panel takes the keyboard; resume; click window A | no selection while paused; the overlay is key again after resuming; the click selects window A | two-window resolver | none |
+| U12 | REQ-008/AC-01, REQ-009/AC-01, FM-48 | S2' (the production toolbar hosted in a window) | press inside each icon box but off its 13 pt icon (box centre + 10 pt) for Close, Save, Copy | each callback once, in that order | toolbar with fixed geometry (padding 3, boxes 25, gaps 3) | none |
+| U13 | FM-48 | S2' | with Translate selected, press 6 pt from the toolbar's left edge (Extract's padding) | onStart(extract) | same | none |
+| U14 | REQ-009/AC-01 (prototype: Save as wide as Copy) | S2' | render the toolbar in light appearance | dark-pixel bounds in the Save box: width within 0.5 pt of Copy's, height within 0.5 pt of its width (Copy measured 13 × 16 pt) | same | none |
 | A8 | REQ-009/AC-04 | S3 | select; Save with the fixture panel held open; press outside and drag a handle; release the panel cancelled; Copy | toolbar stays; Copy gives the window's size (300 × 200 pt × scale) | snap fixture with a held save answer | app composition (existing per-test fixture) |
 
 Not covered by tests (gap notes in the test files): the real system save panel and clipboard (installed
@@ -94,4 +97,14 @@ Coverage: AC-04 now has rows; the layer itself is a recorded gap. Case design: p
 events to the production overlay, injected saver). False greens: U10 waits until the sheet is detached
 before the click, because AppKit drops presses during the sheet's exit animation; every capture run now
 requires the test summary line. Resources: none new. No findings.
+
+### Incremental design review (2026-10-29, installed-build feedback 2: icon size, Save presses)
+
+Rows U12–U14 (`review-code.md` findings 9 and 10), seam S2': the production `CaptureOperationToolbar` in an
+`NSHostingView` window with events sent to it, as the existing toolbar rendering test hosts it. All three ran
+red first (`logs/icon-red.log`, `logs/icon-red-operation.log`). Coverage: the pressable area of every
+capture toolbar control that lacked one now has a row; the measured hit-area cause of "Save responds only
+after a while" is covered, the 0.3–0.7 s panel opening is the system service and is not asserted. False
+greens: U12 presses at points that miss every icon (the 13 pt icon spans ±6.5 pt, the press is at +10 pt);
+U14 reads rendered pixels, not the frame. Resources: none new. No findings.
 
