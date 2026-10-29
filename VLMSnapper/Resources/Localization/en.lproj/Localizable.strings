@@ -21,6 +21,7 @@
 "result.discardUnsaved.action" = "Discard";
 "capture.failed.title" = "Could Not Capture the Screen";
 "capture.failed.body" = "No display returned a usable frozen frame. You can try again.";
+"capture.extract" = "Extract";
 "capture.copyImage" = "Copy Image";
 "capture.saveImage" = "Save Image";
 "capture.copyFailed.title" = "Could Not Copy the Image";

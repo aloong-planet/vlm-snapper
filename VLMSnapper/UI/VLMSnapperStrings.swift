@@ -3,6 +3,8 @@ import VLMSnapperCore
 
 enum VLMSnapperStrings {
     static var extract: String { localized("operation.extract") }
+    /// The capture toolbar's shorter label for the same operation.
+    static var captureExtract: String { localized("capture.extract") }
     static var translate: String { localized("operation.translate") }
     static var operationSelector: String { localized("operation.selector") }
     static var targetLanguageSearch: String { localized("operation.targetLanguageSearch") }

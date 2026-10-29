@@ -12,7 +12,7 @@
   --window: rgba(249, 250, 252, .98);
   --surface: #ffffff;
   --surface-subtle: #eef1f5;
-  --surface-hover: #e8edf3;
+  --surface-hover: #dde2e8;
   --surface-selected: #dce8f8;
   --text: #20242a;
   --text-secondary: #646c77;
@@ -45,7 +45,7 @@
   --window: rgba(36, 40, 47, .98);
   --surface: #2c3138;
   --surface-subtle: #252a31;
-  --surface-hover: #363d47;
+  --surface-hover: #444c58;
   --surface-selected: #304765;
   --text: #f2f4f7;
   --text-secondary: #b5bcc6;

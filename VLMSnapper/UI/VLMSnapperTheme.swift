@@ -31,14 +31,10 @@ enum VLMSnapperTheme {
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .white : .white
     })
     static let accentSoft = tint(.controlAccentColor, light: 0.09, dark: 0.18)
-    // The capture prototype's accent hover: darker than the accent in light appearance, lighter in dark.
-    static let accentHover = Color(nsColor: NSColor(name: nil) { appearance in
-        if appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua {
-            return NSColor.controlAccentColor.blended(withFraction: 0.15, of: .white) ?? .controlAccentColor
-        } else {
-            return NSColor.controlAccentColor.blended(withFraction: 0.12, of: .black) ?? .controlAccentColor
-        }
-    })
+    // Capture toolbar hover and press: the label colour laid over the control, so the state reads on the
+    // toolbar's material and on a white field alike, in both appearances.
+    static let toolbarHover = tint(.labelColor, light: 0.1, dark: 0.16)
+    static let toolbarPressed = tint(.labelColor, light: 0.16, dark: 0.24)
     // Provider identity tiles use the approved prototype palette, independent
     // of the user's action accent. Both foreground and surface follow appearance.
     static let providerMarkForeground = Color(nsColor: NSColor(name: nil) { appearance in
@@ -149,13 +145,12 @@ struct HistoryTypeButtonStyle: ButtonStyle {
     }
 }
 
-/// Capture toolbar buttons with the capture prototype's hover and press backgrounds: icon buttons and
-/// unselected actions show the subtle surface, the selected action the accent hover, the value field
-/// the subtle surface over its own surface. The whole rounded box takes the press.
+/// Capture toolbar buttons: icon buttons have no background until hovered; actions and the language
+/// field sit on the surface. Hover and press lay the toolbar hover colours over either, and the whole
+/// rounded box takes the press.
 struct CaptureToolbarButtonStyle: ButtonStyle {
     enum Kind {
         case icon
-        case action(isSelected: Bool)
         case field
     }
 
@@ -182,20 +177,12 @@ struct CaptureToolbarButtonStyle: ButtonStyle {
         }
 
         @ViewBuilder private var background: some View {
-            let isActive = isHovered || configuration.isPressed
-            switch kind {
-            case .icon:
-                isActive ? VLMSnapperTheme.subtleSurface : Color.clear
-            case .action(let isSelected):
-                if isSelected {
-                    isActive ? VLMSnapperTheme.accentHover : VLMSnapperTheme.accent
-                } else {
-                    isActive ? VLMSnapperTheme.subtleSurface : Color.clear
-                }
-            case .field:
-                ZStack {
-                    VLMSnapperTheme.surface
-                    if isActive { VLMSnapperTheme.subtleSurface }
+            ZStack {
+                if case .field = kind { VLMSnapperTheme.surface }
+                if configuration.isPressed {
+                    VLMSnapperTheme.toolbarPressed
+                } else if isHovered {
+                    VLMSnapperTheme.toolbarHover
                 }
             }
         }

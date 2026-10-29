@@ -45,7 +45,7 @@ public struct CaptureOperationToolbar: View {
 
     public var body: some View {
         HStack(spacing: VLMSnapperUIConstants.toolbarControlGap) {
-            operationButton(.extract, icon: .extract, title: VLMSnapperStrings.extract)
+            operationButton(.extract, icon: .extract, title: VLMSnapperStrings.captureExtract)
             operationButton(.translate, icon: .translate, title: VLMSnapperStrings.translate)
             TargetLanguagePicker(
                 selection: $targetLanguageCode,
@@ -115,10 +115,17 @@ public struct CaptureOperationToolbar: View {
                 .font(.system(size: 12, weight: .semibold))
                 .padding(.horizontal, 9)
                 .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
-                .foregroundStyle(operation == kind ? Color.white : VLMSnapperTheme.primaryText)
+                .foregroundStyle(VLMSnapperTheme.primaryText)
+                .overlay {
+                    RoundedRectangle(
+                        cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
+                        style: .continuous
+                    )
+                    .stroke(VLMSnapperTheme.border, lineWidth: 1)
+                }
         }
-        // The style also gives an unselected button, whose background is clear, its whole shape to press.
-        .buttonStyle(CaptureToolbarButtonStyle(kind: .action(isSelected: operation == kind)))
+        // Both actions look alike: no action is shown as selected before the user picks one.
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .field))
     }
 
     private func valueLabel(icon: VLMSnapperIcon, text: String) -> some View {
