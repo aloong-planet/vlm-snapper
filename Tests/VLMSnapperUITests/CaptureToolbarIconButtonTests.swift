@@ -36,17 +36,27 @@ struct CaptureToolbarIconButtonTests {
 
     // The Copy symbol is 13 pt wide and 16 pt tall at the toolbar's 13 pt symbol size; a square is
     // 11.5 pt (measured 2026-10-29). The floppy disk matches Copy's width so the two read as one size.
+    // Rendered at a fixed 2 px per point, and the outline's anti-aliased edge counts as ink, so the result
+    // does not depend on the machine's display scale or how its renderer shades a thin stroke's edge
+    // (CI measured the 1.2 pt outline 2 pt narrower than this Mac when only dark pixels counted).
     @Test("the save icon is a square as wide as the copy icon next to it")
     func saveIconMatchesCopyIconWidth() throws {
         let window = try toolbarWindow(PressLog())
         defer { window.orderOut(nil) }
         let view = try #require(window.contentView)
-        let representation = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        let scale: CGFloat = 2
+        let representation = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(view.bounds.width * scale), pixelsHigh: Int(view.bounds.height * scale),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ))
+        representation.size = view.bounds.size
         view.cacheDisplay(in: view.bounds, to: representation)
         let copy = try inkBounds(representation, view: view, box: boxRect(window, fromEnd: 2))
         let save = try inkBounds(representation, view: view, box: boxRect(window, fromEnd: 1))
-        #expect(abs(save.width - copy.width) <= 0.5, "save \(save) copy \(copy)")
-        #expect(abs(save.height - save.width) <= 0.5, "save \(save)")
+        #expect(abs(save.width - copy.width) <= 1, "save \(save) copy \(copy)")
+        #expect(abs(save.height - save.width) <= 1, "save \(save)")
     }
 }
 
@@ -109,7 +119,8 @@ private func press(_ window: NSWindow, at point: NSPoint) throws {
     }
 }
 
-/// Bounds, in points, of the dark icon pixels inside a box of the rendered toolbar (light appearance).
+/// Bounds, in points, of the icon pixels inside a box of the rendered toolbar (light appearance): any pixel
+/// clearly darker than the light background, so an outline's anti-aliased edge counts.
 @MainActor
 private func inkBounds(_ representation: NSBitmapImageRep, view: NSView, box: CGRect) throws -> CGRect {
     let scale = CGFloat(representation.pixelsWide) / view.bounds.width
@@ -121,7 +132,7 @@ private func inkBounds(_ representation: NSBitmapImageRep, view: NSView, box: CG
         for x in columns {
             guard let color = representation.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
                   color.alphaComponent > 0.5,
-                  (color.redComponent + color.greenComponent + color.blueComponent) / 3 < 0.5 else { continue }
+                  (color.redComponent + color.greenComponent + color.blueComponent) / 3 < 0.8 else { continue }
             minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
         }
     }

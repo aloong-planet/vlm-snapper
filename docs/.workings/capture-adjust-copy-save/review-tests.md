@@ -108,3 +108,12 @@ after a while" is covered, the 0.3–0.7 s panel opening is the system service a
 greens: U12 presses at points that miss every icon (the 13 pt icon spans ±6.5 pt, the press is at +10 pt);
 U14 reads rendered pixels, not the frame. Resources: none new. No findings.
 
+### CI correction to U14 (2026-10-29, PR #38 run 40889850836)
+
+U14 failed in CI only: Save measured 11 × 11 pt next to Copy's 13 × 16 pt, while this Mac measured 13 × 13.
+The test counted only dark pixels (mean channel < 0.5) in a render at the window's display scale, so the
+1.2 pt outline's anti-aliased edge was counted on one renderer and not on another; the product itself was
+accepted on the installed build. The row now renders at a fixed 2 px per point, counts any pixel clearly
+darker than the light background (mean channel < 0.8) and allows 1 pt. Checked locally at 1× and 2× (both
+pass) and against the old 24-unit floppy scaling (fails by 4 pt at 1×, 2.5 pt at 2×).
+
