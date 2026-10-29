@@ -29,12 +29,29 @@ save adapters (as the REQ-006 app tests). Expected values are literals or hand-c
 | A1 | REQ-008/AC-01 | S3 | select a window; press Copy | fixture clipboard holds PNG bytes of the selection's size (decoded width × height = window × scale); overlay and toolbar gone; history count unchanged; no provider request | snap fixture (existing) | app composition (existing per-test fixture) |
 | A2 | REQ-009/AC-01–02 | S3 | select; press Save; fixture save panel returns a temp file URL | file holds the PNG (decoded size as A1); suggested name matches `vlmsnapper-yyyyMMdd-HHmmss.png`; capture closed; history unchanged | same | same |
 | A3 | REQ-009/AC-03 | S3 | select; press Save; fixture panel cancels | overlay and toolbar remain; a following Copy still works | same | same |
-| A4 | REQ-007/AC-05 | S3 | select; drag a handle; then Copy | clipboard PNG has the adjusted size; toolbar moved to the new left edge | same | same |
+| A4 | REQ-007/AC-05 | S3 | select; drag a handle; then Copy | clipboard PNG has the adjusted size; toolbar's top 4 pt below the new bottom edge (hand-computed) | same | same |
 | A5 | REQ-007/AC-07 | S3 | select; then the selection's display geometry changes | overlay and toolbar withdrawn; history unchanged | display notifications fixture (existing) | same |
+| U7 | REQ-007/AC-01, FM-48 | S2 | drag a 10 × 0.25 pt rectangle (under 2 px); press on its corner | no handles: the press starts a new selection, the whole display (literal screen frame) | two-window resolver, display pixels at the screen scale | none |
+| U8 | REQ-007/AC-01, AC-06 | S2 | at 2 px per point drag 10 × 0.75 pt across a pixel row (cropped as 2 px); press on its bottom-left corner | handles present: the press adjusts and reports the same rectangle again (hand-computed) | two-window resolver, display at 2 px per point | none |
+| U9 | REQ-007/AC-01 (prototype colours) | S2 | confirm a selection; render in light, then dark appearance | pixel inside the top-left handle: red above 230 in light, below 60 in dark (prototype surface `#ffffff` / `#2c3138`) | two-window resolver | none |
+| A6 | REQ-007/AC-05, FM-48 | S3 | select; release two adjustments before the main actor yields; Copy | clipboard PNG has the second adjustment's size (250 × 175 pt × scale, hand-computed) | snap fixture | app composition (existing per-test fixture) |
+| A7 | FM-48 (one action per click) | S3 | select; two clicks on Save before yielding, the panel cancels; then Copy | one save request; Copy still works after the cancelled panel | snap fixture | same |
 
 Not covered by tests (gap notes in the test files): the real system save panel and clipboard (installed
 build), the modal failure alerts of REQ-008/AC-02 and REQ-009/AC-04 (modal `NSAlert`, as the existing
-diagnostics export), cursor shapes over handles (AppKit cursor rects; installed build).
+diagnostics export), cursor shapes over handles (AppKit cursor rects; installed build), withdrawing a settled
+selection when a new one starts on another display (needs two displays; installed build).
+
+### Incremental design review (2026-10-29, code review)
+
+Rows U7–U9, A6 and A7 come from the code review (`review-code.md` findings 1 and 3–5). They were written
+as bug-reproduction tests together with these rows and run red before the fixes; the table was updated right
+after the red runs rather than before the tests were written. Reviewed here on the same dimensions:
+coverage — each maps to a FM-48 boundary or REQ-007/AC-01; the another-display boundary has no row (gap
+above). Case design — public seams only (events to the production overlay, injected clipboard and saver).
+False greens — expected values are literals or hand-computed; A6 decodes the PNG size; A7 asserts after a
+later Copy has run, so both save clicks have been handled when the count is read; U9 reads rendered
+pixels, not the layer's colour property. Resources — no new expensive resource. No findings.
 
 ### Dimension 1: Coverage
 

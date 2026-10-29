@@ -83,6 +83,11 @@ final class VLMSnapperApplicationModel: ObservableObject {
     /// toolbar actions wait for that crop so they never use the selection before it was adjusted.
     private var confirmedSelectionPNG: Data?
     private var selectionCropTask: Task<Void, Never>?
+    /// Selections are cropped one after another: the session takes no new selection while it crops,
+    /// so a release during a crop waits for it, and only the newest selection's crop is kept.
+    private var selectionCount = 0
+    /// Set while a toolbar action handles a click, so a second click (a double click) is ignored.
+    private var captureActionInProgress = false
     private let captureOverlayController = FrozenCaptureOverlayController()
     private let captureToolbarController = CaptureToolbarPanelController()
     private var captureSelectionSession: CaptureSelectionSession?
@@ -1127,9 +1132,14 @@ final class VLMSnapperApplicationModel: ObservableObject {
         if captureOverlayController.presentPending(
             onSelection: { [weak self] selection in
                 guard let self else { return }
+                let previous = selectionCropTask
+                selectionCount += 1
+                let number = selectionCount
                 selectionCropTask = Task {
+                    await previous?.value
                     await self.finishSelection(
                         selection,
+                        number: number,
                         generation: request.generation
                     )
                 }
@@ -1318,6 +1328,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
 
     private func finishSelection(
         _ selection: FrozenCaptureOverlayController.Selection,
+        number: Int,
         generation: UUID
     ) async {
         guard activeCaptureGeneration == generation,
@@ -1337,7 +1348,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
             )
             guard activeCaptureGeneration == generation,
                   self.captureSelectionSession === captureSelectionSession,
-                  captureDisplayGeometries[selection.displayID] != nil else { return }
+                  captureDisplayGeometries[selection.displayID] != nil,
+                  selectionCount == number else { return }
             // Displays stay monitored: the selection can still be adjusted until an action starts.
             confirmedSelectionDisplayID = selection.displayID
             confirmedSelectionPNG = selected.originalPNG
@@ -1395,21 +1407,18 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 targetLanguages: targetLanguageOptions,
                 providerSummary: providerSummary,
                 onStart: { [weak self] operation in
-                    Task { [weak self] in
-                        guard let png = await self?.latestSelectionPNG(generation: generation) else { return }
+                    self?.runCaptureAction(generation: generation) { png in
                         self?.openWorkspace(originalPNG: png, operation: operation)
                     }
                 },
                 onCopy: { [weak self] in
-                    Task { [weak self] in
-                        guard let png = await self?.latestSelectionPNG(generation: generation) else { return }
-                        self?.copyCapturedImage(png, generation: generation)
+                    self?.runCaptureAction(generation: generation) { png in
+                        await self?.copyCapturedImage(png, generation: generation)
                     }
                 },
                 onSave: { [weak self] in
-                    Task { [weak self] in
-                        guard let png = await self?.latestSelectionPNG(generation: generation) else { return }
-                        self?.saveCapturedImage(png, generation: generation)
+                    self?.runCaptureAction(generation: generation) { png in
+                        await self?.saveCapturedImage(png, generation: generation)
                     }
                 },
                 onCancel: { [weak self] in
@@ -1423,16 +1432,22 @@ final class VLMSnapperApplicationModel: ObservableObject {
         )
     }
 
-    /// The crop of the selection as it is now, after any adjustment still being cropped.
-    private func latestSelectionPNG(generation: UUID) async -> Data? {
-        await selectionCropTask?.value
-        guard activeCaptureGeneration == generation else { return nil }
-        return confirmedSelectionPNG
+    /// Runs a toolbar action with the crop of the selection as it is now, after any adjustment still
+    /// being cropped. One action at a time: clicks while one runs are ignored.
+    private func runCaptureAction(generation: UUID, _ action: @escaping @MainActor (Data) async -> Void) {
+        guard activeCaptureGeneration == generation, !captureActionInProgress else { return }
+        captureActionInProgress = true
+        Task {
+            await selectionCropTask?.value
+            if activeCaptureGeneration == generation, let png = confirmedSelectionPNG {
+                await action(png)
+            }
+            captureActionInProgress = false
+        }
     }
 
     /// Copy and Save end the capture like Cancel: no history, no model request (v1-core::REQ-008, REQ-009).
-    private func copyCapturedImage(_ png: Data, generation: UUID) {
-        guard activeCaptureGeneration == generation else { return }
+    private func copyCapturedImage(_ png: Data, generation: UUID) async {
         guard dependencies.captureClipboard.write(png: png) else {
             presentCaptureActionFailure(
                 title: VLMSnapperLocalization.localizedString(forKey: "capture.copyFailed.title"),
@@ -1440,28 +1455,25 @@ final class VLMSnapperApplicationModel: ObservableObject {
             )
             return
         }
-        Task { await cancelCapture(generation: generation) }
+        await cancelCapture(generation: generation)
     }
 
-    private func saveCapturedImage(_ png: Data, generation: UUID) {
+    private func saveCapturedImage(_ png: Data, generation: UUID) async {
+        let outcome = await dependencies.captureImageSaver.save(
+            png: png,
+            suggestedName: CaptureImageFileName.suggested()
+        )
         guard activeCaptureGeneration == generation else { return }
-        Task {
-            let outcome = await dependencies.captureImageSaver.save(
-                png: png,
-                suggestedName: CaptureImageFileName.suggested()
+        switch outcome {
+        case .saved:
+            await cancelCapture(generation: generation)
+        case .cancelled:
+            break
+        case .failed:
+            presentCaptureActionFailure(
+                title: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.title"),
+                body: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.body")
             )
-            guard activeCaptureGeneration == generation else { return }
-            switch outcome {
-            case .saved:
-                await cancelCapture(generation: generation)
-            case .cancelled:
-                break
-            case .failed:
-                presentCaptureActionFailure(
-                    title: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.title"),
-                    body: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.body")
-                )
-            }
         }
     }
 
@@ -1681,6 +1693,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         confirmedSelectionDisplayID = nil
         confirmedSelectionPNG = nil
         selectionCropTask = nil
+        captureActionInProgress = false
         activeCaptureGeneration = nil
     }
 

@@ -68,11 +68,20 @@ public final class FrozenCaptureOverlayController {
                 onSelectionChanging: { [weak panel] localFrame in
                     guard let panel else { return }
                     onSelectionChanging(
-                        localFrame.map {
-                            $0.offsetBy(dx: panel.frame.minX, dy: panel.frame.minY)
-                        },
+                        localFrame.offsetBy(dx: panel.frame.minX, dy: panel.frame.minY),
                         panel.overlayScreen
                     )
+                },
+                onSelectionStarting: { [weak self, weak panel] in
+                    // A new selection on any display withdraws the settled one and its toolbar
+                    // (v1-core::REQ-007/AC-04). Only a press on a current panel counts: while a
+                    // replacement is pending, the current panels belong to the previous capture,
+                    // which a rollback shows again.
+                    guard let self, let panel, panels.contains(where: { $0 === panel }) else { return }
+                    let discarded = panels.filter { $0.overlayView?.discardSettledSelection() == true }
+                    if let screen = discarded.first?.overlayScreen {
+                        onSelectionChanging(nil, screen)
+                    }
                 }
             )
             return panel
@@ -278,8 +287,10 @@ private final class CaptureOverlayView: NSView {
 
     private let onSelection: @MainActor (CapturePoint, CapturePoint, CGRect) -> Void
     private let onCancel: @MainActor () -> Void
-    /// The confirmed selection while it is adjusted, or `nil` when a press outside discards it.
-    private let onSelectionChanging: @MainActor (CGRect?) -> Void
+    /// The confirmed selection while it is adjusted.
+    private let onSelectionChanging: @MainActor (CGRect) -> Void
+    /// A press that starts a new selection rather than adjusting the confirmed one.
+    private let onSelectionStarting: @MainActor () -> Void
     private let frameLayer = CALayer()
     private let dimLayer = CAShapeLayer()
     private let borderLayer = CAShapeLayer()
@@ -307,11 +318,13 @@ private final class CaptureOverlayView: NSView {
     init(
         onSelection: @escaping @MainActor (CapturePoint, CapturePoint, CGRect) -> Void,
         onCancel: @escaping @MainActor () -> Void,
-        onSelectionChanging: @escaping @MainActor (CGRect?) -> Void
+        onSelectionChanging: @escaping @MainActor (CGRect) -> Void,
+        onSelectionStarting: @escaping @MainActor () -> Void
     ) {
         self.onSelection = onSelection
         self.onCancel = onCancel
         self.onSelectionChanging = onSelectionChanging
+        self.onSelectionStarting = onSelectionStarting
         super.init(frame: .zero)
         wantsLayer = true
         frameLayer.contentsGravity = .resize
@@ -419,9 +432,8 @@ private final class CaptureOverlayView: NSView {
                 adjustment = (nil, point, confirmed)
                 return
             }
-            // A press outside starts a new selection; the old one and its toolbar go away.
-            onSelectionChanging(nil)
         }
+        onSelectionStarting()
         press = point
         dragStart = nil
         dragCurrent = nil
@@ -434,9 +446,10 @@ private final class CaptureOverlayView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         if let adjustment {
-            snapped = adjusted(adjustment, to: convert(event.locationInWindow, from: nil))
+            let rect = adjusted(adjustment, to: convert(event.locationInWindow, from: nil))
+            snapped = rect
             updateLayers()
-            onSelectionChanging(snapped)
+            onSelectionChanging(rect)
             return
         }
         guard let press else { return }
@@ -526,11 +539,22 @@ private final class CaptureOverlayView: NSView {
         )
     }
 
-    /// The selection the toolbar belongs to, once the frozen frame is shown.
+    /// The selection the toolbar belongs to, once the frozen frame is shown. One under two
+    /// physical pixels never gets a toolbar, so it gets no handles either (v1-core::REQ-007/AC-01).
     private var confirmedSelection: CGRect? {
         guard selectionSettled, geometry != nil, press == nil,
-              let snapped, !snapped.isEmpty else { return nil }
+              let snapped, coversTwoPixels(snapped) else { return nil }
         return snapped
+    }
+
+    /// Withdraws a settled selection when a new one starts; returns whether there was one.
+    func discardSettledSelection() -> Bool {
+        guard selectionSettled, geometry != nil, press == nil else { return false }
+        selectionSettled = false
+        snapped = nil
+        adjustment = nil
+        updateLayers()
+        return true
     }
 
     private func adjusted(
@@ -560,11 +584,17 @@ private final class CaptureOverlayView: NSView {
         return CGRect(x: left, y: bottom, width: right - left, height: top - bottom)
     }
 
+    /// Whether the crop of the rectangle is at least 2 × 2 pixels, rounded as the session crops it.
     private func coversTwoPixels(_ rect: CGRect) -> Bool {
-        guard let geometry, geometry.logicalWidth > 0, geometry.logicalHeight > 0 else { return false }
-        let scaleX = Double(geometry.pixelWidth) / geometry.logicalWidth
-        let scaleY = Double(geometry.pixelHeight) / geometry.logicalHeight
-        return Double(rect.width) * scaleX >= 2 && Double(rect.height) * scaleY >= 2
+        guard let geometry else { return false }
+        let corners = [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY)].map {
+            CaptureCoordinateMapper.pixelPoint(
+                fromLocalAppKitPoint: CapturePoint(x: Double($0.x), y: Double($0.y)),
+                geometry: geometry
+            )
+        }
+        let pixels = CaptureSelectionSession.integralRect(from: corners[0], to: corners[1], geometry: geometry)
+        return pixels.width >= 2 && pixels.height >= 2
     }
 
     private static func handles(of rect: CGRect) -> [(center: CGPoint, edges: Set<Edge>, hitRect: CGRect)] {
@@ -632,7 +662,7 @@ private final class CaptureOverlayView: NSView {
             effectiveAppearance.performAsCurrentDrawingAppearance {
                 borderLayer.strokeColor = NSColor.controlAccentColor.cgColor
                 handleLayer.strokeColor = NSColor.controlAccentColor.cgColor
-                handleLayer.fillColor = NSColor.white.cgColor
+                handleLayer.fillColor = NSColor.controlBackgroundColor.cgColor
             }
         } else {
             borderLayer.path = nil

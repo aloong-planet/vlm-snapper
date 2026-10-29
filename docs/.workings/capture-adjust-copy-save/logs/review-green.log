@@ -1,0 +1,39 @@
+HEAD a08f0b573e96e9bb5622923b95174c2760743682
+ M Sources/VLMSnapperApp/VLMSnapperApplicationModel.swift
+ M Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+ M Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift
+ M VLMSnapper/UI/FrozenCaptureOverlayController.swift
+?? :-
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 11:46:28.368.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 11:46:28.369.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 11:46:28.369.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 11:46:28.369.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "a selection under two pixels gets no handles, so a press on it starts a new one" started.
+✔ Test "a selection under two pixels gets no handles, so a press on it starts a new one" passed after 0.080 seconds.
+◇ Test "handles are filled with the surface colour of the current appearance" started.
+✔ Test "handles are filled with the surface colour of the current appearance" passed after 0.018 seconds.
+✔ Suite "Frozen capture overlay" passed after 0.098 seconds.
+✔ Test run with 2 tests in 1 suite passed after 0.099 seconds.
+Test Suite 'Selected tests' started at 2026-10-29 11:46:29.129.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 11:46:29.131.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 11:46:29.131.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 11:46:29.131.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite ProviderApplicationTests started.
+◇ Test secondAdjustmentDuringCropIsWhatCopyUses() started.
+✔ Test secondAdjustmentDuringCropIsWhatCopyUses() passed after 0.377 seconds.
+◇ Test doubleClickOnSaveOpensOneSavePanel() started.
+✔ Test doubleClickOnSaveOpensOneSavePanel() passed after 0.183 seconds.
+✔ Suite ProviderApplicationTests passed after 0.561 seconds.
+✔ Test run with 2 tests in 1 suite passed after 0.561 seconds.

@@ -24,7 +24,7 @@ struct SystemCaptureImageClipboard: CaptureImageClipboard {
     func write(png: Data) -> Bool {
         let item = NSPasteboardItem()
         guard item.setData(png, forType: .png) else { return false }
-        // Many apps paste only TIFF images; offer both.
+        // A TIFF representation next to the PNG lets apps that read either type paste the image.
         if let tiff = NSImage(data: png)?.tiffRepresentation {
             item.setData(tiff, forType: .tiff)
         }

@@ -1480,6 +1480,38 @@ struct ProviderApplicationTests {
     }
 
     @Test
+    func secondAdjustmentDuringCropIsWhatCopyUses() async throws {
+        try await withSnapFixture { fixture, screen, _ in
+            _ = try await selectWindow(fixture)
+            let overlay = try requireFixture(try mainScreenOverlay())
+            // Two releases before the first crop finishes: (200, 200, 200, 150), then (200, 175, 250, 175).
+            try drag(overlay, from: NSPoint(x: 500, y: 150), to: NSPoint(x: 400, y: 200))
+            try drag(overlay, from: NSPoint(x: 400, y: 200), to: NSPoint(x: 450, y: 175))
+            let toolbar = try requireFixture(captureToolbar())
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
+            try await eventually { !fixture.clipboard.written.isEmpty }
+            let copied = try pngPixelSize(try #require(fixture.clipboard.written.last))
+            #expect(copied == pixelSize(width: 250, height: 175, on: screen))
+        }
+    }
+
+    @Test
+    func doubleClickOnSaveOpensOneSavePanel() async throws {
+        try await withSnapFixture { fixture, _, _ in
+            fixture.imageSaver.answer = .cancel
+            let toolbar = try await selectWindow(fixture)
+            let save = try toolbarIconCenter(toolbar, fromEnd: 1)
+            try click(toolbar, at: save)
+            try click(toolbar, at: save)
+            try await eventually { !fixture.imageSaver.requests.isEmpty }
+            // Copy runs after both clicks were handled; the cancelled panel leaves Copy usable.
+            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
+            try await eventually { fixture.clipboard.written.count == 1 }
+            #expect(fixture.imageSaver.requests.count == 1)
+        }
+    }
+
+    @Test
     func displayChangeAfterSelectionEndsCapture() async throws {
         try await withSnapFixture { fixture, _, model in
             let historyCount = model.historyRecords.count

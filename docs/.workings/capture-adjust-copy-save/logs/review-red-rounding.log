@@ -1,0 +1,24 @@
+HEAD a08f0b573e96e9bb5622923b95174c2760743682
+ M Sources/VLMSnapperApp/CaptureImageExport.swift
+ M Sources/VLMSnapperApp/VLMSnapperApplicationModel.swift
+ M Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+ M Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift
+ M VLMSnapper/UI/FrozenCaptureOverlayController.swift
+ M docs/specs/v1-core.md
+?? :-
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 11:49:33.741.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 11:49:33.743.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 11:49:33.743.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 11:49:33.743.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "a selection that the crop rounds up to two pixels gets handles" started.
+✘ Test "a selection that the crop rounds up to two pixels gets handles" recorded an issue at FrozenCaptureOverlayControllerTests.swift:390:9: Expectation failed: (log.frames.last → (0.0, 0.0, 1512.0, 982.0)) == (CGRect(x: 500, y: height - 500, width: 10, height: 0.75) → (500.0, 482.0, 10.0, 0.75))
+✘ Test "a selection that the crop rounds up to two pixels gets handles" failed after 0.076 seconds with 1 issue.
+✘ Suite "Frozen capture overlay" failed after 0.076 seconds with 1 issue.
+✘ Test run with 1 test in 1 suite failed after 0.077 seconds with 1 issue.

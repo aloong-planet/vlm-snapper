@@ -193,7 +193,7 @@ public actor CaptureSelectionSession {
             updateAvailabilityState()
             throw CaptureSelectionError.displayGeometryChanged
         }
-        let rect = integralRect(
+        let rect = Self.integralRect(
             from: drag.start,
             to: drag.current,
             geometry: display.geometry
@@ -299,7 +299,9 @@ public actor CaptureSelectionSession {
         )
     }
 
-    private func integralRect(
+    /// The pixels a selection between two pixel points crops: its corners rounded outwards and
+    /// clamped to the display. The overlay uses it to judge the 2 × 2 minimum the same way.
+    public static func integralRect(
         from start: CapturePoint,
         to end: CapturePoint,
         geometry: CaptureDisplayGeometry

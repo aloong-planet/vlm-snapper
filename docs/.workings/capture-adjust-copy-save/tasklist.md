@@ -30,10 +30,11 @@ module, is not run for this change; deliveries state this.
 
 ## Steps
 
-- [ ] Test design review (`review-tests.md`)
-- [ ] Slices: session re-selection/commit → overlay handles/adjust → toolbar buttons → app wiring (copy, save,
+- [x] Test design review (`review-tests.md`)
+- [x] Slices: session re-selection/commit → overlay handles/adjust → toolbar buttons → app wiring (copy, save,
       adjust, display change) → entitlement
-- [ ] Targeted capture tests
-- [ ] Code review (`review-code.md`)
+- [x] Targeted capture tests
+- [x] Code review (`review-code.md`): five findings fixed with red-first tests; refactoring item R1 awaits the
+      user's decision
 - [ ] Capture-only pre-review run; independent post-implementation test check
 - [ ] Spec final check, features catalogue, final regression, install, PR

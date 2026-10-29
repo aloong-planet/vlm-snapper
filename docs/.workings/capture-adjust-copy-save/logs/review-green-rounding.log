@@ -1,0 +1,72 @@
+HEAD a08f0b573e96e9bb5622923b95174c2760743682
+ M Sources/VLMSnapperApp/CaptureImageExport.swift
+ M Sources/VLMSnapperApp/VLMSnapperApplicationModel.swift
+ M Sources/VLMSnapperCore/CaptureSelectionSession.swift
+ M Tests/VLMSnapperAppTests/ProviderApplicationTests.swift
+ M Tests/VLMSnapperUITests/FrozenCaptureOverlayControllerTests.swift
+ M VLMSnapper/UI/FrozenCaptureOverlayController.swift
+ M docs/specs/v1-core.md
+?? :-
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-10-29 11:49:53.479.
+Test Suite 'VLMSnapperPackageTests.xctest' started at 2026-10-29 11:49:53.480.
+Test Suite 'VLMSnapperPackageTests.xctest' passed at 2026-10-29 11:49:53.480.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-29 11:49:53.480.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1085
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "Frozen capture overlay" started.
+◇ Test "a replacement that cannot cover a display keeps the current overlay" started.
+✔ Test "a replacement that cannot cover a display keeps the current overlay" passed after 0.093 seconds.
+◇ Test "the pending overlay covers each display without an opening animation" started.
+✔ Test "the pending overlay covers each display without an opening animation" passed after 0.015 seconds.
+◇ Test "a click selects the whole snap region under the pointer" started.
+✔ Test "a click selects the whole snap region under the pointer" passed after 0.018 seconds.
+◇ Test "a press moved past three points draws a manual rectangle instead" started.
+✔ Test "a press moved past three points draws a manual rectangle instead" passed after 0.010 seconds.
+◇ Test "a click before the window list and the frame completes once both arrive" started.
+✔ Test "a click before the window list and the frame completes once both arrive" passed after 0.016 seconds.
+◇ Test "without a window list a click selects nothing" started.
+✔ Test "without a window list a click selects nothing" passed after 0.015 seconds.
+◇ Test "the overlay opens on the snap region under the pointer and follows it" started.
+✔ Test "the overlay opens on the snap region under the pointer and follows it" passed after 0.017 seconds.
+◇ Test "a replacement's window list does not reach the overlay it may roll back to" started.
+✔ Test "a replacement's window list does not reach the overlay it may roll back to" passed after 0.020 seconds.
+◇ Test "pointer jitter of up to three points while pressed is still a click" started.
+✔ Test "pointer jitter of up to three points while pressed is still a click" passed after 0.021 seconds.
+◇ Test "a press moved just over three points draws a rectangle" started.
+✔ Test "a press moved just over three points draws a rectangle" passed after 0.018 seconds.
+◇ Test "while dragging the rectangle is drawn instead of the snap region" started.
+✔ Test "while dragging the rectangle is drawn instead of the snap region" passed after 0.014 seconds.
+◇ Test "a drag passing three points in small steps stops showing the snap region" started.
+✔ Test "a drag passing three points in small steps stops showing the snap region" passed after 0.019 seconds.
+◇ Test "a release far from the press is a rectangle even without drag events" started.
+✔ Test "a release far from the press is a rectangle even without drag events" passed after 0.014 seconds.
+◇ Test "a clicked region stays put while the pointer moves on" started.
+✔ Test "a clicked region stays put while the pointer moves on" passed after 0.019 seconds.
+◇ Test "a clicked region is handed over as its physical pixel corners" started.
+✔ Test "a clicked region is handed over as its physical pixel corners" passed after 0.012 seconds.
+◇ Test "a confirmed selection shows handles at its corners and edge midpoints" started.
+✔ Test "a confirmed selection shows handles at its corners and edge midpoints" passed after 0.011 seconds.
+◇ Test "corner handles move two sides and edge handles one" started.
+✔ Test "corner handles move two sides and edge handles one" passed after 0.019 seconds.
+◇ Test "dragging a side past the opposite side flips the selection" started.
+✔ Test "dragging a side past the opposite side flips the selection" passed after 0.017 seconds.
+◇ Test "dragging inside moves the selection and keeps it on the display" started.
+✔ Test "dragging inside moves the selection and keeps it on the display" passed after 0.016 seconds.
+◇ Test "a press outside a confirmed selection starts a new one" started.
+✔ Test "a press outside a confirmed selection starts a new one" passed after 0.011 seconds.
+◇ Test "a selection under two pixels gets no handles, so a press on it starts a new one" started.
+✔ Test "a selection under two pixels gets no handles, so a press on it starts a new one" passed after 0.017 seconds.
+◇ Test "a selection that the crop rounds up to two pixels gets handles" started.
+✔ Test "a selection that the crop rounds up to two pixels gets handles" passed after 0.011 seconds.
+◇ Test "handles are filled with the surface colour of the current appearance" started.
+✔ Test "handles are filled with the surface colour of the current appearance" passed after 0.009 seconds.
+◇ Test "an adjustment under two pixels snaps back to the previous selection" started.
+✔ Test "an adjustment under two pixels snaps back to the previous selection" passed after 0.019 seconds.
+◇ Test "a failure alert stays visible above a retained overlay" started.
+✔ Test "a failure alert stays visible above a retained overlay" passed after 0.034 seconds.
+✔ Suite "Frozen capture overlay" passed after 0.499 seconds.
+✔ Test run with 25 tests in 1 suite passed after 0.500 seconds.

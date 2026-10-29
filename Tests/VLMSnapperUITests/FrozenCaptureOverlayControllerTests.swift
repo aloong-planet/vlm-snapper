@@ -294,7 +294,8 @@ struct FrozenCaptureOverlayControllerTests {
 
     // Confirmed selection adjustment (v1-core::REQ-007). Window A is (100, H − 300, 300, 200) in local
     // AppKit points; expected frames are computed by hand from it. The display has real pixel sizes so
-    // the two-pixel minimum applies as on a screen. Cursor shapes are checked on the installed build.
+    // the two-pixel minimum applies as on a screen. Cursor shapes are checked on the installed build, and
+    // withdrawing a selection when a new one starts on another display needs two displays (installed build).
     @Test("a confirmed selection shows handles at its corners and edge midpoints")
     func confirmedSelectionShowsHandles() throws {
         let height = try primaryScreen().frame.height
@@ -363,6 +364,45 @@ struct FrozenCaptureOverlayControllerTests {
         try click(panel, from: NSPoint(x: 750, y: height - 200), to: NSPoint(x: 750, y: height - 200))
         #expect(log.changes.contains(nil))
         #expect(log.frames.last == CGRect(x: 600, y: height - 300, width: 300, height: 200))
+    }
+
+    @Test("a selection under two pixels gets no handles, so a press on it starts a new one")
+    func tinySelectionHasNoHandles() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: screen.backingScaleFactor)
+        defer { controller.close() }
+        // Past the drag threshold but only 0.25 pt tall: under two physical pixels at any scale here.
+        try drag(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 510, y: height - 499.75))
+        #expect(log.frames.count == 1)
+        try click(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 500, y: height - 500))
+        #expect(log.frames.last == screen.frame)
+    }
+
+    @Test("a selection that the crop rounds up to two pixels gets handles")
+    func selectionRoundedUpToTwoPixelsHasHandles() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: 2)
+        defer { controller.close() }
+        // 0.75 pt at 2 px per point is 1.5 px straddling a pixel row, which the crop takes as 2 px.
+        try drag(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 510, y: height - 499.25))
+        // Its bottom-left handle: a press there adjusts the selection instead of starting a new one.
+        try click(panel, from: NSPoint(x: 500, y: height - 500), to: NSPoint(x: 500, y: height - 500))
+        #expect(log.frames.last == CGRect(x: 500, y: height - 500, width: 10, height: 0.75))
+    }
+
+    @Test("handles are filled with the surface colour of the current appearance")
+    func handleFillFollowsAppearance() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, _) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        // Inside the top-left handle, clear of its 1 pt outline.
+        let fill = NSPoint(x: 99.5, y: height - 101.5)
+        panel.appearance = NSAppearance(named: .aqua)
+        #expect(try renderedRGBA(panel, at: fill)[0] > 230)
+        panel.appearance = NSAppearance(named: .darkAqua)
+        #expect(try renderedRGBA(panel, at: fill)[0] < 60)
     }
 
     @Test("an adjustment under two pixels snaps back to the previous selection")
@@ -483,6 +523,22 @@ private func send(_ type: NSEvent.EventType, at point: NSPoint, to window: NSWin
 private func click(_ window: NSWindow, from down: NSPoint, to up: NSPoint) throws {
     try send(.leftMouseDown, at: down, to: window)
     try send(.leftMouseUp, at: up, to: window)
+}
+
+/// Red, green, blue and alpha the overlay renders at one point of its window.
+@MainActor
+private func renderedRGBA(_ window: NSWindow, at point: NSPoint) throws -> [UInt8] {
+    let layer = try #require(window.contentView?.layer)
+    let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+    let context = try #require(CGContext(
+        data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+        space: space,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ))
+    context.translateBy(x: -point.x, y: -point.y)
+    layer.render(in: context)
+    let data = try #require(context.data)
+    return (0..<4).map { data.load(fromByteOffset: $0, as: UInt8.self) }
 }
 
 /// Alpha the overlay renders at one point of its window.
