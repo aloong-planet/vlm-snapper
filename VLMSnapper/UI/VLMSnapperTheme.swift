@@ -31,6 +31,14 @@ enum VLMSnapperTheme {
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .white : .white
     })
     static let accentSoft = tint(.controlAccentColor, light: 0.09, dark: 0.18)
+    // The capture prototype's accent hover: darker than the accent in light appearance, lighter in dark.
+    static let accentHover = Color(nsColor: NSColor(name: nil) { appearance in
+        if appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua {
+            return NSColor.controlAccentColor.blended(withFraction: 0.15, of: .white) ?? .controlAccentColor
+        } else {
+            return NSColor.controlAccentColor.blended(withFraction: 0.12, of: .black) ?? .controlAccentColor
+        }
+    })
     // Provider identity tiles use the approved prototype palette, independent
     // of the user's action accent. Both foreground and surface follow appearance.
     static let providerMarkForeground = Color(nsColor: NSColor(name: nil) { appearance in
@@ -137,6 +145,59 @@ struct HistoryTypeButtonStyle: ButtonStyle {
         private var background: Color {
             if isSelected { return VLMSnapperTheme.surface }
             return isHovered || configuration.isPressed ? VLMSnapperTheme.subtleSurface : .clear
+        }
+    }
+}
+
+/// Capture toolbar buttons with the capture prototype's hover and press backgrounds: icon buttons and
+/// unselected actions show the subtle surface, the selected action the accent hover, the value field
+/// the subtle surface over its own surface. The whole rounded box takes the press.
+struct CaptureToolbarButtonStyle: ButtonStyle {
+    enum Kind {
+        case icon
+        case action(isSelected: Bool)
+        case field
+    }
+
+    let kind: Kind
+
+    func makeBody(configuration: Configuration) -> some View {
+        StyledLabel(configuration: configuration, kind: kind)
+    }
+
+    private struct StyledLabel: View {
+        let configuration: Configuration
+        let kind: Kind
+        @State private var isHovered = false
+
+        var body: some View {
+            let shape = RoundedRectangle(
+                cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
+                style: .continuous
+            )
+            configuration.label
+                .background { background.clipShape(shape) }
+                .contentShape(shape)
+                .onHover { isHovered = $0 }
+        }
+
+        @ViewBuilder private var background: some View {
+            let isActive = isHovered || configuration.isPressed
+            switch kind {
+            case .icon:
+                isActive ? VLMSnapperTheme.subtleSurface : Color.clear
+            case .action(let isSelected):
+                if isSelected {
+                    isActive ? VLMSnapperTheme.accentHover : VLMSnapperTheme.accent
+                } else {
+                    isActive ? VLMSnapperTheme.subtleSurface : Color.clear
+                }
+            case .field:
+                ZStack {
+                    VLMSnapperTheme.surface
+                    if isActive { VLMSnapperTheme.subtleSurface }
+                }
+            }
         }
     }
 }

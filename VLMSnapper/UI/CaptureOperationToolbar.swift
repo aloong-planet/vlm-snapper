@@ -94,11 +94,10 @@ public struct CaptureOperationToolbar: View {
                     width: VLMSnapperUIConstants.toolbarControlHeight,
                     height: VLMSnapperUIConstants.toolbarControlHeight
                 )
-                // The whole box takes the press, not only the icon's drawn pixels: the floppy disk is
-                // a thin outline that a press would mostly miss.
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        // The style makes the whole box take the press, not only the icon's drawn pixels: the floppy
+        // disk is a thin outline that a press would mostly miss.
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .icon))
         .help(label)
         .accessibilityLabel(label)
     }
@@ -117,22 +116,9 @@ public struct CaptureOperationToolbar: View {
                 .padding(.horizontal, 9)
                 .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
                 .foregroundStyle(operation == kind ? Color.white : VLMSnapperTheme.primaryText)
-                .background(operation == kind ? VLMSnapperTheme.accent : Color.clear)
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
-                        style: .continuous
-                    )
-                )
-                // A clear background takes no press, so the unselected button needs its shape too.
-                .contentShape(
-                    RoundedRectangle(
-                        cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
-                        style: .continuous
-                    )
-                )
         }
-        .buttonStyle(.plain)
+        // The style also gives an unselected button, whose background is clear, its whole shape to press.
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .action(isSelected: operation == kind)))
     }
 
     private func valueLabel(icon: VLMSnapperIcon, text: String) -> some View {
@@ -179,13 +165,6 @@ private struct TargetLanguagePicker: View {
             .foregroundStyle(VLMSnapperTheme.secondaryText)
             .padding(.horizontal, 9)
             .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
-            .background(VLMSnapperTheme.surface)
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
-                    style: .continuous
-                )
-            )
             .overlay {
                 RoundedRectangle(
                     cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
@@ -194,7 +173,7 @@ private struct TargetLanguagePicker: View {
                 .stroke(VLMSnapperTheme.border, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .field))
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(spacing: 8) {
                 TextField(VLMSnapperStrings.targetLanguageSearch, text: $searchText)

@@ -1288,7 +1288,8 @@ struct ProviderApplicationTests {
             try sendMouse(.leftMouseUp, at: NSPoint(x: 60, y: 600), to: overlay)
             try await eventually { captureToolbar() != nil }
             let toolbar = try #require(captureToolbar())
-            #expect(abs(toolbar.frame.minX - screen.visibleFrame.minX) <= 1)
+            // No room below or above a whole display: inside its bottom-right corner, 4 pt in.
+            #expect(abs(toolbar.frame.maxX - (screen.visibleFrame.maxX - 4)) <= 1)
         }
     }
 
@@ -1354,8 +1355,9 @@ struct ProviderApplicationTests {
             await fixture.capture.release()
             try await eventually { try overlayShowsFrozenFrame(overlay) && captureToolbar() != nil }
             let toolbar = try #require(captureToolbar())
-            // Local x 300 has no window in the replacement's list: the whole display is selected.
-            #expect(abs(toolbar.frame.minX - screen.visibleFrame.minX) <= 1)
+            // Local x 300 has no window in the replacement's list: the whole display is selected, so the
+            // toolbar sits inside its bottom-right corner.
+            #expect(abs(toolbar.frame.maxX - (screen.visibleFrame.maxX - 4)) <= 1)
         }
     }
 

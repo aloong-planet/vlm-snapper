@@ -432,6 +432,7 @@ public struct ManagementCenterView: View {
                     Button(action: callbacks.onRetryCleanup) {
                         Label(VLMSnapperStrings.historyCleanupFailures, systemImage: VLMSnapperIcon.warningBadge.rawValue)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(VLMSnapperTheme.warning)
@@ -790,6 +791,7 @@ public struct ManagementCenterView: View {
                     providerAPIKeyBinding.wrappedValue = ""
                 } label: {
                     VLMSnapperIcon.close.image.frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(
@@ -803,6 +805,7 @@ public struct ManagementCenterView: View {
                 } label: {
                     (showsAPIKey ? VLMSnapperIcon.eyeSlash : VLMSnapperIcon.eye)
                         .image.frame(width: 28, height: 22)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(providerSettings.snapshot.isReadOnly || credentialEditor.isSubmitting

@@ -2,7 +2,8 @@
 
 This prototype captures the confirmed v1 post-selection toolbar structure.
 
-- The toolbar is attached below the selection and left-aligned with it.
+- The toolbar is attached below the selection and left-aligned with it; with no room below it goes above, and with no room above either (a whole display) it sits inside the selection's bottom-right corner, 4 px in (user, 2026-10-29).
+- Toolbar buttons show the hover surface on hover (the selected action the accent hover), as the shared stylesheet's hover rules define.
 - The toolbar has a 4 px visible gap below the selection border, uses 3 px inner padding and gaps, and contains 25 px-high controls with a 6 px corner radius.
 - Text Extraction, Translation, target language, Provider/model, and cancel remain visible in one row.
 

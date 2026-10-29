@@ -209,10 +209,19 @@ Build complete! (4.21s)
     }
     function placeToolbar(r) {
       toolbar.hidden = false;
-      const gap = 4;
-      const top = Math.min(r.y + r.h + gap, screen.clientHeight - toolbar.offsetHeight - 8);
-      const left = Math.min(r.x, screen.clientWidth - toolbar.offsetWidth - 8);
-      Object.assign(toolbar.style, { left: `${Math.max(8, left)}px`, top: `${top}px` });
+      const gap = 4, w = toolbar.offsetWidth, h = toolbar.offsetHeight;
+      const W = screen.clientWidth, H = screen.clientHeight;
+      const below = r.y + r.h + gap, above = r.y - gap - h;
+      let left, top;
+      if (below + h <= H || above >= 0) {
+        top = below + h <= H ? below : above;
+        left = Math.max(8, Math.min(r.x, W - w - 8));
+      } else {
+        // No room below or above, as for a whole display: inside the selection's bottom-right corner.
+        top = Math.min(r.y + r.h, H) - gap - h;
+        left = Math.max(0, Math.min(r.x + r.w, W) - gap - w);
+      }
+      Object.assign(toolbar.style, { left: `${left}px`, top: `${top}px` });
     }
     function point(event) {
       const s = screen.getBoundingClientRect();

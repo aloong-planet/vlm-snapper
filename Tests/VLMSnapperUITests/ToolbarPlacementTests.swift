@@ -32,6 +32,19 @@ struct ToolbarPlacementTests {
         #expect(origin.x == 10)
     }
 
+    @Test("with no room below or above, the toolbar sits inside the selection's bottom-right corner")
+    func toolbarSitsInsideWholeDisplaySelection() {
+        let screen = CGRect(x: 0, y: 0, width: 900, height: 700)
+
+        let origin = CaptureToolbarPlacement.origin(
+            selectionFrame: screen,
+            toolbarSize: CGSize(width: 320, height: 31),
+            visibleScreenFrame: screen
+        )
+
+        #expect(origin == CGPoint(x: 576, y: 4))
+    }
+
     @Test("a toolbar wider than the screen keeps its leading edge visible")
     func wideToolbarKeepsLeadingEdgeVisible() {
         let screen = CGRect(x: 40, y: 20, width: 280, height: 400)

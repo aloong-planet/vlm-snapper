@@ -7,16 +7,17 @@ enum CaptureToolbarPlacement {
         toolbarSize: CGSize,
         visibleScreenFrame: CGRect
     ) -> CGPoint {
-        let preferredBelowY = selectionFrame.minY
-            - VLMSnapperUIConstants.toolbarSelectionGap
-            - toolbarSize.height
-        let y: CGFloat
-        if preferredBelowY >= visibleScreenFrame.minY {
-            y = preferredBelowY
-        } else {
-            y = min(
-                selectionFrame.maxY + VLMSnapperUIConstants.toolbarSelectionGap,
-                visibleScreenFrame.maxY - toolbarSize.height
+        let gap = VLMSnapperUIConstants.toolbarSelectionGap
+        let belowY = selectionFrame.minY - gap - toolbarSize.height
+        let aboveY = selectionFrame.maxY + gap
+        guard belowY >= visibleScreenFrame.minY
+            || aboveY + toolbarSize.height <= visibleScreenFrame.maxY else {
+            // No room below or above, as for a whole display: inside the selection's bottom-right corner.
+            let x = min(selectionFrame.maxX, visibleScreenFrame.maxX) - gap - toolbarSize.width
+            let y = max(selectionFrame.minY, visibleScreenFrame.minY) + gap
+            return CGPoint(
+                x: max(x, visibleScreenFrame.minX),
+                y: min(y, visibleScreenFrame.maxY - toolbarSize.height)
             )
         }
         let rightmostVisibleX = max(
@@ -27,7 +28,7 @@ enum CaptureToolbarPlacement {
             max(selectionFrame.minX, visibleScreenFrame.minX),
             rightmostVisibleX
         )
-        return CGPoint(x: x, y: y)
+        return CGPoint(x: x, y: belowY >= visibleScreenFrame.minY ? belowY : aboveY)
     }
 }
 
