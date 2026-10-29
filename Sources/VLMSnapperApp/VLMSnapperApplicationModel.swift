@@ -77,6 +77,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private let cleanupScheduler: AutomaticHistoryCleanupScheduler
     private let operationGate = ActiveOperationGate()
     private let captureCoordinator: CaptureFreezeCoordinator
+    /// The display of the selection the toolbar belongs to; a change to it ends the capture (v1-core::REQ-007/AC-07).
+    private var confirmedSelectionDisplayID: UInt32?
     private let captureOverlayController = FrozenCaptureOverlayController()
     private let captureToolbarController = CaptureToolbarPanelController()
     private var captureSelectionSession: CaptureSelectionSession?
@@ -1133,6 +1135,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
                         generation: request.generation
                     )
                 }
+            },
+            onSelectionChanging: { [weak self] frame, screen in
+                // The toolbar follows an adjusted selection and hides when a new one starts.
+                guard let self, activeCaptureGeneration == request.generation else { return }
+                if let frame {
+                    captureToolbarController.reposition(below: frame, on: screen)
+                } else {
+                    captureToolbarController.hide()
+                }
             }
         ) {
             captureToolbarController.suspend()
@@ -1322,8 +1333,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
             guard activeCaptureGeneration == generation,
                   self.captureSelectionSession === captureSelectionSession,
                   captureDisplayGeometries[selection.displayID] != nil else { return }
-            dependencies.displayMonitor.stop()
-            captureDisplayGeometries.removeAll()
+            // Displays stay monitored: the selection can still be adjusted until an action starts.
+            confirmedSelectionDisplayID = selection.displayID
             originalImage = NSImage(data: selected.originalPNG)
             showCaptureToolbar(
                 originalPNG: selected.originalPNG,
@@ -1358,7 +1369,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
             _ = await session.applyCurrentDisplayGeometries(geometries)
             guard let self, activeCaptureGeneration == generation,
                   captureSelectionSession === session else { return }
-            if captureDisplayGeometries.isEmpty {
+            let confirmedDisplayChanged = confirmedSelectionDisplayID.map(invalidated.contains) ?? false
+            if captureDisplayGeometries.isEmpty || confirmedDisplayChanged {
                 await cancelCapture(generation: generation)
             }
         }
@@ -1380,6 +1392,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     guard self?.activeCaptureGeneration == generation else { return }
                     self?.openWorkspace(originalPNG: originalPNG, operation: operation)
                 },
+                onCopy: { [weak self] in
+                    self?.copyCapturedImage(originalPNG, generation: generation)
+                },
+                onSave: { [weak self] in
+                    self?.saveCapturedImage(originalPNG, generation: generation)
+                },
                 onCancel: { [weak self] in
                     Task {
                         await self?.cancelCapture(generation: generation)
@@ -1389,6 +1407,50 @@ final class VLMSnapperApplicationModel: ObservableObject {
             below: selectionFrame,
             on: screen
         )
+    }
+
+    /// Copy and Save end the capture like Cancel: no history, no model request (v1-core::REQ-008, REQ-009).
+    private func copyCapturedImage(_ png: Data, generation: UUID) {
+        guard activeCaptureGeneration == generation else { return }
+        guard dependencies.captureClipboard.write(png: png) else {
+            presentCaptureActionFailure(
+                title: VLMSnapperLocalization.localizedString(forKey: "capture.copyFailed.title"),
+                body: VLMSnapperLocalization.localizedString(forKey: "capture.copyFailed.body")
+            )
+            return
+        }
+        Task { await cancelCapture(generation: generation) }
+    }
+
+    private func saveCapturedImage(_ png: Data, generation: UUID) {
+        guard activeCaptureGeneration == generation else { return }
+        Task {
+            let outcome = await dependencies.captureImageSaver.save(
+                png: png,
+                suggestedName: CaptureImageFileName.suggested()
+            )
+            guard activeCaptureGeneration == generation else { return }
+            switch outcome {
+            case .saved:
+                await cancelCapture(generation: generation)
+            case .cancelled:
+                break
+            case .failed:
+                presentCaptureActionFailure(
+                    title: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.title"),
+                    body: VLMSnapperLocalization.localizedString(forKey: "capture.saveFailed.body")
+                )
+            }
+        }
+    }
+
+    private func presentCaptureActionFailure(title: String, body: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = body
+        captureOverlayController.prepareFailurePresentation(alert)
+        alert.runModal()
     }
 
     private func openWorkspace(
@@ -1595,6 +1657,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         captureOverlayController.close()
         captureToolbarController.hide()
         captureSelectionSession = nil
+        confirmedSelectionDisplayID = nil
         activeCaptureGeneration = nil
     }
 

@@ -61,6 +61,8 @@ private struct HarnessRoot: View {
                         ],
                         providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
                         onStart: { _ in },
+                        onCopy: {},
+                        onSave: {},
                         onCancel: {}
                     )
                 }

@@ -72,6 +72,18 @@ public final class CaptureToolbarPanelController {
         panel.orderFrontRegardless()
     }
 
+    /// Moves the visible toolbar to follow a selection being adjusted, without rebuilding it.
+    public func reposition(below selectionFrame: CGRect, on screen: NSScreen) {
+        guard panel.isVisible else { return }
+        panel.setFrameOrigin(
+            CaptureToolbarPlacement.origin(
+                selectionFrame: selectionFrame,
+                toolbarSize: panel.frame.size,
+                visibleScreenFrame: screen.visibleFrame
+            )
+        )
+    }
+
     /// Hides a visible toolbar but keeps it for `resume`, while a new capture may still fail.
     public func suspend() {
         guard panel.isVisible else { return }

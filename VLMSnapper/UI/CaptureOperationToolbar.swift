@@ -19,6 +19,8 @@ public struct CaptureOperationToolbar: View {
     private let targetLanguages: [TargetLanguageOption]
     private let providerSummary: String
     private let onStart: (WorkspaceOperationKind) -> Void
+    private let onCopy: () -> Void
+    private let onSave: () -> Void
     private let onCancel: () -> Void
 
     public init(
@@ -27,6 +29,8 @@ public struct CaptureOperationToolbar: View {
         targetLanguages: [TargetLanguageOption],
         providerSummary: String,
         onStart: @escaping (WorkspaceOperationKind) -> Void,
+        onCopy: @escaping () -> Void,
+        onSave: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
         _operation = operation
@@ -34,6 +38,8 @@ public struct CaptureOperationToolbar: View {
         self.targetLanguages = targetLanguages
         self.providerSummary = providerSummary
         self.onStart = onStart
+        self.onCopy = onCopy
+        self.onSave = onSave
         self.onCancel = onCancel
     }
 
@@ -47,17 +53,15 @@ public struct CaptureOperationToolbar: View {
             )
             valueLabel(icon: .provider, text: providerSummary)
             Divider().frame(height: 19)
-            Button(action: onCancel) {
-                VLMSnapperIcon.close.image
-                    .frame(width: 13, height: 13)
-                    .frame(
-                        width: VLMSnapperUIConstants.toolbarControlHeight,
-                        height: VLMSnapperUIConstants.toolbarControlHeight
-                    )
+            iconButton(VLMSnapperStrings.copyImage, action: onCopy) {
+                VLMSnapperIcon.copy.image
             }
-            .buttonStyle(.plain)
-            .help(VLMSnapperStrings.cancel)
-            .accessibilityLabel(VLMSnapperStrings.cancel)
+            iconButton(VLMSnapperStrings.saveImage, action: onSave) {
+                FloppyDiskIcon()
+            }
+            iconButton(VLMSnapperStrings.cancel, action: onCancel) {
+                VLMSnapperIcon.close.image
+            }
         }
         .padding(VLMSnapperUIConstants.toolbarPadding)
         .background(.regularMaterial)
@@ -76,6 +80,24 @@ public struct CaptureOperationToolbar: View {
         }
         .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
         .fixedSize()
+    }
+
+    private func iconButton<Icon: View>(
+        _ label: String,
+        action: @escaping () -> Void,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
+        Button(action: action) {
+            icon()
+                .frame(width: 13, height: 13)
+                .frame(
+                    width: VLMSnapperUIConstants.toolbarControlHeight,
+                    height: VLMSnapperUIConstants.toolbarControlHeight
+                )
+        }
+        .buttonStyle(.plain)
+        .help(label)
+        .accessibilityLabel(label)
     }
 
     private func operationButton(

@@ -21,6 +21,12 @@
 "result.discardUnsaved.action" = "丢弃";
 "capture.failed.title" = "无法截取屏幕";
 "capture.failed.body" = "所有显示器都未返回可用的冻结画面，你可以重试。";
+"capture.copyImage" = "复制图片";
+"capture.saveImage" = "保存图片";
+"capture.copyFailed.title" = "无法复制图片";
+"capture.copyFailed.body" = "截图没有放入剪贴板。选区仍然保留，可以再试一次。";
+"capture.saveFailed.title" = "无法保存图片";
+"capture.saveFailed.body" = "截图没有写入所选位置。选区仍然保留，可以再试一次或换个位置。";
 "action.retry" = "重试";
 "failure.invalidCredential" = "API Key 无效或已失效，请检查 Provider 配置。";
 "failure.modelUnavailable" = "当前模型不可用，请刷新模型列表后重新选择。";

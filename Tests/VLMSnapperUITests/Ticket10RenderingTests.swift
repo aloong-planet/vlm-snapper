@@ -71,6 +71,8 @@ struct Ticket10RenderingTests {
             ],
             providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
             onStart: { _ in },
+            onCopy: {},
+            onSave: {},
             onCancel: {}
         )
         let hostingView = NSHostingView(rootView: view)

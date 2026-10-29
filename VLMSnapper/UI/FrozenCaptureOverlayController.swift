@@ -38,7 +38,8 @@ public final class FrozenCaptureOverlayController {
     @discardableResult
     public func presentPending(
         onSelection: @escaping @MainActor (Selection) -> Void,
-        onCancel: @escaping @MainActor () -> Void
+        onCancel: @escaping @MainActor () -> Void,
+        onSelectionChanging: @escaping @MainActor (CGRect?, NSScreen) -> Void = { _, _ in }
     ) -> Bool {
         retire(pendingPanels)
         pendingPanels = NSScreen.screens.compactMap { screen in
@@ -63,7 +64,16 @@ public final class FrozenCaptureOverlayController {
                         )
                     )
                 },
-                onCancel: onCancel
+                onCancel: onCancel,
+                onSelectionChanging: { [weak panel] localFrame in
+                    guard let panel else { return }
+                    onSelectionChanging(
+                        localFrame.map {
+                            $0.offsetBy(dx: panel.frame.minX, dy: panel.frame.minY)
+                        },
+                        panel.overlayScreen
+                    )
+                }
             )
             return panel
         }.sorted { $0.displayID < $1.displayID }
@@ -268,9 +278,19 @@ private final class CaptureOverlayView: NSView {
 
     private let onSelection: @MainActor (CapturePoint, CapturePoint, CGRect) -> Void
     private let onCancel: @MainActor () -> Void
+    /// The confirmed selection while it is adjusted, or `nil` when a press outside discards it.
+    private let onSelectionChanging: @MainActor (CGRect?) -> Void
     private let frameLayer = CALayer()
     private let dimLayer = CAShapeLayer()
     private let borderLayer = CAShapeLayer()
+    private let handleLayer = CAShapeLayer()
+    /// A resize or move of the confirmed selection in progress (v1-core::REQ-007).
+    private var adjustment: (edges: Set<Edge>?, start: CGPoint, original: CGRect)?
+
+    /// The sides a handle moves; `nil` edges in `adjustment` means a move.
+    private enum Edge { case left, right, top, bottom }
+    private static let handleSize: CGFloat = 7
+    private static let handleHitSize: CGFloat = 12
     private var geometry: CaptureDisplayGeometry?
     private var snapRegions = SnapRegions.awaiting
     private var press: CGPoint?
@@ -286,10 +306,12 @@ private final class CaptureOverlayView: NSView {
 
     init(
         onSelection: @escaping @MainActor (CapturePoint, CapturePoint, CGRect) -> Void,
-        onCancel: @escaping @MainActor () -> Void
+        onCancel: @escaping @MainActor () -> Void,
+        onSelectionChanging: @escaping @MainActor (CGRect?) -> Void
     ) {
         self.onSelection = onSelection
         self.onCancel = onCancel
+        self.onSelectionChanging = onSelectionChanging
         super.init(frame: .zero)
         wantsLayer = true
         frameLayer.contentsGravity = .resize
@@ -298,7 +320,8 @@ private final class CaptureOverlayView: NSView {
         dimLayer.fillRule = .evenOdd
         borderLayer.fillColor = nil
         borderLayer.lineWidth = 1
-        for sublayer in [frameLayer, dimLayer, borderLayer] {
+        handleLayer.lineWidth = 1
+        for sublayer in [frameLayer, dimLayer, borderLayer, handleLayer] {
             layer?.addSublayer(sublayer)
         }
     }
@@ -361,7 +384,7 @@ private final class CaptureOverlayView: NSView {
         super.viewDidChangeBackingProperties()
         let scale = window?.backingScaleFactor ?? 1
         updateLayers {
-            for sublayer in [frameLayer, dimLayer, borderLayer] {
+            for sublayer in [frameLayer, dimLayer, borderLayer, handleLayer] {
                 sublayer.contentsScale = scale
             }
         }
@@ -387,6 +410,18 @@ private final class CaptureOverlayView: NSView {
     override func mouseDown(with event: NSEvent) {
         window?.makeKey()
         let point = convert(event.locationInWindow, from: nil)
+        if let confirmed = confirmedSelection {
+            if let edges = Self.handles(of: confirmed).first(where: { $0.hitRect.contains(point) })?.edges {
+                adjustment = (edges, point, confirmed)
+                return
+            }
+            if confirmed.contains(point) {
+                adjustment = (nil, point, confirmed)
+                return
+            }
+            // A press outside starts a new selection; the old one and its toolbar go away.
+            onSelectionChanging(nil)
+        }
         press = point
         dragStart = nil
         dragCurrent = nil
@@ -398,6 +433,12 @@ private final class CaptureOverlayView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        if let adjustment {
+            snapped = adjusted(adjustment, to: convert(event.locationInWindow, from: nil))
+            updateLayers()
+            onSelectionChanging(snapped)
+            return
+        }
         guard let press else { return }
         let point = convert(event.locationInWindow, from: nil)
         if dragStart == nil {
@@ -409,6 +450,20 @@ private final class CaptureOverlayView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if let adjustment {
+            self.adjustment = nil
+            let rect = adjusted(adjustment, to: convert(event.locationInWindow, from: nil))
+            guard coversTwoPixels(rect) else {
+                // Under two physical pixels: back to the selection before the adjustment.
+                snapped = adjustment.original
+                updateLayers()
+                onSelectionChanging(adjustment.original)
+                return
+            }
+            snapped = rect
+            complete(rect)
+            return
+        }
         guard let press else { return }
         self.press = nil
         let end = convert(event.locationInWindow, from: nil)
@@ -444,6 +499,10 @@ private final class CaptureOverlayView: NSView {
 
     private func complete(_ selection: CGRect) {
         selectionSettled = true
+        // The confirmed selection is kept as one rectangle so it can be adjusted.
+        dragStart = nil
+        dragCurrent = nil
+        snapped = selection
         updateLayers()
         guard geometry != nil else {
             completedBeforeFrame = selection
@@ -467,6 +526,93 @@ private final class CaptureOverlayView: NSView {
         )
     }
 
+    /// The selection the toolbar belongs to, once the frozen frame is shown.
+    private var confirmedSelection: CGRect? {
+        guard selectionSettled, geometry != nil, press == nil,
+              let snapped, !snapped.isEmpty else { return nil }
+        return snapped
+    }
+
+    private func adjusted(
+        _ adjustment: (edges: Set<Edge>?, start: CGPoint, original: CGRect),
+        to point: CGPoint
+    ) -> CGRect {
+        let dx = point.x - adjustment.start.x
+        let dy = point.y - adjustment.start.y
+        let original = adjustment.original
+        guard let edges = adjustment.edges else {
+            return CGRect(
+                x: min(max(original.minX + dx, bounds.minX), bounds.maxX - original.width),
+                y: min(max(original.minY + dy, bounds.minY), bounds.maxY - original.height),
+                width: original.width,
+                height: original.height
+            )
+        }
+        var minX = original.minX, maxX = original.maxX
+        var minY = original.minY, maxY = original.maxY
+        if edges.contains(.left) { minX += dx }
+        if edges.contains(.right) { maxX += dx }
+        if edges.contains(.bottom) { minY += dy }
+        if edges.contains(.top) { maxY += dy }
+        // Dragging past the opposite side flips the rectangle instead of inverting it.
+        let left = max(min(minX, maxX), bounds.minX), right = min(max(minX, maxX), bounds.maxX)
+        let bottom = max(min(minY, maxY), bounds.minY), top = min(max(minY, maxY), bounds.maxY)
+        return CGRect(x: left, y: bottom, width: right - left, height: top - bottom)
+    }
+
+    private func coversTwoPixels(_ rect: CGRect) -> Bool {
+        guard let geometry, geometry.logicalWidth > 0, geometry.logicalHeight > 0 else { return false }
+        let scaleX = Double(geometry.pixelWidth) / geometry.logicalWidth
+        let scaleY = Double(geometry.pixelHeight) / geometry.logicalHeight
+        return Double(rect.width) * scaleX >= 2 && Double(rect.height) * scaleY >= 2
+    }
+
+    private static func handles(of rect: CGRect) -> [(center: CGPoint, edges: Set<Edge>, hitRect: CGRect)] {
+        let points: [(CGPoint, Set<Edge>)] = [
+            (CGPoint(x: rect.minX, y: rect.maxY), [.left, .top]),
+            (CGPoint(x: rect.midX, y: rect.maxY), [.top]),
+            (CGPoint(x: rect.maxX, y: rect.maxY), [.right, .top]),
+            (CGPoint(x: rect.maxX, y: rect.midY), [.right]),
+            (CGPoint(x: rect.maxX, y: rect.minY), [.right, .bottom]),
+            (CGPoint(x: rect.midX, y: rect.minY), [.bottom]),
+            (CGPoint(x: rect.minX, y: rect.minY), [.left, .bottom]),
+            (CGPoint(x: rect.minX, y: rect.midY), [.left]),
+        ]
+        return points.map { center, edges in
+            let hit = CGRect(x: center.x - handleHitSize / 2, y: center.y - handleHitSize / 2,
+                             width: handleHitSize, height: handleHitSize)
+            return (center, edges, hit)
+        }
+    }
+
+    override func resetCursorRects() {
+        guard let confirmed = confirmedSelection else { return }
+        addCursorRect(confirmed, cursor: .openHand)
+        for handle in Self.handles(of: confirmed) {
+            addCursorRect(handle.hitRect, cursor: Self.cursor(for: handle.edges))
+        }
+    }
+
+    private static func cursor(for edges: Set<Edge>) -> NSCursor {
+        if #available(macOS 15.0, *) {
+            let position: NSCursor.FrameResizePosition
+            switch (edges.contains(.left), edges.contains(.right), edges.contains(.top), edges.contains(.bottom)) {
+            case (true, _, true, _): position = .topLeft
+            case (_, true, true, _): position = .topRight
+            case (true, _, _, true): position = .bottomLeft
+            case (_, true, _, true): position = .bottomRight
+            case (true, _, _, _): position = .left
+            case (_, true, _, _): position = .right
+            case (_, _, true, _): position = .top
+            default: position = .bottom
+            }
+            return .frameResize(position: position, directions: .all)
+        }
+        if edges == [.left] || edges == [.right] { return .resizeLeftRight }
+        if edges == [.top] || edges == [.bottom] { return .resizeUpDown }
+        return .crosshair
+    }
+
     private func updateLayers(_ changes: () -> Void = {}) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -485,10 +631,28 @@ private final class CaptureOverlayView: NSView {
             )
             effectiveAppearance.performAsCurrentDrawingAppearance {
                 borderLayer.strokeColor = NSColor.controlAccentColor.cgColor
+                handleLayer.strokeColor = NSColor.controlAccentColor.cgColor
+                handleLayer.fillColor = NSColor.white.cgColor
             }
         } else {
             borderLayer.path = nil
         }
+        if let confirmed = confirmedSelection {
+            let handles = CGMutablePath()
+            for handle in Self.handles(of: confirmed) {
+                handles.addRect(CGRect(
+                    x: handle.center.x - Self.handleSize / 2,
+                    y: handle.center.y - Self.handleSize / 2,
+                    width: Self.handleSize,
+                    height: Self.handleSize
+                ))
+            }
+            handleLayer.path = handles
+        } else {
+            handleLayer.path = nil
+        }
+        handleLayer.frame = bounds
+        window?.invalidateCursorRects(for: self)
         dimLayer.path = dimmed
         CATransaction.commit()
     }

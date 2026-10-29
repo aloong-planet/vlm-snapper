@@ -17,6 +17,8 @@ struct ApplicationModelDependencies {
     let permissionChecker: any ScreenCapturePermissionChecking
     let frozenDisplayCapturer: any FrozenDisplayCapturing
     let windowListing: any CaptureWindowListing
+    let captureClipboard: any CaptureImageClipboard
+    let captureImageSaver: any CaptureImageSaving
     let displayMonitor: CaptureDisplayMonitor
     let loginService: any LoginItemServicing
     let makeUpdateDriver: (@escaping @Sendable (UpdateLifecycleEvent) async -> Void) -> any UpdateDriving
@@ -35,6 +37,8 @@ struct ApplicationModelDependencies {
             permissionChecker: permission,
             frozenDisplayCapturer: ScreenCaptureKitFrozenDisplayCapturer(),
             windowListing: CoreGraphicsCaptureWindowListing(),
+            captureClipboard: SystemCaptureImageClipboard(),
+            captureImageSaver: SavePanelCaptureImageSaver(),
             displayMonitor: CaptureDisplayMonitor(
                 notifications: .default,
                 workspaceNotifications: NSWorkspace.shared.notificationCenter,

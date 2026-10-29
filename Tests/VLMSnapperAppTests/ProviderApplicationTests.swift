@@ -790,10 +790,11 @@ struct ProviderApplicationTests {
                 let toolbar = try #require(NSApp.windows.first {
                     $0.isVisible && $0.contentView is NSHostingView<CaptureOperationToolbar>
                 })
-                let completedReads = fixture.displayReads
+                // While the selection can still be adjusted, displays stay monitored (v1-core::REQ-007/AC-07);
+                // an unchanged geometry leaves the selection and its toolbar alone.
+                let selectingReads = fixture.displayReads
                 fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
-                fixture.workspaceNotifications.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
-                #expect(fixture.displayReads == completedReads)
+                try await eventually { fixture.displayReads > selectingReads }
                 #expect(toolbar.isVisible)
                 try await eventually { model.providerSnapshot.activity == .capture }
                 model.credentialEditor.edit("fixture-during-selection")
@@ -807,6 +808,11 @@ struct ProviderApplicationTests {
                 let toolbarContent = try #require(toolbar.contentView)
                 try click(toolbar, at: NSPoint(x: 40, y: toolbarContent.bounds.midY))
                 try await eventually { await fixture.http.imageRequests.count == 1 }
+                // Once an operation starts the capture's display monitoring is released (v1-core::REQ-001/AC-07).
+                let operationReads = fixture.displayReads
+                fixture.displayNotifications.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+                fixture.workspaceNotifications.post(name: NSWorkspace.screensDidSleepNotification, object: nil)
+                #expect(fixture.displayReads == operationReads)
                 try await eventually { model.providerSnapshot.blocksConfigurationChanges }
                 model.credentialEditor.edit("fixture-during-image")
                 let blocked = model.providerSettingsConfiguration()
@@ -2169,6 +2175,8 @@ private final class ApplicationFixture {
     let shortcuts = FixtureShortcuts()
     let capture = FixtureCapture()
     let windows = FixtureWindowListing()
+    let clipboard = FixtureClipboard()
+    let imageSaver = FixtureImageSaver()
     let displayNotifications = NotificationCenter()
     let workspaceNotifications = NotificationCenter()
     var displayGeometries: [CaptureDisplayGeometry]?
@@ -2280,6 +2288,8 @@ private final class ApplicationFixture {
                 permissionChecker: FixturePermissions(granted: permissionGranted),
                 frozenDisplayCapturer: capture,
                 windowListing: windows,
+                captureClipboard: clipboard,
+                captureImageSaver: imageSaver,
                 displayMonitor: CaptureDisplayMonitor(
                     notifications: displayNotifications,
                     workspaceNotifications: workspaceNotifications,
@@ -2444,6 +2454,38 @@ private actor FixtureCapture: FrozenDisplayCapturing {
         }
         if !released { await withCheckedContinuation { waiters.append($0) } }
         throw .permissionDenied
+    }
+}
+
+/// Clipboard double: records the PNG written by Copy.
+@MainActor
+private final class FixtureClipboard: CaptureImageClipboard {
+    private(set) var written: [Data] = []
+    func write(png: Data) -> Bool {
+        written.append(png)
+        return true
+    }
+}
+
+/// Save double: answers like the save panel would and, when saving, writes the file as the live adapter does.
+@MainActor
+private final class FixtureImageSaver: CaptureImageSaving {
+    enum Answer { case saveTo(URL), cancel }
+    var answer = Answer.cancel
+    private(set) var requests: [(png: Data, suggestedName: String)] = []
+    func save(png: Data, suggestedName: String) async -> CaptureImageSaveOutcome {
+        requests.append((png, suggestedName))
+        switch answer {
+        case .cancel:
+            return .cancelled
+        case .saveTo(let url):
+            do {
+                try png.write(to: url, options: .atomic)
+                return .saved(url)
+            } catch {
+                return .failed
+            }
+        }
     }
 }
 
