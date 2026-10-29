@@ -36,7 +36,7 @@
   --article-muted: #858c96;
 }
 
-html[data-theme="dark"] {
+[data-theme="dark"] {
   color-scheme: dark;
   --desktop-a: #334353;
   --desktop-b: #17212b;
@@ -89,3 +89,21 @@ html[data-theme="dark"] {
 }
 
 .capture-toolbar[hidden] { display: none; }
+
+/* Copy and Save icons are the app's SF Symbols, rendered at 15 pt and used as masks so they follow the
+   button colour (copy: doc.on.doc; save: square.and.arrow.down, recommended, see the candidates page). */
+.icon-mask { display: inline-block; width: 15px; height: 15px; background: currentColor; -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
+.icon-copy { --icon: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAqCAYAAADf/ynVAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAACagAwAEAAAAAQAAACoAAAAAKygkXAAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAA0lJREFUWAntmFuIT0Ecx//WEmoVdsW65ZZYEbWSh90SskopRLnEkxeiJE/Kq/LoBS+eEVG25LKsS4pcl8QL65IlSuSybHy+28zfnrPnzJlz9v//b+n/rc/OmZnvzPzOnDlz5r+5XFn/yQwMyHAfVbTZAUthDFRCWJ0UvIVmOAzfoKgaTu9t8CcF8k+AVIq6W1cHu6isM4aHpBfgq8mHk60UTAT5W6AR3kBRdJNeNVt3YGDCCNeM97NJn5GOTWiTr67IX/ld1Bqb1k6XX5PcXnw3YDpo5rQuE5U2sEGmx7jHFzWgvE1wC2bAJRgNTqUNzNmZo/ILdcvhNswCBVcNsXIt/npaacHWgL2Bx1w/hzmwHx7BWfgFSdJaWwYKar5JF5N+BC8p2OOgRe7DE3xTISy7+DeGKkaSvwfq+y6MAC/twWUD0kb5FO6H6Ojhkfc1hIOzgW2mLiw9Rm03ansdBkOiHuBQA73e42PcB4xHQWv9yN8Ok8FKj1jlbXAkgtOmXp6dkCh9PmTe7XDawE7iaQC9eWrzArSpSltAZT5ofwxI6ymsoabgXbgiJt9K+Uo4B5OgBRrhGGgWF4Htk8uA5pFrgmmB0piMvcMNMfUq7jlj1raEi++g9npzayFJ2zDIrxkPqCKQ61vmIs1XwU/QDFwGr10eXy8VMjB1fh5WQydol1dwibs8nl4qdGAaQGttLWjTnQmJuzyeXipGYBpEW8V6+A2zoRmGgLeyBqZFLmkt6ZFNiUCb8j6Q6mF795Xnn0pPX9imQaW5oE3WRyswHfQxypN1xs7Q9hD8UCeeSvUSZA1Me49+kAyDUVDtwM6S1/eQfrqV9VHa9grwk83EpPrEpVbWGUs9UNoG5cBiZsweEvUZC6g/Z6yKSOxB4WUgKjJ9Xfzh/lx5jXXCGHQMWgA1Jn/KpPmklIHp/yRr8iP/u2jl0m4p+dJSBqatRRuz1AXvQacPzZbyAZUyMH3QdV7zUn8ufmeAUYHZaU11THGMYvvRjHkrKrAPpnWDdy9uo+3H9ut2m9qoNXaVunWwyXj01qQ5RZhmOe1T+vW00BRcMWnmpI6W+tWit6hQvKIvnUD6LAWn/190gNZclgB15m+HozAOyirqDPwFiafggEu0yI8AAAAASUVORK5CYII=); }
+.icon-save { --icon: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAoCAYAAACWwljjAAAAAXNSR0IArs4c6QAAAGxlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAACQAAAAAQAAAJAAAAABAAKgAgAEAAAAAQAAACSgAwAEAAAAAQAAACgAAAAAhdTn+wAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAnFJREFUWAntlr9PFFEQxxGMDYTCqA0GUCsNjZ2F0VNjCRWh0EQK/ww7o6VAY6dSYWGHsbGysbCyQaVFSegIAdHgr+j3A29y73Zn7/bubYHJTvK9N2/m+75vbnbf7vb11VZ3oO7A4e/AeZUIDoWdVBU/Ak5VUVF/oggFHQs4kai1vzy1oCpqaNGoC2pphzOpO+Q0pSV0tGWWn4wodE0YFYai9EP536J57A5qci8K7Mr/LLwRNqJ4Vy6iT4Xfwl8HdsQvRDl8jJy3Bq0nAtqF5nVoQOxXQiNatS7/azT/E/lZl9ynKDgs/7SA7l3hrHBTaKehdNNm5do/XJY/1kzlPK9DOVLQeKnRdO94pKLY67BwVSNP4XZWtiA00EKTotjDNe/YXwzM5xp/uqt6C6KFJmZ7HMyiX6+g4yH/JeJV5XLaMNvjYBb9egVx82Gciqw9UOCR4B0G45KbE+5bIBrtRrY9olSxazfebYeyrRj5JYE/w3eQ8fGJkSMGN2toGj+b2597HXKJITit8btwS3gs7Alm+MTIwYFbidk/8DrEBlcEnknwFsOI/yz45K4KnnXskLcIcVBUEGsuCVuCcW0kRq7IOhbU7SWzjd7JuSFsWiD4xMj1bL0WxIbvhYawEYBPLMnaHd8ywh9EOheI8Q1eZq3LSS0I0UoKsepSLplpVDr+FwXZlyDfMVWbadoeOX2vQ/YCvJxjpwdM0/YopbggFg+6X8L1UivKkXhGoYk2e7h2xImeUWxF4NuXN/4L4a2wI/RiXCY6MyNwqrlcE8KaUNqmxNwV7JVQ1YjmZOkqMkQ6RWs/CinFsRaNeWFcqC2pA/8AaDeovo0o+QcAAAAASUVORK5CYII=); }
+
+/* Handles on a confirmed selection: corners and edge midpoints, centred on the 1 px border. */
+.selection-handle { position: absolute; width: 7px; height: 7px; border: 1px solid var(--capture-border); background: var(--surface); }
+.selection-handle.nw { left: -4px; top: -4px; cursor: nwse-resize; }
+.selection-handle.n { left: calc(50% - 3.5px); top: -4px; cursor: ns-resize; }
+.selection-handle.ne { right: -4px; top: -4px; cursor: nesw-resize; }
+.selection-handle.e { right: -4px; top: calc(50% - 3.5px); cursor: ew-resize; }
+.selection-handle.se { right: -4px; bottom: -4px; cursor: nwse-resize; }
+.selection-handle.s { left: calc(50% - 3.5px); bottom: -4px; cursor: ns-resize; }
+.selection-handle.sw { left: -4px; bottom: -4px; cursor: nesw-resize; }
+.selection-handle.w { left: -4px; top: calc(50% - 3.5px); cursor: ew-resize; }
+

@@ -58,6 +58,13 @@ window.PROTOTYPES = [
     path: "capture-overlay/prototype-snap-region.html"
   },
   {
+    module: "capture-overlay",
+    type: "candidates",
+    id: "save-icon-candidates",
+    name: "Save icon candidates",
+    path: "capture-overlay/candidates-toolbar-directions.html"
+  },
+  {
     module: "onboarding",
     type: "ui",
     id: "structure-directions",

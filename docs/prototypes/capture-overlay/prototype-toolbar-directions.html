@@ -6,7 +6,10 @@
   <title>VLMSnapper · 截图操作栏方向</title>
   <!-- Demo harness: the theme control is not product UI.
        2026-10-28: the user made the shipped app the reference for the selection look: a 1 px border,
-       no corner handles, no size label and no inner hairline (they were drawn here before). -->
+       no size label and no inner hairline.
+       2026-10-29: the user chose small handles on a confirmed selection (four corners and four edge
+       midpoints) for resizing, and Copy and Save buttons before Close; the Save icon is a candidate
+       (recommended square.and.arrow.down; see candidates-toolbar-directions.html). -->
   <link rel="stylesheet" href="../_shared/capture-overlay.css">
   <style>
 
@@ -77,6 +80,7 @@
   <script src="../_shared/capture-toolbar.js"></script>
   <script>
     CaptureToolbar.render(document.querySelector('[data-shared-block="capture-toolbar"]'));
+    document.querySelector('.capture-selection').insertAdjacentHTML('afterbegin', CaptureToolbar.handles());
     document.querySelector('#theme-control').addEventListener('click', () => {
       document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     });
