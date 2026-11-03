@@ -168,6 +168,36 @@ struct CaptureToolbarIconButtonTests {
         }
     }
 
+    @Test("Extract, Copy and Save look unavailable during another operation's request, and Extract while it would have to wait")
+    func blockedControlsLookUnavailable() throws {
+        func strengths(_ state: CaptureToolbarState) throws -> (extract: CGFloat, copy: CGFloat, save: CGFloat) {
+            let window = try toolbarWindow(PressLog(), state: state)
+            defer { window.orderOut(nil) }
+            let view = try #require(window.contentView)
+            // Extract's icon and the start of its label.
+            let extract = CGRect(x: 14, y: view.bounds.midY - 6, width: 26, height: 12)
+            return (
+                try inkContrast(in: view, box: extract),
+                try inkContrast(in: view, box: boxRect(window, fromEnd: 2).insetBy(dx: 4, dy: 4)),
+                try inkContrast(in: view, box: boxRect(window, fromEnd: 1).insetBy(dx: 4, dy: 4))
+            )
+        }
+        let available = try strengths(CaptureToolbarState(targetLanguageCode: "en"))
+        let running = CaptureToolbarState(targetLanguageCode: "en")
+        running.currentOperation = .translate
+        running.isRequestRunning = true
+        let duringRequest = try strengths(running)
+        let unsaved = CaptureToolbarState(targetLanguageCode: "en")
+        unsaved.unavailableOperations = [.extract]
+        let whileUnsaved = try strengths(unsaved)
+
+        #expect(available.extract - duringRequest.extract > 0.2, "\(available.extract), \(duringRequest.extract)")
+        #expect(available.copy - duringRequest.copy > 0.2, "\(available.copy), \(duringRequest.copy)")
+        #expect(available.save - duringRequest.save > 0.2, "\(available.save), \(duringRequest.save)")
+        #expect(available.extract - whileUnsaved.extract > 0.2, "\(available.extract), \(whileUnsaved.extract)")
+        #expect(abs(available.copy - whileUnsaved.copy) < 0.05, "Copy stays available while a result is unsaved")
+    }
+
     @Test("the operation whose result box is showing looks selected, and only then")
     func currentOperationLooksSelected() throws {
         let state = CaptureToolbarState(targetLanguageCode: "en")

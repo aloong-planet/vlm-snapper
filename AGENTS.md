@@ -25,6 +25,8 @@ Project facts that apply across skills are in `capabilities.toml` at the reposit
 ### 回归验证
 
 - 发布前必须运行 `bash Scripts/test-local-regression.sh --desktop`。
+- `@MainActor` 测试里，按钮按下后的否定读取必须排在按钮动作的任务执行之后（docs/postmortems/result-box-test-reads.md）。
+- 运行原生窗口测试时不要操作这台电脑或锁屏（docs/postmortems/result-box-test-reads.md）。
 
 ### 本地安装偏好
 

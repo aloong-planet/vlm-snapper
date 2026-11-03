@@ -729,23 +729,6 @@ struct CaptureResultBoxWindowTests {
         #expect(copyAvailable - copyUnavailable > 0.2, "available \(copyAvailable), unavailable \(copyUnavailable)")
     }
 
-    /// How far the darkest and lightest pixels of a rendered area are apart, for a label's strength.
-    private func inkContrast(in view: NSView, box: CGRect) throws -> CGFloat {
-        view.layoutSubtreeIfNeeded()
-        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
-        view.cacheDisplay(in: view.bounds, to: bitmap)
-        let scale = CGFloat(bitmap.pixelsWide) / view.bounds.width
-        let minRow = view.isFlipped ? box.minY : view.bounds.height - box.maxY
-        var levels: [CGFloat] = []
-        for row in Int(minRow * scale)..<Int((minRow + box.height) * scale) {
-            for column in Int(box.minX * scale)..<Int(box.maxX * scale) {
-                guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
-                levels.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
-            }
-        }
-        return try #require(levels.max()) - (try #require(levels.min()))
-    }
-
     /// The header's Retry is an icon, so the word can only be the body's button.
     private func pressBodyRetry(_ panel: NSWindow) throws {
         let content = try #require(panel.contentView)
@@ -895,6 +878,24 @@ struct CaptureResultBoxWindowTests {
         pump(panel)
         #expect(log.closes == 1)
     }
+}
+
+/// How far the darkest and lightest pixels of a rendered area are apart, for a label's strength.
+@MainActor
+func inkContrast(in view: NSView, box: CGRect) throws -> CGFloat {
+    view.layoutSubtreeIfNeeded()
+    let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: bitmap)
+    let scale = CGFloat(bitmap.pixelsWide) / view.bounds.width
+    let minRow = view.isFlipped ? box.minY : view.bounds.height - box.maxY
+    var levels: [CGFloat] = []
+    for row in Int(minRow * scale)..<Int((minRow + box.height) * scale) {
+        for column in Int(box.minX * scale)..<Int(box.maxX * scale) {
+            guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
+            levels.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
+        }
+    }
+    return try #require(levels.max()) - (try #require(levels.min()))
 }
 
 /// The lines of text a view renders, with where each one is in the view's coordinates.

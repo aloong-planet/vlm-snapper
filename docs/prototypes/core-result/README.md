@@ -1,8 +1,5 @@
 # Core result UI prototype
 
-This prototype records the confirmed hybrid direction for the screenshot result workspace:
+`prototype-bilingual.html` records sentence alignment between source and translation columns, which history detail shows. The theme and state controls are prototype harness controls and are not part of the product design.
 
-- Direction C's card-based workbench, image card, result card, and overall visual language
-- Direction A's centered top-level Text Extraction / Translation navigation
-
-The former attached-inspector direction has been removed. The request-state and theme controls are prototype harness controls and are not part of the product design. The hybrid direction was confirmed on 2026-08-25.
+The earlier result window prototype was removed with that window (ADR-0015). Results of a new capture now appear in the result box: see `../capture-overlay/prototype-result-box.html`.
