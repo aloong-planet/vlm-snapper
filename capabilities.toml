@@ -1,0 +1,33 @@
+client-framework = "native"
+working-language = "en"
+
+[i18n]
+enabled = true
+source = "VLMSnapper/Resources/Localization"
+enforced-by = []
+
+[enumeration-wording-gate]
+enabled = false
+
+[lint]
+enabled = false
+
+[e2e-suite]
+enabled = false
+
+[mutation-testing]
+enabled = false
+
+[theming]
+enabled = false
+
+[macos-distribution]
+enabled = true
+source = "docs/ops/macos-signing.md"
+enforced-by = ['gh workflow run formal-release-verification.yml -f version="$VERSION" -f buildVersion="$BUILD_VERSION" -f appcastBaseURL="$APPCAST_BASE_URL" -f downloadBaseURL="$DOWNLOAD_BASE_URL"']
+
+[macos-distribution.profiles.local]
+command = "Scripts/build-development-dmgs.sh"
+
+[macos-distribution.profiles.release]
+command = 'Scripts/release-macos.sh "$VERSION" "$BUILD_VERSION" "$APPCAST_BASE_URL" "$DOWNLOAD_BASE_URL" "$SPARKLE_PUBLIC_KEY" "$OUTPUT_ROOT"'

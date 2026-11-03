@@ -10,7 +10,9 @@
 
 ### 项目能力
 
-- **i18n：已启用。** UI 语言集为简体中文（源语言）和英语；产品 UI 不承诺 RTL 镜像。字典统一放在 `VLMSnapper/Resources/Localization/`。运行时值、日志字段和持久化枚举使用语言无关的英文标识。
+Project facts that apply across skills are in `capabilities.toml` at the repository root.
+
+- UI 语言集为简体中文（源语言）和英语；产品 UI 不承诺 RTL 镜像。运行时值、日志字段和持久化枚举使用语言无关的英文标识。
 - 语言偏好使用稳定值 `system`、`zh-Hans` 和 `en`；首帧前解析实际语言，不持久化“跟随系统”的解析结果。
 - 日期、数字、度量和货币格式独立跟随用户区域设置。结果内容仍须正确渲染双向文本。
 
