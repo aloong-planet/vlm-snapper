@@ -437,7 +437,7 @@ struct FrozenCaptureOverlayControllerTests {
         }
         #expect(panel.attachedSheet == nil)
         // The overlay has the keyboard again, so Esc and the next press reach it.
-        #expect(panel.isKeyWindow)
+        #expect(panel.isKeyWindow, "active: \(NSApp.isActive), key window: \(String(describing: NSApp.keyWindow))")
         // Window A, once the alert has ended.
         try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
         #expect(log.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
