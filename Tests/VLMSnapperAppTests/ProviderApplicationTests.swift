@@ -2070,7 +2070,30 @@ struct ProviderApplicationTests {
     }
 
     @Test
-    func wholeDisplaySelectionLeavesTheToolbarWhereItIs() async throws {
+    func aToolbarClearOfTheBoxStaysWhereItIs() async throws {
+        try await withSnapFixture { fixture, _, _ in
+            await fixture.http.allowImageRequests()
+            let toolbar = try await selectWindow(fixture)
+            pumpNativeEvents(toolbar)
+            let original = toolbar.frame
+
+            try await clickExtract(toolbar)
+            try await eventually { resultBox() != nil }
+            let box = try #require(resultBox())
+            #expect(!original.intersects(box.frame), "the fixture window's toolbar must start clear of the box")
+            #expect(toolbar.frame == original)
+
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try clickResultBoxButton(box, fromEnd: 0)
+            try await eventually { resultBox() == nil }
+            #expect(toolbar.frame == original)
+        }
+    }
+
+    // On a short display the box reaches down to this toolbar and it moves aside, as on CI, so this
+    // test holds on any display and does not say whether the toolbar moved while the box is open.
+    @Test
+    func wholeDisplaySelectionKeepsTheBoxInPlaceAndTheToolbarClearOfIt() async throws {
         try await withSnapFixture { fixture, screen, _ in
             await fixture.http.allowImageRequests()
             try fixture.shortcuts.fire()
@@ -2088,7 +2111,6 @@ struct ProviderApplicationTests {
             try await eventually { resultBox() != nil }
             let box = try #require(resultBox())
             #expect(!toolbar.frame.intersects(box.frame))
-            #expect(toolbar.frame.minX == originalX, "clear of the box, it stays where it was while the box is open")
             #expect(box.frame.maxX == screen.visibleFrame.maxX - CaptureResultBoxMetrics.edgeInset)
             #expect(box.frame.maxY == screen.visibleFrame.maxY - CaptureResultBoxMetrics.edgeInset)
 
