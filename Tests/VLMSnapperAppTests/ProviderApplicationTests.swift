@@ -2053,6 +2053,23 @@ struct ProviderApplicationTests {
     }
 
     @Test
+    func copyingDuringATranslationTakesWhatHasArrivedWithItsStructure() async throws {
+        try await withResultFixture { fixture, _ in
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickTranslate(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.streamImage(content: #"{"segments":[{"id":"s1","block":"b1","kind":"heading","source":"Title","translation":"标题"},{"id":"s2","block":"b2","kind":"listItem","source":"One","translation":"第一项"},"#)
+            try await eventually { resultBoxText()?.contains("第一项") == true }
+            #expect(resultBoxPresentation()?.showsProgress == true, "the stream is still open")
+            pumpNativeEvents(try #require(resultBox()))
+
+            try clickResultBoxButton(try #require(resultBox()), fromEnd: 2)
+
+            #expect(fixture.clipboard.writtenTexts.last == "标题\n\n- 第一项")
+        }
+    }
+
+    @Test
     func wholeDisplaySelectionLeavesTheToolbarWhereItIs() async throws {
         try await withSnapFixture { fixture, screen, _ in
             await fixture.http.allowImageRequests()

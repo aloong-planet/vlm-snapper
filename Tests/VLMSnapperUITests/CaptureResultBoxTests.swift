@@ -698,6 +698,37 @@ struct CaptureResultBoxWindowTests {
         }
     }
 
+    @Test("the header's Retry and Copy look unavailable when they are")
+    func headerIconsLookUnavailable() throws {
+        let (controller, panel) = try makeController()
+        defer { controller.reset() }
+        let content = try #require(panel.contentView)
+        func icon(fromEnd index: CGFloat) -> CGRect {
+            let step = VLMSnapperUIConstants.toolbarControlHeight + VLMSnapperUIConstants.toolbarControlGap
+            let inWindow = NSPoint(
+                x: panel.frame.width - 6 - VLMSnapperUIConstants.toolbarControlHeight / 2 - index * step,
+                y: panel.frame.height - CaptureResultBoxMetrics.headerHeight / 2
+            )
+            let center = content.convert(inWindow, from: nil)
+            return CGRect(x: center.x - 8, y: center.y - 8, width: 16, height: 16)
+        }
+
+        controller.state.presentation = presentation(finished("Text"))
+        pump(panel)
+        let retryAvailable = try inkContrast(in: content, box: icon(fromEnd: 1))
+        let copyAvailable = try inkContrast(in: content, box: icon(fromEnd: 2))
+
+        controller.state.presentation = presentation(finished("Text"), retryAvailable: false)
+        pump(panel)
+        let retryUnavailable = try inkContrast(in: content, box: icon(fromEnd: 1))
+        #expect(retryAvailable - retryUnavailable > 0.2, "available \(retryAvailable), unavailable \(retryUnavailable)")
+
+        controller.state.presentation = presentation(WorkspaceOperationSlot(attempt: .failed(code: "first_text_timeout")))
+        pump(panel)
+        let copyUnavailable = try inkContrast(in: content, box: icon(fromEnd: 2))
+        #expect(copyAvailable - copyUnavailable > 0.2, "available \(copyAvailable), unavailable \(copyUnavailable)")
+    }
+
     /// How far the darkest and lightest pixels of a rendered area are apart, for a label's strength.
     private func inkContrast(in view: NSView, box: CGRect) throws -> CGFloat {
         view.layoutSubtreeIfNeeded()

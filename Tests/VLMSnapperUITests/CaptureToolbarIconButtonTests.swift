@@ -143,6 +143,31 @@ struct CaptureToolbarIconButtonTests {
         #expect(presses.names == ["copy"])
     }
 
+    @Test("a Translate that would have to wait takes no press, though its language part still does")
+    func blockedTranslateTakesNoPress() throws {
+        let unsaved = CaptureToolbarState(targetLanguageCode: "en")
+        unsaved.currentOperation = .extract
+        unsaved.unavailableOperations = [.translate]
+        let running = CaptureToolbarState(targetLanguageCode: "en")
+        running.currentOperation = .extract
+        running.isRequestRunning = true
+        for state in [unsaved, running] {
+            let presses = PressLog()
+            let window = try toolbarWindow(presses, state: state)
+            defer { window.orderOut(nil) }
+            let right = translateControlRightEdge(window)
+            let midY = try #require(window.contentView).bounds.midY
+
+            try press(window, at: NSPoint(x: right - 70, y: midY))
+            #expect(presses.names.isEmpty)
+
+            let before = popoverCount()
+            try press(window, at: NSPoint(x: right - 8, y: midY))
+            try waitUntil { popoverCount() > before }
+            closePopovers()
+        }
+    }
+
     @Test("the operation whose result box is showing looks selected, and only then")
     func currentOperationLooksSelected() throws {
         let state = CaptureToolbarState(targetLanguageCode: "en")
