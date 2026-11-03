@@ -5,6 +5,28 @@ enum CaptureToolbarPlacement {
     static func origin(
         selectionFrame: CGRect,
         toolbarSize: CGSize,
+        visibleScreenFrame: CGRect,
+        avoiding resultBox: CGRect? = nil
+    ) -> CGPoint {
+        let origin = baseOrigin(
+            selectionFrame: selectionFrame,
+            toolbarSize: toolbarSize,
+            visibleScreenFrame: visibleScreenFrame
+        )
+        // Every button stays reachable next to an open result box (v1-core::REQ-013/AC-06).
+        guard let resultBox, CGRect(origin: origin, size: toolbarSize).intersects(resultBox) else { return origin }
+        return CGPoint(
+            x: max(
+                resultBox.minX - VLMSnapperUIConstants.toolbarResultBoxGap - toolbarSize.width,
+                visibleScreenFrame.minX
+            ),
+            y: origin.y
+        )
+    }
+
+    private static func baseOrigin(
+        selectionFrame: CGRect,
+        toolbarSize: CGSize,
         visibleScreenFrame: CGRect
     ) -> CGPoint {
         let gap = VLMSnapperUIConstants.toolbarSelectionGap
@@ -73,16 +95,27 @@ public final class CaptureToolbarPanelController {
         panel.orderFrontRegardless()
     }
 
-    /// Moves the visible toolbar to follow a selection being adjusted, without rebuilding it.
-    public func reposition(below selectionFrame: CGRect, on screen: NSScreen) {
+    /// Moves the visible toolbar to follow a selection or a result box, without rebuilding it.
+    public func reposition(below selectionFrame: CGRect, on screen: NSScreen, avoiding resultBox: CGRect? = nil) {
         guard panel.isVisible else { return }
+        // The toolbar's width follows the target language's abbreviation.
+        if let content = panel.contentView {
+            panel.setContentSize(content.fittingSize)
+        }
         panel.setFrameOrigin(
             CaptureToolbarPlacement.origin(
                 selectionFrame: selectionFrame,
                 toolbarSize: panel.frame.size,
-                visibleScreenFrame: screen.visibleFrame
+                visibleScreenFrame: screen.visibleFrame,
+                avoiding: resultBox
             )
         )
+    }
+
+    /// Keeps the toolbar in front of a result box at the same level.
+    public func orderFront() {
+        guard panel.isVisible else { return }
+        panel.orderFrontRegardless()
     }
 
     /// Hides a visible toolbar but keeps it for `resume`, while a new capture may still fail.

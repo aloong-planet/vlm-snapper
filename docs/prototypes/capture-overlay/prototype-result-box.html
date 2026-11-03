@@ -1,0 +1,700 @@
+<!doctype html>
+<!-- Notes: prototype-result-box.md -->
+<html lang="zh-Hans" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>截图结果框</title>
+  <script src="../manifest.js"></script>
+  <script src="../app-identity.js"></script>
+  <link rel="stylesheet" href="../_shared/capture-overlay.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button { font: inherit; color: inherit; }
+    button:disabled { cursor: default; }
+
+    :root { --danger: #c34242; }
+    [data-theme="dark"] { --danger: #ff8080; }
+
+    .result-screen {
+      position: relative;
+      width: 100vw;
+      min-width: 1120px;
+      height: 100vh;
+      min-height: 720px;
+      overflow: hidden;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      font-size: 13px;
+      background:
+        radial-gradient(circle at 24% 14%, var(--desktop-glow), transparent 30%),
+        linear-gradient(150deg, var(--desktop-a), var(--desktop-b));
+      user-select: none;
+    }
+
+    /* Mock context drawn by other apps; not VLMSnapper UI. */
+    .mock-menubar { position: absolute; left: 0; top: 0; right: 0; height: 28px; display: flex; align-items: center; gap: 18px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--menubar); font-size: 12px; font-weight: 600; }
+    .mock-menubar span + span { color: var(--text-secondary); font-weight: 500; }
+    .mock-window { position: absolute; left: 7%; top: 8%; width: 56%; height: 76%; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--window); box-shadow: 0 22px 60px var(--shadow-soft); }
+    .mock-titlebar { height: 34px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--browser-line); color: var(--text-tertiary); font-size: 11px; }
+    .result-screen[data-preset="right"] .mock-window { left: auto; right: 3%; }
+    .mock-article { margin: 18px 24px; columns: 2; column-gap: 26px; color: var(--article-ink); font-family: Georgia, serif; overflow-wrap: anywhere; }
+    .mock-article h1 { column-span: all; margin: 0 0 10px; font-size: 26px; line-height: 1.1; }
+    .mock-article h2 { margin: 8px 0 5px; font-size: 14px; }
+    .mock-article p { margin: 0 0 7px; color: var(--article-muted); font-size: 12px; line-height: 1.4; }
+    .mock-dock { position: absolute; left: 50%; bottom: 5px; height: 50px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--menubar); }
+    .mock-dock span { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(150deg, var(--accent-soft), var(--accent)); }
+
+    .selection { position: absolute; z-index: 10; border: var(--selection-border-width) solid var(--capture-border); box-shadow: 0 0 0 9999px var(--outside-mask); }
+    .selection[hidden] { display: none; }
+
+    .result-box { position: absolute; z-index: 12; width: 380px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--text); background: var(--window); box-shadow: 0 14px 38px var(--shadow), 0 2px 8px var(--shadow-soft); }
+    .result-box[hidden] { display: none; }
+    .result-box-header { flex: 0 0 auto; height: 37px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--line); cursor: grab; }
+    .result-box.is-dragging .result-box-header { cursor: grabbing; }
+    .result-box-title { flex: 0 0 auto; font-weight: 650; }
+    .result-box-status { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+    .result-box-model { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .result-box-copied { flex: 0 0 auto; margin-left: auto; font-size: 11px; }
+    .result-box-actions { flex: 0 0 auto; display: flex; gap: 3px; }
+    .result-box-actions .tool-button { cursor: default; }
+    .result-box-spinner { flex: 0 0 auto; width: 12px; height: 12px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: result-box-spin .9s linear infinite; }
+    @keyframes result-box-spin { to { transform: rotate(360deg); } }
+
+    .result-box-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 16px; font-size: 13px; line-height: 20px; overflow-wrap: anywhere; user-select: text; cursor: text; }
+    .result-text-block { margin: 0 0 10px; white-space: pre-wrap; }
+    .result-text-block.is-heading { font-size: 16px; font-weight: 600; line-height: 22px; }
+    .result-text-block.is-list-item { margin-bottom: 3px; padding-left: 14px; text-indent: -14px; }
+    .result-text-block.is-list-item + .result-text-block:not(.is-list-item) { margin-top: 10px; }
+    .result-caret { display: inline-block; width: 2px; height: 14px; margin-left: 1px; vertical-align: -2px; background: var(--accent); animation: result-caret-blink 1s steps(2, start) infinite; }
+    @keyframes result-caret-blink { to { visibility: hidden; } }
+    .result-empty { margin: 0; color: var(--text-secondary); user-select: none; cursor: default; }
+    .result-empty.has-action { margin-bottom: 12px; }
+    .result-failure-reason { margin: 0 0 12px; color: var(--danger); user-select: text; }
+    .result-box-footer { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line); color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+    .result-box-footer[hidden] { display: none; }
+    .result-box-footer span { flex: 1 1 auto; }
+    .result-box .action-button { cursor: default; }
+
+    .language-menu { position: fixed; z-index: 16; width: 240px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--window); box-shadow: 0 14px 38px var(--shadow); }
+    .language-menu[hidden] { display: none; }
+    .language-search { flex: 0 0 auto; height: 25px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); background: var(--surface); font: inherit; }
+    .language-list { max-height: 260px; display: flex; flex-direction: column; overflow: auto; }
+    .language-option { flex: 0 0 auto; width: 100%; height: 25px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; text-align: left; }
+    .language-option:hover { background: var(--surface-hover); }
+    .language-option strong { flex: 0 0 28px; font-weight: 650; }
+    .language-option span { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+    .language-option .icon { color: var(--accent); }
+
+    .confirm-sheet { position: absolute; z-index: 18; left: 50%; top: 28px; width: 300px; transform: translateX(-50%); padding: 16px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--window); box-shadow: 0 22px 60px var(--shadow); }
+    .confirm-sheet[hidden] { display: none; }
+    .confirm-sheet h2 { margin: 0 0 6px; font-size: 13px; }
+    .confirm-sheet p { margin: 0 0 14px; color: var(--text-secondary); font-size: 12px; line-height: 17px; }
+    .confirm-sheet-actions { display: flex; justify-content: flex-end; gap: 6px; }
+  </style>
+</head>
+<body>
+  <main class="result-screen" id="screen" data-preset="center" aria-label="截图界面：结果框">
+    <header class="mock-menubar" aria-hidden="true"><span>Safari</span><span>文件</span><span>编辑</span><span>显示</span><span>窗口</span></header>
+    <article class="mock-window" aria-hidden="true">
+      <div class="mock-titlebar">example.com/designing-calm-software</div>
+      <div class="mock-article" id="mock-article"></div>
+    </article>
+    <nav class="mock-dock" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></nav>
+
+    <div class="selection" id="selection"></div>
+    <section class="result-box" id="box" aria-label="结果框" hidden>
+      <header class="result-box-header" id="box-header">
+        <span class="result-box-title" id="box-title"></span>
+        <span class="result-box-status" id="box-status"></span>
+        <div class="result-box-actions">
+          <button class="tool-button" id="box-copy" aria-label="复制" title="复制"><span class="icon-mask icon-copy"></span></button>
+          <button class="tool-button" id="box-retry" aria-label="重试" title="重试"><svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
+          <button class="tool-button" id="box-close" aria-label="关闭" title="关闭"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="result-box-body" id="box-body" tabindex="0"></div>
+      <footer class="result-box-footer" id="box-footer" hidden></footer>
+    </section>
+    <div class="capture-toolbar" id="toolbar" data-shared-block="capture-toolbar" aria-label="选区操作栏"></div>
+    <div class="language-menu" id="language-menu" hidden>
+      <input class="language-search" id="language-search" type="text" placeholder="搜索语言" aria-label="搜索语言">
+      <div class="language-list" id="language-list"></div>
+    </div>
+    <section class="confirm-sheet" id="sheet" hidden>
+      <h2>丢弃未保存的结果？</h2>
+      <p>该结果尚未保存。如需保留，请先复制内容。</p>
+      <div class="confirm-sheet-actions">
+        <button class="action-button" id="sheet-cancel">取消</button>
+        <button class="action-button" id="sheet-discard">丢弃</button>
+      </div>
+    </section>
+  </main>
+
+  <div data-demo-harness>
+    <span class="dh-tag">Demo ·</span>
+    <div class="dh-group">
+      <span class="dh-title">Next request</span>
+      <div class="dh-opts" id="result-options">
+        <button type="button" class="dh-opt" data-result="succeeded" aria-pressed="true">Succeeds</button>
+        <button type="button" class="dh-opt" data-result="empty" aria-pressed="false">No text</button>
+        <button type="button" class="dh-opt" data-result="failed" aria-pressed="false">Fails</button>
+        <button type="button" class="dh-opt" data-result="unsaved" aria-pressed="false">Not saved</button>
+      </div>
+    </div>
+    <div class="dh-group">
+      <span class="dh-title">Selection</span>
+      <div class="dh-opts" id="selection-options">
+        <button type="button" class="dh-opt" data-selection="center" aria-pressed="true">Center</button>
+        <button type="button" class="dh-opt" data-selection="right" aria-pressed="false">Right side</button>
+        <button type="button" class="dh-opt" data-selection="display" aria-pressed="false">Whole display</button>
+      </div>
+    </div>
+    <div class="dh-group dh-actions">
+      <span class="dh-title">Actions</span>
+      <div class="dh-acts"><button type="button" class="dh-act" id="restart">Start over</button></div>
+    </div>
+    <p class="dh-note" id="harness-note"></p>
+  </div>
+  <script src="../demo-harness.js"></script>
+  <script src="../_shared/capture-toolbar.js"></script>
+  <script>
+    const COPY = {
+      model: 'DeepSeek · deepseek-v4-flash-vision-exp',
+      extract: '提取',
+      translate: '翻译',
+      preparing: '正在准备请求',
+      streaming: '正在接收结果',
+      copied: '已复制',
+      empty: '图片中没有识别到文字。',
+      failed: '等待 Provider 响应超时，请检查网络后手动重试。',
+      canceled: '已取消',
+      retry: '重试',
+      unsaved: '结果尚未保存，可以先复制并重试保存。',
+      retrySave: '重试保存',
+    };
+    // A sample of the app's list: its first eleven languages, then some of the rest, including the
+    // longest abbreviation length and the longest name the system reports.
+    const LANGUAGES = [
+      ['zh-Hans', '简体中文'], ['en', '英语'], ['ja', '日语'], ['ko', '韩语'], ['es', '西班牙语'], ['fr', '法语'],
+      ['de', '德语'], ['pt', '葡萄牙语'], ['it', '意大利语'], ['ru', '俄语'], ['ar', '阿拉伯语'],
+      ['aeb', '突尼斯阿拉伯语'], ['af', '南非荷兰语'], ['be', '白俄罗斯语'], ['bg', '保加利亚语'], ['bn', '孟加拉语'],
+      ['ca', '加泰罗尼亚语'], ['cs', '捷克语'], ['da', '丹麦语'], ['el', '希腊语'], ['fi', '芬兰语'], ['he', '希伯来语'],
+      ['hi', '印地语'], ['hu', '匈牙利语'], ['id', '印度尼西亚语'], ['nl', '荷兰语'], ['pl', '波兰语'],
+      ['qug', 'Chimborazo Highland Quichua'], ['sv', '瑞典语'], ['th', '泰语'], ['tr', '土耳其语'], ['uk', '乌克兰语'], ['vi', '越南语'],
+    ].map(([code, name]) => ({ code, name, short: code.split('-')[0].toUpperCase() }));
+    const EXTRACTED = [
+      ['heading', 'Designing Calm Software'],
+      ['paragraph', 'Good utility software stays close to the task. It reduces ceremony, preserves context, and makes the next action obvious.'],
+      ['paragraph', 'The best interface is the one that leaves attention for the work itself. Every extra window asks the reader to look away from what they came to read.'],
+      ['paragraph', 'Keep the result beside its source. When both stay on screen, checking a phrase takes a glance rather than a trip through the window list.'],
+      ['paragraph', 'Show progress as it happens. Text that appears line by line tells the reader the request is alive long before it finishes.'],
+      ['paragraph', 'Make leaving cheap. One key returns to the work, and nothing is left behind to tidy up.'],
+      ['heading', 'Further reading'],
+      ['list', '- https://example.com/designing-calm-software/notes/a-very-long-link-that-has-to-wrap-inside-the-result-box'],
+      ['list', '- Attention as a design material'],
+      ['list', '- Interfaces that get out of the way'],
+      ['paragraph', 'Good tools are quiet. They do not ask for a decision they can make themselves, and they do not interrupt a task to report that nothing has gone wrong.'],
+      ['paragraph', 'A quiet tool is not an empty one. It keeps its controls close, names them plainly, and answers quickly when it is asked for something.'],
+      ['paragraph', 'When a tool has to fail, it says what happened and what to do next, then waits. It does not retry on its own or hide the problem behind a generic message.'],
+      ['paragraph', 'People notice calm software by what it leaves out: fewer alerts, fewer steps, and fewer moments spent wondering whether it worked.'],
+    ];
+    const TRANSLATED = {
+      'zh-Hans': [
+        ['heading', '设计从容的软件'],
+        ['paragraph', '好的工具软件紧贴任务。它减少繁琐步骤，保留上下文，并让下一步操作一目了然。'],
+        ['paragraph', '最好的界面，是把注意力留给工作本身的界面。每多一个窗口，都要读者把目光从想读的内容上移开。'],
+        ['paragraph', '让结果紧挨着来源。两者都留在屏幕上时，核对一个词只需看一眼，不必在窗口列表里来回翻找。'],
+        ['paragraph', '随时展示进度。逐行出现的文字早在请求完成之前，就告诉读者它还在运行。'],
+        ['paragraph', '让离开毫不费力。按一个键就回到工作，不留下任何需要收拾的东西。'],
+        ['heading', '延伸阅读'],
+        ['list', '- https://example.com/designing-calm-software/notes/a-very-long-link-that-has-to-wrap-inside-the-result-box'],
+        ['list', '- 把注意力当作设计材料'],
+        ['list', '- 不挡路的界面'],
+        ['paragraph', '好工具是安静的。它不会要你做它自己能做的决定，也不会打断任务来报告一切正常。'],
+        ['paragraph', '安静不等于空洞。它把控件放在手边，用平实的名字称呼它们，被请求时迅速回应。'],
+        ['paragraph', '工具不得不失败时，它说明发生了什么、接下来该做什么，然后等待。它不会自行重试，也不会把问题藏在笼统的提示后面。'],
+        ['paragraph', '人们是从它省去的东西感受到从容的软件：更少的提醒、更少的步骤，以及更少地去琢磨它到底有没有成功。'],
+      ],
+      en: [
+        ['heading', 'Designing Calm Software'],
+        ['paragraph', 'Good utility software stays close to the task and makes the next action obvious.'],
+      ],
+      ja: [
+        ['heading', '穏やかなソフトウェアの設計'],
+        ['paragraph', '優れたツールは作業に寄り添い、次の操作を明確にします。'],
+      ],
+    };
+
+    const MENUBAR = 28, DOCK_STRIP = 60, EDGE = 12, BOX_WIDTH = 380, BOX_MAX_HEIGHT = 640, TOOLBAR_GAP = 4, BOX_GAP = 8;
+    const $ = (selector) => document.querySelector(selector);
+    const screen = $('#screen'), selection = $('#selection'), toolbar = $('#toolbar');
+    const box = $('#box'), boxBody = $('#box-body'), boxFooter = $('#box-footer');
+
+    let phase, locked, visible, running, boxPosition, slots, records, language, follow, activeBlock, caret, streamTimer, prepareTimer;
+    let copiedTimer = null;
+    let followedTop = 0;
+    let nextResult = 'succeeded';
+    let selectionPreset = 'center';
+
+    const emptySlot = () => ({ attempt: 'never', language: null, blocks: [] });
+
+    function renderMockArticle() {
+      const article = $('#mock-article');
+      EXTRACTED.forEach(([kind, value], index) => {
+        const element = document.createElement(kind !== 'heading' ? 'p' : index === 0 ? 'h1' : 'h2');
+        element.textContent = value;
+        article.append(element);
+      });
+    }
+
+    // Every preset contains the whole mock article, so the sample results match what is selected.
+    function selectionRect() {
+      const W = screen.clientWidth, H = screen.clientHeight;
+      if (selectionPreset === 'display') return { x: 0, y: 0, w: W, h: H };
+      const win = $('.mock-window').getBoundingClientRect();
+      const s = screen.getBoundingClientRect();
+      return { x: win.left - s.left, y: win.top - s.top, w: win.width, h: win.height };
+    }
+
+    function boxRect() {
+      const W = screen.clientWidth, H = screen.clientHeight;
+      const height = Math.min(H - MENUBAR - DOCK_STRIP - 2 * EDGE, BOX_MAX_HEIGHT);
+      if (boxPosition) return { x: boxPosition.x, y: boxPosition.y, w: BOX_WIDTH, h: height };
+      return { x: W - EDGE - BOX_WIDTH, y: MENUBAR + EDGE, w: BOX_WIDTH, h: height };
+    }
+
+    function placeSelection() {
+      const r = selectionRect();
+      Object.assign(selection.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+      const wantsHandles = !locked;
+      if (wantsHandles !== (selection.childElementCount > 0)) selection.innerHTML = wantsHandles ? CaptureToolbar.handles() : '';
+    }
+
+    function placeToolbar() {
+      const r = selectionRect();
+      const W = screen.clientWidth, H = screen.clientHeight;
+      const visibleBottom = H - DOCK_STRIP;
+      const w = toolbar.offsetWidth, h = toolbar.offsetHeight;
+      const below = r.y + r.h + TOOLBAR_GAP, above = r.y - TOOLBAR_GAP - h;
+      let left, top;
+      if (below + h <= visibleBottom || above >= MENUBAR) {
+        top = below + h <= visibleBottom ? below : above;
+        left = Math.max(0, Math.min(r.x, W - w));
+      } else {
+        // No room below or above, as for a whole display: inside the selection's bottom-right corner.
+        top = Math.min(r.y + r.h, visibleBottom) - TOOLBAR_GAP - h;
+        left = Math.max(0, Math.min(r.x + r.w, W) - TOOLBAR_GAP - w);
+      }
+      if (visible) {
+        // The toolbar stays usable: it moves left of an open result box it would otherwise run under.
+        const b = boxRect();
+        const overlaps = left < b.x + b.w && left + w > b.x && top < b.y + b.h && top + h > b.y;
+        if (overlaps) left = Math.max(0, b.x - BOX_GAP - w);
+      }
+      Object.assign(toolbar.style, { left: `${left}px`, top: `${top}px` });
+    }
+
+    function wouldStartRequest(kind) {
+      return slots[kind].attempt === 'never' || (kind === 'translate' && slots.translate.language.code !== language.code);
+    }
+
+    function renderToolbar() {
+      const unavailable = hasUnsaved() ? ['extract', 'translate'].filter(wouldStartRequest) : [];
+      CaptureToolbar.render(toolbar, { current: visible, busy: Boolean(running), unavailable, language });
+      placeToolbar();
+      placeLanguageMenu();
+    }
+
+    function titleFor(kind) {
+      if (kind === 'extract') return COPY.extract;
+      return `${COPY.translate} · ${(slots.translate.language ?? language).name}`;
+    }
+
+    function appendBlock(kind) {
+      const element = document.createElement('p');
+      element.className = `result-text-block${kind === 'heading' ? ' is-heading' : ''}${kind === 'list' ? ' is-list-item' : ''}`;
+      element.append(document.createTextNode(''));
+      boxBody.append(element);
+      activeBlock = element.firstChild;
+      if (caret) element.append(caret);
+    }
+
+    function renderBody(kind) {
+      const slot = slots[kind];
+      boxBody.replaceChildren();
+      boxFooter.hidden = true;
+      boxFooter.replaceChildren();
+      if (slot.attempt === 'preparing' || slot.attempt === 'empty') {
+        const p = document.createElement('p');
+        p.className = 'result-empty';
+        p.textContent = slot.attempt === 'preparing' ? COPY.preparing : COPY.empty;
+        boxBody.append(p);
+        return;
+      }
+      if (slot.attempt === 'failed' || slot.attempt === 'canceled') {
+        const p = document.createElement('p');
+        p.className = slot.attempt === 'failed' ? 'result-failure-reason' : 'result-empty has-action';
+        p.textContent = slot.attempt === 'failed' ? COPY.failed : COPY.canceled;
+        const retry = document.createElement('button');
+        retry.className = 'action-button';
+        retry.textContent = COPY.retry;
+        retry.addEventListener('click', () => rerun(kind));
+        boxBody.append(p, retry);
+        return;
+      }
+      for (const [blockKind, text] of slot.blocks) {
+        appendBlock(blockKind);
+        activeBlock.appendData(text);
+      }
+      renderFooter(kind);
+    }
+
+    function renderFooter(kind) {
+      const slot = slots[kind];
+      boxFooter.replaceChildren();
+      boxFooter.hidden = slot.attempt !== 'unsaved';
+      if (slot.attempt !== 'unsaved') return;
+      const note = document.createElement('span');
+      note.textContent = COPY.unsaved;
+      const retry = document.createElement('button');
+      retry.className = 'action-button';
+      retry.textContent = COPY.retrySave;
+      retry.addEventListener('click', () => {
+        slot.attempt = 'succeeded';
+        renderHeader();
+        renderFooter(kind);
+        renderToolbar();
+      });
+      boxFooter.append(note, retry);
+    }
+
+    function renderHeader() {
+      if (!visible) return;
+      const slot = slots[visible];
+      $('#box-title').textContent = titleFor(visible);
+      const status = $('#box-status');
+      status.replaceChildren();
+      if (slot.attempt === 'preparing' || slot.attempt === 'streaming') {
+        const spinner = document.createElement('span');
+        spinner.className = 'result-box-spinner';
+        spinner.setAttribute('role', 'img');
+        spinner.setAttribute('aria-label', slot.attempt === 'preparing' ? COPY.preparing : COPY.streaming);
+        status.append(spinner);
+      }
+      const model = document.createElement('span');
+      model.className = 'result-box-model';
+      model.textContent = COPY.model;
+      model.title = COPY.model;
+      status.append(model);
+      const hasText = slot.blocks.length > 0;
+      $('#box-copy').disabled = !hasText;
+      $('#box-retry').disabled = ['preparing', 'streaming', 'unsaved'].includes(slot.attempt);
+    }
+
+    function renderBox() {
+      box.hidden = !visible;
+      if (!visible) { renderToolbar(); return; }
+      const r = boxRect();
+      Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, height: `${r.h}px` });
+      renderHeader();
+      renderBody(visible);
+      renderToolbar();
+    }
+
+    function renderNote() {
+      const added = records.join(', ');
+      $('#harness-note').textContent = `App: the result comes from the model and local storage, and the selection from the user; there are no such controls. History records added in this capture: ${records.length}${added ? ` (${added})` : ''}.`;
+    }
+
+    function start(kind, { addRecord }) {
+      const slot = slots[kind];
+      if (addRecord) {
+        slot.language = kind === 'translate' ? language : null;
+        records.push(kind === 'translate' ? `translate → ${language.short}` : 'extract');
+        renderNote();
+      }
+      locked = true;
+      visible = kind;
+      running = kind;
+      slot.attempt = 'preparing';
+      slot.blocks = [];
+      follow = true;
+      followedTop = 0;
+      placeSelection();
+      renderBox();
+      const result = nextResult;
+      prepareTimer = setTimeout(() => {
+        if (result === 'failed' || result === 'empty') return finish(kind, result);
+        slot.attempt = 'streaming';
+        caret = document.createElement('span');
+        caret.className = 'result-caret';
+        if (visible === kind) { renderHeader(); renderBody(kind); }
+        stream(kind, result);
+      }, 700);
+    }
+
+    function stream(kind, result) {
+      const slot = slots[kind];
+      const source = kind === 'extract' ? EXTRACTED : TRANSLATED[slot.language.code] ?? [['paragraph', `这里是${slot.language.name}的示例译文。`]];
+      let blockIndex = 0, charIndex = 0;
+      streamTimer = setInterval(() => {
+        if (blockIndex >= source.length) return finish(kind, result);
+        // Compared here because the scroll event arrives late: a tick before it would pull the reader back down.
+        if (boxBody.scrollTop < followedTop - 1) follow = false;
+        const [blockKind, text] = source[blockIndex];
+        if (charIndex === 0) {
+          slot.blocks.push([blockKind, '']);
+          appendBlock(blockKind);
+          if (visible === kind) renderHeader();
+        }
+        const chunk = text.slice(charIndex, charIndex + 4);
+        slot.blocks[blockIndex][1] += chunk;
+        activeBlock.appendData(chunk);
+        charIndex += chunk.length;
+        if (charIndex >= text.length) { blockIndex += 1; charIndex = 0; }
+        if (follow) {
+          boxBody.scrollTop = boxBody.scrollHeight;
+          followedTop = boxBody.scrollTop;
+        }
+      }, 28);
+    }
+
+    function stopTimers() {
+      clearTimeout(prepareTimer);
+      clearInterval(streamTimer);
+      caret = null;
+      activeBlock = null;
+    }
+
+    function finish(kind, result) {
+      caret?.remove();
+      stopTimers();
+      running = null;
+      slots[kind].attempt = result;
+      if (result === 'failed' || result === 'empty') {
+        slots[kind].blocks = [];
+        renderBox();
+        return;
+      }
+      // The body keeps its nodes, so the reader's text selection survives the end of the stream.
+      renderHeader();
+      renderFooter(kind);
+      renderToolbar();
+    }
+
+    function cancelRunning() {
+      if (!running) return;
+      const kind = running;
+      stopTimers();
+      running = null;
+      slots[kind].attempt = 'canceled';
+      slots[kind].blocks = [];
+    }
+
+    function rerun(kind) {
+      if (running) return;
+      start(kind, { addRecord: false });
+    }
+
+    function operate(kind) {
+      if (running) return;
+      if (wouldStartRequest(kind)) {
+        if (!hasUnsaved()) start(kind, { addRecord: true });
+        return;
+      }
+      // An existing result is only shown again; only the box's retry sends another request.
+      visible = kind;
+      renderBox();
+    }
+
+    function closeBox() {
+      cancelRunning();
+      visible = null;
+      renderBox();
+    }
+
+    function hasUnsaved() {
+      return Object.values(slots).some((slot) => slot.attempt === 'unsaved');
+    }
+
+    function exitCapture() {
+      cancelRunning();
+      phase = 'closed';
+      visible = null;
+      selection.hidden = true;
+      box.hidden = true;
+      toolbar.hidden = true;
+      $('#language-menu').hidden = true;
+      $('#sheet').hidden = true;
+      renderNote();
+    }
+
+    function requestExit() {
+      if (phase === 'closed') return;
+      if (hasUnsaved()) { $('#sheet').hidden = false; return; }
+      exitCapture();
+    }
+
+    function restart() {
+      stopTimers();
+      phase = 'selected';
+      locked = false;
+      visible = null;
+      running = null;
+      boxPosition = null;
+      slots = { extract: emptySlot(), translate: emptySlot() };
+      records = [];
+      language = LANGUAGES[0];
+      selection.hidden = false;
+      toolbar.hidden = false;
+      $('#sheet').hidden = true;
+      $('#language-menu').hidden = true;
+      box.hidden = true;
+      placeSelection();
+      renderToolbar();
+      renderNote();
+    }
+
+    function renderLanguageOptions(query = '') {
+      const needle = query.trim().toLowerCase();
+      const matches = LANGUAGES.filter(({ short, name }) => !needle || short.toLowerCase().includes(needle) || name.toLowerCase().includes(needle));
+      $('#language-list').replaceChildren(...matches.map((option) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'language-option';
+        row.dataset.language = option.code;
+        row.title = option.name;
+        const short = document.createElement('strong');
+        short.textContent = option.short;
+        const name = document.createElement('span');
+        name.textContent = option.name;
+        row.append(short, name);
+        if (option.code === language.code) {
+          row.insertAdjacentHTML('beforeend', '<svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>');
+        }
+        return row;
+      }));
+    }
+
+    function placeLanguageMenu() {
+      const anchor = toolbar.querySelector('[data-toolbar-language]');
+      const menu = $('#language-menu');
+      if (!anchor || menu.hidden) return;
+      const r = anchor.getBoundingClientRect();
+      const above = r.top - menu.offsetHeight - 4;
+      menu.style.left = `${Math.min(r.left, screen.clientWidth - menu.offsetWidth - 8)}px`;
+      menu.style.top = `${above >= 0 ? above : r.bottom + 4}px`;
+    }
+
+    toolbar.addEventListener('click', (event) => {
+      const operation = event.target.closest('[data-operation]');
+      if (operation && !operation.disabled) return operate(operation.dataset.operation);
+      if (event.target.closest('[data-toolbar-language]')) {
+        const menu = $('#language-menu');
+        menu.hidden = !menu.hidden;
+        if (!menu.hidden) {
+          $('#language-search').value = '';
+          renderLanguageOptions();
+          placeLanguageMenu();
+          $('#language-search').focus();
+        }
+        event.stopPropagation();
+        return;
+      }
+      const action = event.target.closest('[data-toolbar-action]');
+      if (!action || action.disabled) return;
+      requestExit();
+    });
+    $('#language-search').addEventListener('input', (event) => renderLanguageOptions(event.target.value));
+    $('#language-menu').addEventListener('click', (event) => {
+      const option = event.target.closest('[data-language]');
+      if (!option) return;
+      language = LANGUAGES.find(({ code }) => code === option.dataset.language);
+      $('#language-menu').hidden = true;
+      renderToolbar();
+    });
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('#language-menu')) $('#language-menu').hidden = true;
+    });
+    window.addEventListener('resize', () => {
+      if (phase !== 'selected') return;
+      placeSelection();
+      placeToolbar();
+      placeLanguageMenu();
+      if (visible) {
+        const r = boxRect();
+        Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, height: `${r.h}px` });
+      }
+    });
+
+    $('#box-close').addEventListener('click', closeBox);
+    $('#box-retry').addEventListener('click', () => { if (visible) rerun(visible); });
+    $('#box-copy').addEventListener('click', () => {
+      const status = $('#box-status');
+      status.querySelector('.result-box-copied')?.remove();
+      const label = document.createElement('span');
+      label.className = 'result-box-copied';
+      label.textContent = COPY.copied;
+      status.append(label);
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => label.remove(), 1200);
+    });
+    boxBody.addEventListener('scroll', () => {
+      follow = boxBody.scrollTop + boxBody.clientHeight >= boxBody.scrollHeight - 4;
+    });
+
+    $('#box-header').addEventListener('pointerdown', (event) => {
+      if (event.target.closest('button')) return;
+      const start = boxRect();
+      const origin = { x: event.clientX, y: event.clientY };
+      box.classList.add('is-dragging');
+      const move = (moveEvent) => {
+        const W = screen.clientWidth, H = screen.clientHeight;
+        boxPosition = {
+          x: Math.max(0, Math.min(start.x + moveEvent.clientX - origin.x, W - start.w)),
+          y: Math.max(MENUBAR, Math.min(start.y + moveEvent.clientY - origin.y, H - DOCK_STRIP - start.h)),
+        };
+        box.style.left = `${boxPosition.x}px`;
+        box.style.top = `${boxPosition.y}px`;
+      };
+      const up = () => {
+        box.classList.remove('is-dragging');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    });
+
+    $('#sheet-cancel').addEventListener('click', () => { $('#sheet').hidden = true; });
+    $('#sheet-discard').addEventListener('click', exitCapture);
+    window.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      if (!$('#language-menu').hidden) { $('#language-menu').hidden = true; return; }
+      if (!$('#sheet').hidden) { $('#sheet').hidden = true; return; }
+      requestExit();
+    });
+
+    $('#result-options').addEventListener('click', (event) => {
+      const option = event.target.closest('[data-result]');
+      if (!option) return;
+      nextResult = option.dataset.result;
+      for (const button of document.querySelectorAll('[data-result]')) button.setAttribute('aria-pressed', String(button === option));
+    });
+    $('#selection-options').addEventListener('click', (event) => {
+      const option = event.target.closest('[data-selection]');
+      if (!option) return;
+      selectionPreset = option.dataset.selection;
+      screen.dataset.preset = selectionPreset;
+      for (const button of document.querySelectorAll('[data-selection]')) button.setAttribute('aria-pressed', String(button === option));
+      restart();
+    });
+    $('#restart').addEventListener('click', restart);
+
+    renderMockArticle();
+    restart();
+  </script>
+</body>
+</html>

@@ -9,6 +9,7 @@ enum VLMSnapperTheme {
     static let shadow = Color(nsColor: .shadowColor)
     static let primaryText = Color(nsColor: .labelColor)
     static let secondaryText = Color(nsColor: .secondaryLabelColor)
+    static let tertiaryText = Color(nsColor: .tertiaryLabelColor)
     static let accent = Color.accentColor
     // History rows reproduce the approved surface palette, not macOS accent
     // or inactive-selection colors. Keep both appearance values explicit.
@@ -152,17 +153,23 @@ struct CaptureToolbarButtonStyle: ButtonStyle {
     enum Kind {
         case icon
         case field
+        /// A part of a control that draws its own surface and outline.
+        case part
     }
 
     let kind: Kind
+    /// The operation whose result box is showing (v1-core::REQ-013/AC-05).
+    var isCurrent = false
 
     func makeBody(configuration: Configuration) -> some View {
-        StyledLabel(configuration: configuration, kind: kind)
+        StyledLabel(configuration: configuration, kind: kind, isCurrent: isCurrent)
     }
 
     private struct StyledLabel: View {
         let configuration: Configuration
         let kind: Kind
+        let isCurrent: Bool
+        @Environment(\.isEnabled) private var isEnabled
         @State private var isHovered = false
 
         var body: some View {
@@ -179,9 +186,12 @@ struct CaptureToolbarButtonStyle: ButtonStyle {
         @ViewBuilder private var background: some View {
             ZStack {
                 if case .field = kind { VLMSnapperTheme.surface }
-                if configuration.isPressed {
+                if isCurrent {
+                    // Stays the same under the pointer, so hovering never reads as another state.
+                    VLMSnapperTheme.accent.opacity(0.14)
+                } else if isEnabled, configuration.isPressed {
                     VLMSnapperTheme.toolbarPressed
-                } else if isHovered {
+                } else if isEnabled, isHovered {
                     VLMSnapperTheme.toolbarHover
                 }
             }

@@ -83,25 +83,8 @@ public final class ManagementCenterWindowController: NSWindowController, NSWindo
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    public func performAfterHiding(
-        _ action: @escaping @MainActor () -> Void
-    ) {
-        window?.orderOut(nil)
-        Task { @MainActor in
-            await Task.yield()
-            action()
-        }
-    }
-
     public func hideForCapture() {
         window?.orderOut(nil)
-    }
-
-    public func resumeAfterResult() {
-        render(destination: currentDestination)
-        showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func render(destination: ManagementCenterDestination) {

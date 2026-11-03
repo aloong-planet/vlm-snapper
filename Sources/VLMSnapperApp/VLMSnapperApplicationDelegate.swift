@@ -136,16 +136,6 @@ final class VLMSnapperApplicationDelegate: NSObject, NSApplicationDelegate {
         model.onProviderConfigurationCompleted = { [weak self] in
             self?.completeProviderSettingsFromOnboardingIfNeeded()
         }
-        model.onRetireManagementCenter = { [weak self] action in
-            guard let controller = self?.managementController else {
-                action()
-                return
-            }
-            controller.performAfterHiding(action)
-        }
-        model.onRestoreManagementCenter = { [weak self] in
-            self?.managementController?.resumeAfterResult()
-        }
         model.onRetireCaptureSources = { [weak self] in
             self?.menuController?.hideForCapture()
             self?.managementController?.hideForCapture()

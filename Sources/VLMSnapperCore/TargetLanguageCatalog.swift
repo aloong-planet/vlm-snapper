@@ -20,6 +20,12 @@ public struct TargetLanguageCatalog: Equatable, Sendable {
         codes.contains(code)
     }
 
+    /// What the capture toolbar shows for a language: its primary language code in upper case, such as
+    /// `ZH` for `zh-Hans` (v1-core::REQ-013/AC-03). Codes stay the runtime and stored values.
+    public static func abbreviation(for code: String) -> String {
+        String(code.prefix { $0 != "-" }).uppercased()
+    }
+
     private static func standardLanguageCodes() -> [String] {
         var seen = Set<String>()
         let remaining = Locale.LanguageCode.isoLanguageCodes

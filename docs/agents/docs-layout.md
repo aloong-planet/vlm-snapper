@@ -6,7 +6,7 @@
 
 | 位置 | 内容 |
 |---|---|
-| `CONTEXT.md` | 产品领域术语及应避免的同义词 |
+| `docs/CONTEXT.md` | 产品领域术语及应避免的同义词 |
 | `docs/adr/` | 架构决策、备选项及取舍原因 |
 | `docs/specs/<slug>.md` | 功能需求、边界和明确不做的内容 |
 | `docs/features/<slug>.md` | 当前版本的用户可见行为 |
@@ -28,7 +28,7 @@
 
 先读取：
 
-- 仓库根目录的 `CONTEXT.md`
+- `docs/CONTEXT.md`
 - `docs/adr/` 中与当前工作相关的 ADR
 
 文件尚不存在时静默继续，由对应 skill 在首次需要时创建。

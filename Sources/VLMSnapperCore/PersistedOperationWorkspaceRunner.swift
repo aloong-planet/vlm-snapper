@@ -81,6 +81,9 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private var managedScreenshot: ManagedScreenshot?
     private var preparedOperations: [OperationSlot: PreparedOperation] = [:]
     private var pendingPersistence: PendingPersistence?
+    private var activeRun: Task<Void, Never>?
+    /// A runner opened on an existing record stays bound to it, whatever a run asks for (v1-core::REQ-002/AC-03).
+    private let isBoundToRestoredRecord: Bool
 
     public init(
         screenshotStore: any ScreenshotPersisting & ManagedScreenshotLoading,
@@ -93,6 +96,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         self.historyStore = historyStore
         self.provider = provider
         self.now = now
+        isBoundToRestoredRecord = operation != nil
         if let operation {
             managedScreenshot = operation.screenshot
             let restoredOperation: ProviderOperation = operation.kind == .extract
@@ -121,10 +125,15 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                     continuation: continuation
                 )
             }
+            activeRun = task
             continuation.onTermination = { _ in
                 task.cancel()
             }
         }
+    }
+
+    public func waitForRunToFinish() async {
+        await activeRun?.value
     }
 
     public func retrySavingResult() async throws -> WorkspaceCommittedResult {
@@ -160,7 +169,10 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             }
             let slot = Self.slot(for: operation)
             let newPrepared: PreparedOperation
-            if let existing = preparedOperations[slot] {
+            // The same operation is a rerun of its record; another target language is a new
+            // translation with its own record (v1-core::REQ-011/AC-06).
+            if let existing = preparedOperations[slot],
+               isBoundToRestoredRecord || existing.operation == operation {
                 guard let stored = try await historyStore.operation(id: existing.operationID),
                       stored.screenshot == existing.screenshot,
                       !stored.status.isActive else {
@@ -284,6 +296,8 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                     completed = true
                 }
             }
+            // A canceled task ends the provider's stream without an error, which is not an incomplete response.
+            try Task.checkCancellation()
             guard completed else {
                 throw ProviderStreamContractError.incompleteOutput
             }
@@ -347,7 +361,12 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             }
             return (managedScreenshot, false)
         }
-        let screenshot = try await screenshotStore.save(originalPNG: originalPNG)
+        let screenshot: ManagedScreenshot
+        do {
+            screenshot = try await screenshotStore.save(originalPNG: originalPNG)
+        } catch {
+            throw OperationWorkspaceRunFailure(code: "screenshot_save_failed")
+        }
         managedScreenshot = screenshot
         return (screenshot, true)
     }

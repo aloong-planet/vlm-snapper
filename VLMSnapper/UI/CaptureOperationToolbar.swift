@@ -7,37 +7,63 @@ public struct TargetLanguageOption: Identifiable, Equatable, Sendable {
 
     public var id: String { code }
 
+    /// What the toolbar and the language list show first (v1-core::REQ-013/AC-03).
+    public var abbreviation: String { TargetLanguageCatalog.abbreviation(for: code) }
+
     public init(code: String, name: String) {
         self.code = code
         self.name = name
     }
+
+    /// The list's search matches the abbreviation or the name (v1-core::REQ-013/AC-04).
+    func matches(_ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return true }
+        return abbreviation.lowercased().contains(query) || name.lowercased().contains(query)
+    }
+}
+
+/// What the toolbar shows as operations run, updated in place so an open language list stays open.
+@MainActor
+public final class CaptureToolbarState: ObservableObject {
+    @Published public var targetLanguageCode: String
+    /// The operation whose result box is showing.
+    @Published public var currentOperation: WorkspaceOperationKind?
+    @Published public var isRequestRunning = false
+    /// Operations that cannot start now, while a result is unsaved (v1-core::REQ-011/AC-07).
+    @Published public var unavailableOperations: Set<WorkspaceOperationKind> = []
+
+    public init(targetLanguageCode: String) {
+        self.targetLanguageCode = targetLanguageCode
+    }
+
+    func isBlocked(_ operation: WorkspaceOperationKind) -> Bool {
+        (isRequestRunning && currentOperation != operation) || unavailableOperations.contains(operation)
+    }
 }
 
 public struct CaptureOperationToolbar: View {
-    @Binding private var operation: WorkspaceOperationKind
-    @Binding private var targetLanguageCode: String
+    @ObservedObject private var state: CaptureToolbarState
     private let targetLanguages: [TargetLanguageOption]
-    private let providerSummary: String
     private let onStart: (WorkspaceOperationKind) -> Void
+    private let onTargetLanguageChange: (String) -> Void
     private let onCopy: () -> Void
     private let onSave: () -> Void
     private let onCancel: () -> Void
 
     public init(
-        operation: Binding<WorkspaceOperationKind>,
-        targetLanguageCode: Binding<String>,
+        state: CaptureToolbarState,
         targetLanguages: [TargetLanguageOption],
-        providerSummary: String,
         onStart: @escaping (WorkspaceOperationKind) -> Void,
+        onTargetLanguageChange: @escaping (String) -> Void,
         onCopy: @escaping () -> Void,
         onSave: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
-        _operation = operation
-        _targetLanguageCode = targetLanguageCode
+        self.state = state
         self.targetLanguages = targetLanguages
-        self.providerSummary = providerSummary
         self.onStart = onStart
+        self.onTargetLanguageChange = onTargetLanguageChange
         self.onCopy = onCopy
         self.onSave = onSave
         self.onCancel = onCancel
@@ -45,21 +71,21 @@ public struct CaptureOperationToolbar: View {
 
     public var body: some View {
         HStack(spacing: VLMSnapperUIConstants.toolbarControlGap) {
-            operationButton(.extract, icon: .extract, title: VLMSnapperStrings.captureExtract)
-            operationButton(.translate, icon: .translate, title: VLMSnapperStrings.translate)
-            TargetLanguagePicker(
-                selection: $targetLanguageCode,
-                options: targetLanguages
+            extractButton
+            TranslateControl(
+                state: state,
+                options: targetLanguages,
+                onStart: { onStart(.translate) },
+                onTargetLanguageChange: onTargetLanguageChange
             )
-            valueLabel(icon: .provider, text: providerSummary)
             Divider().frame(height: 19)
-            iconButton(VLMSnapperStrings.copyImage, action: onCopy) {
+            iconButton(VLMSnapperStrings.copyImage, enabled: !state.isRequestRunning, action: onCopy) {
                 VLMSnapperIcon.copy.image
             }
-            iconButton(VLMSnapperStrings.saveImage, action: onSave) {
+            iconButton(VLMSnapperStrings.saveImage, enabled: !state.isRequestRunning, action: onSave) {
                 FloppyDiskIcon()
             }
-            iconButton(VLMSnapperStrings.cancel, action: onCancel) {
+            iconButton(VLMSnapperStrings.cancel, enabled: true, action: onCancel) {
                 VLMSnapperIcon.close.image
             }
         }
@@ -84,6 +110,7 @@ public struct CaptureOperationToolbar: View {
 
     private func iconButton<Icon: View>(
         _ label: String,
+        enabled: Bool,
         action: @escaping () -> Void,
         @ViewBuilder icon: () -> Icon
     ) -> some View {
@@ -94,108 +121,130 @@ public struct CaptureOperationToolbar: View {
                     width: VLMSnapperUIConstants.toolbarControlHeight,
                     height: VLMSnapperUIConstants.toolbarControlHeight
                 )
+                .foregroundStyle(enabled ? VLMSnapperTheme.primaryText : VLMSnapperTheme.tertiaryText)
         }
         // The style makes the whole box take the press, not only the icon's drawn pixels: the floppy
         // disk is a thin outline that a press would mostly miss.
         .buttonStyle(CaptureToolbarButtonStyle(kind: .icon))
+        .disabled(!enabled)
         .help(label)
         .accessibilityLabel(label)
     }
 
-    private func operationButton(
-        _ kind: WorkspaceOperationKind,
-        icon: VLMSnapperIcon,
-        title: String
-    ) -> some View {
-        Button {
-            operation = kind
-            onStart(kind)
+    private var extractButton: some View {
+        let isCurrent = state.currentOperation == .extract
+        let isBlocked = state.isBlocked(.extract)
+        return Button {
+            onStart(.extract)
         } label: {
-            Label(title, systemImage: icon.rawValue)
+            Label(VLMSnapperStrings.captureExtract, systemImage: VLMSnapperIcon.extract.rawValue)
                 .font(.system(size: 12, weight: .semibold))
                 .padding(.horizontal, 9)
                 .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
-                .foregroundStyle(VLMSnapperTheme.primaryText)
+                .foregroundStyle(
+                    isBlocked ? VLMSnapperTheme.tertiaryText : isCurrent ? VLMSnapperTheme.accent : VLMSnapperTheme.primaryText
+                )
                 .overlay {
                     RoundedRectangle(
                         cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
                         style: .continuous
                     )
-                    .stroke(VLMSnapperTheme.border, lineWidth: 1)
+                    .stroke(isCurrent ? VLMSnapperTheme.accent : VLMSnapperTheme.border, lineWidth: 1)
                 }
         }
-        // Both actions look alike: no action is shown as selected before the user picks one.
-        .buttonStyle(CaptureToolbarButtonStyle(kind: .field))
-    }
-
-    private func valueLabel(icon: VLMSnapperIcon, text: String) -> some View {
-        Label(text, systemImage: icon.rawValue)
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(VLMSnapperTheme.secondaryText)
-            .lineLimit(1)
-            .padding(.horizontal, 9)
-            .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
-            .background(VLMSnapperTheme.surface)
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
-                    style: .continuous
-                )
-            )
-            .overlay {
-                RoundedRectangle(
-                    cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
-                    style: .continuous
-                )
-                .stroke(VLMSnapperTheme.border, lineWidth: 1)
-            }
+        // Both actions look alike until the user picks one.
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .field, isCurrent: isCurrent))
+        .disabled(isBlocked)
     }
 }
 
-private struct TargetLanguagePicker: View {
-    @Binding var selection: String
+/// Translate and its target language as one control (v1-core::REQ-013/AC-02).
+private struct TranslateControl: View {
+    @ObservedObject var state: CaptureToolbarState
     let options: [TargetLanguageOption]
+    let onStart: () -> Void
+    let onTargetLanguageChange: (String) -> Void
     @State private var isPresented = false
     @State private var searchText = ""
 
+    private var isCurrent: Bool { state.currentOperation == .translate }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: VLMSnapperUIConstants.compactCornerRadius, style: .continuous)
+    }
+
+    private var lineColor: Color {
+        isCurrent ? VLMSnapperTheme.accent : VLMSnapperTheme.border
+    }
+
     var body: some View {
+        HStack(spacing: 0) {
+            translateButton
+            Rectangle()
+                .fill(lineColor)
+                .frame(width: 1)
+            languageButton
+        }
+        .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
+        .background(VLMSnapperTheme.surface)
+        .clipShape(shape)
+        .overlay { shape.stroke(lineColor, lineWidth: 1) }
+    }
+
+    private var translateButton: some View {
+        let isBlocked = state.isBlocked(.translate)
+        return Button(action: onStart) {
+            Label(VLMSnapperStrings.translate, systemImage: VLMSnapperIcon.translate.rawValue)
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 9)
+                .frame(maxHeight: .infinity)
+                .foregroundStyle(
+                    isBlocked ? VLMSnapperTheme.tertiaryText : isCurrent ? VLMSnapperTheme.accent : VLMSnapperTheme.primaryText
+                )
+        }
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .part, isCurrent: isCurrent))
+        .disabled(isBlocked)
+    }
+
+    private var languageButton: some View {
         Button {
+            searchText = ""
             isPresented.toggle()
         } label: {
-            HStack(spacing: 6) {
-                VLMSnapperIcon.language.image
-                Text(selectedName).lineLimit(1)
+            HStack(spacing: 2) {
+                Text(TargetLanguageCatalog.abbreviation(for: state.targetLanguageCode))
+                    .font(.system(size: 12, weight: .medium))
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 8, weight: .semibold))
             }
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(VLMSnapperTheme.secondaryText)
-            .padding(.horizontal, 9)
-            .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
-            .overlay {
-                RoundedRectangle(
-                    cornerRadius: VLMSnapperUIConstants.compactCornerRadius,
-                    style: .continuous
-                )
-                .stroke(VLMSnapperTheme.border, lineWidth: 1)
-            }
+            .padding(.leading, 6)
+            .padding(.trailing, 4)
+            .frame(maxHeight: .infinity)
+            .foregroundStyle(isCurrent ? VLMSnapperTheme.accent : VLMSnapperTheme.secondaryText)
         }
-        .buttonStyle(CaptureToolbarButtonStyle(kind: .field))
+        .buttonStyle(CaptureToolbarButtonStyle(kind: .part, isCurrent: isCurrent))
+        .help(selectedLanguageHint)
+        .accessibilityLabel(selectedLanguageHint)
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(spacing: 8) {
                 TextField(VLMSnapperStrings.targetLanguageSearch, text: $searchText)
                     .textFieldStyle(.roundedBorder)
-                List(filteredOptions) { option in
+                List(options.filter { $0.matches(searchText) }) { option in
                     Button {
-                        selection = option.code
+                        state.targetLanguageCode = option.code
+                        onTargetLanguageChange(option.code)
                         isPresented = false
                     } label: {
-                        HStack {
+                        HStack(spacing: 8) {
+                            Text(option.abbreviation)
+                                .font(.system(size: 12, weight: .semibold))
+                                .frame(width: 30, alignment: .leading)
                             Text(option.name)
-                            Spacer()
-                            Text(option.code)
                                 .foregroundStyle(VLMSnapperTheme.secondaryText)
-                            if selection == option.code {
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Spacer(minLength: 0)
+                            if state.targetLanguageCode == option.code {
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(VLMSnapperTheme.accent)
                             }
@@ -207,21 +256,12 @@ private struct TargetLanguagePicker: View {
                 .listStyle(.plain)
             }
             .padding(10)
-            .frame(width: 310, height: 360)
+            .frame(width: 260, height: 340)
         }
     }
 
-    private var selectedName: String {
-        options.first { $0.code == selection }?.name ?? selection
-    }
-
-    private var filteredOptions: [TargetLanguageOption] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        guard !query.isEmpty else { return options }
-        return options.filter {
-            $0.code.lowercased().contains(query)
-                || $0.name.lowercased().contains(query)
-        }
+    private var selectedLanguageHint: String {
+        let name = options.first { $0.code == state.targetLanguageCode }?.name ?? state.targetLanguageCode
+        return VLMSnapperStrings.targetLanguageHint(name)
     }
 }

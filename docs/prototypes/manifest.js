@@ -58,6 +58,13 @@ window.PROTOTYPES = [
     path: "capture-overlay/prototype-snap-region.html"
   },
   {
+    module: "capture-overlay",
+    type: "ui",
+    id: "result-box",
+    name: "Capture result box",
+    path: "capture-overlay/prototype-result-box.html"
+  },
+  {
     module: "onboarding",
     type: "ui",
     id: "structure-directions",

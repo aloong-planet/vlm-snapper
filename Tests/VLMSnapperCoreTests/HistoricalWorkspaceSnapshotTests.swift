@@ -41,16 +41,16 @@ struct HistoricalWorkspaceSnapshotTests {
         #expect(snapshot.translate.attempt == .neverStarted)
     }
 
-    @Test("reserving a history replacement closes the start race")
-    func reservesHistoryReplacementOnce() async {
+    @Test("a new capture reserves a session once, which closes the start race")
+    func reservesSessionForCaptureOnce() async {
         let session = OperationWorkspaceSession(
             originalPNG: Data(),
             runner: HistoricalWorkspaceRunnerProbe(),
             activeGate: ActiveOperationGate()
         )
 
-        #expect(await session.reserveReplacementWithSavedHistory())
-        #expect(await !session.reserveReplacementWithSavedHistory())
+        #expect(await session.prepareForCapture() == .beginCapture)
+        #expect(await session.prepareForCapture() != .beginCapture)
     }
 
     private func storedOperation(

@@ -32,8 +32,8 @@ private final class HarnessApplicationDelegate: NSObject, NSApplicationDelegate 
 
 private struct HarnessRoot: View {
     let mode: HarnessMode
-    @State private var operation: WorkspaceOperationKind = .translate
-    @State private var targetLanguageCode = "zh-Hans"
+    @StateObject private var toolbarState = CaptureToolbarState(targetLanguageCode: "zh-Hans")
+    @StateObject private var resultBoxState = HarnessResultBox.state()
 
     @ViewBuilder
     var body: some View {
@@ -49,8 +49,7 @@ private struct HarnessRoot: View {
                             Rectangle().stroke(Color.accentColor, lineWidth: 1)
                         }
                     CaptureOperationToolbar(
-                        operation: $operation,
-                        targetLanguageCode: $targetLanguageCode,
+                        state: toolbarState,
                         targetLanguages: [
                             TargetLanguageOption(
                                 code: "zh-Hans",
@@ -59,8 +58,8 @@ private struct HarnessRoot: View {
                             TargetLanguageOption(code: "en", name: "English"),
                             TargetLanguageOption(code: "ja", name: "Japanese"),
                         ],
-                        providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
                         onStart: { _ in },
+                        onTargetLanguageChange: { _ in },
                         onCopy: {},
                         onSave: {},
                         onCancel: {}
@@ -69,17 +68,11 @@ private struct HarnessRoot: View {
             }
             .frame(width: 780, height: 320)
         case .result:
-            ResultWorkspaceView(
-                operation: $operation,
-                snapshot: sampleSnapshot,
-                originalImage: sampleImage,
-                providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
-                targetLanguage: "Chinese (Simplified)",
-                onStart: { _ in },
-                onCopy: { _ in },
-                onRetrySave: {}
+            CaptureResultBoxView(
+                state: resultBoxState,
+                actions: CaptureResultBoxActions(onCopy: { _ in }, onRetry: {}, onRetrySave: {}, onClose: {})
             )
-            .frame(width: 980, height: 640)
+            .frame(width: CaptureResultBoxMetrics.width, height: CaptureResultBoxMetrics.maximumHeight)
         case .onboarding:
             OnboardingView(
                 snapshot: OnboardingSession(
@@ -126,12 +119,17 @@ private struct HarnessRoot: View {
             StoragePrivacyDetailView(onClose: {})
         }
     }
+}
 
-    private var sampleSnapshot: OperationWorkspaceSnapshot {
-        OperationWorkspaceSnapshot(
-            selectedOperation: operation,
-            extract: WorkspaceOperationSlot(),
-            translate: WorkspaceOperationSlot(
+@MainActor
+private enum HarnessResultBox {
+    static func state() -> CaptureResultBoxState {
+        let state = CaptureResultBoxState()
+        state.presentation = CaptureResultBoxPresentation(
+            operation: .translate,
+            targetLanguageName: "Chinese (Simplified)",
+            providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
+            slot: WorkspaceOperationSlot(
                 attempt: .succeeded,
                 committedResult: WorkspaceCommittedResult(
                     sourceMarkdown: "# Designing Calm Software\n\nGood utility software stays close to the task.",
@@ -139,22 +137,7 @@ private struct HarnessRoot: View {
                 )
             )
         )
-    }
-
-    private var sampleImage: NSImage {
-        NSImage(size: NSSize(width: 640, height: 420), flipped: false) { rect in
-            NSColor(calibratedRed: 0.92, green: 0.95, blue: 1, alpha: 1).setFill()
-            rect.fill()
-            let title = "Designing Calm Software"
-            title.draw(
-                at: NSPoint(x: 42, y: 285),
-                withAttributes: [
-                    .font: NSFont.systemFont(ofSize: 34, weight: .bold),
-                    .foregroundColor: NSColor.labelColor,
-                ]
-            )
-            return true
-        }
+        return state
     }
 }
 

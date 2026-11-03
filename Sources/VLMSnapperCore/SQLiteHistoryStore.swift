@@ -446,6 +446,24 @@ public actor SQLiteHistoryStore: HistoryPersisting {
         return sqlite3_changes(database) == 1 ? .deleted : .active
     }
 
+    public func hasOtherRecords(sharing screenshot: ManagedScreenshot, excluding id: UUID) async throws -> Bool {
+        let sql = "SELECT 1 FROM operations WHERE screenshot_path = ? AND screenshot_sha256 = ? AND id <> ? LIMIT 1"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw SQLiteHistoryStoreError.databaseFailure
+        }
+        defer { sqlite3_finalize(statement) }
+        try Self.bind(screenshot.path, at: 1, to: statement)
+        try Self.bind(screenshot.sha256, at: 2, to: statement)
+        try Self.bind(id.uuidString, at: 3, to: statement)
+        switch sqlite3_step(statement) {
+        case SQLITE_ROW: return true
+        case SQLITE_DONE: return false
+        default: throw SQLiteHistoryStoreError.databaseFailure
+        }
+    }
+
     public func finish(
         operationID: UUID,
         as completion: OperationCompletion

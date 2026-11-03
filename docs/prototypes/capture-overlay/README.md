@@ -5,7 +5,8 @@ This prototype captures the confirmed v1 post-selection toolbar structure.
 - The toolbar is attached below the selection and left-aligned with it; with no room below it goes above, and with no room above either (a whole display) it sits inside the selection's bottom-right corner, 4 px in (user, 2026-10-29).
 - Toolbar buttons show a stronger hover surface (user, 2026-10-29). Extract (labelled 提取 / Extract in the toolbar) and Translate look alike: no action is shown as selected before the user picks one.
 - The toolbar has a 4 px visible gap below the selection border, uses 3 px inner padding and gaps, and contains 25 px-high controls with a 6 px corner radius.
-- Text Extraction, Translation, target language, Provider/model, and cancel remain visible in one row.
+- Text Extraction, Translation, target language, and cancel remain visible in one row. The current Provider and model appear in the result box header, not the toolbar.
+- Translate and its target language are one control. The language has no icon and shows its abbreviation, such as ZH.
 
 Confirmed on 2026-08-25. The theme control is prototype harness UI and is not part of the product design.
 

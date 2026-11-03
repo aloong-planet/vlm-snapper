@@ -84,6 +84,10 @@ private actor DeletionHistoryProbe: HistoryRecordManaging {
 
     func historyRecord(id: UUID) async throws -> HistoryRecord? { records[id] }
 
+    func hasOtherRecords(sharing screenshot: ManagedScreenshot, excluding id: UUID) async throws -> Bool {
+        records.values.contains { $0.id != id && $0.operation.screenshot == screenshot }
+    }
+
     func deleteHistoryRecord(id: UUID) async throws -> HistoryRecordDeletionResult {
         guard let record = records[id] else { return .missing }
         if record.operation.status.isActive { return .active }

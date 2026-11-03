@@ -19,6 +19,7 @@ struct ApplicationModelDependencies {
     let windowListing: any CaptureWindowListing
     let captureClipboard: any CaptureImageClipboard
     let captureImageSaver: any CaptureImageSaving
+    let captureResultLossNotifier: any CaptureResultLossNotifying
     let displayMonitor: CaptureDisplayMonitor
     let loginService: any LoginItemServicing
     let makeUpdateDriver: (@escaping @Sendable (UpdateLifecycleEvent) async -> Void) -> any UpdateDriving
@@ -39,6 +40,7 @@ struct ApplicationModelDependencies {
             windowListing: CoreGraphicsCaptureWindowListing(),
             captureClipboard: SystemCaptureImageClipboard(),
             captureImageSaver: SavePanelCaptureImageSaver(),
+            captureResultLossNotifier: AlertCaptureResultLossNotifier(),
             displayMonitor: CaptureDisplayMonitor(
                 notifications: .default,
                 workspaceNotifications: NSWorkspace.shared.notificationCenter,

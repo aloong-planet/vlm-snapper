@@ -26,12 +26,96 @@ struct CaptureToolbarIconButtonTests {
     @Test("an operation button that is not selected answers a press in its padding")
     func unselectedOperationButtonAnswersInPadding() throws {
         let presses = PressLog()
-        let window = try toolbarWindow(presses, operation: .translate)
+        let state = CaptureToolbarState(targetLanguageCode: "en")
+        state.currentOperation = .translate
+        let window = try toolbarWindow(presses, state: state)
         defer { window.orderOut(nil) }
         // Extract is the first control: 3 pt toolbar padding, then 9 pt of the button's own padding.
         let midY = try #require(window.contentView).bounds.midY
         try press(window, at: NSPoint(x: 6, y: midY))
         #expect(presses.names == ["extract"])
+    }
+
+    @Test("the left part of the combined button translates and the right part opens the language list")
+    func translateControlHasTwoParts() throws {
+        let presses = PressLog()
+        let window = try toolbarWindow(presses, state: CaptureToolbarState(targetLanguageCode: "zh-Hans"))
+        defer { window.orderOut(nil) }
+        let right = translateControlRightEdge(window)
+        let midY = try #require(window.contentView).bounds.midY
+        let before = popoverCount()
+
+        try press(window, at: NSPoint(x: right - 8, y: midY))
+        #expect(presses.names.isEmpty)
+        try waitUntil { popoverCount() > before }
+        for popover in NSApp.windows where popover.className.contains("Popover") && popover.isVisible {
+            popover.orderOut(nil)
+        }
+
+        try press(window, at: NSPoint(x: right - 70, y: midY))
+        #expect(presses.names == ["translate"])
+    }
+
+    @Test("during a request only cancel, the language and the running operation take a press")
+    func requestDisablesOtherActions() throws {
+        let presses = PressLog()
+        let state = CaptureToolbarState(targetLanguageCode: "en")
+        state.currentOperation = .translate
+        state.isRequestRunning = true
+        let window = try toolbarWindow(presses, state: state)
+        defer { window.orderOut(nil) }
+        let midY = try #require(window.contentView).bounds.midY
+
+        try press(window, at: NSPoint(x: 8, y: midY))
+        #expect(presses.names.isEmpty)
+        for index in [1, 2] {
+            let center = boxCenter(window, fromEnd: index)
+            try press(window, at: center)
+        }
+        #expect(presses.names.isEmpty)
+        let cancel = boxCenter(window, fromEnd: 0)
+        try press(window, at: cancel)
+        #expect(presses.names == ["close"])
+    }
+
+    @Test("an operation that cannot start while a result is unsaved takes no press")
+    func unavailableOperationTakesNoPress() throws {
+        let presses = PressLog()
+        let state = CaptureToolbarState(targetLanguageCode: "en")
+        state.currentOperation = .translate
+        state.unavailableOperations = [.extract]
+        let window = try toolbarWindow(presses, state: state)
+        defer { window.orderOut(nil) }
+        let midY = try #require(window.contentView).bounds.midY
+
+        try press(window, at: NSPoint(x: 8, y: midY))
+        #expect(presses.names.isEmpty)
+        try press(window, at: boxCenter(window, fromEnd: 2))
+        #expect(presses.names == ["copy"])
+    }
+
+    @Test("the operation whose result box is showing looks selected, and only then")
+    func currentOperationLooksSelected() throws {
+        let state = CaptureToolbarState(targetLanguageCode: "en")
+        let window = try toolbarWindow(PressLog(), state: state)
+        defer { window.orderOut(nil) }
+        let view = try #require(window.contentView)
+        let point = NSPoint(x: 5, y: view.bounds.midY)
+        let plain = try renderedColor(view, at: point)
+        state.currentOperation = .extract
+        try waitUntil { (try? renderedColor(view, at: point)) != plain }
+        state.currentOperation = nil
+        try waitUntil { (try? renderedColor(view, at: point)) == plain }
+    }
+
+    @Test("the language part grows with the abbreviation, and the toolbar shows no Provider or model")
+    func languagePartFollowsAbbreviation() throws {
+        let short = NSHostingView(rootView: toolbar(state: CaptureToolbarState(targetLanguageCode: "zh-Hans"), presses: PressLog()))
+        let long = NSHostingView(rootView: toolbar(state: CaptureToolbarState(targetLanguageCode: "aeb"), presses: PressLog()))
+        let growth = long.fittingSize.width - short.fittingSize.width
+        #expect(growth > 0 && growth < 15, "growth \(growth)")
+        // Extract, Translate and the abbreviation with its chevron, then Copy, Save and Close, without a model label.
+        #expect(short.fittingSize.width < 300, "width \(short.fittingSize.width)")
     }
 
     // The Copy symbol is 13 pt wide and 16 pt tall at the toolbar's 13 pt symbol size; a square is
@@ -66,23 +150,63 @@ private final class PressLog {
 }
 
 @MainActor
-private func toolbarWindow(
-    _ presses: PressLog,
-    operation selected: WorkspaceOperationKind = .extract
-) throws -> NSWindow {
-    var operation = selected
-    var language = "en"
-    let toolbar = CaptureOperationToolbar(
-        operation: Binding(get: { operation }, set: { operation = $0 }),
-        targetLanguageCode: Binding(get: { language }, set: { language = $0 }),
-        targetLanguages: [TargetLanguageOption(code: "en", name: "English")],
-        providerSummary: "DeepSeek · deepseek-v4-flash",
+private func toolbar(state: CaptureToolbarState, presses: PressLog) -> CaptureOperationToolbar {
+    CaptureOperationToolbar(
+        state: state,
+        targetLanguages: [
+            TargetLanguageOption(code: "en", name: "English"),
+            TargetLanguageOption(code: "zh-Hans", name: "简体中文"),
+        ],
         onStart: { presses.names.append($0 == .extract ? "extract" : "translate") },
+        onTargetLanguageChange: { _ in },
         onCopy: { presses.names.append("copy") },
         onSave: { presses.names.append("save") },
         onCancel: { presses.names.append("close") }
     )
-    let hosting = NSHostingView(rootView: toolbar)
+}
+
+/// The combined button's right edge: padding, three icon boxes, their gaps, the 1 pt divider and its gaps.
+@MainActor
+private func translateControlRightEdge(_ window: NSWindow) -> CGFloat {
+    let bounds = window.contentView?.bounds ?? .zero
+    let size = VLMSnapperUIConstants.toolbarControlHeight
+    let gap = VLMSnapperUIConstants.toolbarControlGap
+    return bounds.maxX - VLMSnapperUIConstants.toolbarPadding - 3 * size - 3 * gap - 1 - gap
+}
+
+@MainActor
+private func popoverCount() -> Int {
+    NSApp.windows.filter { $0.className.contains("Popover") && $0.isVisible }.count
+}
+
+@MainActor
+private func waitUntil(_ condition: () -> Bool) throws {
+    let deadline = Date().addingTimeInterval(2)
+    while !condition(), Date() < deadline {
+        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+    }
+    try #require(condition())
+}
+
+@MainActor
+private func renderedColor(_ view: NSView, at point: NSPoint) throws -> [CGFloat] {
+    view.layoutSubtreeIfNeeded()
+    let representation = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: representation)
+    let scale = CGFloat(representation.pixelsWide) / view.bounds.width
+    let color = try #require(representation.colorAt(
+        x: Int(point.x * scale),
+        y: Int((view.bounds.height - point.y) * scale)
+    )?.usingColorSpace(.sRGB))
+    return [color.redComponent, color.greenComponent, color.blueComponent]
+}
+
+@MainActor
+private func toolbarWindow(
+    _ presses: PressLog,
+    state: CaptureToolbarState = CaptureToolbarState(targetLanguageCode: "en")
+) throws -> NSWindow {
+    let hosting = NSHostingView(rootView: toolbar(state: state, presses: presses))
     hosting.frame = CGRect(origin: .zero, size: hosting.fittingSize)
     let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
     window.contentView = hosting

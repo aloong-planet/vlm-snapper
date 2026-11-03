@@ -2,6 +2,7 @@ import CoreGraphics
 
 public enum VLMSnapperUIConstants {
     public static let toolbarSelectionGap: CGFloat = 4
+    public static let toolbarResultBoxGap: CGFloat = 8
     public static let toolbarPadding: CGFloat = 3
     public static let toolbarControlGap: CGFloat = 3
     public static let toolbarControlHeight: CGFloat = 25
@@ -23,10 +24,14 @@ public enum PermissionRecoveryMetrics {
     public static let cornerRadius: CGFloat = 8
 }
 
-public enum ResultWorkspaceMetrics {
-    public static let minimumSize = CGSize(width: 1_020, height: 620)
-    public static let headerHeight: CGFloat = 58
-    public static let footerHeight: CGFloat = 50
+public enum CaptureResultBoxMetrics {
+    public static let width: CGFloat = 380
+    public static let maximumHeight: CGFloat = 640
+    public static let edgeInset: CGFloat = 12
+    public static let headerHeight: CGFloat = 37
+    public static let cornerRadius: CGFloat = 10
+    public static let bodyHorizontalInset: CGFloat = 16
+    public static let bodyVerticalInset: CGFloat = 14
 }
 
 public enum ManagementCenterMetrics {
