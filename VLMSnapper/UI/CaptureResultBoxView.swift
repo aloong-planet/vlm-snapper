@@ -31,7 +31,8 @@ public struct CaptureResultBoxPresentation: Equatable, Sendable {
         operation: WorkspaceOperationKind,
         targetLanguageName: String,
         providerSummary: String,
-        slot: WorkspaceOperationSlot
+        slot: WorkspaceOperationSlot,
+        retryAvailable: Bool = true
     ) {
         title = operation == .extract
             ? VLMSnapperStrings.captureExtract
@@ -75,21 +76,21 @@ public struct CaptureResultBoxPresentation: Equatable, Sendable {
             followsNewText = false
             body = hasNoText(copy) ? .message(VLMSnapperStrings.resultNoText) : .text(value)
             copyText = hasNoText(copy) ? "" : copy
-            canRetry = true
+            canRetry = retryAvailable
             saveNotice = nil
         case let .failed(code):
             showsProgress = false
             followsNewText = false
             body = .failure(VLMSnapperStrings.failureMessage(code: code))
             copyText = ""
-            canRetry = true
+            canRetry = retryAvailable
             saveNotice = nil
         case .canceled:
             showsProgress = false
             followsNewText = false
             body = .canceled(VLMSnapperStrings.canceled)
             copyText = ""
-            canRetry = true
+            canRetry = retryAvailable
             saveNotice = nil
         case .resultPersistenceFailed:
             let (value, copy) = text(slot.unsavedResult)
@@ -257,9 +258,9 @@ public struct CaptureResultBoxView: View {
                 .padding(.horizontal, CaptureResultBoxMetrics.bodyHorizontalInset)
                 .padding(.vertical, CaptureResultBoxMetrics.bodyVerticalInset)
         case let .failure(reason):
-            retryBody(reason, color: VLMSnapperTheme.destructive)
+            retryBody(reason, color: VLMSnapperTheme.destructive, canRetry: presentation.canRetry)
         case let .canceled(message):
-            retryBody(message, color: VLMSnapperTheme.secondaryText)
+            retryBody(message, color: VLMSnapperTheme.secondaryText, canRetry: presentation.canRetry)
         case let .text(text):
             ResultBoxTextBody(text: text, followsNewText: presentation.followsNewText, onCopy: actions.onCopy)
                 // Another operation or language is another document: it starts at its top.
@@ -267,23 +268,23 @@ public struct CaptureResultBoxView: View {
         }
     }
 
-    private func retryBody(_ message: String, color: Color) -> some View {
+    private func retryBody(_ message: String, color: Color, canRetry: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(message)
                 .font(.system(size: 13))
                 .foregroundStyle(color)
                 .fixedSize(horizontal: false, vertical: true)
-            bodyButton(VLMSnapperStrings.retry) { actions.onRetry() }
+            bodyButton(VLMSnapperStrings.retry, enabled: canRetry) { actions.onRetry() }
         }
         .padding(.horizontal, CaptureResultBoxMetrics.bodyHorizontalInset)
         .padding(.vertical, CaptureResultBoxMetrics.bodyVerticalInset)
     }
 
-    private func bodyButton(_ title: String, action: @escaping () -> Void) -> some View {
+    private func bodyButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(VLMSnapperTheme.primaryText)
+                .foregroundStyle(enabled ? VLMSnapperTheme.primaryText : VLMSnapperTheme.tertiaryText)
                 .padding(.horizontal, 9)
                 .frame(height: VLMSnapperUIConstants.toolbarControlHeight)
                 .overlay {
@@ -292,6 +293,7 @@ public struct CaptureResultBoxView: View {
                 }
         }
         .buttonStyle(CaptureToolbarButtonStyle(kind: .field))
+        .disabled(!enabled)
     }
 
     private func iconButton(
@@ -376,6 +378,7 @@ final class ResultBoxScrollView: NSScrollView {
     let textView = ResultBoxTextView()
     private var currentText: CaptureResultBoxText?
     private var hasFollowed = false
+    private var pendingUpdate: (text: CaptureResultBoxText, followsNewText: Bool)?
 
     init() {
         super.init(frame: .zero)
@@ -397,6 +400,24 @@ final class ResultBoxScrollView: NSScrollView {
     /// The position decides following at the moment text arrives: scroll events come later, and one
     /// that has not arrived yet would let the new text pull a reader back down (v1-core::REQ-010/AC-06).
     func update(_ text: CaptureResultBoxText, followsNewText: Bool) {
+        // SwiftUI gives a new view its first text before its size. Laid out at no width, a long first
+        // chunk ends up away from its end, and following would stop there (measured: 616 of 2895 pt).
+        guard contentView.bounds.width > 0 else {
+            pendingUpdate = (text, followsNewText)
+            return
+        }
+        pendingUpdate = nil
+        apply(text, followsNewText: followsNewText)
+    }
+
+    override func layout() {
+        super.layout()
+        guard let pendingUpdate, contentView.bounds.width > 0 else { return }
+        self.pendingUpdate = nil
+        apply(pendingUpdate.text, followsNewText: pendingUpdate.followsNewText)
+    }
+
+    private func apply(_ text: CaptureResultBoxText, followsNewText: Bool) {
         guard text != currentText else { return }
         let wasAtEnd = isAtEnd
         let origin = contentView.bounds.origin

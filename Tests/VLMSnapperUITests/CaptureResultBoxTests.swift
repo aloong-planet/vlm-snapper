@@ -1,12 +1,18 @@
 import AppKit
 import SwiftUI
 import Testing
+import Vision
 import VLMSnapperCore
 @testable import VLMSnapperUI
 
 // v1-core::REQ-010. Not covered here, because they depend on the window server and the real event route,
 // so only an installed build can show them: whether the box sits above the overlay on screen, and ⌘C
-// while the application is not active.
+// while the application is not active. Hovering needs a real pointer: the toolbar's selected state under
+// the pointer (REQ-013/AC-05) and tooltips appearing are checked on the installed build. The language
+// list's check mark is an image with no text to read, also checked there. "Copied" going away after a
+// moment needs the main actor free, which a test holding the localization lock cannot give: installed
+// build too. SwiftUI exposes no accessibility tree to these windows, so tests read what is rendered with
+// text recognition.
 @Suite("Capture result box placement")
 struct CaptureResultBoxPlacementTests {
     @Test("the box sits at the right and top of the usable area, up to its maximum height")
@@ -134,7 +140,8 @@ struct CaptureResultBoxPresentationTests {
             VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)
             let value = presentation(.extract, WorkspaceOperationSlot(
                 attempt: .failed(code: "first_text_timeout"),
-                committedResult: WorkspaceCommittedResult(sourceMarkdown: "Earlier", translationMarkdown: nil)
+                committedResult: WorkspaceCommittedResult(sourceMarkdown: "Earlier", translationMarkdown: nil),
+                sourceDelta: "Partial"
             ))
             #expect(value.body == .failure("等待 Provider 响应超时，请检查网络后手动重试。"))
             #expect(!value.canCopy)
@@ -201,12 +208,17 @@ struct CaptureResultBoxWindowTests {
         )
     }
 
-    private func presentation(_ slot: WorkspaceOperationSlot, operation: WorkspaceOperationKind = .extract) -> CaptureResultBoxPresentation {
+    private func presentation(
+        _ slot: WorkspaceOperationSlot,
+        operation: WorkspaceOperationKind = .extract,
+        retryAvailable: Bool = true
+    ) -> CaptureResultBoxPresentation {
         CaptureResultBoxPresentation(
             operation: operation,
             targetLanguageName: "简体中文",
             providerSummary: Self.provider,
-            slot: slot
+            slot: slot,
+            retryAvailable: retryAvailable
         )
     }
 
@@ -379,6 +391,7 @@ struct CaptureResultBoxWindowTests {
             let menu = try #require(text.menu(for: event))
 
             #expect(menu.items.map(\.title) == ["复制", "全选"])
+            #expect(menu.allowsContextMenuPlugIns == false, "Services would open apps behind the overlay")
         }
     }
 
@@ -441,11 +454,231 @@ struct CaptureResultBoxWindowTests {
         """)
         #expect(text.isEditable == false)
         #expect(text.isAutomaticLinkDetectionEnabled == false)
-        #expect(text.textStorage?.attribute(.link, at: 20, effectiveRange: nil) == nil)
+        let storage = try #require(text.textStorage)
+        var links = 0
+        storage.enumerateAttribute(.link, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
+            if value != nil { links += 1 }
+        }
+        #expect(links == 0)
         let heading = try #require(text.textStorage?.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
         #expect(heading.pointSize == 16)
         text.setSelectedRange(NSRange(location: 0, length: text.string.utf16.count))
         #expect(text.selectedRange().length == text.string.utf16.count)
+    }
+
+    @Test("a line that starts right-to-left reads from the right, with its left-to-right words after it")
+    func rightToLeftExtraction() throws {
+        let (controller, panel) = try makeController()
+        defer { controller.reset() }
+        let mixed = "مرحبا hello"
+        controller.state.presentation = presentation(finished(mixed))
+        pump(panel)
+        let text = try textView(panel)
+        let manager = try #require(text.layoutManager)
+        manager.ensureLayout(for: try #require(text.textContainer))
+
+        #expect(text.string == mixed)
+        let firstWord = manager.location(forGlyphAt: manager.glyphIndexForCharacter(at: 0)).x
+        let secondWord = manager.location(forGlyphAt: manager.glyphIndexForCharacter(at: 6)).x
+        #expect(firstWord > secondWord, "first word at \(firstWord), second at \(secondWord)")
+    }
+
+    // Shaped after stored translations: paragraph, heading and list segments in separate blocks.
+    private let blocks = [
+        TranslationSegment(id: "h", block: "b1", kind: .heading, source: "Title", translation: "标题"),
+        TranslationSegment(id: "p", block: "b2", kind: .paragraph, source: "Body", translation: "正文第一句。"),
+        TranslationSegment(id: "a", block: "b3", kind: .listItem, source: "One", translation: "第一项"),
+        TranslationSegment(id: "b", block: "b4", kind: .listItem, source: "Two", translation: "第二项"),
+    ]
+
+    private func translating(_ segments: [TranslationSegment]) -> WorkspaceOperationSlot {
+        WorkspaceOperationSlot(
+            attempt: .streaming,
+            translationDelta: segments.map(\.translation).joined(separator: "\n"),
+            segments: segments
+        )
+    }
+
+    private func translated(_ segments: [TranslationSegment]) -> WorkspaceOperationSlot {
+        WorkspaceOperationSlot(attempt: .succeeded, committedResult: WorkspaceCommittedResult(
+            sourceMarkdown: segments.map(\.source).joined(separator: "\n"),
+            translationMarkdown: segments.map(\.translation).joined(separator: "\n"),
+            segments: segments
+        ))
+    }
+
+    @Test("a translation's blocks grow in one selectable text, and a selection lasts through the end of the stream")
+    func translationBlocksKeepSelection() throws {
+        let (controller, panel) = try makeController()
+        defer { controller.reset() }
+        controller.state.presentation = presentation(translating(Array(blocks.prefix(1))), operation: .translate)
+        pump(panel)
+        let text = try textView(panel)
+        text.setSelectedRange(NSRange(location: 0, length: 2))
+
+        controller.state.presentation = presentation(translating(Array(blocks.prefix(2))), operation: .translate)
+        pump(panel)
+        #expect(text.selectedRange() == NSRange(location: 0, length: 2))
+        controller.state.presentation = presentation(translating(blocks), operation: .translate)
+        pump(panel)
+        #expect(text.string == "标题\n正文第一句。\n- 第一项\n- 第二项")
+        #expect(text.selectedRange() == NSRange(location: 0, length: 2))
+        let content = try #require(panel.contentView)
+        #expect(descendants(content).compactMap { $0 as? NSTextView }.count == 1)
+        let heading = try #require(text.textStorage?.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
+        #expect(heading.pointSize == 16)
+
+        controller.state.presentation = presentation(translated(blocks), operation: .translate)
+        pump(panel)
+        #expect(text.string == "标题\n正文第一句。\n- 第一项\n- 第二项")
+        #expect(text.selectedRange() == NSRange(location: 0, length: 2))
+    }
+
+    @Test("a translation follows its end until the reader scrolls up, and the end of the stream leaves them there")
+    func translationFollowsUnlessScrolledUp() throws {
+        let (controller, panel) = try makeController()
+        defer { controller.reset() }
+        func paragraphs(_ count: Int) -> [TranslationSegment] {
+            (1...count).map {
+                TranslationSegment(id: "s\($0)", block: "b\($0)", kind: .paragraph, source: "Source \($0)",
+                                   translation: "第 \($0) 段译文，长度足够占满结果框里的一整行文字才能撑开滚动区域。")
+            }
+        }
+        controller.state.presentation = presentation(translating(paragraphs(60)), operation: .translate)
+        pump(panel)
+        let content = try #require(panel.contentView)
+        let scroll = try #require(descendants(content).compactMap { $0 as? ResultBoxScrollView }.first)
+        let text = try textView(panel)
+        #expect(text.bounds.height > text.visibleRect.height, "the text must overflow")
+        #expect(text.visibleRect.maxY >= text.bounds.height - 4)
+
+        controller.state.presentation = presentation(translating(paragraphs(70)), operation: .translate)
+        pump(panel)
+        #expect(text.visibleRect.maxY >= text.bounds.height - 4)
+
+        text.scroll(NSPoint(x: 0, y: 100))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        controller.state.presentation = presentation(translating(paragraphs(80)), operation: .translate)
+        pump(panel)
+        #expect(text.visibleRect.minY == 100)
+        controller.state.presentation = presentation(translated(paragraphs(80)), operation: .translate)
+        pump(panel)
+        #expect(text.visibleRect.minY == 100)
+    }
+
+    @Test("the end of an extraction's stream keeps a selection and the reading place")
+    func extractionEndKeepsSelection() throws {
+        let (controller, panel) = try makeController()
+        defer { controller.reset() }
+        controller.state.presentation = presentation(slot(streaming: longText(60)))
+        pump(panel)
+        let content = try #require(panel.contentView)
+        let scroll = try #require(descendants(content).compactMap { $0 as? ResultBoxScrollView }.first)
+        let text = try textView(panel)
+        text.setSelectedRange(NSRange(location: 3, length: 9))
+        text.scroll(NSPoint(x: 0, y: 100))
+        scroll.reflectScrolledClipView(scroll.contentView)
+
+        // The last chunk and the end of the stream arrive together.
+        controller.state.presentation = presentation(finished(longText(61)))
+        pump(panel)
+
+        #expect(text.string.contains("Paragraph 61"))
+        #expect(text.selectedRange() == NSRange(location: 3, length: 9))
+        #expect(text.visibleRect.minY == 100)
+    }
+
+    @Test("the header shows the Provider and model, with the full text in its tooltip")
+    func headerShowsProvider() throws {
+        let (controller, panel) = try makeController()
+        defer { controller.reset() }
+        let content = try #require(panel.contentView)
+
+        #expect(try recognizedText(in: content).contains("DeepSeek"))
+        #expect(descendants(content).compactMap { $0 as? ResultBoxDragView }.first?.toolTip == Self.provider)
+    }
+
+    @Test("the preparing, failure and canceled bodies show their words, and the body's Retry acts")
+    func bodiesShowTheirWords() throws {
+        try LocalizationTestCoordinator.withExclusiveAccess {
+            VLMSnapperLocalization.configure(effectiveLanguage: .english)
+            let log = CopyLog()
+            let (controller, panel) = try makeController(copied: log)
+            defer { controller.reset() }
+            let content = try #require(panel.contentView)
+
+            controller.state.presentation = presentation(WorkspaceOperationSlot(attempt: .preparing))
+            pump(panel)
+            #expect(try recognizedText(in: content).contains("Preparing request"))
+
+            controller.state.presentation = presentation(WorkspaceOperationSlot(attempt: .failed(code: "first_text_timeout")))
+            pump(panel)
+            #expect(try recognizedText(in: content).contains("The Provider response timed out"))
+            try pressBodyRetry(panel)
+            #expect(log.retries == 1)
+
+            controller.state.presentation = presentation(WorkspaceOperationSlot(attempt: .canceled))
+            pump(panel)
+            #expect(try recognizedText(in: content).contains("Canceled"))
+            try pressBodyRetry(panel)
+            #expect(log.retries == 2)
+        }
+    }
+
+    @Test("while another result is unsaved, neither Retry acts", arguments: [
+        WorkspaceAttemptState.failed(code: "first_text_timeout"), .canceled,
+    ])
+    func retryWaitsForAnUnsavedResult(attempt: WorkspaceAttemptState) throws {
+        try LocalizationTestCoordinator.withExclusiveAccess {
+            VLMSnapperLocalization.configure(effectiveLanguage: .english)
+            let log = CopyLog()
+            let (controller, panel) = try makeController(copied: log)
+            defer { controller.reset() }
+            controller.state.presentation = presentation(WorkspaceOperationSlot(attempt: attempt), retryAvailable: false)
+            pump(panel)
+            #expect(controller.state.presentation?.canRetry == false)
+
+            try pressBodyRetry(panel)
+            let header = NSPoint(
+                x: panel.frame.width - 6 - 12.5 - VLMSnapperUIConstants.toolbarControlHeight - VLMSnapperUIConstants.toolbarControlGap,
+                y: panel.frame.height - CaptureResultBoxMetrics.headerHeight / 2
+            )
+            try send(.leftMouseDown, at: header, to: panel)
+            try send(.leftMouseUp, at: header, to: panel)
+            pump(panel)
+
+            #expect(log.retries == 0)
+        }
+    }
+
+    /// The header's Retry is an icon, so the word can only be the body's button.
+    private func pressBodyRetry(_ panel: NSWindow) throws {
+        let content = try #require(panel.contentView)
+        let label = try #require(try recognizedLines(in: content).first { $0.text == "Retry" })
+        let point = content.convert(NSPoint(x: label.box.midX, y: label.box.midY), to: nil)
+        try send(.leftMouseDown, at: point, to: panel)
+        try send(.leftMouseUp, at: point, to: panel)
+        pump(panel)
+    }
+
+    @Test("the Copy button says it copied")
+    func copySaysCopied() throws {
+        try LocalizationTestCoordinator.withExclusiveAccess {
+            VLMSnapperLocalization.configure(effectiveLanguage: .english)
+            let (controller, panel) = try makeController()
+            defer { controller.reset() }
+            let content = try #require(panel.contentView)
+            #expect(try !recognizedText(in: content).contains("Copied"))
+            let copy = NSPoint(
+                x: panel.frame.width - 6 - 12.5 - 2 * (VLMSnapperUIConstants.toolbarControlHeight + VLMSnapperUIConstants.toolbarControlGap),
+                y: panel.frame.height - CaptureResultBoxMetrics.headerHeight / 2
+            )
+
+            try send(.leftMouseDown, at: copy, to: panel)
+            try send(.leftMouseUp, at: copy, to: panel)
+            pump(panel)
+            #expect(try recognizedText(in: content).contains("Copied"))
+        }
     }
 
     @Test("a long URL wraps inside the box instead of widening it")
@@ -567,6 +800,30 @@ struct CaptureResultBoxWindowTests {
         pump(panel)
         #expect(log.closes == 1)
     }
+}
+
+/// The lines of text a view renders, with where each one is in the view's coordinates.
+@MainActor
+func recognizedLines(in view: NSView) throws -> [(text: String, box: CGRect)] {
+    view.layoutSubtreeIfNeeded()
+    let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: bitmap)
+    let request = VNRecognizeTextRequest()
+    request.recognitionLanguages = ["en-US", "zh-Hans"]
+    request.recognitionLevel = .accurate
+    try VNImageRequestHandler(cgImage: try #require(bitmap.cgImage), options: [:]).perform([request])
+    return (request.results ?? []).compactMap { observation in
+        guard let text = observation.topCandidates(1).first?.string else { return nil }
+        let box = observation.boundingBox
+        let height = box.height * view.bounds.height
+        let minY = (view.isFlipped ? 1 - box.maxY : box.minY) * view.bounds.height
+        return (text, CGRect(x: box.minX * view.bounds.width, y: minY, width: box.width * view.bounds.width, height: height))
+    }
+}
+
+@MainActor
+func recognizedText(in view: NSView) throws -> String {
+    try recognizedLines(in: view).map(\.text).joined(separator: "\n")
 }
 
 @MainActor

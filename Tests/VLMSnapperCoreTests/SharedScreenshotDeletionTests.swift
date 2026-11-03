@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import VLMSnapperCore
 
@@ -67,6 +68,59 @@ struct SharedScreenshotDeletionTests {
         #expect(FileManager.default.fileExists(atPath: other.path))
     }
 
+    // Two captures of the same pixels: the digest matches and the files are separate.
+    @Test("a record on a file with the same contents does not keep this one")
+    func sameContentsInAnotherFileDoesNotCount() async throws {
+        let fixture = try await SharedScreenshotFixture()
+        defer { fixture.remove() }
+        let record = try await fixture.addRecord(.extractText)
+        let other = try await fixture.screenshots.save(originalPNG: fixture.png)
+        #expect(other.sha256 == fixture.screenshot.sha256)
+        #expect(other.path != fixture.screenshot.path)
+        _ = try await fixture.addRecord(.extractText, on: other)
+
+        _ = await fixture.deletion.delete(recordIDs: [record], includePinned: true)
+
+        #expect(!FileManager.default.fileExists(atPath: fixture.screenshot.path))
+        #expect(FileManager.default.fileExists(atPath: other.path))
+    }
+
+    // A record from before a replacement at the same path: same path, another digest.
+    @Test("a record on the same path with other contents does not keep this file")
+    func samePathWithOtherContentsDoesNotCount() async throws {
+        let fixture = try await SharedScreenshotFixture()
+        defer { fixture.remove() }
+        let record = try await fixture.addRecord(.extractText)
+        let replaced = ManagedScreenshot(path: fixture.screenshot.path, sha256: "another-digest")
+        _ = try await fixture.addRecord(.extractText, on: replaced)
+
+        _ = await fixture.deletion.delete(recordIDs: [record], includePinned: true)
+
+        #expect(!FileManager.default.fileExists(atPath: fixture.screenshot.path))
+    }
+
+    @Test("when the last record cannot be deleted the file is gone, the failure is reported, and deleting again clears it")
+    func failedDeleteOfLastRecord() async throws {
+        let fixture = try await SharedScreenshotFixture()
+        defer { fixture.remove() }
+        let first = try await fixture.addRecord(.extractText)
+        let second = try await fixture.addRecord(.translate(targetLanguage: "ja"))
+        try fixture.failDeletes(of: second)
+
+        let summary = await fixture.deletion.delete(recordIDs: [first, second], includePinned: true)
+
+        #expect(summary == HistoryDeletionSummary(deleted: 1, failed: 1, skipped: 0))
+        #expect(try await fixture.store.operation(id: first) == nil)
+        #expect(try await fixture.store.operation(id: second) != nil)
+        #expect(!FileManager.default.fileExists(atPath: fixture.screenshot.path))
+
+        try fixture.allowDeletes()
+        let retried = await fixture.deletion.delete(recordIDs: [second], includePinned: true)
+
+        #expect(retried == HistoryDeletionSummary(deleted: 1, failed: 0, skipped: 0))
+        #expect(try await fixture.store.operation(id: second) == nil)
+    }
+
     @Test("automatic cleanup of one expired record leaves the file for the record that remains")
     func cleanupKeepsSharedFile() async throws {
         let fixture = try await SharedScreenshotFixture()
@@ -129,6 +183,23 @@ private struct SharedScreenshotFixture {
             with: .succeeded(sourceMarkdown: "Source", translationMarkdown: translation)
         )
         return prepared.operationID
+    }
+
+    /// A real database error on deleting one record, as a locked or damaged database gives.
+    func failDeletes(of id: UUID) throws {
+        var database: OpaquePointer?
+        defer { sqlite3_close(database) }
+        try #require(sqlite3_open(root.appendingPathComponent("history.sqlite").path, &database) == SQLITE_OK)
+        let sql = "CREATE TRIGGER fail_delete BEFORE DELETE ON operations WHEN OLD.id = '\(id.uuidString)' "
+            + "BEGIN SELECT RAISE(FAIL, 'fixture'); END"
+        try #require(sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK)
+    }
+
+    func allowDeletes() throws {
+        var database: OpaquePointer?
+        defer { sqlite3_close(database) }
+        try #require(sqlite3_open(root.appendingPathComponent("history.sqlite").path, &database) == SQLITE_OK)
+        try #require(sqlite3_exec(database, "DROP TRIGGER fail_delete", nil, nil, nil) == SQLITE_OK)
     }
 
     func remove() {

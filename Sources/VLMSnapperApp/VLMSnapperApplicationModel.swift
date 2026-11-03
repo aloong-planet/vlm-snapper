@@ -1538,7 +1538,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 for: workspaceTargetLanguageCode ?? selectedTargetLanguageCode
             ),
             providerSummary: workspaceProviderSummary ?? providerSummary,
-            slot: resultSlot(operation)
+            slot: resultSlot(operation),
+            retryAvailable: !hasUnsavedWorkspaceResult
         )
         if resultBoxController.state.presentation != presentation {
             resultBoxController.state.presentation = presentation

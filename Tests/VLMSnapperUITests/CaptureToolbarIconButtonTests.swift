@@ -48,9 +48,7 @@ struct CaptureToolbarIconButtonTests {
         try press(window, at: NSPoint(x: right - 8, y: midY))
         #expect(presses.names.isEmpty)
         try waitUntil { popoverCount() > before }
-        for popover in NSApp.windows where popover.className.contains("Popover") && popover.isVisible {
-            popover.orderOut(nil)
-        }
+        closePopovers()
 
         try press(window, at: NSPoint(x: right - 70, y: midY))
         #expect(presses.names == ["translate"])
@@ -65,6 +63,7 @@ struct CaptureToolbarIconButtonTests {
         let window = try toolbarWindow(presses, state: state)
         defer { window.orderOut(nil) }
         let midY = try #require(window.contentView).bounds.midY
+        let right = translateControlRightEdge(window)
 
         try press(window, at: NSPoint(x: 8, y: midY))
         #expect(presses.names.isEmpty)
@@ -73,9 +72,59 @@ struct CaptureToolbarIconButtonTests {
             try press(window, at: center)
         }
         #expect(presses.names.isEmpty)
+
+        try press(window, at: NSPoint(x: right - 70, y: midY))
+        #expect(presses.names == ["translate"], "the running operation takes it; the application then ignores it")
+
+        let before = popoverCount()
+        try press(window, at: NSPoint(x: right - 8, y: midY))
+        try waitUntil { popoverCount() > before }
+        closePopovers()
+
         let cancel = boxCenter(window, fromEnd: 0)
         try press(window, at: cancel)
-        #expect(presses.names == ["close"])
+        #expect(presses.names == ["translate", "close"])
+    }
+
+    @Test("a row of the language list shows its abbreviation and name, and a press sets the language and closes the list")
+    func languageRowSetsLanguage() throws {
+        let presses = PressLog()
+        let state = CaptureToolbarState(targetLanguageCode: "en")
+        let window = try toolbarWindow(presses, state: state)
+        defer { window.orderOut(nil) }
+        defer { closePopovers() }
+        let before = popoverCount()
+        try press(window, at: NSPoint(x: translateControlRightEdge(window) - 8, y: try #require(window.contentView).bounds.midY))
+        try waitUntil { popoverCount() > before }
+        let popover = try #require(NSApp.windows.first { $0.className.contains("Popover") && $0.isVisible })
+        let content = try #require(popover.contentView)
+        var table: NSTableView?
+        try waitUntil {
+            content.layoutSubtreeIfNeeded()
+            table = allSubviews(content).compactMap { $0 as? NSTableView }.first
+            return (table?.numberOfRows ?? 0) == 2
+        }
+        let rows = try recognizedText(in: content)
+        #expect(rows.contains("EN"))
+        #expect(rows.contains("English"))
+        #expect(rows.contains("ZH"))
+
+        let list = try #require(table)
+        let row = list.rect(ofRow: 1)
+        try press(popover, at: list.convert(NSPoint(x: row.minX + 60, y: row.midY), to: nil))
+
+        try waitUntil { state.targetLanguageCode == "zh-Hans" }
+        #expect(presses.names == ["language zh-Hans"])
+        try waitUntil { popoverCount() == before }
+    }
+
+    // The hint itself appears only under a real pointer: that is checked on the installed build.
+    @Test("the language part's hint names the target language in full")
+    func languageHintNamesLanguage() {
+        LocalizationTestCoordinator.withExclusiveAccess {
+            VLMSnapperLocalization.configure(effectiveLanguage: .simplifiedChinese)
+            #expect(VLMSnapperStrings.targetLanguageHint("简体中文") == "目标语言：简体中文")
+        }
     }
 
     @Test("an operation that cannot start while a result is unsaved takes no press")
@@ -106,6 +155,20 @@ struct CaptureToolbarIconButtonTests {
         try waitUntil { (try? renderedColor(view, at: point)) != plain }
         state.currentOperation = nil
         try waitUntil { (try? renderedColor(view, at: point)) == plain }
+
+        // Above the labels, in both parts of the combined button.
+        let right = translateControlRightEdge(window)
+        let translatePart = NSPoint(x: right - 70, y: view.bounds.midY + 10)
+        let languagePart = NSPoint(x: right - 4, y: view.bounds.midY + 10)
+        let plainTranslate = try renderedColor(view, at: translatePart)
+        let plainLanguage = try renderedColor(view, at: languagePart)
+        state.currentOperation = .translate
+        try waitUntil { (try? renderedColor(view, at: translatePart)) != plainTranslate }
+        try waitUntil { (try? renderedColor(view, at: languagePart)) != plainLanguage }
+        #expect(try renderedColor(view, at: point) == plain, "Extract does not look selected with it")
+        state.currentOperation = .extract
+        try waitUntil { (try? renderedColor(view, at: translatePart)) == plainTranslate }
+        try waitUntil { (try? renderedColor(view, at: languagePart)) == plainLanguage }
     }
 
     @Test("the language part grows with the abbreviation, and the toolbar shows no Provider or model")
@@ -158,7 +221,7 @@ private func toolbar(state: CaptureToolbarState, presses: PressLog) -> CaptureOp
             TargetLanguageOption(code: "zh-Hans", name: "简体中文"),
         ],
         onStart: { presses.names.append($0 == .extract ? "extract" : "translate") },
-        onTargetLanguageChange: { _ in },
+        onTargetLanguageChange: { presses.names.append("language \($0)") },
         onCopy: { presses.names.append("copy") },
         onSave: { presses.names.append("save") },
         onCancel: { presses.names.append("close") }
@@ -172,6 +235,18 @@ private func translateControlRightEdge(_ window: NSWindow) -> CGFloat {
     let size = VLMSnapperUIConstants.toolbarControlHeight
     let gap = VLMSnapperUIConstants.toolbarControlGap
     return bounds.maxX - VLMSnapperUIConstants.toolbarPadding - 3 * size - 3 * gap - 1 - gap
+}
+
+@MainActor
+private func closePopovers() {
+    for popover in NSApp.windows where popover.className.contains("Popover") && popover.isVisible {
+        popover.orderOut(nil)
+    }
+}
+
+@MainActor
+private func allSubviews(_ view: NSView) -> [NSView] {
+    [view] + view.subviews.flatMap(allSubviews)
 }
 
 @MainActor

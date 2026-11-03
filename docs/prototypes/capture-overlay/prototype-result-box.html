@@ -340,6 +340,7 @@
         const retry = document.createElement('button');
         retry.className = 'action-button';
         retry.textContent = COPY.retry;
+        retry.disabled = hasUnsaved();
         retry.addEventListener('click', () => rerun(kind));
         boxBody.append(p, retry);
         return;
@@ -390,7 +391,7 @@
       status.append(model);
       const hasText = slot.blocks.length > 0;
       $('#box-copy').disabled = !hasText;
-      $('#box-retry').disabled = ['preparing', 'streaming', 'unsaved'].includes(slot.attempt);
+      $('#box-retry').disabled = ['preparing', 'streaming', 'unsaved'].includes(slot.attempt) || hasUnsaved();
     }
 
     function renderBox() {

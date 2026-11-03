@@ -212,6 +212,7 @@ struct PersistedOperationWorkspaceRunnerTests {
             for try await _ in events {}
         }
 
+        #expect(await history.operations.isEmpty)
         #expect(await history.completions.isEmpty)
         #expect(await history.outcomes.isEmpty)
     }

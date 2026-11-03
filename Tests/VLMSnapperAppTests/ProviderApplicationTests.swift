@@ -15,8 +15,8 @@ import VLMSnapperUI
 // Only external adapters are replaced; the editor, sessions, coordinator,
 // model-list parser, metadata files and SQLite use production implementations.
 // Capture uses synthetic pixels and real native selection/toolbar/result events.
-// Bilingual layout, physical shortcuts, unsaved-result dialogs and every
-// failure/cancellation permutation remain separate acceptance work.
+// Bilingual layout, physical shortcuts, the history retry's modal unsaved-result
+// dialog and every failure/cancellation permutation remain separate acceptance work.
 // The XCTest case below owns real key-window activation and main-menu Paste.
 // It is still programmatic input, not installed-app physical Cmd+V acceptance.
 // Closed-window completion is observed from the actual onboarding view render;
@@ -1198,6 +1198,7 @@ struct ProviderApplicationTests {
             }
             #expect(added.count == 1 && added.first === resultBox(), "the box is the only new window")
             #expect(model.providerSnapshot.activity == .modelRequest)
+            #expect(resultBoxPresentation()?.providerSummary == "DeepSeek · fixture-vision")
 
             try await fixture.http.streamImage(content: #"{"source":"Partial"#)
             try await eventually { resultBoxText() == "Partial" }
@@ -1400,7 +1401,7 @@ struct ProviderApplicationTests {
 
             try await eventually { try mainScreenOverlay() == nil && resultBox() == nil && captureToolbar() == nil }
             try await eventually { model.providerSnapshot.activity == nil }
-            try await eventually { model.historyRecords.first?.operation.status == .canceled }
+            #expect(model.historyRecords.first?.operation.status == .canceled, "saved before the activity is released")
         }
     }
 
@@ -1527,6 +1528,159 @@ struct ProviderApplicationTests {
     }
 
     @Test
+    func switchingAwayFromAnUnsavedResultAndBackKeepsIt() async throws {
+        try await withResultFixture { fixture, model in
+            let (overlay, toolbar) = try await completeSelection(fixture)
+            model.changeTargetLanguage("ja")
+            try clickExtract(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.finishImage(source: "Saved text")
+            try await eventually { resultBoxText() == "Saved text" }
+            try await waitForResultIdle(model)
+
+            let database = try failSuccessfulSaves(fixture)
+            defer { sqlite3_close(database) }
+            try clickTranslate(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 2 }
+            try await fixture.http.finishImage(source: "Source", translation: "Unsaved translation")
+            try await eventually { resultBoxPresentation()?.saveNotice != nil }
+            try await waitForResultIdle(model)
+            #expect(resultBoxText() == "Unsaved translation")
+
+            // To the result that is saved: it shows and copies, and nothing is sent.
+            try clickExtract(toolbar)
+            try await eventually { resultBoxText() == "Saved text" }
+            #expect(resultBoxPresentation()?.saveNotice == nil)
+            #expect(resultBoxPresentation()?.canRetry == false, "retrying would send a request")
+            let box = try #require(resultBox())
+            try clickResultBoxButton(box, fromEnd: 2)
+            #expect(fixture.clipboard.writtenTexts.last == "Saved text")
+            try clickResultBoxButton(box, fromEnd: 1)
+            #expect(await fixture.http.imageRequests.count == 2)
+
+            // And back: the unsaved result is still there.
+            try clickTranslate(toolbar)
+            try await eventually { resultBoxText() == "Unsaved translation" && resultBoxPresentation()?.saveNotice != nil }
+            try clickResultBoxButton(box, fromEnd: 2)
+            #expect(fixture.clipboard.writtenTexts.last == "Unsaved translation")
+            #expect(await fixture.http.imageRequests.count == 2)
+
+            // With another language Translate would send a request, so it takes no press.
+            model.changeTargetLanguage("ko")
+            try clickExtract(toolbar)
+            try await eventually { resultBoxText() == "Saved text" }
+            try clickTranslate(toolbar)
+            #expect(resultBoxText() == "Saved text")
+            #expect(await fixture.http.imageRequests.count == 2)
+            model.changeTargetLanguage("ja")
+            try clickTranslate(toolbar)
+            try await eventually { resultBoxText() == "Unsaved translation" }
+
+            // Retry Save writes it, without another request.
+            try #require(sqlite3_exec(database, "DROP TRIGGER box_save_failure", nil, nil, nil) == SQLITE_OK)
+            try click(box, at: NSPoint(x: try #require(box.contentView).bounds.maxX - 32, y: 20))
+            try await eventually { resultBoxPresentation()?.saveNotice == nil }
+            try await eventually {
+                model.historyRecords.contains { $0.operation.translationMarkdown?.contains("Unsaved translation") == true }
+            }
+            #expect(await fixture.http.imageRequests.count == 2)
+            try pressEscape(overlay)
+            try await eventually { try mainScreenOverlay() == nil && resultBox() == nil }
+        }
+    }
+
+    @Test
+    func savingTheImageAfterAnOperationLeavesTheCapture() async throws {
+        try await withResultFixture { fixture, model in
+            let target = fixture.root.appendingPathComponent("saved-after-result.png")
+            fixture.imageSaver.answer = .saveTo(target)
+            let (_, toolbar) = try await completeSelection(fixture)
+            try clickExtract(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.finishImage(source: "Done")
+            try await waitForResultIdle(model)
+
+            try click(toolbar, at: try toolbarIconCenter(toolbar, fromEnd: 1))
+
+            try await eventually { FileManager.default.fileExists(atPath: target.path) }
+            try await eventually { try mainScreenOverlay() == nil && resultBox() == nil && captureToolbar() == nil }
+            #expect(model.historyRecords.count == 1, "saving the image makes no new history")
+            #expect(await fixture.http.imageRequests.count == 1)
+        }
+    }
+
+    @Test
+    func savingOrCopyingWithAnUnsavedResultAsksAndKeepingItStays() async throws {
+        try await withResultFixture { fixture, model in
+            let database = try failSuccessfulSaves(fixture)
+            defer { sqlite3_close(database) }
+            let target = fixture.root.appendingPathComponent("saved-before-asking.png")
+            fixture.imageSaver.answer = .saveTo(target)
+            let (overlay, toolbar) = try await completeSelection(fixture)
+            try clickExtract(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.finishImage(source: "Unsaved text")
+            try await eventually { resultBoxPresentation()?.saveNotice != nil }
+            try await waitForResultIdle(model)
+
+            try click(toolbar, at: try toolbarIconCenter(toolbar, fromEnd: 1))
+            try await answerSheet(on: overlay, with: .alertSecondButtonReturn)
+            #expect(FileManager.default.fileExists(atPath: target.path), "the file was written before the question")
+            #expect(overlay.isVisible)
+            #expect(resultBoxPresentation()?.saveNotice != nil)
+
+            try await eventually {
+                if overlay.attachedSheet == nil { try click(toolbar, at: try toolbarIconCenter(toolbar, fromEnd: 2)) }
+                pumpNativeEvents(toolbar)
+                return !fixture.clipboard.written.isEmpty
+            }
+            try await answerSheet(on: overlay, with: .alertSecondButtonReturn)
+            #expect(overlay.isVisible)
+            #expect(resultBoxPresentation()?.saveNotice != nil)
+
+            try await eventually {
+                if overlay.attachedSheet == nil { try pressEscape(overlay) }
+                pumpNativeEvents(overlay)
+                return overlay.attachedSheet != nil
+            }
+            try await answerSheet(on: overlay, with: .alertFirstButtonReturn)
+            try await eventually { try mainScreenOverlay() == nil && resultBox() == nil }
+        }
+    }
+
+    @Test
+    func changingTheLanguageDuringATranslationAffectsOnlyTheNextPress() async throws {
+        try await withResultFixture { fixture, model in
+            let (_, toolbar) = try await completeSelection(fixture)
+            model.changeTargetLanguage("zh-Hans")
+            try clickTranslate(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await eventually { resultBoxPresentation() != nil }
+            let title = resultBoxPresentation()?.title
+
+            model.changeTargetLanguage("ja")
+            pumpNativeEvents(toolbar)
+            #expect(resultBoxPresentation()?.title == title, "the box keeps naming the language being translated")
+
+            try await fixture.http.finishImage(source: "Source", translation: "中文译文")
+            try await eventually { resultBoxText() == "中文译文" }
+            try await waitForResultIdle(model)
+            #expect(resultBoxPresentation()?.title == title)
+            try await eventually { model.historyRecords.first?.operation.targetLanguage == "zh-Hans" }
+            #expect(model.historyRecords.count == 1)
+
+            try clickTranslate(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 2 }
+            try await fixture.http.finishImage(source: "Source", translation: "日本語の訳")
+            try await eventually { resultBoxText() == "日本語の訳" }
+            try await waitForResultIdle(model)
+            try await eventually { model.historyRecords.count == 2 }
+            #expect(resultBoxPresentation()?.title != title)
+            #expect(Set(model.historyRecords.map(\.operation.targetLanguage)) == ["zh-Hans", "ja"])
+        }
+    }
+
+    @Test
     func discardingAnUnsavedResultLeavesTheCapture() async throws {
         try await withResultFixture { fixture, model in
             let database = try failSuccessfulSaves(fixture)
@@ -1558,10 +1712,14 @@ struct ProviderApplicationTests {
 
             try fixture.shortcuts.fire()
             pumpNativeEvents(overlay)
+            // Read after something that arrives later, so an accepted shortcut has time to reach the capture.
+            try await fixture.http.finishImage(source: "Done")
+            try await eventually { resultBoxText() == "Done" }
+            try await waitForResultIdle(model)
 
             #expect(await fixture.capture.requests == 1)
+            #expect(try mainScreenOverlay() === overlay)
             #expect(overlay.isVisible)
-            #expect(resultBox() != nil)
             #expect(toolbar.isVisible)
         }
     }
@@ -1736,7 +1894,7 @@ struct ProviderApplicationTests {
 
             #expect(try mainScreenOverlay() == nil)
             #expect(resultBox() == nil)
-            try await eventually { model.historyRecords.first?.operation.status == .canceled }
+            #expect(model.historyRecords.first?.operation.status == .canceled, "saved before termination goes on")
         }
     }
 
@@ -1767,7 +1925,57 @@ struct ProviderApplicationTests {
     }
 
     @Test
-    func toolbarStaysClearOfTheBoxWithAWholeDisplaySelection() async throws {
+    func toolbarMovesBesideTheBoxWhenTheBoxWouldCoverIt() async throws {
+        try await withResultFixture { fixture, _ in
+            let screen = try #require(NSScreen.main)
+            try fixture.shortcuts.fire()
+            let overlay = try await frozenMainOverlay()
+            // Under where the box opens: near the right edge and the top.
+            let right = screen.visibleFrame.maxX - screen.frame.minX - 40
+            let top = screen.visibleFrame.maxY - screen.frame.minY - 100
+            try drag(overlay, from: NSPoint(x: right - 240, y: top - 100), to: NSPoint(x: right, y: top))
+            try await eventually { captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            pumpNativeEvents(toolbar)
+            let original = toolbar.frame
+            let inset = CaptureResultBoxMetrics.edgeInset
+            let boxHeight = min(screen.visibleFrame.height - 2 * inset, CaptureResultBoxMetrics.maximumHeight)
+            let opening = CGRect(
+                x: screen.visibleFrame.maxX - inset - CaptureResultBoxMetrics.width,
+                y: screen.visibleFrame.maxY - inset - boxHeight,
+                width: CaptureResultBoxMetrics.width,
+                height: boxHeight
+            )
+            #expect(original.intersects(opening), "the toolbar must start where the box opens")
+
+            try clickExtract(toolbar)
+            try await eventually { resultBox() != nil }
+            let box = try #require(resultBox())
+            #expect(box.frame == opening)
+            #expect(toolbar.frame.maxX == box.frame.minX - VLMSnapperUIConstants.toolbarResultBoxGap)
+            #expect(toolbar.frame.minY == original.minY)
+            // Front to back; `orderedWindows` leaves panels out.
+            let order = try #require(NSWindow.windowNumbers(options: [])?.map(\.intValue))
+            let toolbarPlace = try #require(order.firstIndex(of: toolbar.windowNumber))
+            let boxPlace = try #require(order.firstIndex(of: box.windowNumber))
+            #expect(toolbarPlace < boxPlace, "the toolbar stays in front of the box")
+
+            // Dragging the box does not move the toolbar again.
+            let beside = toolbar.frame
+            pumpNativeEvents(box)
+            let header = NSPoint(x: box.frame.width / 2, y: box.frame.height - CaptureResultBoxMetrics.headerHeight / 2)
+            try drag(box, from: header, to: NSPoint(x: header.x - 120, y: header.y))
+            #expect(box.frame.minX == opening.minX - 120)
+            #expect(toolbar.frame == beside)
+
+            try clickResultBoxButton(box, fromEnd: 0)
+            try await eventually { resultBox() == nil }
+            #expect(toolbar.frame == original, "it goes back when the box closes")
+        }
+    }
+
+    @Test
+    func wholeDisplaySelectionLeavesTheToolbarWhereItIs() async throws {
         try await withSnapFixture { fixture, screen, _ in
             await fixture.http.allowImageRequests()
             try fixture.shortcuts.fire()
@@ -1829,13 +2037,15 @@ struct ProviderApplicationTests {
             let (_, toolbar) = try await completeSelection(fixture)
             try clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.streamImage(content: #"{"segments":[{"id":"s1","block":"p1","kind":"paragraph","source":"Hello","translation":"Partial text"},"#)
+            try await eventually { resultBoxText() == "Partial text" }
+
             await fixture.http.failImage()
 
             try await eventually {
-                if case .failure = resultBoxPresentation()?.body { return true }
-                return false
+                resultBoxPresentation()?.body == .failure("VLMSnapper could not reach the Provider. Check the network and retry manually.")
             }
-            #expect(resultBoxText() == nil)
+            try await eventually { resultBoxText() == nil }
             #expect(resultBoxPresentation()?.canCopy == false)
             #expect(resultBoxPresentation()?.canRetry == true)
             try await eventually { model.historyRecords.first?.operation.status == .failed }
