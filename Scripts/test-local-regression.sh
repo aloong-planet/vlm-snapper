@@ -50,9 +50,9 @@ python3 Scripts/verify-swift-testing-log.py "$evidence/non-app.log"
 run_stage app swift test --filter ProviderApplicationTests --skip ProviderApplicationTestsNativeMenu
 python3 Scripts/verify-swift-testing-log.py "$evidence/app.log"
 run_stage native-paste swift test --filter ProviderApplicationTestsNativeMenu.testNativeMainMenuPasteValidatesThroughRealKeyWindow
-rg -F 'Executed 1 test, with 0 failures' "$evidence/native-paste.log"
+grep -F 'Executed 1 test, with 0 failures' "$evidence/native-paste.log"
 run_stage native-closed swift test --filter ProviderApplicationTestsNativeMenu.testValidationCompletesWhileManagementRemainsClosed
-rg -F 'Executed 1 test, with 0 failures' "$evidence/native-closed.log"
+grep -F 'Executed 1 test, with 0 failures' "$evidence/native-closed.log"
 run_stage accessibility python3 Scripts/test-provider-accessibility.py
 echo "Offline regression passed. Evidence: $evidence"
 if [[ -n "$live_provider" ]]; then
