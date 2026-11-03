@@ -22,6 +22,10 @@ Project facts that apply across skills are in `capabilities.toml` at the reposit
 - 产品 UI 文案必须来自本地化字典，不以仓库工作语言代替产品语言。
 - 项目设计、需求和 ADR 文档可使用中文。
 
+### 回归验证
+
+- 发布前必须运行 `bash Scripts/test-local-regression.sh --desktop`。
+
 ### 本地安装偏好
 
 - 用户已授权：本项目每次代码改动完成、相关验证及安装包构建/签名校验通过后，自动更新并启动 `/Applications/VLMSnapper.app`，无需再次等待安装指令。

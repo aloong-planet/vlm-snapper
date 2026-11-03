@@ -9,7 +9,7 @@ bash Scripts/test-local-regression.sh --offline
 bash Scripts/test-local-regression.sh --live-provider deepseek --live-model deepseek-flash
 ```
 
-第二条先执行全量离线检查，再执行指定模型的真实提取、翻译各一次；任一步失败，整条命令非零退出。原生离线测试可能激活窗口。无参数保留离线模式，并明确打印真实模型未测。
+第二条先执行全量离线检查，再执行指定模型的真实提取、翻译各一次；任一步失败，整条命令非零退出。原生离线测试可能激活窗口。桌面 AX 用例按改动范围决定是否运行，见 `Tests/AXScenarios/README.md`。无参数保留离线模式，并明确打印真实模型未测。
 
 只运行真实检查：
 
