@@ -46,7 +46,8 @@ import VLMSnapperUI
 // Result box (v1-core::REQ-010–012): whether the box sits above the overlay on screen, selecting and
 // copying while the application is not active, and a second display need the installed build. No
 // production path clears the current model yet, so failure mode 56 has no trigger; its guard is untested.
-// The language list's rows are SwiftUI text, so tests call the toolbar's language callback directly.
+// `aLanguageRowChoosesTheNextTranslationsLanguage` presses a real row; other sequences call the toolbar's
+// language callback directly, to keep the catalog's long list out of them.
 // Escape arriving before a press's request task reaches the session cannot be forced from here, so canceling
 // that task when the capture ends or the box closes has no test that fails without it.
 // Snap regions (v1-core::REQ-006): hover latency with many windows and the real window list of
@@ -1187,7 +1188,7 @@ struct ProviderApplicationTests {
             #expect(resultBox() == nil)
             let visibleBefore = NSApp.windows.filter(\.isVisible)
 
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBox() != nil }
 
@@ -1223,7 +1224,7 @@ struct ProviderApplicationTests {
     func selectionIsLockedOnceAnOperationStarts() async throws {
         try await withResultFixture { fixture, model in
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             let toolbarFrame = toolbar.frame
             let height = try #require(overlay.contentView).bounds.height
@@ -1248,23 +1249,23 @@ struct ProviderApplicationTests {
     func oneBoxShowsOneOperationAndReturningSendsNoRequest() async throws {
         try await withResultFixture { fixture, model in
             let (_, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBox() != nil }
             let box = try #require(resultBox())
             let frame = box.frame
 
             // Another operation waits for the running one; a request would trip the HTTP fixture.
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             #expect(await fixture.http.imageRequests.count == 1)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             #expect(await fixture.http.imageRequests.count == 1)
 
             try await fixture.http.finishImage(source: "Extracted")
             try await eventually { resultBoxText() == "Extracted" && resultBoxPresentation()?.showsProgress == false }
             try await waitForResultIdle(model)
 
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 2 }
             try await fixture.http.finishImage(source: "Source", translation: "Translated")
             try await eventually { resultBoxText() == "Translated" && resultBoxPresentation()?.showsProgress == false }
@@ -1273,9 +1274,9 @@ struct ProviderApplicationTests {
             #expect(box.frame == frame)
             #expect(NSApp.windows.filter { $0.isVisible && $0.contentView is NSHostingView<CaptureResultBoxView> }.count == 1)
 
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { resultBoxText() == "Extracted" }
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { resultBoxText() == "Translated" }
             #expect(await fixture.http.imageRequests.count == 2)
             try await eventually { model.historyRecords.count == 2 }
@@ -1296,7 +1297,7 @@ struct ProviderApplicationTests {
                 model.historyRecords.map(\.operation.targetLanguage).sorted { ($0 ?? "") < ($1 ?? "") }
             }
 
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Source", translation: "中文译文")
             try await eventually { resultBoxText() == "中文译文" && resultBoxPresentation()?.showsProgress == false }
@@ -1311,7 +1312,7 @@ struct ProviderApplicationTests {
             #expect(resultBoxPresentation()?.title == chineseTitle)
             #expect(resultBoxText() == "中文译文")
 
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 2 }
             try await fixture.http.finishImage(source: "Source", translation: "日本語の訳")
             try await eventually { resultBoxText() == "日本語の訳" && resultBoxPresentation()?.showsProgress == false }
@@ -1337,7 +1338,7 @@ struct ProviderApplicationTests {
 
             // Back to an earlier language is another new record, and its failure changes nothing else.
             model.changeTargetLanguage("zh-Hans")
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 4 }
             await fixture.http.failImage()
             try await eventually {
@@ -1355,7 +1356,7 @@ struct ProviderApplicationTests {
     func closingTheBoxDuringARequestCancelsItAndPressingAgainSendsNothing() async throws {
         try await withResultFixture { fixture, model in
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBox() != nil }
             try await fixture.http.streamImage(content: #"{"source":"Partial"#)
@@ -1370,7 +1371,7 @@ struct ProviderApplicationTests {
             try await waitForResultIdle(model)
             #expect(model.historyRecords.first?.operation.sourceMarkdown == nil, "no partial text is kept")
 
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { resultBox() != nil }
             try await eventually {
                 if case .canceled = resultBoxPresentation()?.body { return true }
@@ -1393,7 +1394,7 @@ struct ProviderApplicationTests {
     func escapeDuringARequestCancelsItAndLeavesTheCapture() async throws {
         try await withResultFixture { fixture, model in
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBox() != nil }
 
@@ -1409,7 +1410,7 @@ struct ProviderApplicationTests {
     func escapeFromTheBoxWithTheKeyboardLeavesTheCapture() async throws {
         try await withResultFixture { fixture, _ in
             let (_, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Selectable text")
             try await eventually { resultBoxText() == "Selectable text" }
@@ -1428,7 +1429,8 @@ struct ProviderApplicationTests {
             let database = try failSuccessfulSaves(fixture)
             defer { sqlite3_close(database) }
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            let availableLabel = try translateLabelInk(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Unsaved text")
             try await eventually { resultBoxPresentation()?.saveNotice != nil }
@@ -1437,12 +1439,14 @@ struct ProviderApplicationTests {
             #expect(resultBoxPresentation()?.canCopy == true)
             #expect(resultBoxPresentation()?.canRetry == false)
 
-            // Translate would send a request, so it takes no press; closing keeps the result.
-            try clickTranslate(toolbar)
+            // Translate would send a request, so it looks unavailable and takes no press; closing keeps the result.
+            let unavailableLabel = try translateLabelInk(toolbar)
+            #expect(availableLabel - unavailableLabel > 0.2, "available \(availableLabel), unavailable \(unavailableLabel)")
+            try await clickTranslate(toolbar)
             #expect(await fixture.http.imageRequests.count == 1)
             try clickResultBoxButton(try #require(resultBox()), fromEnd: 0)
             try await eventually { resultBox() == nil }
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { resultBoxText() == "Unsaved text" && resultBoxPresentation()?.saveNotice != nil }
 
             // The shortcut leaves it alone.
@@ -1475,7 +1479,7 @@ struct ProviderApplicationTests {
             let database = try failSuccessfulSaves(fixture)
             defer { sqlite3_close(database) }
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Unsaved text")
             try await eventually { resultBoxPresentation()?.saveNotice != nil }
@@ -1532,7 +1536,7 @@ struct ProviderApplicationTests {
         try await withResultFixture { fixture, model in
             let (overlay, toolbar) = try await completeSelection(fixture)
             model.changeTargetLanguage("ja")
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Saved text")
             try await eventually { resultBoxText() == "Saved text" }
@@ -1540,7 +1544,7 @@ struct ProviderApplicationTests {
 
             let database = try failSuccessfulSaves(fixture)
             defer { sqlite3_close(database) }
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 2 }
             try await fixture.http.finishImage(source: "Source", translation: "Unsaved translation")
             try await eventually { resultBoxPresentation()?.saveNotice != nil }
@@ -1548,7 +1552,7 @@ struct ProviderApplicationTests {
             #expect(resultBoxText() == "Unsaved translation")
 
             // To the result that is saved: it shows and copies, and nothing is sent.
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { resultBoxText() == "Saved text" }
             #expect(resultBoxPresentation()?.saveNotice == nil)
             #expect(resultBoxPresentation()?.canRetry == false, "retrying would send a request")
@@ -1559,21 +1563,24 @@ struct ProviderApplicationTests {
             #expect(await fixture.http.imageRequests.count == 2)
 
             // And back: the unsaved result is still there.
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { resultBoxText() == "Unsaved translation" && resultBoxPresentation()?.saveNotice != nil }
             try clickResultBoxButton(box, fromEnd: 2)
             #expect(fixture.clipboard.writtenTexts.last == "Unsaved translation")
             #expect(await fixture.http.imageRequests.count == 2)
 
-            // With another language Translate would send a request, so it takes no press.
-            model.changeTargetLanguage("ko")
-            try clickExtract(toolbar)
+            // With another language Translate would send a request, so it looks unavailable and takes no press.
+            try await clickExtract(toolbar)
             try await eventually { resultBoxText() == "Saved text" }
-            try clickTranslate(toolbar)
+            let availableLabel = try translateLabelInk(toolbar)
+            model.changeTargetLanguage("ko")
+            let unavailableLabel = try translateLabelInk(toolbar)
+            #expect(availableLabel - unavailableLabel > 0.2, "available \(availableLabel), unavailable \(unavailableLabel)")
+            try await clickTranslate(toolbar)
             #expect(resultBoxText() == "Saved text")
             #expect(await fixture.http.imageRequests.count == 2)
             model.changeTargetLanguage("ja")
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { resultBoxText() == "Unsaved translation" }
 
             // Retry Save writes it, without another request.
@@ -1595,7 +1602,7 @@ struct ProviderApplicationTests {
             let target = fixture.root.appendingPathComponent("saved-after-result.png")
             fixture.imageSaver.answer = .saveTo(target)
             let (_, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Done")
             try await waitForResultIdle(model)
@@ -1617,15 +1624,16 @@ struct ProviderApplicationTests {
             let target = fixture.root.appendingPathComponent("saved-before-asking.png")
             fixture.imageSaver.answer = .saveTo(target)
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Unsaved text")
             try await eventually { resultBoxPresentation()?.saveNotice != nil }
             try await waitForResultIdle(model)
 
             try click(toolbar, at: try toolbarIconCenter(toolbar, fromEnd: 1))
+            try await eventually { overlay.attachedSheet != nil }
+            #expect(FileManager.default.fileExists(atPath: target.path), "the file is written before the question")
             try await answerSheet(on: overlay, with: .alertSecondButtonReturn)
-            #expect(FileManager.default.fileExists(atPath: target.path), "the file was written before the question")
             #expect(overlay.isVisible)
             #expect(resultBoxPresentation()?.saveNotice != nil)
 
@@ -1653,7 +1661,7 @@ struct ProviderApplicationTests {
         try await withResultFixture { fixture, model in
             let (_, toolbar) = try await completeSelection(fixture)
             model.changeTargetLanguage("zh-Hans")
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBoxPresentation() != nil }
             let title = resultBoxPresentation()?.title
@@ -1669,7 +1677,7 @@ struct ProviderApplicationTests {
             try await eventually { model.historyRecords.first?.operation.targetLanguage == "zh-Hans" }
             #expect(model.historyRecords.count == 1)
 
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 2 }
             try await fixture.http.finishImage(source: "Source", translation: "日本語の訳")
             try await eventually { resultBoxText() == "日本語の訳" }
@@ -1686,7 +1694,7 @@ struct ProviderApplicationTests {
             let database = try failSuccessfulSaves(fixture)
             defer { sqlite3_close(database) }
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Unsaved text")
             try await eventually { resultBoxPresentation()?.saveNotice != nil }
@@ -1706,7 +1714,7 @@ struct ProviderApplicationTests {
     func shortcutDuringARequestDoesNothing() async throws {
         try await withResultFixture { fixture, model in
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { model.providerSnapshot.activity == .modelRequest }
 
@@ -1728,7 +1736,7 @@ struct ProviderApplicationTests {
     func newCaptureClosesTheBoxOnlyOnceItsFramesAppear() async throws {
         try await withResultFixture { fixture, model in
             let (previous, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "First result")
             try await waitForResultIdle(model)
@@ -1755,7 +1763,7 @@ struct ProviderApplicationTests {
     func failedFreezeRestoresTheBox() async throws {
         try await withResultFixture { fixture, model in
             let (previous, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "First result")
             try await waitForResultIdle(model)
@@ -1788,7 +1796,7 @@ struct ProviderApplicationTests {
     func escapeBeforeNewFramesLeavesTheCaptureAndItsBox() async throws {
         try await withResultFixture { fixture, model in
             let (previous, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "First result")
             try await waitForResultIdle(model)
@@ -1814,19 +1822,22 @@ struct ProviderApplicationTests {
     func copyAndSaveWaitForARunningRequest() async throws {
         try await withResultFixture { fixture, model in
             let (_, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBox() != nil }
             pumpNativeEvents(toolbar)
 
+            // Each in its own turn, and read after the request ends: an accepted press acts in between.
             try click(toolbar, at: try toolbarIconCenter(toolbar, fromEnd: 2))
+            await settleToolbarAction(toolbar)
             try click(toolbar, at: try toolbarIconCenter(toolbar, fromEnd: 1))
-            pumpNativeEvents(toolbar)
-            #expect(fixture.clipboard.written.isEmpty)
-            #expect(fixture.imageSaver.requests.isEmpty)
-
+            await settleToolbarAction(toolbar)
             try await fixture.http.finishImage(source: "Done")
             try await waitForResultIdle(model)
+            #expect(fixture.clipboard.written.isEmpty)
+            #expect(fixture.imageSaver.requests.isEmpty)
+            #expect(try mainScreenOverlay() != nil)
+
             pumpNativeEvents(toolbar)
             try click(toolbar, at: try toolbarIconCenter(toolbar, fromEnd: 2))
             try await eventually { fixture.clipboard.written.count == 1 }
@@ -1838,7 +1849,7 @@ struct ProviderApplicationTests {
     func selectionDisplayChangeDuringARequestEndsTheCapture() async throws {
         try await withResultFixture { fixture, model in
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBox() != nil }
 
@@ -1867,7 +1878,7 @@ struct ProviderApplicationTests {
             let database = try failSuccessfulSaves(fixture)
             defer { sqlite3_close(database) }
             let (_, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Unsaved text")
             try await eventually { resultBoxPresentation()?.saveNotice != nil }
@@ -1886,7 +1897,7 @@ struct ProviderApplicationTests {
     func terminationDuringARequestCancelsItAndLeavesTheCapture() async throws {
         try await withResultFixture { fixture, model in
             let (_, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await eventually { resultBox() != nil }
 
@@ -1904,7 +1915,7 @@ struct ProviderApplicationTests {
             let database = try failSuccessfulSaves(fixture)
             defer { sqlite3_close(database) }
             let (overlay, toolbar) = try await completeSelection(fixture)
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.finishImage(source: "Unsaved text")
             try await eventually { resultBoxPresentation()?.saveNotice != nil }
@@ -1948,7 +1959,7 @@ struct ProviderApplicationTests {
             )
             #expect(original.intersects(opening), "the toolbar must start where the box opens")
 
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { resultBox() != nil }
             let box = try #require(resultBox())
             #expect(box.frame == opening)
@@ -1975,6 +1986,73 @@ struct ProviderApplicationTests {
     }
 
     @Test
+    func aLongerAbbreviationKeepsTheToolbarBesideTheBox() async throws {
+        try await withResultFixture { fixture, _ in
+            let screen = try #require(NSScreen.main)
+            try fixture.shortcuts.fire()
+            let overlay = try await frozenMainOverlay()
+            let right = screen.visibleFrame.maxX - screen.frame.minX - 40
+            let top = screen.visibleFrame.maxY - screen.frame.minY - 100
+            try drag(overlay, from: NSPoint(x: right - 240, y: top - 100), to: NSPoint(x: right, y: top))
+            try await eventually { captureToolbar() != nil }
+            let toolbar = try #require(captureToolbar())
+            try await clickExtract(toolbar)
+            try await eventually { resultBox() != nil }
+            let box = try #require(resultBox())
+            pumpNativeEvents(toolbar)
+            let width = toolbar.frame.width
+
+            try await chooseLanguage("aeb", in: toolbar)
+
+            try await eventually {
+                pumpNativeEvents(toolbar)
+                return toolbar.frame.width > width
+                    && toolbar.frame.maxX == box.frame.minX - VLMSnapperUIConstants.toolbarResultBoxGap
+            }
+        }
+    }
+
+    @Test
+    func aLanguageRowChoosesTheNextTranslationsLanguage() async throws {
+        try await withResultFixture { fixture, model in
+            let (_, toolbar) = try await completeSelection(fixture)
+
+            try await chooseLanguage("ja", in: toolbar)
+            try await clickTranslate(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.finishImage(source: "Source", translation: "日本語の訳")
+            try await waitForResultIdle(model)
+
+            try await eventually { model.historyRecords.first?.operation.targetLanguage == "ja" }
+        }
+    }
+
+    // Shaped after stored translations: several sentences in a block, including a list item.
+    @Test
+    func copyingATranslationKeepsItsBlocksAndListMarkers() async throws {
+        try await withResultFixture { fixture, model in
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickTranslate(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.finishImage(segments: [
+                ["id": "s1", "block": "b1", "kind": "heading", "source": "Title", "translation": "标题"],
+                ["id": "s2", "block": "b2", "kind": "paragraph", "source": "One.", "translation": "第一句。"],
+                ["id": "s3", "block": "b2", "kind": "paragraph", "source": "Two.", "translation": "第二句。"],
+                ["id": "s4", "block": "b3", "kind": "listItem", "source": "Three.", "translation": "列表第一句。"],
+                ["id": "s5", "block": "b3", "kind": "listItem", "source": "Four.", "translation": "列表第二句。"],
+                ["id": "s6", "block": "b4", "kind": "listItem", "source": "Five", "translation": "第二项"],
+            ])
+            try await eventually { resultBoxPresentation()?.canCopy == true && resultBoxPresentation()?.showsProgress == false }
+            try await waitForResultIdle(model)
+            pumpNativeEvents(try #require(resultBox()))
+
+            try clickResultBoxButton(try #require(resultBox()), fromEnd: 2)
+
+            #expect(fixture.clipboard.writtenTexts.last == "标题\n\n第一句。第二句。\n\n- 列表第一句。列表第二句。\n\n- 第二项")
+        }
+    }
+
+    @Test
     func wholeDisplaySelectionLeavesTheToolbarWhereItIs() async throws {
         try await withSnapFixture { fixture, screen, _ in
             await fixture.http.allowImageRequests()
@@ -1989,10 +2067,11 @@ struct ProviderApplicationTests {
             pumpNativeEvents(toolbar)
             let originalX = toolbar.frame.minX
 
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually { resultBox() != nil }
             let box = try #require(resultBox())
             #expect(!toolbar.frame.intersects(box.frame))
+            #expect(toolbar.frame.minX == originalX, "clear of the box, it stays where it was while the box is open")
             #expect(box.frame.maxX == screen.visibleFrame.maxX - CaptureResultBoxMetrics.edgeInset)
             #expect(box.frame.maxY == screen.visibleFrame.maxY - CaptureResultBoxMetrics.edgeInset)
 
@@ -2011,7 +2090,7 @@ struct ProviderApplicationTests {
             try? FileManager.default.removeItem(at: folder)
             try Data().write(to: folder)
 
-            try clickExtract(toolbar)
+            try await clickExtract(toolbar)
             try await eventually {
                 if case .failure = resultBoxPresentation()?.body { return true }
                 return false
@@ -2035,7 +2114,7 @@ struct ProviderApplicationTests {
     func requestFailureShowsItsReasonWithoutPartialText() async throws {
         try await withResultFixture { fixture, model in
             let (_, toolbar) = try await completeSelection(fixture)
-            try clickTranslate(toolbar)
+            try await clickTranslate(toolbar)
             try await eventually { await fixture.http.imageRequests.count == 1 }
             try await fixture.http.streamImage(content: #"{"segments":[{"id":"s1","block":"p1","kind":"paragraph","source":"Hello","translation":"Partial text"},"#)
             try await eventually { resultBoxText() == "Partial text" }
@@ -2900,23 +2979,89 @@ private func clickResultBoxButton(_ window: NSWindow, fromEnd index: Int) throws
 
 /// Presses Extract, the toolbar's first control.
 @MainActor
-private func clickExtract(_ toolbar: NSWindow) throws {
+private func clickExtract(_ toolbar: NSWindow) async throws {
     pumpNativeEvents(toolbar)
     try click(toolbar, at: NSPoint(x: 40, y: try requireFixture(toolbar.contentView).bounds.midY))
+    await settleToolbarAction(toolbar)
+}
+
+/// A toolbar press does its work in a main-actor task, which runs at this test's next suspension, not during
+/// a pump (measured 2026-11-03). A read straight after a press would run before that work.
+@MainActor
+private func settleToolbarAction(_ toolbar: NSWindow) async {
+    for _ in 0..<3 {
+        await Task.yield()
+        pumpNativeEvents(toolbar)
+    }
+}
+
+/// How far the darkest and lightest pixels of the Translate label are apart, for how strong it renders.
+@MainActor
+private func translateLabelInk(_ toolbar: NSWindow) throws -> CGFloat {
     pumpNativeEvents(toolbar)
+    let view = try requireFixture(toolbar.contentView)
+    let size = VLMSnapperUIConstants.toolbarControlHeight
+    let gap = VLMSnapperUIConstants.toolbarControlGap
+    let right = view.bounds.maxX - VLMSnapperUIConstants.toolbarPadding - 3 * size - 3 * gap - 1 - gap
+    let bitmap = try requireFixture(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: bitmap)
+    let scale = CGFloat(bitmap.pixelsWide) / view.bounds.width
+    var levels: [CGFloat] = []
+    for row in Int((view.bounds.midY - 6) * scale)..<Int((view.bounds.midY + 6) * scale) {
+        for column in Int((right - 80) * scale)..<Int((right - 40) * scale) {
+            guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
+            levels.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
+        }
+    }
+    return try requireFixture(levels.max()) - (try requireFixture(levels.min()))
+}
+
+/// Opens the language list and presses a language's row where it renders.
+@MainActor
+private func chooseLanguage(_ code: String, in toolbar: NSWindow) async throws {
+    pumpNativeEvents(toolbar)
+    let bounds = try requireFixture(toolbar.contentView).bounds
+    let size = VLMSnapperUIConstants.toolbarControlHeight
+    let gap = VLMSnapperUIConstants.toolbarControlGap
+    let right = bounds.maxX - VLMSnapperUIConstants.toolbarPadding - 3 * size - 3 * gap - 1 - gap
+    try click(toolbar, at: NSPoint(x: right - 8, y: bounds.midY))
+    var popover: NSWindow?
+    try await eventually {
+        pumpNativeEvents(toolbar)
+        popover = NSApp.windows.first { $0.className.contains("Popover") && $0.isVisible }
+        return popover != nil
+    }
+    let window = try requireFixture(popover)
+    let content = try requireFixture(window.contentView)
+    let row = try requireFixture(TargetLanguageCatalog.standard.codes.firstIndex(of: code))
+    var table: NSTableView?
+    try await eventually {
+        pumpNativeEvents(window)
+        table = descendants(content).compactMap { $0 as? NSTableView }.first
+        return (table?.numberOfRows ?? 0) > row
+    }
+    let list = try requireFixture(table)
+    list.scrollRowToVisible(row)
+    pumpNativeEvents(window)
+    let place = list.rect(ofRow: row)
+    try click(window, at: list.convert(NSPoint(x: place.minX + 60, y: place.midY), to: nil))
+    try await eventually {
+        pumpNativeEvents(toolbar)
+        return !window.isVisible
+    }
 }
 
 /// Presses the left part of the combined button. Its right edge is counted from the toolbar's end:
 /// padding, three icon boxes and their gaps, then the divider and its gaps.
 @MainActor
-private func clickTranslate(_ toolbar: NSWindow) throws {
+private func clickTranslate(_ toolbar: NSWindow) async throws {
     pumpNativeEvents(toolbar)
     let bounds = try requireFixture(toolbar.contentView).bounds
     let size = VLMSnapperUIConstants.toolbarControlHeight
     let gap = VLMSnapperUIConstants.toolbarControlGap
     let right = bounds.maxX - VLMSnapperUIConstants.toolbarPadding - 3 * size - 3 * gap - 1 - gap
     try click(toolbar, at: NSPoint(x: right - 70, y: bounds.midY))
-    pumpNativeEvents(toolbar)
+    await settleToolbarAction(toolbar)
 }
 
 /// The request has fully ended, including its bookkeeping after the text stops changing.
@@ -3523,14 +3668,20 @@ private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
         imageContinuation?.finish(throwing: URLError(.networkConnectionLost))
         imageContinuation = nil
     }
+    func finishImage(segments: [[String: String]]) throws {
+        try finishImage(result: ["segments": segments])
+    }
     func finishImage(source: String, translation: String? = nil) throws {
+        if let translation {
+            try finishImage(segments: [["id": "s1", "block": "p1", "kind": "paragraph",
+                                        "source": source, "translation": translation]])
+        } else {
+            try finishImage(result: ["source": source])
+        }
+    }
+    private func finishImage(result: [String: Any]) throws {
         // DeepSeek chat SSE shape used by ProviderAdapterRecordedContractTests;
         // use the real JSON decoder/stream contract, not normalized fake events.
-        var result: [String: Any] = ["source": source]
-        if let translation {
-            result = ["segments": [["id": "s1", "block": "p1", "kind": "paragraph",
-                                     "source": source, "translation": translation]]]
-        }
         let content = String(decoding: try JSONSerialization.data(withJSONObject: result, options: .sortedKeys), as: UTF8.self)
         let chunk = try JSONSerialization.data(withJSONObject: [
             "id": "fixture-image", "choices": [["index": 0, "delta": ["content": content], "finish_reason": "stop"]],

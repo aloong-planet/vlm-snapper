@@ -483,26 +483,29 @@ struct CaptureResultBoxWindowTests {
         #expect(firstWord > secondWord, "first word at \(firstWord), second at \(secondWord)")
     }
 
-    // Shaped after stored translations: paragraph, heading and list segments in separate blocks.
+    // Shaped after stored translations (counted 2026-11-03: 55 blocks, 14 with several segments, 8 of those
+    // list items): a heading, then a paragraph and a list item of two sentences each, then another list item.
     private let blocks = [
         TranslationSegment(id: "h", block: "b1", kind: .heading, source: "Title", translation: "标题"),
-        TranslationSegment(id: "p", block: "b2", kind: .paragraph, source: "Body", translation: "正文第一句。"),
-        TranslationSegment(id: "a", block: "b3", kind: .listItem, source: "One", translation: "第一项"),
-        TranslationSegment(id: "b", block: "b4", kind: .listItem, source: "Two", translation: "第二项"),
+        TranslationSegment(id: "p1", block: "b2", kind: .paragraph, source: "One.", translation: "正文第一句。"),
+        TranslationSegment(id: "p2", block: "b2", kind: .paragraph, source: "Two.", translation: "正文第二句。"),
+        TranslationSegment(id: "a1", block: "b3", kind: .listItem, source: "Three.", translation: "第一项第一句。"),
+        TranslationSegment(id: "a2", block: "b3", kind: .listItem, source: "Four.", translation: "第一项第二句。"),
+        TranslationSegment(id: "b", block: "b4", kind: .listItem, source: "Five", translation: "第二项"),
     ]
 
     private func translating(_ segments: [TranslationSegment]) -> WorkspaceOperationSlot {
         WorkspaceOperationSlot(
             attempt: .streaming,
-            translationDelta: segments.map(\.translation).joined(separator: "\n"),
+            translationDelta: TranslationSegment.text(segments, translated: true),
             segments: segments
         )
     }
 
     private func translated(_ segments: [TranslationSegment]) -> WorkspaceOperationSlot {
         WorkspaceOperationSlot(attempt: .succeeded, committedResult: WorkspaceCommittedResult(
-            sourceMarkdown: segments.map(\.source).joined(separator: "\n"),
-            translationMarkdown: segments.map(\.translation).joined(separator: "\n"),
+            sourceMarkdown: TranslationSegment.text(segments, translated: false),
+            translationMarkdown: TranslationSegment.text(segments, translated: true),
             segments: segments
         ))
     }
@@ -519,9 +522,14 @@ struct CaptureResultBoxWindowTests {
         controller.state.presentation = presentation(translating(Array(blocks.prefix(2))), operation: .translate)
         pump(panel)
         #expect(text.selectedRange() == NSRange(location: 0, length: 2))
+        // A second sentence joins its block with no separator or second list marker.
+        controller.state.presentation = presentation(translating(Array(blocks.prefix(3))), operation: .translate)
+        pump(panel)
+        #expect(text.string == "标题\n正文第一句。正文第二句。")
+        #expect(text.selectedRange() == NSRange(location: 0, length: 2))
         controller.state.presentation = presentation(translating(blocks), operation: .translate)
         pump(panel)
-        #expect(text.string == "标题\n正文第一句。\n- 第一项\n- 第二项")
+        #expect(text.string == "标题\n正文第一句。正文第二句。\n- 第一项第一句。第一项第二句。\n- 第二项")
         #expect(text.selectedRange() == NSRange(location: 0, length: 2))
         let content = try #require(panel.contentView)
         #expect(descendants(content).compactMap { $0 as? NSTextView }.count == 1)
@@ -530,7 +538,7 @@ struct CaptureResultBoxWindowTests {
 
         controller.state.presentation = presentation(translated(blocks), operation: .translate)
         pump(panel)
-        #expect(text.string == "标题\n正文第一句。\n- 第一项\n- 第二项")
+        #expect(text.string == "标题\n正文第一句。正文第二句。\n- 第一项第一句。第一项第二句。\n- 第二项")
         #expect(text.selectedRange() == NSRange(location: 0, length: 2))
     }
 
@@ -586,6 +594,23 @@ struct CaptureResultBoxWindowTests {
         #expect(text.string.contains("Paragraph 61"))
         #expect(text.selectedRange() == NSRange(location: 3, length: 9))
         #expect(text.visibleRect.minY == 100)
+    }
+
+    @Test("a reader at the end when the last chunk and the end of the stream arrive together stays at the end")
+    func readerAtTheEndStaysThereWhenTheStreamEnds() throws {
+        let (controller, panel) = try makeController()
+        defer { controller.reset() }
+        controller.state.presentation = presentation(slot(streaming: longText(60)))
+        pump(panel)
+        let text = try textView(panel)
+        #expect(text.bounds.height > text.visibleRect.height, "the text must overflow")
+        #expect(text.visibleRect.maxY >= text.bounds.height - 4)
+
+        controller.state.presentation = presentation(finished(longText(70)))
+        pump(panel)
+
+        #expect(text.string.contains("Paragraph 70"))
+        #expect(text.visibleRect.maxY >= text.bounds.height - 4)
     }
 
     @Test("the header shows the Provider and model, with the full text in its tooltip")
@@ -649,6 +674,45 @@ struct CaptureResultBoxWindowTests {
 
             #expect(log.retries == 0)
         }
+    }
+
+    @Test("the body's Retry looks unavailable while another result is unsaved, and available otherwise")
+    func bodyRetryLooksUnavailable() throws {
+        try LocalizationTestCoordinator.withExclusiveAccess {
+            VLMSnapperLocalization.configure(effectiveLanguage: .english)
+            let (controller, panel) = try makeController()
+            defer { controller.reset() }
+            let content = try #require(panel.contentView)
+            let failed = WorkspaceOperationSlot(attempt: .failed(code: "first_text_timeout"))
+
+            controller.state.presentation = presentation(failed)
+            pump(panel)
+            let label = try #require(try recognizedLines(in: content).first { $0.text == "Retry" })
+            let available = try inkContrast(in: content, box: label.box)
+
+            controller.state.presentation = presentation(failed, retryAvailable: false)
+            pump(panel)
+            let unavailable = try inkContrast(in: content, box: label.box)
+
+            #expect(available - unavailable > 0.2, "available \(available), unavailable \(unavailable)")
+        }
+    }
+
+    /// How far the darkest and lightest pixels of a rendered area are apart, for a label's strength.
+    private func inkContrast(in view: NSView, box: CGRect) throws -> CGFloat {
+        view.layoutSubtreeIfNeeded()
+        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        let scale = CGFloat(bitmap.pixelsWide) / view.bounds.width
+        let minRow = view.isFlipped ? box.minY : view.bounds.height - box.maxY
+        var levels: [CGFloat] = []
+        for row in Int(minRow * scale)..<Int((minRow + box.height) * scale) {
+            for column in Int(box.minX * scale)..<Int(box.maxX * scale) {
+                guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
+                levels.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
+            }
+        }
+        return try #require(levels.max()) - (try #require(levels.min()))
     }
 
     /// The header's Retry is an icon, so the word can only be the body's button.

@@ -4,6 +4,22 @@ import Testing
 
 @Suite("History deletion coordinator")
 struct HistoryDeletionCoordinatorTests {
+    // Reaching this takes a retry that starts between the status check and the delete, so a probe stands in
+    // for that moment. The file goes first, as for a failed delete: v1-core::REQ-014/AC-03.
+    @Test("a last record that became active during its delete counts as skipped, and its file is already gone")
+    func recordThatBecomesActiveDuringItsDelete() async {
+        let record = makeRecord(id: UUID(), status: .succeeded)
+        let store = DeletionHistoryProbe(records: [record], becomingActive: [record.id])
+        let screenshots = DeletionScreenshotProbe()
+        let coordinator = HistoryDeletionCoordinator(historyStore: store, screenshotStore: screenshots)
+
+        let summary = await coordinator.delete(recordIDs: [record.id], includePinned: false)
+
+        #expect(summary == HistoryDeletionSummary(deleted: 0, failed: 0, skipped: 1))
+        #expect(await screenshots.attemptedPaths == [record.operation.screenshot.path])
+        #expect(await store.remainingIDs == [record.id])
+    }
+
     @Test("a batch continues after file failure and skips active and pinned records")
     func batchContinuesAndReportsEveryDisposition() async {
         let failed = makeRecord(id: UUID(), status: .failed)
@@ -75,9 +91,11 @@ struct HistoryDeletionCoordinatorTests {
 
 private actor DeletionHistoryProbe: HistoryRecordManaging {
     private var records: [UUID: HistoryRecord]
+    private let becomingActive: Set<UUID>
 
-    init(records: [HistoryRecord]) {
+    init(records: [HistoryRecord], becomingActive: Set<UUID> = []) {
         self.records = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0) })
+        self.becomingActive = becomingActive
     }
 
     var remainingIDs: Set<UUID> { Set(records.keys) }
@@ -90,7 +108,7 @@ private actor DeletionHistoryProbe: HistoryRecordManaging {
 
     func deleteHistoryRecord(id: UUID) async throws -> HistoryRecordDeletionResult {
         guard let record = records[id] else { return .missing }
-        if record.operation.status.isActive { return .active }
+        if record.operation.status.isActive || becomingActive.contains(id) { return .active }
         records[id] = nil
         return .deleted
     }
