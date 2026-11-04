@@ -82,7 +82,7 @@ extension ProviderConfigurationCoordinatorTests {
             credentials: credentials,
             metadata: metadata
         )
-        _ = try? await restarted.reconcilePendingReplacements()
+        _ = try? await restarted.reconcileCredentialState(for: .deepSeek)
         #expect(try await restarted.configurationState().configurations[.deepSeek] == nil)
         #expect(try await restarted.configurationState().currentProvider == nil)
         if allowDeletionOnRestart {
@@ -123,7 +123,7 @@ extension ProviderConfigurationCoordinatorTests {
             credentials: credentials,
             metadata: metadata
         )
-        let recovered = try await restarted.reconcilePendingReplacements()
+        let recovered = try await restarted.reconcileCredentialState(for: .deepSeek)
         #expect(recovered.configurations[.deepSeek]?.models.map(\.id) == ["fresh-a", "fresh-b"])
         #expect(recovered.pendingReplacements[.deepSeek] == nil)
     }
@@ -135,7 +135,7 @@ extension ProviderConfigurationCoordinatorTests {
         _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
         _ = try await coordinator.selectModel("model", for: .deepSeek)
         try await credentials.deleteCredential(for: .deepSeek)
-        let recovered = try await coordinator.reconcilePendingReplacements()
+        let recovered = try await coordinator.reconcileCredentialState(for: .deepSeek)
         #expect(recovered.configurations[.deepSeek] == nil)
         #expect(recovered.currentProvider == nil)
     }
@@ -152,7 +152,7 @@ extension ProviderConfigurationCoordinatorTests {
         _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
         // Loss of the non-secret cache does not delete the independently durable key.
         try await metadata.save(ProviderMetadataState())
-        let recovered = try await coordinator.reconcilePendingReplacements()
+        let recovered = try await coordinator.reconcileCredentialState(for: .deepSeek)
         #expect(recovered.configurations[.deepSeek]?.models.map(\.id) == ["model-a", "model-b"])
         #expect(recovered.configurations[.deepSeek]?.selectedModelID == nil)
         #expect(try await coordinator.apiKey(for: .deepSeek) == "saved-key")
@@ -235,7 +235,7 @@ extension ProviderConfigurationCoordinatorTests {
             now: { Date(timeIntervalSince1970: 1_787_731_200) }
         )
 
-        let reconciled = try await coordinator.reconcilePendingReplacements()
+        let reconciled = try await coordinator.reconcileCredentialState(for: .gemini)
 
         #expect(reconciled.configurations[.gemini]?.models.map(\.id) == ["fresh-model"])
         #expect(reconciled.configurations[.gemini]?.selectedModelID == nil)

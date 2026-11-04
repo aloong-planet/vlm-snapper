@@ -292,7 +292,7 @@ extension ProviderConfigurationCoordinatorTests {
             _ = try await coordinator.selectModel("gpt-4.1", for: .openAI)
         }
         #expect(try await metadataStore.load() == initialState)
-        await coordinator.endRequestConfigurationFreeze(lease)
+        await coordinator.release(lease)
     }
 
     @Test("a request cannot begin while provider configuration is being mutated")
@@ -311,7 +311,7 @@ extension ProviderConfigurationCoordinatorTests {
         await modelLister.finishHeld()
         _ = try await validation.value
         let lease = try await coordinator.beginRequestConfigurationFreeze()
-        await coordinator.endRequestConfigurationFreeze(lease)
+        await coordinator.release(lease)
     }
 }
 

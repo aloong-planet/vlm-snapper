@@ -269,10 +269,6 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring, Operati
         }
     }
 
-    public func reconcilePendingReplacements() async throws -> ProviderMetadataState {
-        try await reconcileCredentials(for: ProviderID.allCases)
-    }
-
     public func reconcileCredentialState(
         for provider: ProviderID,
         onRecovery: @escaping @Sendable () async -> Void = {}
@@ -282,7 +278,7 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring, Operati
 
     private func reconcileCredentials(
         for providers: [ProviderID],
-        onRecovery: @escaping @Sendable () async -> Void = {}
+        onRecovery: @escaping @Sendable () async -> Void
     ) async throws -> ProviderMetadataState {
         try Task.checkCancellation()
         let lease = try await beginRecoveryMutation(for: providers.first ?? .deepSeek)
@@ -421,10 +417,6 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring, Operati
     @discardableResult
     public func beginRequestConfigurationFreeze() throws -> UUID {
         try beginActivity(.modelRequest)
-    }
-
-    public func endRequestConfigurationFreeze(_ lease: UUID) {
-        release(lease)
     }
 
     public func acquire() -> UUID? {
