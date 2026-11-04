@@ -51,6 +51,9 @@ public actor FileProviderMetadataStore: ProviderMetadataStoring {
     }
 
     private func rejectSymbolicLink(at url: URL) throws {
+        // A stored URL keeps the values it has read, so a link that replaced the file would go unseen.
+        var url = url
+        url.removeAllCachedResourceValues()
         let values = try url.resourceValues(forKeys: [.isSymbolicLinkKey])
         guard values.isSymbolicLink != true else {
             throw FileProviderMetadataStoreError.unsafePath
