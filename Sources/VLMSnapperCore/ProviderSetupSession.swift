@@ -337,20 +337,19 @@ public actor ProviderSetupSession {
     }
 
     /// Shows a change the coordinator made to one Provider's configuration by itself. `load` reconciles credentials,
-    /// which waits for a running capture to end, so it cannot be used from a request inside one. A card showing work
-    /// or a failure keeps showing it, and another Provider's card has nothing new to show.
+    /// which waits for a running capture to end, so it cannot be used from a request inside one. This updates only the
+    /// configuration a card already shows: what the card says about work or a failure stays, and a card showing no
+    /// configuration has nothing to update.
     public func reloadConfiguration(of provider: ProviderID) async {
         defer { changeContinuation?.yield(()) }
-        guard provider == selectedProvider, failure == nil,
-              !recoveringProviders.contains(provider), !validatingProviders.contains(provider) else { return }
+        guard provider == selectedProvider, configuration != nil else { return }
         let requestGeneration = generation
-        do {
-            let state = try await boundary.configurationState()
-            guard requestGeneration == generation, provider == selectedProvider else { return }
-            apply(state.configurations[provider])
-        } catch {
-            guard requestGeneration == generation, provider == selectedProvider else { return }
-            setFailure(error)
+        guard let state = try? await boundary.configurationState(),
+              requestGeneration == generation, configuration != nil,
+              let updated = state.configurations[provider] else { return }
+        configuration = updated
+        if phase == .ready, updated.selectedModelID == nil {
+            phase = .selectingModel
         }
     }
 
