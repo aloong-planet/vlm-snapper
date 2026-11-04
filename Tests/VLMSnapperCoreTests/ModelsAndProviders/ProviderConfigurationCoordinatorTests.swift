@@ -479,8 +479,12 @@ private func requestCoordinator(
     )
     return memoryCoordinator(
         lister: lister,
-        credentials: MemoryCredentialStore(credentials: [.deepSeek: ProviderCredential(generation: UUID(), apiKey: "saved-secret")]),
-        metadata: MemoryMetadataStore(state: ProviderMetadataState(configurations: [.deepSeek: configuration], currentProvider: .deepSeek)),
+        credentials: MemoryCredentialStore(credentials: [
+            .deepSeek: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
+        ]),
+        metadata: MemoryMetadataStore(state: ProviderMetadataState(
+            configurations: [.deepSeek: configuration], currentProvider: .deepSeek
+        )),
         now: { now }
     )
 }

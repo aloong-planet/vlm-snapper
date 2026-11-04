@@ -3,7 +3,7 @@ import Security
 import Testing
 @testable import VLMSnapperCore
 
-// Doubles and helpers the Provider tests share. Doubles stand in for external boundaries only.
+// Doubles and helpers the Provider tests share.
 
 /// A setup boundary with nothing configured and nothing to do. A double overrides only what its tests need.
 protocol IdleSetupBoundary: ProviderSetupConfiguring {}
