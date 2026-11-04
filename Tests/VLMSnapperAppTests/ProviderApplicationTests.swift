@@ -222,9 +222,10 @@ struct ProviderApplicationTests {
             let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
             let titles = ["Oldest entry", "Meeting notes", "Release notes", "Travel plans", "Project summary", "Latest entry"]
             for title in titles.prefix(count) {
-                let prepared = try await store.prepareExtraction(
+                let prepared = try await store.prepareOperation(
                     screenshot: ManagedScreenshot(path: fixture.root.appendingPathComponent("missing.png").path, sha256: "fixture"),
-                    selection: ProviderSelection(providerID: "deepseek", modelID: "fixture-model"))
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "fixture-model"),
+                    operation: .extractText)
                 try await store.finish(operationID: prepared.operationID,
                     with: .succeeded(sourceMarkdown: title, translationMarkdown: nil))
             }
@@ -556,8 +557,9 @@ struct ProviderApplicationTests {
                 now: { tenDaysAgo })
             var identifiers: [UUID] = []
             for text in ["Original retry target", "Unrelated record"] {
-                let prepared = try await store.prepareExtraction(screenshot: screenshot,
-                    selection: ProviderSelection(providerID: "deepseek", modelID: "archived-model"))
+                let prepared = try await store.prepareOperation(screenshot: screenshot,
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "archived-model"),
+                    operation: .extractText)
                 try await store.finish(operationID: prepared.operationID,
                     with: .succeeded(sourceMarkdown: text, translationMarkdown: nil))
                 identifiers.append(prepared.operationID)

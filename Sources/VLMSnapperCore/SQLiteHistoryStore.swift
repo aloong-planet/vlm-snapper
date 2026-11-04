@@ -82,7 +82,7 @@ public enum SQLiteHistoryStoreError: Error, Equatable {
     case schemaTooNew(found: Int, supported: Int)
 }
 
-public actor SQLiteHistoryStore: HistoryPersisting {
+public actor SQLiteHistoryStore {
     private static let supportedSchemaVersion = 4
     private nonisolated(unsafe) let database: OpaquePointer
     private let now: @Sendable () -> Date
@@ -157,22 +157,6 @@ public actor SQLiteHistoryStore: HistoryPersisting {
 
     deinit {
         sqlite3_close(database)
-    }
-
-    public func prepareExtraction(
-        screenshot: ManagedScreenshot,
-        selection: ProviderSelection
-    ) async throws -> PreparedExtraction {
-        let prepared = try await prepareOperation(
-            screenshot: screenshot,
-            selection: selection,
-            operation: .extractText
-        )
-        return PreparedExtraction(
-            operationID: prepared.operationID,
-            screenshot: prepared.screenshot,
-            selection: prepared.selection
-        )
     }
 
     public func prepareOperation(
