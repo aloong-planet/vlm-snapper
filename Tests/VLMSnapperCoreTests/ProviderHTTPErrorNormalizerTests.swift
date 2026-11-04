@@ -2,6 +2,9 @@ import Foundation
 import Testing
 @testable import VLMSnapperCore
 
+// Gap: these bodies come from public reports, not live requests. OpenAI's reply on /v1/responses, the endpoint the
+// app uses, for a model that takes no images has not been seen, so it counts as an invalid request and the model
+// stays selected. A live contract run against such a model would fill this.
 @Suite("Provider HTTP error normalizer")
 struct ProviderHTTPErrorNormalizerTests {
     @Test("Provider-specific error bodies retain actionable categories", arguments: [
@@ -36,9 +39,10 @@ struct ProviderHTTPErrorNormalizerTests {
 
     /// Only an error about the model's input clears the selected model (v1-core failure mode 10).
     /// The messages are the Providers' published text; the JSON around them follows each Provider's error format.
-    /// Sources: github.com/Zoo-Code-Org/Zoo-Code/issues/1106, community.openai.com/t/884599,
-    /// community.openai.com/t/580195, community.make.com/t/105612, and a Google Cloud forum thread on
-    /// gemini-1.0-pro-vision, whose second sentence is a summary.
+    /// Sources: github.com/Zoo-Code-Org/Zoo-Code/issues/1106, developers.google.cn/learn/pathways/quizzes/
+    /// solution-ai-gemini-images, community.openai.com/t/982848, community.openai.com/t/580195,
+    /// community.make.com/t/105612, and a Google Cloud forum thread on gemini-1.0-pro-vision, whose second sentence
+    /// is a summary.
     @Test("only an error about the model's image input counts as unsupported", arguments: [
         ErrorCase(
             provider: .deepSeek,
@@ -47,9 +51,15 @@ struct ProviderHTTPErrorNormalizerTests {
             expected: .imageInputUnsupported
         ),
         ErrorCase(
+            provider: .gemini,
+            statusCode: 400,
+            body: #"{"error":{"code":400,"message":"Image input modality is not enabled for models/gemini-pro","status":"INVALID_ARGUMENT"}}"#,
+            expected: .imageInputUnsupported
+        ),
+        ErrorCase(
             provider: .openAI,
             statusCode: 400,
-            body: #"{"error":{"message":"Invalid content type. image_url is only supported by certain models.","type":"invalid_request_error","param":"messages.[0].content.[1].type","code":null}}"#,
+            body: #"{"error":{"message":"Invalid model: ft:gpt-4o-2024-08-06:personal::AJMD5QXL does not support image message content types.","type":"invalid_request_error","param":"model","code":"invalid_type"}}"#,
             expected: .imageInputUnsupported
         ),
         ErrorCase(

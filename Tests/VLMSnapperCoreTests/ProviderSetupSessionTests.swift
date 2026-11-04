@@ -296,6 +296,26 @@ struct ProviderSetupSessionTests {
         #expect(await session.snapshot().selectedModelID == "model")
     }
 
+    @Test("a new key makes a rejected model choosable again")
+    func newKeyMakesARejectedModelChoosable() async throws {
+        let coordinator = makeCoordinator(modelLister: FixedModelLister())
+        _ = try await coordinator.validateAndSaveKey("first-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        try await coordinator.recordVisionFailure(
+            provider: .deepSeek, modelID: "model", evidence: .imageInputUnsupported
+        )
+
+        _ = try await coordinator.validateAndSaveKey("second-key", for: .deepSeek)
+
+        let configuration = try #require(try await coordinator.configurationState().configurations[.deepSeek])
+        #expect(configuration.models == [ProviderModelState(id: "model", visionCompatibility: .unknown)])
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        await session.selectModel("model")
+        #expect(await session.snapshot().phase == .ready)
+        #expect(await session.snapshot().selectedModelID == "model")
+    }
+
     @Test("returning after validation failure shows its original failure")
     func returningAfterValidationFailure() async {
         let boundary = SuspendedValidationModelLister(failFirst: true)

@@ -58,6 +58,16 @@ class LocalizationKeysTests(unittest.TestCase):
         self.write_dictionary("zh-Hans", '"action.copy" = "%@ 复制";\n/* "action.save" = "保存"; */\n')
         self.assert_fails_naming("zh-Hans", "action.save")
 
+    def test_key_behind_a_line_comment_counts_as_missing(self):
+        self.write_dictionary("zh-Hans", '"action.copy" = "%@ 复制";\n// "action.save" = "保存";\n')
+        self.assert_fails_naming("zh-Hans", "action.save")
+
+    def test_escaped_quote_inside_a_value_is_text(self):
+        value = '"action.copy" = "%@ \\"copy\\"";\n"action.save" = "Save";\n'
+        self.write_dictionary("en", value)
+        self.write_dictionary("zh-Hans", value)
+        self.assert_passes()
+
     def test_duplicate_key_fails_in_either_language(self):
         for language in ("en", "zh-Hans"):
             with self.subTest(language=language):
@@ -72,6 +82,13 @@ class LocalizationKeysTests(unittest.TestCase):
                 self.write_dictionary("en", CLEAN)
                 self.write_dictionary("zh-Hans", CLEAN)
                 self.write_dictionary(language, '"action.copy" = "copy";\n"action.save" = "Save";\n')
+                self.assert_fails_naming("action.copy", "format specifiers differ")
+
+    def test_different_format_kinds_fail(self):
+        for english, chinese in (("%@ copy", "%d 复制"), ("%1$@ copy", "%1$d 复制")):
+            with self.subTest(english=english, chinese=chinese):
+                self.write_dictionary("en", f'"action.copy" = "{english}";\n"action.save" = "Save";\n')
+                self.write_dictionary("zh-Hans", f'"action.copy" = "{chinese}";\n"action.save" = "保存";\n')
                 self.assert_fails_naming("action.copy", "format specifiers differ")
 
     def test_translation_may_reorder_positional_arguments(self):

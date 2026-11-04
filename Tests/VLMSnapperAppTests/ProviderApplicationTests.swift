@@ -44,7 +44,8 @@ import VLMSnapperUI
 // inside a clear pending selection reaching another app needs posted HID events
 // with Accessibility trust (verified outside the suite, see the construction notes).
 // Result box (v1-core::REQ-010–012): whether the box sits above the overlay on screen, selecting and
-// copying while the application is not active, and a second display need the installed build.
+// copying while the application is not active, and a second display need the installed build. A model leaving
+// the list has no production path yet (failure mode 11), so that trigger of failure mode 56 is untested.
 // `aLanguageRowChoosesTheNextTranslationsLanguage` presses a real row; other sequences call the toolbar's
 // language callback directly, to keep the catalog's long list out of them.
 // Escape arriving before a press's request task reaches the session cannot be forced from here, so canceling
@@ -1389,14 +1390,46 @@ struct ProviderApplicationTests {
 
             try pressEscape(overlay)
             try await eventually { !captureOverlayIsVisible() }
+            try await eventually { model.providerSnapshot.activity == nil }
             try fixture.shortcuts.fire()
             try await eventually { onboardingRequests == 1 }
             #expect(!captureOverlayIsVisible())
             #expect(await fixture.http.imageRequests.count == 1)
 
-            // Choosing it again does not blame the key, and does not select it.
-            model.providerSettingsConfiguration().onSelectModel("fixture-vision")
-            try await eventually { model.providerSnapshot.failure == .incompatibleModel }
+            // Choosing it again does not blame the key, and does not select it. The capture's activity ends just
+            // after onboarding is requested, and a selection during it is ignored, so this one repeats.
+            try await eventually {
+                model.providerSettingsConfiguration().onSelectModel("fixture-vision")
+                await Task.yield()
+                return model.providerSnapshot.failure == .incompatibleModel
+            }
+            #expect(model.providerReadiness == .pendingModel(.deepSeek))
+            let settings = ManagementCenterWindowController(
+                records: [], providerSettings: model.providerSettingsConfiguration()
+            )
+            settings.show(destination: .providerSettings)
+            let settingsWindow = try #require(settings.window)
+            defer { settingsWindow.orderOut(nil) }
+            try await eventually {
+                try renderedText(in: settingsWindow).lowercased().contains("does not support image input")
+            }
+            #expect(!(try renderedText(in: settingsWindow).lowercased().contains("invalid or expired")))
+        }
+    }
+
+    /// v1-core failure mode 10, from Translate: the session reloads for that operation's result too.
+    @Test
+    func aTranslationTheModelRejectsClearsIt() async throws {
+        try await withResultFixture { fixture, model in
+            await fixture.http.rejectImages(status: 400, body: deepSeekTextOnlyModelError)
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickTranslate(toolbar)
+            try await eventually {
+                resultBoxPresentation()?.body == .failure("The current model does not support image input.")
+            }
+            try await waitForResultIdle(model)
+
+            #expect(model.providerSnapshot.selectedModelID == nil)
             #expect(model.providerReadiness == .pendingModel(.deepSeek))
         }
     }

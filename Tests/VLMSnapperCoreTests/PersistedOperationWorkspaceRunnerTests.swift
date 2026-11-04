@@ -197,10 +197,11 @@ struct PersistedOperationWorkspaceRunnerTests {
     @Test("a screenshot that cannot be saved reports its own reason and prepares no record")
     func screenshotSaveFailureReportsItsReason() async throws {
         let history = RunnerHistoryProbe()
+        let provider = RunnerOpenProviderProbe()
         let runner = PersistedOperationWorkspaceRunner(
             screenshotStore: RunnerFailingScreenshotStoreProbe(),
             historyStore: history,
-            provider: RunnerOpenProviderProbe()
+            provider: provider
         )
         let events = await runner.run(
             originalPNG: Data([1]),
@@ -215,6 +216,7 @@ struct PersistedOperationWorkspaceRunnerTests {
         #expect(await history.operations.isEmpty)
         #expect(await history.completions.isEmpty)
         #expect(await history.outcomes.isEmpty)
+        #expect(await provider.streamCount == 0)
     }
 
     @Test("canceling a running request records it as canceled, not as an incomplete response")
@@ -420,10 +422,11 @@ struct PersistedOperationWorkspaceRunnerTests {
     func preparationFailureRollsBackScreenshot() async throws {
         let screenshotStore = RunnerScreenshotStoreProbe()
         let history = RunnerHistoryProbe(failsPreparation: true)
+        let provider = RunnerProviderProbe()
         let runner = PersistedOperationWorkspaceRunner(
             screenshotStore: screenshotStore,
             historyStore: history,
-            provider: RunnerProviderProbe()
+            provider: provider
         )
         let selection = ProviderSelection(providerID: "openai", modelID: "vision")
 
@@ -439,6 +442,7 @@ struct PersistedOperationWorkspaceRunnerTests {
             )
         }
         #expect(await screenshotStore.discardCount == 1)
+        #expect(await provider.streamCount == 0)
 
         await history.setFailsPreparation(false)
         _ = try await collect(
@@ -449,6 +453,7 @@ struct PersistedOperationWorkspaceRunnerTests {
             )
         )
         #expect(await screenshotStore.saveCount == 2)
+        #expect(await provider.streamCount == 1)
     }
 
     @Test("a canceled first history preparation rolls back and forgets the screenshot")

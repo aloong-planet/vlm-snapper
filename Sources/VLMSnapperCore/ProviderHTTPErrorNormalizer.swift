@@ -21,12 +21,7 @@ public struct ProviderHTTPErrorNormalizer: Sendable {
         // This clears the selected model, so it takes a message about the model's input
         // (v1-core failure mode 10). An image's format or content being unsupported is not that.
         if containsAll(evidence, ["unknown variant", "image_url"]) ||
-            containsAny(evidence, [
-                "image_input_unsupported",
-                "unsupported image input",
-                "does not support image",
-                "image_url is only supported by certain models",
-            ]) {
+            containsAny(evidence, ["does not support image", "image input modality is not enabled"]) {
             return .imageInputUnsupported
         }
         if containsAny(evidence, ["content_filter", "safety", "blocked"]), statusCode < 500 {
