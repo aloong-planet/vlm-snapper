@@ -775,7 +775,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     }
                     try Task.checkCancellation()
                     let runner = PersistedOperationWorkspaceRunner(screenshotStore: screenshotStore,
-                        historyStore: historyStore, provider: providerStreamer, restoring: record.operation)
+                        historyStore: historyStore, provider: providerStreamer,
+                        visionCompatibility: providerCoordinator, restoring: record.operation)
                     let session = OperationWorkspaceSession(originalPNG: png, runner: runner,
                         activeGate: operationGate, restoring: record.operation)
                     historyRetrySession = session
@@ -811,7 +812,16 @@ final class VLMSnapperApplicationModel: ObservableObject {
                         code: (error as? OperationWorkspaceRunFailure)?.code ?? "operation_failed"))
                 }
             }
+            await reloadProviderIfModelRejectedImages(historyRetry.slot)
         }
+    }
+
+    /// The model has just been cleared, and nothing else says so. This finishes before the request counts as
+    /// ended, so a press right after the failure already finds no model (v1-core failure mode 56).
+    private func reloadProviderIfModelRejectedImages(_ slot: WorkspaceOperationSlot) async {
+        guard slot.attempt == .failed(code: ProviderAdapterError.imageInputUnsupported.normalizedCode) else { return }
+        await providerSession.load()
+        await refreshProviderPresentation()
     }
 
     private func retryHistorySave() {
@@ -1429,7 +1439,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 runner: PersistedOperationWorkspaceRunner(
                     screenshotStore: screenshotStore,
                     historyStore: historyStore,
-                    provider: providerStreamer
+                    provider: providerStreamer,
+                    visionCompatibility: providerCoordinator
                 ),
                 activeGate: operationGate
             )
@@ -1460,7 +1471,12 @@ final class VLMSnapperApplicationModel: ObservableObject {
         guard let session = workspaceSession, let owner = captureLease else { return }
         shownResultOperation = operation
         guard let selection = providerSelection else {
-            localResultFailures[operation] = "provider_unavailable"
+            // With the model cleared, choosing another is what helps. Waiting and retrying is not.
+            if case .pendingModel = providerReadiness {
+                localResultFailures[operation] = ProviderAdapterError.modelUnavailable.normalizedCode
+            } else {
+                localResultFailures[operation] = ProviderAdapterError.providerUnavailable.normalizedCode
+            }
             refreshResultSurfaces()
             return
         }
@@ -1475,6 +1491,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 await self.runResultRequest(operation, in: session, selection: selection, targetLanguage: targetLanguage)
             }
             await syncWorkspaceSnapshot(session)
+            let snapshot = await session.snapshot()
+            await reloadProviderIfModelRejectedImages(operation == .extract ? snapshot.extract : snapshot.translate)
             guard workspaceSession === session else { return }
             if !accepted { localResultFailures[operation] = "operation_failed" }
             runningResultOperation = nil
