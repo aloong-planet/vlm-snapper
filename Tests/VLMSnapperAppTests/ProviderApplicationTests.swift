@@ -44,8 +44,9 @@ import VLMSnapperUI
 // inside a clear pending selection reaching another app needs posted HID events
 // with Accessibility trust (verified outside the suite, see the construction notes).
 // Result box (v1-core::REQ-010–012): whether the box sits above the overlay on screen, selecting and
-// copying while the application is not active, and a second display need the installed build. A model leaving
-// the list has no production path yet (failure mode 11), so that trigger of failure mode 56 is untested.
+// copying while the application is not active, and a second display need the installed build.
+// Model-list refresh (v1-core section 7, failure mode 11): the Providers' replies are published text, and no live Provider
+// was asked. A press on a card's header reaches the same state as the focus request the UI suite drives.
 // `aLanguageRowChoosesTheNextTranslationsLanguage` presses a real row; other sequences call the toolbar's
 // language callback directly, to keep the catalog's long list out of them.
 // Escape arriving before a press's request task reaches the session cannot be forced from here, so canceling
@@ -1414,6 +1415,245 @@ struct ProviderApplicationTests {
                 try renderedText(in: settingsWindow).lowercased().contains("does not support image input")
             }
             #expect(!(try renderedText(in: settingsWindow).lowercased().contains("invalid or expired")))
+        }
+    }
+
+    /// v1-core failure modes 11, 56, 1: a model that has left the list.
+    @Test
+    func aModelGoneFromTheListIsClearedAndNothingMoreIsSent() async throws {
+        try await withResultFixture { fixture, model in
+            var onboardingRequests = 0
+            model.onShowOnboarding = { onboardingRequests += 1 }
+            await fixture.http.rejectImages(status: 400, body: deepSeekMissingModelError)
+            await fixture.http.listModels(["fixture-other"])
+            let listRequests = await fixture.http.requests.count
+            let (overlay, toolbar) = try await completeSelection(fixture)
+            try await clickExtract(toolbar)
+            try await eventually { resultBoxPresentation()?.body == modelUnavailableInBox }
+            try await waitForResultIdle(model)
+
+            #expect(await fixture.http.requests.count == listRequests + 1)
+            #expect(model.providerReadiness == .pendingModel(.deepSeek))
+            #expect(model.providerSnapshot.selectedModelID == nil)
+            #expect(model.providerSnapshot.availableModelIDs == ["fixture-other"])
+
+            // Pressed right after the failure, Retry already finds no model.
+            try clickResultBoxButton(try #require(resultBox()), fromEnd: 1)
+            await settleToolbarAction(toolbar)
+            #expect(resultBoxPresentation()?.body == modelUnavailableInBox)
+            #expect(await fixture.http.imageRequests.count == 1)
+
+            let extractTitle = resultBoxPresentation()?.title
+            try await clickTranslate(toolbar)
+            try await eventually { resultBoxPresentation()?.title != extractTitle }
+            #expect(resultBoxPresentation()?.body == modelUnavailableInBox)
+            #expect(await fixture.http.imageRequests.count == 1)
+            #expect(await fixture.http.requests.count == listRequests + 1)
+
+            try pressEscape(overlay)
+            try await eventually { !captureOverlayIsVisible() }
+            try await eventually { model.providerSnapshot.activity == nil }
+            try fixture.shortcuts.fire()
+            try await eventually { onboardingRequests == 1 }
+            #expect(!captureOverlayIsVisible())
+            #expect(await fixture.http.imageRequests.count == 1)
+        }
+    }
+
+    /// v1-core failure mode 11: a refresh that fails keeps the cache, and this attempt still fails.
+    @Test
+    func aFailedRefreshLeavesTheModelSelected() async throws {
+        try await withResultFixture { fixture, model in
+            await fixture.http.rejectImages(status: 400, body: deepSeekMissingModelError)
+            await fixture.http.respond(with: 503)
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickExtract(toolbar)
+            try await eventually { resultBoxPresentation()?.body == modelUnavailableInBox }
+            try await waitForResultIdle(model)
+
+            #expect(model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision"))
+            #expect(model.providerSnapshot.availableModelIDs == ["fixture-vision"])
+
+            await settleToolbarAction(toolbar)
+            try clickResultBoxButton(try #require(resultBox()), fromEnd: 1)
+            try await eventually { await fixture.http.imageRequests.count == 2 }
+        }
+    }
+
+    /// v1-core section 7: one refresh for each attempt, and a model still listed stays selected.
+    @Test
+    func aModelStillListedStaysSelectedAndEachAttemptRefreshesOnce() async throws {
+        try await withResultFixture { fixture, model in
+            await fixture.http.rejectImages(status: 400, body: deepSeekMissingModelError)
+            let listRequests = await fixture.http.requests.count
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickExtract(toolbar)
+            try await eventually { resultBoxPresentation()?.body == modelUnavailableInBox }
+            try await waitForResultIdle(model)
+            #expect(await fixture.http.requests.count == listRequests + 1)
+            #expect(model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision"))
+
+            await settleToolbarAction(toolbar)
+            try clickResultBoxButton(try #require(resultBox()), fromEnd: 1)
+            try await eventually { await fixture.http.imageRequests.count == 2 }
+            try await waitForResultIdle(model)
+            #expect(await fixture.http.requests.count == listRequests + 2)
+        }
+    }
+
+    /// v1-core section 7: a capture does not refresh a stale cache, and opening the Provider page does, once.
+    @Test
+    func aStaleCacheRefreshesOnlyWhenTheProviderPageOpens() async throws {
+        try await withFixture { fixture in
+            fixture.permissionGranted = true
+            let display = try syntheticDisplay()
+            await fixture.capture.provide(display)
+            fixture.displayGeometries = [display.geometry]
+            try await saveStaleProviders(in: fixture, [.deepSeek])
+            try await fixture.withModel { model in
+                let (overlay, _) = try await completeSelection(fixture)
+                #expect(await fixture.http.requests.isEmpty)
+                try pressEscape(overlay)
+                try await eventually { !captureOverlayIsVisible() }
+                try await eventually { model.providerSnapshot.activity == nil }
+
+                // Showing History loads the session's card too, which must not count as opening it.
+                model.credentialEditor.close()
+                let settings = ManagementCenterWindowController(
+                    records: [], providerSettings: model.providerSettingsConfiguration()
+                )
+                settings.show(destination: .history)
+                let window = try #require(settings.window)
+                defer { window.orderOut(nil) }
+                try await eventually { !model.credentialEditor.isLoading && model.credentialEditor.isOpen }
+                try await Task.sleep(for: .milliseconds(200))
+                pumpNativeEvents(window)
+                #expect(await fixture.http.requests.isEmpty)
+
+                settings.show(destination: .providerSettings)
+                try await eventually { await fixture.http.requests.count == 1 }
+                try await eventually { model.providerSnapshot.refreshingProvider == nil }
+                settings.show(destination: .providerSettings)
+                try await Task.sleep(for: .milliseconds(200))
+                pumpNativeEvents(window)
+                #expect(await fixture.http.requests.count == 1)
+            }
+        }
+    }
+
+    /// v1-core failure modes 11, 56, from a history record. Windowless.
+    @Test
+    func aHistoryRetryWhoseModelIsGoneClearsIt() async throws {
+        try await withFixture { fixture in
+            let recordID = try await savedExtractionRecord(in: fixture)
+            await fixture.http.allowImageRequests()
+            await fixture.http.rejectImages(status: 400, body: deepSeekMissingModelError)
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-history-key")
+                try await eventually { model.historyRetry.allowsStart }
+                await fixture.http.listModels(["fixture-other"])
+                let listRequests = await fixture.http.requests.count
+
+                model.managementCallbacks().onRetryRecord(recordID)
+                try await eventually {
+                    await fixture.http.imageRequests.count == 1 && !model.historyRetry.isRunning
+                }
+
+                #expect(model.historyRetry.slot.attempt == .failed(code: "model_unavailable"))
+                #expect(model.providerReadiness == .pendingModel(.deepSeek))
+                #expect(model.providerSnapshot.selectedModelID == nil)
+                #expect(model.providerSnapshot.availableModelIDs == ["fixture-other"])
+                #expect(await fixture.http.requests.count == listRequests + 1)
+                #expect(!model.historyRetry.allowsStart)
+                let saved = try await SQLiteHistoryStore(
+                    databaseURL: fixture.root.appendingPathComponent("history.sqlite")
+                ).historyRecord(id: recordID)
+                #expect(saved?.operation.sourceMarkdown == "Archived original")
+            }
+        }
+    }
+
+    /// v1-core failure mode 11, from a history record. Windowless.
+    @Test
+    func aHistoryRetryWhoseRefreshFailsKeepsTheModel() async throws {
+        try await withFixture { fixture in
+            let recordID = try await savedExtractionRecord(in: fixture)
+            await fixture.http.allowImageRequests()
+            await fixture.http.rejectImages(status: 400, body: deepSeekMissingModelError)
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-history-key")
+                try await eventually { model.historyRetry.allowsStart }
+                await fixture.http.respond(with: 503)
+
+                model.managementCallbacks().onRetryRecord(recordID)
+                try await eventually {
+                    await fixture.http.imageRequests.count == 1 && !model.historyRetry.isRunning
+                }
+
+                #expect(model.historyRetry.slot.attempt == .failed(code: "model_unavailable"))
+                #expect(model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision"))
+                #expect(model.providerSnapshot.availableModelIDs == ["fixture-vision"])
+                #expect(model.historyRetry.allowsStart)
+            }
+        }
+    }
+
+    /// v1-core section 7: not at startup; once on opening; a draft stays. Windowless.
+    @Test
+    func aStaleCacheIsNotRefreshedAtStartupAndIsOnceOnOpening() async throws {
+        try await withFixture { fixture in
+            try await saveStaleProviders(in: fixture, [.deepSeek])
+            try await fixture.withModel { model in
+                #expect(await fixture.http.requests.isEmpty)
+                let controls = model.providerSettingsConfiguration()
+                try await eventually { !model.credentialEditor.isLoading }
+                model.credentialEditor.edit("fixture-draft")
+
+                controls.onOpenProviderCard(.deepSeek)
+                try await eventually { await fixture.http.requests.count == 1 }
+                try await eventually { model.providerSnapshot.refreshingProvider == nil }
+                #expect(model.credentialEditor.value == "fixture-draft")
+                #expect(model.providerSnapshot.failure == nil)
+
+                // The cache is new now. A manual refresh counts this far, so another request would show here.
+                controls.onOpenProviderCard(.deepSeek)
+                controls.onRefresh()
+                try await eventually { await fixture.http.requests.count >= 2 }
+                try await eventually { model.providerSnapshot.refreshingProvider == nil }
+                #expect(await fixture.http.requests.count == 2)
+            }
+        }
+    }
+
+    /// v1-core section 7: a load is not an opening, and an opening with its card's load gives one refresh. Windowless.
+    @Test
+    func aCardsLoadRefreshesOnlyWithAnOpening() async throws {
+        try await withFixture { fixture in
+            try await saveStaleProviders(in: fixture, [.deepSeek, .openAI])
+            try await fixture.withModel { model in
+                let controls = model.providerSettingsConfiguration()
+                controls.onSelectProvider(.openAI)
+                try await eventually {
+                    model.providerSnapshot.selectedProvider == .openAI && !model.credentialEditor.isLoading
+                }
+                // Refreshing by hand is the first request if the load did not start one.
+                controls.onRefresh()
+                try await eventually { await fixture.http.requests.count >= 1 }
+                try await eventually { model.providerSnapshot.refreshingProvider == nil }
+                #expect(await fixture.http.requests.count == 1)
+
+                controls.onSelectProvider(.deepSeek)
+                controls.onOpenProviderCard(.deepSeek)
+                try await eventually { await fixture.http.requests.count >= 2 }
+                try await eventually {
+                    model.providerSnapshot.selectedProvider == .deepSeek
+                        && model.providerSnapshot.refreshingProvider == nil
+                        && !model.credentialEditor.isLoading
+                }
+                #expect(await fixture.http.requests.count == 2)
+                #expect(await fixture.http.requests.last?.value(forHTTPHeaderField: "Authorization")
+                    == "Bearer fixture-deepseek-key")
+            }
         }
     }
 
@@ -3335,6 +3575,40 @@ private func makeCaptureReady(_ model: VLMSnapperApplicationModel, key: String) 
     }
 }
 
+/// A key and a day-old model list for each Provider, as an earlier run of the app left them.
+private func saveStaleProviders(in fixture: ApplicationFixture, _ providers: [ProviderID]) async throws {
+    var configurations: [ProviderID: ProviderConfiguration] = [:]
+    for provider in providers {
+        await fixture.credentials.replaceCredential(
+            ProviderCredential(generation: UUID(), apiKey: "fixture-\(provider.rawValue)-key"), for: provider
+        )
+        configurations[provider] = ProviderConfiguration(
+            models: [ProviderModelState(id: "fixture-vision")],
+            fetchedAt: Date(timeIntervalSinceNow: -25 * 60 * 60),
+            selectedModelID: "fixture-vision"
+        )
+    }
+    try await FileProviderMetadataStore(fileURL: fixture.root.appendingPathComponent("providers.json")).save(
+        ProviderMetadataState(configurations: configurations, currentProvider: providers.first)
+    )
+}
+
+/// A successful extraction already in the history, with its screenshot.
+private func savedExtractionRecord(in fixture: ApplicationFixture) async throws -> UUID {
+    let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+    let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+    let png = try #require(bitmap.representation(using: .png, properties: [:]))
+    let screenshot = try await screenshots.save(originalPNG: png)
+    let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+    let prepared = try await store.prepareOperation(screenshot: screenshot,
+        selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"), operation: .extractText)
+    try await store.finish(operationID: prepared.operationID,
+        with: .succeeded(sourceMarkdown: "Archived original", translationMarkdown: nil))
+    return prepared.operationID
+}
+
 /// The selection overlay on the screen that `syntheticDisplay()` freezes.
 @MainActor
 private func mainScreenOverlay() throws -> NSWindow? {
@@ -3800,9 +4074,17 @@ private let deepSeekTextOnlyModelError = #"{"error":{"message":"Failed to deseri
 // community.openai.com/t/580195.
 private let openAIUnsupportedImageError = #"{"error":{"message":"You uploaded an unsupported image. Please make sure your image is below 20 MB in size and is of one the following formats: ['png', 'jpeg', 'gif', 'webp'].","type":"invalid_request_error","param":null,"code":"invalid_image_format"}}"#
 
+// github.com/RooCodeInc/Roo-Code/issues/439 and 2468. The JSON around it is OpenAI-compatible.
+private let deepSeekMissingModelError = #"{"error":{"message":"Model Not Exist","type":"invalid_request_error","param":null,"code":"invalid_request_error"}}"#
+private let modelUnavailableInBox = CaptureResultBoxPresentation.Body.failure(
+    "The current model is unavailable. Refresh the model list and choose again."
+)
+
 private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
     private(set) var requests: [URLRequest] = []
     private var status = 200
+    private var listedModels = ["fixture-vision"]
+    func listModels(_ models: [String]) { listedModels = models }
     private var isPaused = false
     private var waiter: CheckedContinuation<Void, Never>?
     func pause() { isPaused = true }
@@ -3819,8 +4101,9 @@ private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
         if isPaused { await withCheckedContinuation { waiter = $0 } }
         // Shape from https://api-docs.deepseek.com/api/list-models/ (2026-09-07).
         // The identifier is deliberately synthetic; no live credential is used.
+        let models = listedModels.map { #"{"id":"\#($0)","object":"model","owned_by":"deepseek"}"# }
         return ProviderHTTPResponse(
-            data: Data(#"{"object":"list","data":[{"id":"fixture-vision","object":"model","owned_by":"deepseek"}]}"#.utf8),
+            data: Data(#"{"object":"list","data":[\#(models.joined(separator: ","))]}"#.utf8),
             statusCode: status
         )
     }

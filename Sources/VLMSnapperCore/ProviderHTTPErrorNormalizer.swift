@@ -27,7 +27,9 @@ public struct ProviderHTTPErrorNormalizer: Sendable {
         if containsAny(evidence, ["content_filter", "safety", "blocked"]), statusCode < 500 {
             return .contentBlocked
         }
-        if containsAll(evidence, ["model", "not found"]) {
+        // Not by status alone: DeepSeek answers 400, and OpenAI 400 or 403, for a model it cannot serve.
+        if containsAll(evidence, ["model", "not found"]) ||
+            containsAny(evidence, ["model_not_found", "model not exist"]) {
             return .modelUnavailable
         }
 

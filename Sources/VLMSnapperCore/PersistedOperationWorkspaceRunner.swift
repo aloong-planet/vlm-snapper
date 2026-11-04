@@ -73,6 +73,13 @@ public protocol VisionCompatibilityRecording: Sendable {
 
 extension ProviderConfigurationCoordinator: VisionCompatibilityRecording {}
 
+/// Refreshes the model list when a request finds its model unavailable (v1-core failure mode 11).
+public protocol UnavailableModelRefreshing: Sendable {
+    func refreshModelsForRequest(provider: ProviderID) async throws
+}
+
+extension ProviderConfigurationCoordinator: UnavailableModelRefreshing {}
+
 public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private struct PendingPersistence: Sendable {
         let preparedOperation: PreparedOperation
@@ -91,6 +98,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private let historyStore: any OperationHistoryWriting
     private let provider: any PreparedOperationStreaming
     private let visionCompatibility: (any VisionCompatibilityRecording)?
+    private let modelListRefresh: (any UnavailableModelRefreshing)?
     private let now: @Sendable () -> Date
     private var managedScreenshot: ManagedScreenshot?
     private var preparedOperations: [OperationSlot: PreparedOperation] = [:]
@@ -104,6 +112,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         historyStore: any OperationHistoryWriting,
         provider: any PreparedOperationStreaming,
         visionCompatibility: (any VisionCompatibilityRecording)? = nil,
+        modelListRefresh: (any UnavailableModelRefreshing)? = nil,
         restoring operation: StoredOperation? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
@@ -111,6 +120,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         self.historyStore = historyStore
         self.provider = provider
         self.visionCompatibility = visionCompatibility
+        self.modelListRefresh = modelListRefresh
         self.now = now
         isBoundToRestoredRecord = operation != nil
         if let operation {
@@ -320,11 +330,16 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             }
             continuation.finish()
         } catch {
-            let isCancellation = error is CancellationError
+            var isCancellation = error is CancellationError
                 || (error as? ProviderAdapterError) == .cancelled
             if let unownedScreenshot {
                 managedScreenshot = nil
                 try? await screenshotStore.discardIfOwned(unownedScreenshot)
+            }
+            if !isCancellation, let prepared, (error as? ProviderAdapterError) == .modelUnavailable {
+                await refreshModelList(for: prepared.selection)
+                // The request is still running during the refresh, so closing the box then cancels it.
+                isCancellation = Task.isCancelled
             }
             if isCancellation {
                 if let prepared, !replacesExistingResult {
@@ -380,6 +395,11 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
             modelID: selection.modelID,
             evidence: .imageInputUnsupported
         )
+    }
+
+    private func refreshModelList(for selection: ProviderSelection) async {
+        guard let provider = ProviderID(rawValue: selection.providerID) else { return }
+        try? await modelListRefresh?.refreshModelsForRequest(provider: provider)
     }
 
     private func persistedScreenshot(

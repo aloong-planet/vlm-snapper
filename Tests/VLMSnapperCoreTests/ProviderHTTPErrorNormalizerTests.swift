@@ -96,6 +96,52 @@ struct ProviderHTTPErrorNormalizerTests {
     func classifiesOnlyModelInputAsUnsupported(testCase: ErrorCase) {
         #expect(normalized(testCase) == testCase.expected)
     }
+
+    /// A model gone or out of reach refreshes the list (v1-core failure mode 11), and the status code does not say so
+    /// by itself. The messages are the Providers' published text; the JSON around them follows each Provider's format.
+    /// Sources: github.com/RooCodeInc/Roo-Code/issues/439 and 2468, community.openai.com/t/679777, t/704402, t/1371814,
+    /// and discuss.ai.google.dev/t/107266.
+    @Test("a Provider's reply about a missing model counts as model unavailable", arguments: [
+        ErrorCase(
+            provider: .deepSeek,
+            statusCode: 400,
+            body: #"{"error":{"message":"Model Not Exist","type":"invalid_request_error","param":null,"code":"invalid_request_error"}}"#,
+            expected: .modelUnavailable
+        ),
+        ErrorCase(
+            provider: .openAI,
+            statusCode: 404,
+            body: #"{"error":{"message":"The model `gpt-4-turbo-preview` does not exist or you do not have access to it.","type":"invalid_request_error","param":null,"code":"model_not_found"}}"#,
+            expected: .modelUnavailable
+        ),
+        ErrorCase(
+            provider: .openAI,
+            statusCode: 400,
+            body: #"{"error":{"message":"The requested model 'gpt-4-0125-preview' does not exist.","type":"invalid_request_error","param":"model","code":"model_not_found"}}"#,
+            expected: .modelUnavailable
+        ),
+        ErrorCase(
+            provider: .openAI,
+            statusCode: 403,
+            body: #"{"error":{"message":"Project `proj_x` does not have access to model `gpt-5.2`","type":"invalid_request_error","param":null,"code":"model_not_found"}}"#,
+            expected: .modelUnavailable
+        ),
+        ErrorCase(
+            provider: .gemini,
+            statusCode: 404,
+            body: #"{"error":{"code":404,"message":"models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}"#,
+            expected: .modelUnavailable
+        ),
+        ErrorCase(
+            provider: .openAI,
+            statusCode: 400,
+            body: #"{"error":{"message":"This model's maximum context length is 8192 tokens.","type":"invalid_request_error","param":"messages","code":"context_length_exceeded"}}"#,
+            expected: .invalidRequest
+        ),
+    ])
+    func classifiesAMissingModel(testCase: ErrorCase) {
+        #expect(normalized(testCase) == testCase.expected)
+    }
 }
 
 private func normalized(_ testCase: ErrorCase) -> ProviderAdapterError {

@@ -50,6 +50,87 @@ struct ProviderCredentialInteractionTests {
         #expect(!credential.isDirty)
     }
 
+    /// v1-core section 7. Showing another page loads the session's card too, so only this event means the page opened it.
+    @Test("showing the Provider page opens its card, and nothing else does")
+    func providerPageOpenings() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let credential = ProviderCredentialEditor(loadedValue: "")
+        var openings: [ProviderID?] = []
+        func configuration(focus: ProviderSettingsFocusRequest? = nil) -> ProviderSettingsConfiguration {
+            ProviderSettingsConfiguration(
+                snapshot: ProviderSetupSnapshot(selectedProvider: .deepSeek, availableModelIDs: [],
+                                                selectedModelID: nil, phase: .awaitingValidation, failure: nil),
+                focusRequest: focus,
+                credentialEditor: credential, pendingModelID: .constant(nil),
+                onSelectProvider: { provider in
+                    credential.completeLoad(credential.beginLoading(for: provider), value: "")
+                },
+                onOpenProviderCard: { openings.append($0) },
+                onValidate: { _ in }, onRefresh: {}, onSelectModel: { _ in }
+            )
+        }
+        let controller = ManagementCenterWindowController(records: [], providerSettings: configuration())
+        func update(_ settings: ProviderSettingsConfiguration) {
+            controller.update(records: [], selectedRecordID: nil, selectedImage: nil, cleanupFailureCount: 0,
+                              retention: .thirtyDays, settings: GeneralSettingsSnapshot(), providerSettings: settings)
+        }
+
+        controller.show(destination: .history)
+        let window = try #require(controller.window)
+        defer { window.orderOut(nil) }
+        try settle(window) { openings == [nil] }
+
+        controller.show(destination: .providerSettings)
+        try settle(window) { openings == [nil, .deepSeek] }
+
+        update(configuration())
+        layout(window)
+        #expect(openings == [nil, .deepSeek], "a redraw is not an opening")
+
+        controller.show(destination: .providerSettings)
+        try settle(window) { openings == [nil, .deepSeek, .deepSeek] }
+
+        update(configuration(focus: ProviderSettingsFocusRequest(provider: .openAI)))
+        try settle(window) { openings == [nil, .deepSeek, .deepSeek, .openAI] }
+
+        window.performClose(nil)
+        update(configuration())
+        controller.show(destination: .providerSettings)
+        try settle(window) { openings == [nil, .deepSeek, .deepSeek, .openAI, .deepSeek] }
+
+        controller.show(destination: .settings)
+        try settle(window) { openings.last == .some(nil) }
+    }
+
+    /// A window opened on History expands the current Provider's card, which is not the card the session is on.
+    @Test("moving from History to the Provider page loads the card it expanded")
+    func providerPageLoadsTheCardHistoryExpanded() throws {
+        LocalizationTestCoordinator.acquire()
+        defer { LocalizationTestCoordinator.release() }
+        VLMSnapperLocalization.configure(effectiveLanguage: .english)
+        let credential = ProviderCredentialEditor(loadedValue: "")
+        var loads: [ProviderID] = []
+        let controller = ManagementCenterWindowController(records: [], providerSettings: ProviderSettingsConfiguration(
+            snapshot: ProviderSetupSnapshot(selectedProvider: .deepSeek, availableModelIDs: [],
+                                            selectedModelID: nil, phase: .awaitingValidation, failure: nil),
+            currentProvider: .openAI,
+            credentialEditor: credential, pendingModelID: .constant(nil),
+            onSelectProvider: { loads.append($0) },
+            onValidate: { _ in }, onRefresh: {}, onSelectModel: { _ in }
+        ))
+
+        controller.show(destination: .history)
+        let window = try #require(controller.window)
+        defer { window.orderOut(nil) }
+        layout(window)
+        #expect(loads.isEmpty)
+
+        controller.show(destination: .providerSettings)
+        try settle(window) { loads == [.openAI] }
+    }
+
     @Test("reverting a loaded credential prevents Return from resubmitting it")
     func revertedCredentialCannotSubmit() throws {
         LocalizationTestCoordinator.acquire()

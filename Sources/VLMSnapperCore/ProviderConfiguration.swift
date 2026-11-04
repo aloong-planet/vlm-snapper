@@ -17,20 +17,6 @@ public enum VisionFailureEvidence: Equatable, Sendable {
     case other
 }
 
-public struct ModelUnavailableRefreshGate: Sendable {
-    private var refreshClaimed = false
-
-    public init() {}
-
-    public mutating func claimRefresh() -> Bool {
-        guard !refreshClaimed else {
-            return false
-        }
-        refreshClaimed = true
-        return true
-    }
-}
-
 public struct ProviderModelState: Codable, Equatable, Sendable {
     public let id: String
     public let visionCompatibility: VisionCompatibility
@@ -362,6 +348,18 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring, Operati
     public func refreshModels(for provider: ProviderID) async throws -> ProviderConfiguration {
         let lease = try beginConfigurationMutation(for: provider)
         defer { release(lease) }
+        return try await replaceModelList(of: provider)
+    }
+
+    /// A model-unavailable error refreshes the list once, as part of the request that got it (v1-core failure mode 11).
+    /// That request holds the activity, so nothing else can change the configuration and there is no lease to take.
+    public func refreshModelsForRequest(provider: ProviderID) async throws {
+        guard case .modelRequest = activity?.kind else { throw ProviderConfigurationError.configurationLocked }
+        try Task.checkCancellation()
+        _ = try await replaceModelList(of: provider)
+    }
+
+    private func replaceModelList(of provider: ProviderID) async throws -> ProviderConfiguration {
         guard let credential = try await readCredential(for: provider) else {
             throw ProviderConfigurationError.missingCredential
         }

@@ -17,6 +17,8 @@ public struct ProviderSettingsConfiguration {
     public let credentialEditor: ProviderCredentialEditor
     public let pendingModelID: Binding<String?>
     public let onSelectProvider: (ProviderID) -> Void
+    /// The Provider page opened this card, or nil when it shows none.
+    public let onOpenProviderCard: (ProviderID?) -> Void
     public let onValidate: (ProviderCredentialSubmission) -> Void
     public let onRefresh: () -> Void
     public let onSelectModel: (String) -> Void
@@ -31,6 +33,7 @@ public struct ProviderSettingsConfiguration {
         credentialEditor: ProviderCredentialEditor,
         pendingModelID: Binding<String?>,
         onSelectProvider: @escaping (ProviderID) -> Void,
+        onOpenProviderCard: @escaping (ProviderID?) -> Void = { _ in },
         onValidate: @escaping (ProviderCredentialSubmission) -> Void,
         onRefresh: @escaping () -> Void,
         onSelectModel: @escaping (String) -> Void,
@@ -44,12 +47,18 @@ public struct ProviderSettingsConfiguration {
         self.credentialEditor = credentialEditor
         self.pendingModelID = pendingModelID
         self.onSelectProvider = onSelectProvider
+        self.onOpenProviderCard = onOpenProviderCard
         self.onValidate = onValidate
         self.onRefresh = onRefresh
         self.onSelectModel = onSelectModel
         self.onSetCurrentProvider = onSetCurrentProvider
         self.onRemoveProvider = onRemoveProvider
     }
+}
+
+private struct ProviderCardOpening: Equatable {
+    let provider: ProviderID
+    let pageRequest: Int
 }
 
 public struct GeneralSettingsSnapshot: Equatable, Sendable {
@@ -191,6 +200,7 @@ public struct ManagementCenterView: View {
     @State private var pendingDeletion: HistoryRecord?
     @State private var showingClearConfirmation = false
     @State private var expandedProvider: ProviderID?
+    @State private var providerPageRequests = 0
     @State private var showsAPIKey = false
     @State private var providerPendingRemoval: ProviderID?
     @State private var previewImage: HistoryPreviewImage?
@@ -263,7 +273,10 @@ public struct ManagementCenterView: View {
         .onChange(of: navigationRequestID) { _, _ in
             destination = requestedDestination
             showGeneralSettings = requestedDestination == .settings
-            if requestedDestination == .providerSettings { openInitialProviderIfNeeded() }
+            if requestedDestination == .providerSettings {
+                providerPageRequests += 1
+                openInitialProviderIfNeeded()
+            }
         }
         .confirmationDialog(
             VLMSnapperStrings.historyDeleteConfirm,
@@ -326,14 +339,15 @@ public struct ManagementCenterView: View {
             expandedProvider = request.provider
             showsAPIKey = false
         }
-        .onAppear {
-            guard destination != .history,
-                  !showGeneralSettings,
-                  let expandedProvider,
-                  providerSettings?.snapshot.selectedProvider != expandedProvider else {
-                return
+        .onChange(of: providerCardOpening, initial: true) { _, opening in
+            guard let providerSettings else { return }
+            // Another page can leave this card expanded and not loaded. A press on it has already begun its load.
+            if let provider = opening?.provider,
+               providerSettings.snapshot.selectedProvider != provider,
+               credentialEditor.provider != provider {
+                providerSettings.onSelectProvider(provider)
             }
-            providerSettings?.onSelectProvider(expandedProvider)
+            providerSettings.onOpenProviderCard(opening?.provider)
         }
     }
 
@@ -1095,6 +1109,12 @@ public struct ManagementCenterView: View {
         case .unavailable:
             VLMSnapperStrings.failureMessage(code: "provider_unavailable")
         }
+    }
+
+    /// Changes when the Provider page opens a card, including when the window is shown again on the same one.
+    private var providerCardOpening: ProviderCardOpening? {
+        guard destination == .providerSettings, !showGeneralSettings, let expandedProvider else { return nil }
+        return ProviderCardOpening(provider: expandedProvider, pageRequest: providerPageRequests)
     }
 
     private func openInitialProviderIfNeeded() {
