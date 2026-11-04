@@ -27,6 +27,7 @@ public enum ProviderSetupPhase: Equatable, Sendable {
 public enum ProviderSetupFailure: Equatable, Sendable {
     case configurationLocked
     case invalidConfiguration
+    case incompatibleModel
     case secureStorage
     case unavailable
 }
@@ -356,9 +357,10 @@ public actor ProviderSetupSession {
             return switch configurationError {
             case .configurationLocked, .configurationMutationInProgress:
                 .configurationLocked
-            case .missingCredential, .providerNotUsable, .modelNotFound,
-                 .incompatibleModel:
+            case .missingCredential, .providerNotUsable, .modelNotFound:
                 .invalidConfiguration
+            case .incompatibleModel:
+                .incompatibleModel
             case .inconsistentCredentialState:
                 .secureStorage
             }

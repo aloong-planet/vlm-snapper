@@ -1086,6 +1086,8 @@ public struct ManagementCenterView: View {
         case .configurationLocked: VLMSnapperStrings.providerReadOnly
         case .invalidConfiguration:
             VLMSnapperStrings.failureMessage(code: "invalid_credential")
+        case .incompatibleModel:
+            VLMSnapperStrings.failureMessage(code: "image_input_unsupported")
         case .secureStorage:
             providerSettings?.snapshot.isReadOnly == true
                 ? VLMSnapperStrings.providerStorageReadFailure

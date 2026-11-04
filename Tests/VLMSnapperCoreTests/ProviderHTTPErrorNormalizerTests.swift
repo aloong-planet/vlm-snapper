@@ -31,14 +31,7 @@ struct ProviderHTTPErrorNormalizerTests {
         ),
     ])
     func retainsActionableCategory(testCase: ErrorCase) {
-        let error = ProviderHTTPErrorNormalizer().normalize(
-            provider: testCase.provider,
-            statusCode: testCase.statusCode,
-            headers: [:],
-            body: Data(testCase.body.utf8)
-        )
-
-        #expect(error == testCase.expected)
+        #expect(normalized(testCase) == testCase.expected)
     }
 
     /// Only an error about the model's input clears the selected model (v1-core failure mode 10).
@@ -79,15 +72,17 @@ struct ProviderHTTPErrorNormalizerTests {
         ),
     ])
     func classifiesOnlyModelInputAsUnsupported(testCase: ErrorCase) {
-        let error = ProviderHTTPErrorNormalizer().normalize(
-            provider: testCase.provider,
-            statusCode: testCase.statusCode,
-            headers: [:],
-            body: Data(testCase.body.utf8)
-        )
-
-        #expect(error == testCase.expected)
+        #expect(normalized(testCase) == testCase.expected)
     }
+}
+
+private func normalized(_ testCase: ErrorCase) -> ProviderAdapterError {
+    ProviderHTTPErrorNormalizer().normalize(
+        provider: testCase.provider,
+        statusCode: testCase.statusCode,
+        headers: [:],
+        body: Data(testCase.body.utf8)
+    )
 }
 
 struct ErrorCase: Sendable, CustomTestStringConvertible {

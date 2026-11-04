@@ -274,6 +274,28 @@ struct ProviderSetupSessionTests {
         #expect(!(await session.snapshot().isReadOnly))
     }
 
+    @Test("choosing a model marked incompatible says so, and a list refresh makes it choosable again")
+    func choosingAnIncompatibleModelSaysSo() async throws {
+        let coordinator = makeCoordinator(modelLister: FixedModelLister())
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        try await coordinator.recordVisionFailure(
+            provider: .deepSeek, modelID: "model", evidence: .imageInputUnsupported
+        )
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        #expect(await session.snapshot().selectedModelID == nil)
+
+        await session.selectModel("model")
+        #expect(await session.snapshot().failure == .incompatibleModel)
+        #expect(await session.snapshot().selectedModelID == nil)
+
+        await session.refreshModels()
+        await session.selectModel("model")
+        #expect(await session.snapshot().phase == .ready)
+        #expect(await session.snapshot().selectedModelID == "model")
+    }
+
     @Test("returning after validation failure shows its original failure")
     func returningAfterValidationFailure() async {
         let boundary = SuspendedValidationModelLister(failFirst: true)
@@ -684,6 +706,10 @@ private actor SuspendedProviderConfigurationBoundaryProbe: ProviderSetupConfigur
         selectionContinuation?.resume()
         selectionContinuation = nil
     }
+}
+
+private struct FixedModelLister: ProviderModelListing {
+    func listModels(provider: ProviderID, apiKey: String) async throws -> [String] { ["model"] }
 }
 
 private func makeCoordinator(modelLister: any ProviderModelListing) -> ProviderConfigurationCoordinator {

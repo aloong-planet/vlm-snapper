@@ -1393,6 +1393,11 @@ struct ProviderApplicationTests {
             try await eventually { onboardingRequests == 1 }
             #expect(!captureOverlayIsVisible())
             #expect(await fixture.http.imageRequests.count == 1)
+
+            // Choosing it again does not blame the key, and does not select it.
+            model.providerSettingsConfiguration().onSelectModel("fixture-vision")
+            try await eventually { model.providerSnapshot.failure == .incompatibleModel }
+            #expect(model.providerReadiness == .pendingModel(.deepSeek))
         }
     }
 
