@@ -296,6 +296,48 @@ struct ProviderSetupSessionTests {
         #expect(await session.snapshot().selectedModelID == "model")
     }
 
+    @Test("a configuration change shows during a capture, without waiting for it to end")
+    func configurationChangeShowsDuringACapture() async throws {
+        let coordinator = makeCoordinator(modelLister: FixedModelLister())
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        #expect(await session.snapshot().selectedModelID == "model")
+
+        let capture = try await coordinator.beginCaptureActivity()
+        try await coordinator.recordVisionFailure(
+            provider: .deepSeek, modelID: "model", evidence: .imageInputUnsupported
+        )
+        let reload = Task { await session.reloadConfiguration() }
+        var shown = await session.snapshot().selectedModelID
+        for _ in 0..<100 where shown != nil {
+            try await Task.sleep(for: .milliseconds(10))
+            shown = await session.snapshot().selectedModelID
+        }
+
+        #expect(shown == nil, "The reload waited for the capture to end")
+        // Ending the capture lets a reload that waited finish, so this test cannot hang.
+        await coordinator.release(capture)
+        await reload.value
+    }
+
+    @Test("a configuration that cannot be read shows as a failure on reload")
+    func unreadableConfigurationShowsOnReload() async {
+        let session = ProviderSetupSession(
+            selectedProvider: .deepSeek,
+            boundary: FailingProviderBoundary(
+                error: ProviderPersistenceError.metadataUnavailable,
+                failsConfigurationRead: true
+            )
+        )
+
+        await session.reloadConfiguration()
+
+        #expect(await session.snapshot().phase == .failed)
+        #expect(await session.snapshot().failure == .secureStorage)
+    }
+
     @Test("a new key makes a rejected model choosable again")
     func newKeyMakesARejectedModelChoosable() async throws {
         let coordinator = makeCoordinator(modelLister: FixedModelLister())
@@ -600,15 +642,18 @@ private actor SuspendedValidationModelLister: ProviderModelListing {
 
 private actor FailingProviderBoundary: ProviderSetupConfiguring {
     func currentActivity() async -> ProviderWorkflowActivity? { nil }
-    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
+    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) throws -> ProviderMetadataState { try configurationState() }
     let error: any Error
+    let failsConfigurationRead: Bool
 
-    init(error: any Error) {
+    init(error: any Error, failsConfigurationRead: Bool = false) {
         self.error = error
+        self.failsConfigurationRead = failsConfigurationRead
     }
 
-    func configurationState() -> ProviderMetadataState {
-        ProviderMetadataState()
+    func configurationState() throws -> ProviderMetadataState {
+        if failsConfigurationRead { throw error }
+        return ProviderMetadataState()
     }
 
     func validateAndSaveKey(

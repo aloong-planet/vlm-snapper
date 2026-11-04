@@ -820,7 +820,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     /// after the failure already finds no model (v1-core failure mode 56), and the settings page shows none.
     private func reloadProviderIfModelRejectedImages(_ slot: WorkspaceOperationSlot) async {
         guard slot.attempt == .failed(code: ProviderAdapterError.imageInputUnsupported.normalizedCode) else { return }
-        await providerSession.load()
+        await providerSession.reloadConfiguration()
         await refreshProviderPresentation()
     }
 

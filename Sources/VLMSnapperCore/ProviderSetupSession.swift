@@ -132,28 +132,7 @@ public actor ProviderSetupSession {
 
     public func load(onRecovery: @escaping @Sendable () async -> Void = {}) async {
         defer { changeContinuation?.yield(()) }
-        if let refreshing = refreshingConfigurations[selectedProvider] {
-            apply(refreshing)
-            return
-        }
-        if recoveringProviders.contains(selectedProvider) {
-            configuration = nil
-            phase = .recovering
-            failure = nil
-            return
-        }
-        if validatingProviders.contains(selectedProvider) {
-            configuration = nil
-            phase = .validating
-            failure = nil
-            return
-        }
-        if let storedFailure = validationFailures[selectedProvider], storedFailure != .secureStorage {
-            configuration = nil
-            failure = storedFailure
-            phase = .failed
-            return
-        }
+        if showsWorkInProgressOrStoredFailure() { return }
         let requestGeneration = generation
         let provider = selectedProvider
         do {
@@ -334,6 +313,49 @@ public actor ProviderSetupSession {
             }
             setFailure(error)
         }
+    }
+
+    /// Shows a change the coordinator made itself. `load` reconciles credentials, which waits for a running
+    /// capture to end, so it cannot be used from a request inside one.
+    public func reloadConfiguration() async {
+        defer { changeContinuation?.yield(()) }
+        if showsWorkInProgressOrStoredFailure() { return }
+        let requestGeneration = generation
+        let provider = selectedProvider
+        do {
+            let state = try await boundary.configurationState()
+            guard requestGeneration == generation, provider == selectedProvider else { return }
+            apply(state.configurations[provider])
+        } catch {
+            guard requestGeneration == generation, provider == selectedProvider else { return }
+            setFailure(error)
+        }
+    }
+
+    private func showsWorkInProgressOrStoredFailure() -> Bool {
+        if let refreshing = refreshingConfigurations[selectedProvider] {
+            apply(refreshing)
+            return true
+        }
+        if recoveringProviders.contains(selectedProvider) {
+            configuration = nil
+            phase = .recovering
+            failure = nil
+            return true
+        }
+        if validatingProviders.contains(selectedProvider) {
+            configuration = nil
+            phase = .validating
+            failure = nil
+            return true
+        }
+        if let storedFailure = validationFailures[selectedProvider], storedFailure != .secureStorage {
+            configuration = nil
+            failure = storedFailure
+            phase = .failed
+            return true
+        }
+        return false
     }
 
     private func apply(_ configuration: ProviderConfiguration?) {
