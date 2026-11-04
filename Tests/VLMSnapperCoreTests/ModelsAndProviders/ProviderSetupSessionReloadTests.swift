@@ -1,5 +1,4 @@
 import Foundation
-import Security
 import Testing
 @testable import VLMSnapperCore
 
@@ -7,9 +6,8 @@ import Testing
 extension ProviderSetupSessionTests {
     @Test("choosing a model marked incompatible says so, and a list refresh makes it choosable again")
     func choosingAnIncompatibleModelSaysSo() async throws {
-        let coordinator = makeCoordinator(modelLister: FixedModelLister())
-        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
-        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let coordinator = makeCoordinator(modelLister: StaticModelLister())
+        try await configure(.deepSeek, on: coordinator)
         try await coordinator.recordVisionFailure(
             provider: .deepSeek, modelID: "model", evidence: .imageInputUnsupported
         )
@@ -29,9 +27,8 @@ extension ProviderSetupSessionTests {
 
     @Test("a configuration change shows during a capture, without waiting for it to end")
     func configurationChangeShowsDuringACapture() async throws {
-        let coordinator = makeCoordinator(modelLister: FixedModelLister())
-        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
-        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let coordinator = makeCoordinator(modelLister: StaticModelLister())
+        try await configure(.deepSeek, on: coordinator)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         await session.load()
         #expect(await session.snapshot().selectedModelID == "model")
@@ -77,21 +74,6 @@ extension ProviderSetupSessionTests {
         #expect(await session.snapshot().failure == nil)
     }
 
-    @Test("a card showing a rejected key keeps it through a reload")
-    func rejectedKeyStaysThroughReload() async {
-        let session = ProviderSetupSession(
-            selectedProvider: .openAI,
-            boundary: FailingProviderBoundary(error: ProviderModelListError.authenticationRejected)
-        )
-        await session.validate(apiKey: "rejected-secret")
-        #expect(await session.snapshot().failure == .invalidConfiguration)
-
-        await session.reloadConfiguration(of: .openAI)
-
-        #expect(await session.snapshot().phase == .failed)
-        #expect(await session.snapshot().failure == .invalidConfiguration)
-    }
-
     @Test("a card showing a Keychain read failure keeps it through a reload")
     func keychainReadFailureStaysThroughReload() async {
         let session = ProviderSetupSession(
@@ -108,26 +90,10 @@ extension ProviderSetupSessionTests {
         #expect(await session.snapshot().isReadOnly)
     }
 
-    @Test("a card showing a Keychain write failure keeps it through a reload")
-    func keychainWriteFailureStaysThroughReload() async {
-        let session = ProviderSetupSession(
-            selectedProvider: .openAI,
-            boundary: FailingProviderBoundary(error: AppleKeychainError.unexpectedStatus(errSecMissingEntitlement))
-        )
-        await session.validate(apiKey: "candidate")
-        #expect(await session.snapshot().failure == .secureStorage)
-
-        await session.reloadConfiguration(of: .openAI)
-
-        #expect(await session.snapshot().phase == .failed)
-        #expect(await session.snapshot().failure == .secureStorage)
-    }
-
     @Test("a reload of another Provider leaves the open card")
     func reloadOfAnotherProviderLeavesTheCard() async throws {
-        let coordinator = makeCoordinator(modelLister: FixedModelLister())
-        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
-        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let coordinator = makeCoordinator(modelLister: StaticModelLister())
+        try await configure(.deepSeek, on: coordinator)
         _ = try await coordinator.validateAndSaveKey("fixture-key", for: .openAI)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         await session.load()
@@ -142,9 +108,8 @@ extension ProviderSetupSessionTests {
 
     @Test("a reload that finds the same selection stays ready")
     func reloadWithTheSameSelectionStaysReady() async throws {
-        let coordinator = makeCoordinator(modelLister: FixedModelLister())
-        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
-        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let coordinator = makeCoordinator(modelLister: StaticModelLister())
+        try await configure(.deepSeek, on: coordinator)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         await session.load()
 
@@ -156,15 +121,15 @@ extension ProviderSetupSessionTests {
 
     @Test("a reload leaves a validation in progress showing")
     func reloadLeavesAValidationShowing() async {
-        let lister = SuspendedValidationModelLister(failFirst: false)
+        let lister = ScriptedModelLister(holdingNext: true)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: lister))
         let validation = Task { await session.validate(apiKey: "candidate") }
-        await lister.waitUntilStarted()
+        await lister.waitUntilHeld()
 
         await session.reloadConfiguration(of: .deepSeek)
 
         #expect(await session.snapshot().phase == .validating)
-        await lister.finish()
+        await lister.finishHeld()
         await validation.value
     }
 
@@ -217,7 +182,7 @@ extension ProviderSetupSessionTests {
 
     @Test("a card showing a failure still drops the model a rejection cleared")
     func cardWithAFailureDropsTheClearedModel() async throws {
-        let coordinator = makeCoordinator(modelLister: FixedModelLister(models: ["first", "second"]))
+        let coordinator = makeCoordinator(modelLister: StaticModelLister(models: ["first", "second"]))
         _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
         _ = try await coordinator.selectModel("second", for: .deepSeek)
         try await coordinator.recordVisionFailure(
@@ -242,31 +207,22 @@ extension ProviderSetupSessionTests {
 
     @Test("a reload leaves a recovery showing")
     func reloadLeavesARecoveryShowing() async throws {
-        let storage = SessionTestStorage()
-        let initial = ProviderConfigurationCoordinator(
-            modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false),
-            credentialStore: storage, metadataStore: storage
-        )
-        _ = try await initial.validateAndSaveKey("durable-key", for: .deepSeek)
-        await storage.save(ProviderMetadataState())
-        let lister = SuspendedValidationModelLister(failFirst: false)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: lister, credentialStore: storage, metadataStore: storage
-        )
+        let lister = ScriptedModelLister(holdingNext: true)
+        let coordinator = makeCoordinator(modelLister: lister, storage: try await storageWithOrphanedKey())
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         let load = Task { await session.load() }
-        await lister.waitUntilStarted()
+        await lister.waitUntilHeld()
 
         await session.reloadConfiguration(of: .deepSeek)
 
         #expect(await session.snapshot().phase == .recovering)
-        await lister.finish()
+        await lister.finishHeld()
         await load.value
     }
 
     @Test("a new key makes a rejected model choosable again")
     func newKeyMakesARejectedModelChoosable() async throws {
-        let coordinator = makeCoordinator(modelLister: FixedModelLister())
+        let coordinator = makeCoordinator(modelLister: StaticModelLister())
         _ = try await coordinator.validateAndSaveKey("first-key", for: .deepSeek)
         _ = try await coordinator.selectModel("model", for: .deepSeek)
         try await coordinator.recordVisionFailure(
@@ -287,8 +243,7 @@ extension ProviderSetupSessionTests {
 
 /// A load finds DeepSeek's fresh configuration. The configuration read waits until told to finish, as a slow metadata
 /// read does, then gives a stale one, or none.
-private actor SuspendedConfigurationReadBoundary: ProviderSetupConfiguring {
-    func shouldRefreshModelsOnSettingsOpen(for provider: ProviderID) -> Bool { false }
+private actor SuspendedConfigurationReadBoundary: IdleSetupBoundary {
     private let readHoldsNoConfiguration: Bool
     private var pending: CheckedContinuation<Void, Never>?
     private var waiters: [CheckedContinuation<Void, Never>] = []
@@ -296,8 +251,6 @@ private actor SuspendedConfigurationReadBoundary: ProviderSetupConfiguring {
     init(readHoldsNoConfiguration: Bool = false) {
         self.readHoldsNoConfiguration = readHoldsNoConfiguration
     }
-
-    func currentActivity() async -> ProviderWorkflowActivity? { nil }
 
     func reconcileCredentialState(
         for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void
@@ -323,18 +276,6 @@ private actor SuspendedConfigurationReadBoundary: ProviderSetupConfiguring {
         ])
     }
 
-    func validateAndSaveKey(_ apiKey: String, for provider: ProviderID) -> ProviderConfiguration {
-        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
-    }
-
-    func refreshModels(for provider: ProviderID) -> ProviderConfiguration {
-        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
-    }
-
-    func selectModel(_ modelID: String, for provider: ProviderID) -> ProviderConfiguration {
-        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
-    }
-
     func waitUntilReading() async {
         if pending != nil { return }
         await withCheckedContinuation { waiters.append($0) }
@@ -344,10 +285,4 @@ private actor SuspendedConfigurationReadBoundary: ProviderSetupConfiguring {
         pending?.resume()
         pending = nil
     }
-}
-
-private struct FixedModelLister: ProviderModelListing {
-    var models = ["model"]
-
-    func listModels(provider: ProviderID, apiKey: String) async throws -> [String] { models }
 }

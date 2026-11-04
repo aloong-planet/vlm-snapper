@@ -5,10 +5,9 @@ import Testing
 extension ProviderConfigurationCoordinatorTests {
     @Test("generic credential write failures are secure-storage failures, not Provider outages")
     func genericCredentialWriteFailureIsSecureStorage() async {
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model"]),
-            credentialStore: MemoryCredentialStore(replaceError: .credentialWriteFailed),
-            metadataStore: MemoryMetadataStore()
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["model"]),
+            credentials: MemoryCredentialStore(replaceError: .credentialWriteFailed)
         )
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         await session.validate(apiKey: "candidate")
@@ -20,22 +19,23 @@ extension ProviderConfigurationCoordinatorTests {
     func retirementWriteFailurePreservesOriginalConfiguration() async throws {
         let credentials = MemoryCredentialStore()
         let metadata = MemoryMetadataStore()
-        let initial = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model"]),
-            credentialStore: credentials, metadataStore: metadata
+        let initial = memoryCoordinator(
+            lister: StaticModelLister(models: ["model"]),
+            credentials: credentials,
+            metadata: metadata
         )
         _ = try await initial.validateAndSaveKey("old-key", for: .deepSeek)
         _ = try await initial.selectModel("model", for: .deepSeek)
         await metadata.setSaveFailure(true)
         await credentials.setDeleteFailure(true)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: RejectUnexpectedModelRequest(),
-            credentialStore: credentials, metadataStore: metadata
+        let coordinator = memoryCoordinator(
+            lister: RejectUnexpectedModelRequest(),
+            credentials: credentials,
+            metadata: metadata
         )
-        do {
+        await #expect(throws: ProviderPersistenceError.metadataUnavailable) {
             _ = try await coordinator.validateAndSaveKey("candidate", for: .deepSeek)
-            Issue.record("Replacement must be rejected before retirement is durable")
-        } catch { #expect(error as? ProviderPersistenceError == .metadataUnavailable) }
+        }
         await metadata.setSaveFailure(false)
         await credentials.setDeleteFailure(false)
         let reopened = try await coordinator.reconcileCredentialState(for: .deepSeek)
@@ -47,18 +47,15 @@ extension ProviderConfigurationCoordinatorTests {
     @Test("cancellation after a submitted request cannot persist its memory-only candidate")
     func canceledValidationDoesNotPersistCandidate() async throws {
         let credentials = MemoryCredentialStore()
-        let lister = SuspendedModelLister()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: lister, credentialStore: credentials, metadataStore: MemoryMetadataStore()
-        )
+        let lister = ScriptedModelLister(holdingNext: true)
+        let coordinator = memoryCoordinator(lister: lister, credentials: credentials)
         let request = Task { try await coordinator.validateAndSaveKey("candidate", for: .deepSeek) }
-        await lister.waitUntilStarted()
+        await lister.waitUntilHeld()
         request.cancel()
-        await lister.finish(with: ["model"])
-        do {
+        await lister.finishHeld()
+        await #expect(throws: CancellationError.self) {
             _ = try await request.value
-            Issue.record("Cancelled validation published a credential")
-        } catch { #expect(error is CancellationError) }
+        }
         #expect(try await coordinator.apiKey(for: .deepSeek) == nil)
         #expect(try await coordinator.configurationState().configurations[.deepSeek] == nil)
     }
@@ -67,9 +64,10 @@ extension ProviderConfigurationCoordinatorTests {
     func failedDeletionCannotRecoverRetiredCredential(allowDeletionOnRestart: Bool) async throws {
         let credentials = MemoryCredentialStore()
         let metadata = MemoryMetadataStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model"]),
-            credentialStore: credentials, metadataStore: metadata
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["model"]),
+            credentials: credentials,
+            metadata: metadata
         )
         _ = try await coordinator.validateAndSaveKey("old-key", for: .deepSeek)
         _ = try await coordinator.selectModel("model", for: .deepSeek)
@@ -79,9 +77,10 @@ extension ProviderConfigurationCoordinatorTests {
             Issue.record("Expected deletion failure")
         } catch {}
         if allowDeletionOnRestart { await credentials.setDeleteFailure(false) }
-        let restarted = ProviderConfigurationCoordinator(
-            modelLister: RejectUnexpectedModelRequest(),
-            credentialStore: credentials, metadataStore: metadata
+        let restarted = memoryCoordinator(
+            lister: RejectUnexpectedModelRequest(),
+            credentials: credentials,
+            metadata: metadata
         )
         _ = try? await restarted.reconcilePendingReplacements()
         #expect(try await restarted.configurationState().configurations[.deepSeek] == nil)
@@ -93,9 +92,9 @@ extension ProviderConfigurationCoordinatorTests {
 
     @Test("metadata publication failure is local secure storage rather than a Provider outage")
     func metadataPublicationFailureIsSecureStorage() async {
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model"]),
-            credentialStore: MemoryCredentialStore(), metadataStore: PublicationFailingMetadataStore()
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["model"]),
+            metadata: PublicationFailingMetadataStore()
         )
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         await session.validate(apiKey: "candidate")
@@ -107,9 +106,10 @@ extension ProviderConfigurationCoordinatorTests {
     func postKeychainPublicationFailureRecovers() async throws {
         let credentials = MemoryCredentialStore()
         let metadata = PublicationFailingMetadataStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["initial"]),
-            credentialStore: credentials, metadataStore: metadata
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["initial"]),
+            credentials: credentials,
+            metadata: metadata
         )
         do {
             _ = try await coordinator.validateAndSaveKey("new-key", for: .deepSeek)
@@ -118,9 +118,10 @@ extension ProviderConfigurationCoordinatorTests {
         #expect(try await coordinator.apiKey(for: .deepSeek) == "new-key")
         #expect(try await coordinator.configurationState().configurations[.deepSeek] == nil)
         await metadata.allowPublication()
-        let restarted = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["fresh-a", "fresh-b"]),
-            credentialStore: credentials, metadataStore: metadata
+        let restarted = memoryCoordinator(
+            lister: StaticModelLister(models: ["fresh-a", "fresh-b"]),
+            credentials: credentials,
+            metadata: metadata
         )
         let recovered = try await restarted.reconcilePendingReplacements()
         #expect(recovered.configurations[.deepSeek]?.models.map(\.id) == ["fresh-a", "fresh-b"])
@@ -130,10 +131,7 @@ extension ProviderConfigurationCoordinatorTests {
     @Test("a missing durable credential clears its cache and global selection")
     func reconciliationClearsConfigurationWithoutCredential() async throws {
         let credentials = MemoryCredentialStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model"]),
-            credentialStore: credentials, metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator(lister: StaticModelLister(models: ["model"]), credentials: credentials)
         _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
         _ = try await coordinator.selectModel("model", for: .deepSeek)
         try await credentials.deleteCredential(for: .deepSeek)
@@ -146,9 +144,10 @@ extension ProviderConfigurationCoordinatorTests {
     func reconciliationRecoversStoredKeyWithoutConfiguration() async throws {
         let credentials = MemoryCredentialStore()
         let metadata = MemoryMetadataStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model-a", "model-b"]),
-            credentialStore: credentials, metadataStore: metadata
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["model-a", "model-b"]),
+            credentials: credentials,
+            metadata: metadata
         )
         _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
         // Loss of the non-secret cache does not delete the independently durable key.
@@ -188,11 +187,8 @@ extension ProviderConfigurationCoordinatorTests {
             }
         )
 
-        do {
+        await #expect(throws: ProviderPersistenceError.credentialUnavailable) {
             _ = try await coordinator.validateAndSaveKey("candidate-secret", for: .openAI)
-            Issue.record("Expected the credential write to fail")
-        } catch {
-            #expect(error as? ProviderPersistenceError == .credentialUnavailable)
         }
 
         #expect(try await credentialStore.credential(for: .openAI) == nil)
@@ -232,10 +228,10 @@ extension ProviderConfigurationCoordinatorTests {
             ]
         )
         let metadataStore = MemoryMetadataStore(state: pendingState)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["fresh-model"]),
-            credentialStore: credentialStore,
-            metadataStore: metadataStore,
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["fresh-model"]),
+            credentials: credentialStore,
+            metadata: metadataStore,
             now: { Date(timeIntervalSince1970: 1_787_731_200) }
         )
 

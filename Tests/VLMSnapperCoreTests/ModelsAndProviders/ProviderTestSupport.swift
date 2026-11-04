@@ -5,45 +5,107 @@ import Testing
 
 // Doubles and helpers the Provider tests share. Doubles stand in for external boundaries only.
 
-actor SuspendedValidationModelLister: ProviderModelListing {
-    private let failFirst: Bool
-    private let suspendFirst: Bool
-    private(set) var keys: [String] = []
-    private(set) var providers: [ProviderID] = []
-    private var pending: CheckedContinuation<Void, Never>?
-    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+/// A setup boundary with nothing configured and nothing to do. A double overrides only what its tests need.
+protocol IdleSetupBoundary: ProviderSetupConfiguring {}
 
-    init(failFirst: Bool, suspendFirst: Bool = true) {
-        self.failFirst = failFirst
-        self.suspendFirst = suspendFirst
+extension IdleSetupBoundary {
+    func currentActivity() async -> ProviderWorkflowActivity? { nil }
+    func shouldRefreshModelsOnSettingsOpen(for provider: ProviderID) async throws -> Bool { false }
+    func configurationState() async throws -> ProviderMetadataState { ProviderMetadataState() }
+
+    func reconcileCredentialState(
+        for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void
+    ) async throws -> ProviderMetadataState {
+        try await configurationState()
+    }
+
+    func validateAndSaveKey(_ apiKey: String, for provider: ProviderID) async throws -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
+
+    func refreshModels(for provider: ProviderID) async throws -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
+
+    func selectModel(_ modelID: String, for provider: ProviderID) async throws -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
+}
+
+/// Answers model-list requests as a test scripts them, and records who asked.
+actor ScriptedModelLister: ProviderModelListing {
+    private(set) var requests: [ProviderID] = []
+    private(set) var keys: [String] = []
+    private var models: [String]
+    private var error: (any Error)?
+    private var nextError: (any Error)?
+    private var holdsNext: Bool
+    private var held: CheckedContinuation<Void, Never>?
+    private var heldWaiters: [CheckedContinuation<Void, Never>] = []
+
+    init(models: [String] = ["model"], holdingNext: Bool = false, failingNext nextError: (any Error)? = nil) {
+        self.models = models
+        holdsNext = holdingNext
+        self.nextError = nextError
+    }
+
+    func list(_ models: [String]) { self.models = models }
+    /// Every request fails this way until told otherwise.
+    func fail(with error: (any Error)?) { self.error = error }
+    /// Only the next request fails this way, after any hold.
+    func failNext(with error: any Error) { nextError = error }
+    func holdNextRequest() { holdsNext = true }
+
+    func waitUntilHeld() async {
+        if held != nil { return }
+        await withCheckedContinuation { heldWaiters.append($0) }
+    }
+
+    func finishHeld() {
+        held?.resume()
+        held = nil
     }
 
     func listModels(provider: ProviderID, apiKey: String) async throws -> [String] {
+        requests.append(provider)
         keys.append(apiKey)
-        providers.append(provider)
-        if keys.count == 1 && suspendFirst {
+        if holdsNext {
+            holdsNext = false
             await withCheckedContinuation { continuation in
-                pending = continuation
-                for waiter in startWaiters { waiter.resume() }
-                startWaiters.removeAll()
+                held = continuation
+                heldWaiters.forEach { $0.resume() }
+                heldWaiters.removeAll()
             }
-            if failFirst { throw ProviderModelListError.authenticationRejected }
         }
-        return ["model"]
+        if let nextError {
+            self.nextError = nil
+            throw nextError
+        }
+        if let error { throw error }
+        return models
     }
-
-    func waitUntilStarted() async {
-        if pending != nil { return }
-        await withCheckedContinuation { startWaiters.append($0) }
-    }
-
-    func finish() { pending?.resume(); pending = nil }
 }
 
-actor FailingProviderBoundary: ProviderSetupConfiguring {
-    func shouldRefreshModelsOnSettingsOpen(for provider: ProviderID) -> Bool { false }
-    func currentActivity() async -> ProviderWorkflowActivity? { nil }
-    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) throws -> ProviderMetadataState { try configurationState() }
+/// A coordinator on memory stores. Tests pass the stores they look at or fail.
+func memoryCoordinator(
+    lister: any ProviderModelListing = StaticModelLister(models: []),
+    credentials: any ProviderCredentialStoring = MemoryCredentialStore(),
+    metadata: any ProviderMetadataStoring = MemoryMetadataStore(),
+    now: @escaping @Sendable () -> Date = Date.init
+) -> ProviderConfigurationCoordinator {
+    ProviderConfigurationCoordinator(modelLister: lister, credentialStore: credentials, metadataStore: metadata, now: now)
+}
+
+/// A durable key with no configuration, as after the metadata is lost.
+func storageWithOrphanedKey() async throws -> SessionTestStorage {
+    let storage = SessionTestStorage()
+    let coordinator = makeCoordinator(modelLister: ScriptedModelLister(), storage: storage)
+    _ = try await coordinator.validateAndSaveKey("durable-key", for: .deepSeek)
+    await storage.save(ProviderMetadataState())
+    return storage
+}
+
+actor FailingProviderBoundary: IdleSetupBoundary {
     let error: any Error
     let failsConfigurationRead: Bool
 
@@ -62,10 +124,6 @@ actor FailingProviderBoundary: ProviderSetupConfiguring {
         for provider: ProviderID
     ) throws -> ProviderConfiguration {
         throw error
-    }
-
-    func refreshModels(for provider: ProviderID) -> ProviderConfiguration {
-        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
     }
 
     func selectModel(
@@ -136,7 +194,7 @@ struct StaticModelLister: ProviderModelListing {
     let models: [String]
     var error: BoundaryError?
 
-    init(models: [String], error: BoundaryError? = nil) {
+    init(models: [String] = ["model"], error: BoundaryError? = nil) {
         self.models = models
         self.error = error
     }
@@ -146,35 +204,6 @@ struct StaticModelLister: ProviderModelListing {
             throw error
         }
         return models
-    }
-}
-
-actor SuspendedModelLister: ProviderModelListing {
-    private var started = false
-    private var startWaiters: [CheckedContinuation<Void, Never>] = []
-    private var resultContinuation: CheckedContinuation<[String], Never>?
-
-    func listModels(provider: ProviderID, apiKey: String) async throws -> [String] {
-        started = true
-        startWaiters.forEach { $0.resume() }
-        startWaiters.removeAll()
-        return await withCheckedContinuation { continuation in
-            resultContinuation = continuation
-        }
-    }
-
-    func waitUntilStarted() async {
-        guard !started else {
-            return
-        }
-        await withCheckedContinuation { continuation in
-            startWaiters.append(continuation)
-        }
-    }
-
-    func finish(with models: [String]) {
-        resultContinuation?.resume(returning: models)
-        resultContinuation = nil
     }
 }
 

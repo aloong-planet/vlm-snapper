@@ -10,10 +10,7 @@ extension ProviderConfigurationCoordinatorTests {
     @Test("capture and model owners preserve every saved configuration mutation", arguments: [false, true])
     func workflowOwnerBlocksAllConfigurationChanges(capturing: Bool) async throws {
         let credentials = MemoryCredentialStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["vision"]), credentialStore: credentials,
-            metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator(lister: StaticModelLister(models: ["vision"]), credentials: credentials)
         _ = try await coordinator.validateAndSaveKey("saved-fixture", for: .deepSeek)
         _ = try await coordinator.selectModel("vision", for: .deepSeek)
         let before = try await coordinator.configurationState()
@@ -42,10 +39,7 @@ extension ProviderConfigurationCoordinatorTests {
 
     @Test("a canceled recovery waiter finishes before the capture owner releases")
     func canceledRecoveryDoesNotWaitForOwner() async throws {
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []), credentialStore: MemoryCredentialStore(),
-            metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator()
         let owner = try await coordinator.beginCaptureActivity()
         let recovery = Task { try await coordinator.reconcileCredentialState(for: .deepSeek) }
         try await Task.sleep(for: .milliseconds(30))
@@ -77,10 +71,8 @@ extension ProviderConfigurationCoordinatorTests {
         )
         let session = OperationWorkspaceSession(originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
                                                 runner: runner, activeGate: ActiveOperationGate())
-        let lister = SuspendedModelLister()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: lister, credentialStore: MemoryCredentialStore(), metadataStore: MemoryMetadataStore()
-        )
+        let lister = ScriptedModelLister(models: ["vision"], holdingNext: true)
+        let coordinator = memoryCoordinator(lister: lister)
         let workflow = ApplicationWorkflow(coordinator: coordinator)
         let selection = ProviderSelection(providerID: "deepseek", modelID: "vision")
         #expect(try await workflow.performOperation {
@@ -90,7 +82,7 @@ extension ProviderConfigurationCoordinatorTests {
         #expect(original.operation.sourceMarkdown == "Result 1")
         let firstSnapshot = await session.snapshot()
         let validation = Task { try await coordinator.validateAndSaveKey("fixture", for: .deepSeek) }
-        await lister.waitUntilStarted()
+        await lister.waitUntilHeld()
         let accepted = try await workflow.performOperation {
             await session.select(.translate)
             try await session.startSelectedOperation(selection: selection, targetLanguage: "en")
@@ -99,7 +91,7 @@ extension ProviderConfigurationCoordinatorTests {
         #expect(await provider.requests == 1)
         #expect(await session.snapshot() == firstSnapshot)
         #expect(try await history.history(matching: HistoryQuery()) == [original])
-        await lister.finish(with: ["vision"])
+        await lister.finishHeld()
         _ = try await validation.value
         #expect(try await workflow.performOperation {
             try await session.startSelectedOperation(selection: selection, targetLanguage: "en")
@@ -114,10 +106,7 @@ extension ProviderConfigurationCoordinatorTests {
     @MainActor
     @Test("a request from an open capture keeps the activity until the capture ends")
     func captureKeepsActivityThroughItsRequests() async throws {
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []), credentialStore: MemoryCredentialStore(),
-            metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator()
         let workflow = ApplicationWorkflow(coordinator: coordinator)
         var owner: UUID?
         #expect(await workflow.capture(from: .shortcut, presentProvider: { _ in }) { token in
@@ -147,10 +136,7 @@ extension ProviderConfigurationCoordinatorTests {
     @MainActor
     @Test("a capture that ends during its request does not get the activity back")
     func endedCaptureDoesNotRetakeActivity() async throws {
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []), credentialStore: MemoryCredentialStore(),
-            metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator()
         let workflow = ApplicationWorkflow(coordinator: coordinator)
         var owner: UUID?
         #expect(await workflow.capture(from: .shortcut, presentProvider: { _ in }) { token in
@@ -167,14 +153,11 @@ extension ProviderConfigurationCoordinatorTests {
     @MainActor
     @Test("shortcut and menu capture route active credential work without freezing", arguments: CaptureEntryPoint.allCases)
     func captureRoutesActiveProviderJob(source: CaptureEntryPoint) async throws {
-        let lister = SuspendedModelLister()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: lister, credentialStore: MemoryCredentialStore(),
-            metadataStore: MemoryMetadataStore()
-        )
+        let lister = ScriptedModelLister(models: ["vision"], holdingNext: true)
+        let coordinator = memoryCoordinator(lister: lister)
         let workflow = ApplicationWorkflow(coordinator: coordinator)
         let validation = Task { try await coordinator.validateAndSaveKey("fixture", for: .deepSeek) }
-        await lister.waitUntilStarted()
+        await lister.waitUntilHeld()
         var captures = 0
         var shownProvider: ProviderID?
         let accepted = await workflow.capture(from: source, presentProvider: { shownProvider = $0 }) { _ in
@@ -184,7 +167,7 @@ extension ProviderConfigurationCoordinatorTests {
         #expect(!accepted)
         #expect(captures == 0)
         #expect(shownProvider == .deepSeek)
-        await lister.finish(with: ["vision"])
+        await lister.finishHeld()
         _ = try await validation.value
         let nextCapture = await workflow.capture(from: source, presentProvider: { _ in
             Issue.record("Completed credential work must not be presented as active")
@@ -199,11 +182,7 @@ extension ProviderConfigurationCoordinatorTests {
 
     @Test("only the owning operation lease can release configuration exclusion")
     func exclusiveActivityReleaseRequiresTheOwnerToken() async throws {
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: MemoryCredentialStore(),
-            metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator()
         let owner = try #require(await coordinator.acquire())
         await coordinator.release(UUID())
         #expect(await coordinator.acquire() == nil)
@@ -221,9 +200,10 @@ extension ProviderConfigurationCoordinatorTests {
         try await credentials.replaceCredential(
             ProviderCredential(generation: UUID(), apiKey: "fixture-key"), for: .deepSeek
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["recovered-model"]),
-            credentialStore: credentials, metadataStore: metadata
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["recovered-model"]),
+            credentials: credentials,
+            metadata: metadata
         )
         let owner = try #require(await coordinator.acquire())
         let recovery = Task { try await coordinator.reconcileCredentialState(for: .deepSeek) }
@@ -240,24 +220,19 @@ extension ProviderConfigurationCoordinatorTests {
     func providerValidationAndCaptureAreMutuallyExclusive() async throws {
         let metadata = MemoryMetadataStore()
         let credentials = MemoryCredentialStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["vision"]),
-            credentialStore: credentials, metadataStore: metadata
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["vision"]),
+            credentials: credentials,
+            metadata: metadata
         )
         let capture = try await coordinator.beginCaptureActivity()
-        do {
+        await #expect(throws: ProviderConfigurationError.configurationLocked) {
             _ = try await coordinator.validateAndSaveKey("fixture", for: .deepSeek)
-            Issue.record("Capture must reject credential replacement")
-        } catch {
-            #expect(error as? ProviderConfigurationError == .configurationLocked)
         }
         #expect(try await credentials.credential(for: .deepSeek) == nil)
         #expect(try await metadata.load().pendingReplacements.isEmpty)
-        do {
+        await #expect(throws: ProviderConfigurationError.configurationLocked) {
             try await coordinator.transitionCaptureToModelRequest(UUID())
-            Issue.record("A foreign owner cannot transition capture")
-        } catch {
-            #expect(error as? ProviderConfigurationError == .configurationLocked)
         }
         #expect(await coordinator.currentActivity() == .capture)
         try await coordinator.transitionCaptureToModelRequest(capture)
@@ -275,9 +250,10 @@ extension ProviderConfigurationCoordinatorTests {
         try await credentials.replaceCredential(
             ProviderCredential(generation: UUID(), apiKey: "fixture"), for: .deepSeek
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["vision"]),
-            credentialStore: credentials, metadataStore: metadata
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["vision"]),
+            credentials: credentials,
+            metadata: metadata
         )
         let capture = try await coordinator.beginCaptureActivity()
         let recovery = Task { try await coordinator.reconcileCredentialState(for: .deepSeek) }
@@ -287,10 +263,9 @@ extension ProviderConfigurationCoordinatorTests {
         if cancel { recovery.cancel() }
         await coordinator.release(capture)
         if cancel {
-            do {
+            await #expect(throws: CancellationError.self) {
                 _ = try await recovery.value
-                Issue.record("Canceled recovery must not publish configuration")
-            } catch { #expect(error is CancellationError) }
+            }
             #expect(try await metadata.load().configurations.isEmpty)
         } else {
             #expect(try await recovery.value.configurations[.deepSeek]?.models.map(\.id) == ["vision"])
@@ -307,22 +282,14 @@ extension ProviderConfigurationCoordinatorTests {
         )
         let initialState = ProviderMetadataState(configurations: [.openAI: configuration])
         let metadataStore = MemoryMetadataStore(state: initialState)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: MemoryCredentialStore(
-                credentials: [
-                    .openAI: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
-                ]
-            ),
-            metadataStore: metadataStore
+        let coordinator = memoryCoordinator(
+            credentials: MemoryCredentialStore(credentials: [.openAI: ProviderCredential(generation: UUID(), apiKey: "saved-secret")]),
+            metadata: metadataStore
         )
         let lease = try await coordinator.beginRequestConfigurationFreeze()
 
-        do {
+        await #expect(throws: ProviderConfigurationError.configurationLocked) {
             _ = try await coordinator.selectModel("gpt-4.1", for: .openAI)
-            Issue.record("Expected selection to be frozen")
-        } catch {
-            #expect(error as? ProviderConfigurationError == .configurationLocked)
         }
         #expect(try await metadataStore.load() == initialState)
         await coordinator.endRequestConfigurationFreeze(lease)
@@ -330,25 +297,18 @@ extension ProviderConfigurationCoordinatorTests {
 
     @Test("a request cannot begin while provider configuration is being mutated")
     func requestFreezeDoesNotOverlapConfigurationMutation() async throws {
-        let modelLister = SuspendedModelLister()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: modelLister,
-            credentialStore: MemoryCredentialStore(),
-            metadataStore: MemoryMetadataStore()
-        )
+        let modelLister = ScriptedModelLister(models: ["gemini-2.5-flash"], holdingNext: true)
+        let coordinator = memoryCoordinator(lister: modelLister)
         let validation = Task {
             try await coordinator.validateAndSaveKey("candidate-secret", for: .gemini)
         }
-        await modelLister.waitUntilStarted()
+        await modelLister.waitUntilHeld()
 
-        do {
+        await #expect(throws: ProviderConfigurationError.configurationMutationInProgress) {
             try await coordinator.beginRequestConfigurationFreeze()
-            Issue.record("Expected the request freeze to reject an in-flight mutation")
-        } catch {
-            #expect(error as? ProviderConfigurationError == .configurationMutationInProgress)
         }
 
-        await modelLister.finish(with: ["gemini-2.5-flash"])
+        await modelLister.finishHeld()
         _ = try await validation.value
         let lease = try await coordinator.beginRequestConfigurationFreeze()
         await coordinator.endRequestConfigurationFreeze(lease)

@@ -21,22 +21,16 @@ struct LiveProviderResultValidationTests {
         #expect(reports.allSatisfy { $0.outcome == .passed })
     }
 
-    @Test("observed bold extraction preserves known text but translation source remains plain")
-    func markdownExtractionPasses() async throws {
-        // Matches the real Flash diagnostic: 14 characters, strong_stars shape.
-        let reports = await run(source: "**VLMSnapper**")
-        #expect(reports.count == 2)
-        #expect(reports[0].outcome == .passed)
-        #expect(reports[1].outcome == .failed)
-        #expect(reports[1].status == "source_mismatch")
-    }
-
-    @Test("inline styling does not change extraction text", arguments: ["*VLMSnapper*", "__VLMSnapper__", "`VLMSnapper`"])
+    // `**VLMSnapper**` matches the real Flash diagnostic: 14 characters, strong_stars shape.
+    @Test("inline styling does not change extraction text, but translation source stays plain", arguments: [
+        "**VLMSnapper**", "*VLMSnapper*", "__VLMSnapper__", "`VLMSnapper`",
+    ])
     func inlineStylingPasses(source: String) async throws {
         let reports = await run(source: source)
         #expect(reports.count == 2)
         #expect(reports[0].outcome == .passed)
         #expect(reports[1].outcome == .failed)
+        #expect(reports[1].status == "source_mismatch")
     }
 
     @Test("formatting cannot hide wrong, extra, or literal punctuation text", arguments: [

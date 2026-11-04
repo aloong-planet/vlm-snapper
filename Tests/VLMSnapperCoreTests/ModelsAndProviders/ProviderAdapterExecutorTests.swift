@@ -6,32 +6,18 @@ import Testing
 struct ProviderAdapterExecutorTests {
     @Test("A successful operation makes one request and streams normalized events")
     func successfulOperationMakesOneRequest() async throws {
-        let transport = RecordingStreamingTransport(
-            result: .success(
-                ProviderHTTPStreamResponse(
-                    statusCode: 200,
-                    headers: [:],
-                    body: stream([
-                        sse("""
-                        {"type":"response.output_text.delta","delta":"{\\\"source\\\":\\\"Hello\\\"}"}
-                        """),
-                        sse("""
-                        {"type":"response.completed","response":{"id":"resp_1","status":"completed","usage":{"input_tokens":10,"output_tokens":2,"total_tokens":12}}}
-                        """),
-                    ])
-                )
-            )
-        )
+        let transport = RecordingStreamingTransport(result: ok(stream([
+            sse("""
+            {"type":"response.output_text.delta","delta":"{\\\"source\\\":\\\"Hello\\\"}"}
+            """),
+            sse("""
+            {"type":"response.completed","response":{"id":"resp_1","status":"completed","usage":{"input_tokens":10,"output_tokens":2,"total_tokens":12}}}
+            """),
+        ])))
         let executor = ProviderAdapterExecutor(transport: transport)
 
         var events: [ProviderStreamEvent] = []
-        for try await event in executor.stream(
-            provider: .openAI,
-            modelID: "gpt-4.1",
-            apiKey: "secret",
-            originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
-            operation: .extractText
-        ) {
+        for try await event in extraction(by: executor) {
             events.append(event)
         }
 
@@ -57,48 +43,22 @@ struct ProviderAdapterExecutorTests {
         let transport = RecordingStreamingTransport(result: .failure(TestFailure.offline))
         let executor = ProviderAdapterExecutor(transport: transport)
 
-        do {
-            for try await _ in executor.stream(
-                provider: .openAI,
-                modelID: "gpt-4.1",
-                apiKey: "secret",
-                originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
-                operation: .extractText
-            ) {}
-            Issue.record("Expected transport failure")
-        } catch {
-            #expect(error as? ProviderAdapterError == .transport)
+        await #expect(throws: ProviderAdapterError.transport) {
+            for try await _ in extraction(by: executor) {}
         }
         #expect(await transport.requestCount == 1)
     }
 
     @Test("The first-text deadline terminates a silent stream")
     func firstTextDeadlineTerminatesSilentStream() async {
-        let transport = RecordingStreamingTransport(
-            result: .success(
-                ProviderHTTPStreamResponse(
-                    statusCode: 200,
-                    headers: [:],
-                    body: pendingStream()
-                )
-            )
-        )
+        let transport = RecordingStreamingTransport(result: ok(pendingStream()))
         let executor = ProviderAdapterExecutor(
             transport: transport,
             timeoutClock: RequestAwareTimeoutClock(transport: transport)
         )
 
-        do {
-            for try await _ in executor.stream(
-                provider: .openAI,
-                modelID: "gpt-4.1",
-                apiKey: "secret",
-                originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
-                operation: .extractText
-            ) {}
-            Issue.record("Expected first-text timeout")
-        } catch {
-            #expect(error as? ProviderAdapterError == .firstTextTimeout)
+        await #expect(throws: ProviderAdapterError.firstTextTimeout) {
+            for try await _ in extraction(by: executor) {}
         }
         #expect(await transport.requestCount == 1)
     }
@@ -134,38 +94,21 @@ struct ProviderAdapterExecutorTests {
 
     @Test("The stall deadline resets after text and terminates an idle stream")
     func stallDeadlineTerminatesAfterText() async {
-        let transport = RecordingStreamingTransport(
-            result: .success(
-                ProviderHTTPStreamResponse(
-                    statusCode: 200,
-                    headers: [:],
-                    body: streamThenPending([
-                        sse("""
-                        {"type":"response.output_text.delta","delta":"{\\\"source\\\":\\\"Hello"}
-                        """),
-                    ])
-                )
-            )
-        )
+        let transport = RecordingStreamingTransport(result: ok(streamThenPending([
+            sse("""
+            {"type":"response.output_text.delta","delta":"{\\\"source\\\":\\\"Hello"}
+            """),
+        ])))
         let executor = ProviderAdapterExecutor(
             transport: transport,
             timeoutClock: SelectiveTimeoutClock(immediateKind: .stalled)
         )
         var events: [ProviderStreamEvent] = []
 
-        do {
-            for try await event in executor.stream(
-                provider: .openAI,
-                modelID: "gpt-4.1",
-                apiKey: "secret",
-                originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
-                operation: .extractText
-            ) {
+        await #expect(throws: ProviderAdapterError.streamStalled) {
+            for try await event in extraction(by: executor) {
                 events.append(event)
             }
-            Issue.record("Expected stream-stall timeout")
-        } catch {
-            #expect(error as? ProviderAdapterError == .streamStalled)
         }
         #expect(events == [.sourceDelta("Hello")])
         #expect(await transport.requestCount == 1)
@@ -173,31 +116,14 @@ struct ProviderAdapterExecutorTests {
 
     @Test("The total deadline terminates the whole operation")
     func totalDeadlineTerminatesOperation() async {
-        let transport = RecordingStreamingTransport(
-            result: .success(
-                ProviderHTTPStreamResponse(
-                    statusCode: 200,
-                    headers: [:],
-                    body: pendingStream()
-                )
-            )
-        )
+        let transport = RecordingStreamingTransport(result: ok(pendingStream()))
         let executor = ProviderAdapterExecutor(
             transport: transport,
             timeoutClock: SelectiveTimeoutClock(immediateKind: .total)
         )
 
-        do {
-            for try await _ in executor.stream(
-                provider: .openAI,
-                modelID: "gpt-4.1",
-                apiKey: "secret",
-                originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
-                operation: .extractText
-            ) {}
-            Issue.record("Expected total timeout")
-        } catch {
-            #expect(error as? ProviderAdapterError == .totalTimeout)
+        await #expect(throws: ProviderAdapterError.totalTimeout) {
+            for try await _ in extraction(by: executor) {}
         }
         #expect(await transport.requestCount <= 1)
     }
@@ -217,22 +143,22 @@ struct ProviderAdapterExecutorTests {
         )
         let executor = ProviderAdapterExecutor(transport: transport)
 
-        do {
-            for try await _ in executor.stream(
-                provider: .openAI,
-                modelID: "gpt-4.1",
-                apiKey: "secret",
-                originalPNG: Data([0x89, 0x50, 0x4E, 0x47]),
-                operation: .extractText
-            ) {}
-            Issue.record("Expected rate limit")
-        } catch {
-            #expect(
-                error as? ProviderAdapterError
-                    == .rateLimited(retryAfterSeconds: 300)
-            )
+        await #expect(throws: ProviderAdapterError.rateLimited(retryAfterSeconds: 300)) {
+            for try await _ in extraction(by: executor) {}
         }
         #expect(await transport.requestCount == 1)
+    }
+
+    /// The one operation these tests run. What varies is the transport and the clock.
+    private func extraction(by executor: ProviderAdapterExecutor) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        executor.stream(
+            provider: .openAI, modelID: "gpt-4.1", apiKey: "secret",
+            originalPNG: Data([0x89, 0x50, 0x4E, 0x47]), operation: .extractText
+        )
+    }
+
+    private func ok(_ body: AsyncThrowingStream<Data, Error>) -> Result<ProviderHTTPStreamResponse, Error> {
+        .success(ProviderHTTPStreamResponse(statusCode: 200, headers: [:], body: body))
     }
 
     private func sse(_ payload: String) -> Data {

@@ -128,17 +128,19 @@ struct LiveProviderContractGateTests {
         ))
     }
 
-    @Test("an extraction failure prevents a provider from passing")
-    func extractionFailurePreventsProviderPass() async throws {
+    @Test(
+        "an incomplete stream fails its own operation's report, and the other operation still runs",
+        arguments: LiveProviderContractOperation.allCases
+    )
+    func incompleteOperationFailsOnlyItsOwnReport(failing: LiveProviderContractOperation) async throws {
         let metadata = ProviderResponseMetadata(requestID: "extract", usage: nil)
         let streamer = LiveContractFixtureStreamer(
-            extractionEvents: [.sourceDelta("Partial")],
-            translationEvents: [
-                .sourceDelta("Source"),
-                .translationDelta("Translation"),
-                .metadata(metadata),
-                .completed,
-            ]
+            extractionEvents: failing == .extract
+                ? [.sourceDelta("Partial")]
+                : [.sourceDelta("Source"), .metadata(metadata), .completed],
+            translationEvents: failing == .translate
+                ? [.sourceDelta("Partial")]
+                : [.sourceDelta("Source"), .translationDelta("Translation"), .metadata(metadata), .completed]
         )
         let gate = LiveProviderContractGate(streamer: streamer)
 
@@ -152,53 +154,12 @@ struct LiveProviderContractGateTests {
             originalPNG: Data([0x89, 0x50, 0x4E, 0x47])
         )
 
-        let extractionReport = try #require(reports.first {
-            $0.provider == .deepSeek && $0.operation == .extract
-        })
-        let translationReport = try #require(reports.first {
-            $0.provider == .deepSeek && $0.operation == .translate
-        })
-        #expect(extractionReport.outcome == .failed)
-        #expect(extractionReport.status == "incomplete_response")
-        #expect(translationReport.outcome == .passed)
-        #expect(await streamer.requests.map(\.operation) == [
-            .extractText,
-            .translate(targetLanguage: "Simplified Chinese"),
-        ])
-    }
-
-    @Test("a translation failure prevents a provider from passing")
-    func translationFailurePreventsProviderPass() async throws {
-        let metadata = ProviderResponseMetadata(requestID: "extract", usage: nil)
-        let streamer = LiveContractFixtureStreamer(
-            extractionEvents: [
-                .sourceDelta("Source"),
-                .metadata(metadata),
-                .completed,
-            ],
-            translationEvents: [.sourceDelta("Partial")]
-        )
-        let gate = LiveProviderContractGate(streamer: streamer)
-
-        let reports = await gate.run(
-            configurations: [
-                .deepSeek: LiveProviderContractConfiguration(
-                    modelID: "deepseek-v4-flash-vision-exp",
-                    apiKey: "secret"
-                ),
-            ],
-            originalPNG: Data([0x89, 0x50, 0x4E, 0x47])
-        )
-
-        let extractionReport = try #require(reports.first {
-            $0.provider == .deepSeek && $0.operation == .extract
-        })
-        let translationReport = try #require(reports.first {
-            $0.provider == .deepSeek && $0.operation == .translate
-        })
-        #expect(extractionReport.outcome == .passed)
-        #expect(translationReport.outcome == .failed)
-        #expect(translationReport.status == "incomplete_response")
+        let failed = try #require(reports.first { $0.provider == .deepSeek && $0.operation == failing })
+        let other = try #require(reports.first { $0.provider == .deepSeek && $0.operation != failing })
+        #expect(failed.stage == .validation)
+        #expect(failed.outcome == .failed)
+        #expect(failed.status == "incomplete_response")
+        #expect(other.outcome == .passed)
         #expect(await streamer.requests.map(\.operation) == [
             .extractText,
             .translate(targetLanguage: "Simplified Chinese"),
@@ -279,32 +240,6 @@ struct LiveProviderContractGateTests {
         #expect(!encoded.contains("never-report-this-key"))
         #expect(!encoded.contains("never-report-image-or-result"))
         #expect(!encoded.contains("45"))
-    }
-
-    @Test("a stream without a completed output fails validation")
-    func incompleteStreamFailsValidation() async throws {
-        let gate = LiveProviderContractGate(
-            streamer: LiveContractFixtureStreamer(events: [
-                .sourceDelta("VLMSnapper"),
-            ])
-        )
-
-        let reports = await gate.run(
-            configurations: [
-                .deepSeek: LiveProviderContractConfiguration(
-                    modelID: "deepseek-v4-flash-vision-exp",
-                    apiKey: "secret"
-                ),
-            ],
-            originalPNG: Data([0x89, 0x50, 0x4E, 0x47])
-        )
-
-        let extractionReport = try #require(reports.first {
-            $0.provider == .deepSeek && $0.operation == .extract
-        })
-        #expect(extractionReport.stage == .validation)
-        #expect(extractionReport.outcome == .failed)
-        #expect(extractionReport.status == "incomplete_response")
     }
 }
 

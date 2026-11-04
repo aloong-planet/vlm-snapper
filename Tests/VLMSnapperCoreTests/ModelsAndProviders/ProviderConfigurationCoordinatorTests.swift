@@ -10,10 +10,7 @@ struct ProviderConfigurationCoordinatorTests {
           arguments: ["", "key\n", "key\rvalue", String(repeating: "x", count: 4097)])
     func unsafeInputPreservesSavedConfiguration(key: String) async throws {
         let credentialStore = MemoryCredentialStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model"]),
-            credentialStore: credentialStore, metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator(lister: StaticModelLister(models: ["model"]), credentials: credentialStore)
         _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
         _ = try await coordinator.selectModel("model", for: .deepSeek)
         do {
@@ -28,10 +25,10 @@ struct ProviderConfigurationCoordinatorTests {
     func completeModelListIsSavedWithValidatedKey() async throws {
         let credentialStore = MemoryCredentialStore()
         let metadataStore = MemoryMetadataStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["gpt-4o", "gpt-4.1"]),
-            credentialStore: credentialStore,
-            metadataStore: metadataStore,
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["gpt-4o", "gpt-4.1"]),
+            credentials: credentialStore,
+            metadata: metadataStore,
             now: { Date(timeIntervalSince1970: 1_787_731_200) }
         )
 
@@ -63,11 +60,7 @@ struct ProviderConfigurationCoordinatorTests {
                 .deepSeek: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
             ]
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: credentialStore,
-            metadataStore: MemoryMetadataStore()
-        )
+        let coordinator = memoryCoordinator(credentials: credentialStore)
 
         #expect(try await coordinator.apiKey(for: .deepSeek) == "saved-secret")
         #expect(try await coordinator.apiKey(for: .gemini) == nil)
@@ -91,10 +84,10 @@ struct ProviderConfigurationCoordinatorTests {
                 .openAI: ProviderCredential(generation: UUID(), apiKey: "previous-secret"),
             ]
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["gpt-4.1", "gpt-4o"]),
-            credentialStore: credentialStore,
-            metadataStore: metadataStore
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["gpt-4.1", "gpt-4o"]),
+            credentials: credentialStore,
+            metadata: metadataStore
         )
 
         let replacement = try await coordinator.validateAndSaveKey(
@@ -118,12 +111,7 @@ struct ProviderConfigurationCoordinatorTests {
         let metadataStore = MemoryMetadataStore(
             state: ProviderMetadataState(configurations: [.gemini: freshConfiguration])
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: MemoryCredentialStore(),
-            metadataStore: metadataStore,
-            now: { referenceDate }
-        )
+        let coordinator = memoryCoordinator(metadata: metadataStore, now: { referenceDate })
 
         #expect(try await coordinator.shouldRefreshModelsOnSettingsOpen(for: .openAI))
         #expect(!(try await coordinator.shouldRefreshModelsOnSettingsOpen(for: .gemini)))
@@ -150,10 +138,10 @@ struct ProviderConfigurationCoordinatorTests {
         let metadataStore = MemoryMetadataStore(
             state: ProviderMetadataState(configurations: [.deepSeek: previousConfiguration])
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["deepseek-v4-flash-vision-exp"]),
-            credentialStore: MemoryCredentialStore(credentials: [.deepSeek: credential]),
-            metadataStore: metadataStore,
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: ["deepseek-v4-flash-vision-exp"]),
+            credentials: MemoryCredentialStore(credentials: [.deepSeek: credential]),
+            metadata: metadataStore,
             now: { Date(timeIntervalSince1970: 1_787_731_200) }
         )
 
@@ -214,7 +202,7 @@ struct ProviderConfigurationCoordinatorTests {
 
     @Test("a refresh for a request needs a request to be running")
     func requestRefreshIsRefusedWithoutARequest() async throws {
-        let lister = CountingModelLister()
+        let lister = ScriptedModelLister()
         let coordinator = requestCoordinator(lister: lister)
         await #expect(throws: ProviderConfigurationError.configurationLocked) {
             try await coordinator.refreshModelsForRequest(provider: .deepSeek)
@@ -226,22 +214,22 @@ struct ProviderConfigurationCoordinatorTests {
         }
         await coordinator.release(capture)
 
-        await lister.suspendCalls()
+        await lister.holdNextRequest()
         let validation = Task { try await coordinator.validateAndSaveKey("new-key", for: .gemini) }
-        await lister.waitUntilCalled()
+        await lister.waitUntilHeld()
         #expect(await coordinator.currentActivity() == .credential(.gemini))
         await #expect(throws: ProviderConfigurationError.configurationLocked) {
             try await coordinator.refreshModelsForRequest(provider: .deepSeek)
         }
-        await lister.resumeCalls()
+        await lister.finishHeld()
         _ = try await validation.value
 
-        #expect(await lister.providers == [.gemini])
+        #expect(await lister.requests == [.gemini])
     }
 
     @Test("a canceled request sends no list request")
     func canceledRequestDoesNotRefresh() async throws {
-        let lister = CountingModelLister()
+        let lister = ScriptedModelLister()
         let coordinator = requestCoordinator(lister: lister)
         _ = try await coordinator.beginRequestConfigurationFreeze()
 
@@ -251,7 +239,7 @@ struct ProviderConfigurationCoordinatorTests {
         }
 
         await #expect(throws: CancellationError.self) { try await refresh.value }
-        #expect(await lister.providers.isEmpty)
+        #expect(await lister.requests.isEmpty)
     }
 
     @Test("selecting the first usable provider makes it current")
@@ -265,10 +253,9 @@ struct ProviderConfigurationCoordinatorTests {
         let metadataStore = MemoryMetadataStore(
             state: ProviderMetadataState(configurations: [.openAI: configuration])
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: MemoryCredentialStore(credentials: [.openAI: credential]),
-            metadataStore: metadataStore
+        let coordinator = memoryCoordinator(
+            credentials: MemoryCredentialStore(credentials: [.openAI: credential]),
+            metadata: metadataStore
         )
 
         let selected = try await coordinator.selectModel("gpt-4.1", for: .openAI)
@@ -282,11 +269,7 @@ struct ProviderConfigurationCoordinatorTests {
     @Test("configuring another provider never replaces a remembered current provider")
     func configuringAnotherProviderDoesNotReplaceRememberedCurrentProvider() async throws {
         let metadataStore = MemoryMetadataStore()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: ["model"]),
-            credentialStore: MemoryCredentialStore(),
-            metadataStore: metadataStore
-        )
+        let coordinator = memoryCoordinator(lister: StaticModelLister(models: ["model"]), metadata: metadataStore)
 
         _ = try await coordinator.validateAndSaveKey("openai-key", for: .openAI)
         _ = try await coordinator.selectModel("model", for: .openAI)
@@ -313,11 +296,7 @@ struct ProviderConfigurationCoordinatorTests {
         let metadataStore = MemoryMetadataStore(
             state: ProviderMetadataState(configurations: [.gemini: configuration])
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: MemoryCredentialStore(),
-            metadataStore: metadataStore
-        )
+        let coordinator = memoryCoordinator(metadata: metadataStore)
 
         try await coordinator.recordVisionSuccess(
             provider: .gemini,
@@ -341,11 +320,7 @@ struct ProviderConfigurationCoordinatorTests {
             currentProvider: .deepSeek
         )
         let metadataStore = MemoryMetadataStore(state: initialState)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: MemoryCredentialStore(),
-            metadataStore: metadataStore
-        )
+        let coordinator = memoryCoordinator(metadata: metadataStore)
 
         try await coordinator.recordVisionFailure(
             provider: .deepSeek,
@@ -388,22 +363,16 @@ struct ProviderConfigurationCoordinatorTests {
                 currentProvider: .openAI
             )
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: MemoryCredentialStore(
-                credentials: [
-                    .openAI: ProviderCredential(generation: UUID(), apiKey: "openai-secret"),
-                    .gemini: ProviderCredential(generation: UUID(), apiKey: "gemini-secret"),
-                ]
-            ),
-            metadataStore: metadataStore
+        let coordinator = memoryCoordinator(
+            credentials: MemoryCredentialStore(credentials: [
+                .openAI: ProviderCredential(generation: UUID(), apiKey: "openai-secret"),
+                .gemini: ProviderCredential(generation: UUID(), apiKey: "gemini-secret"),
+            ]),
+            metadata: metadataStore
         )
 
-        do {
+        await #expect(throws: ProviderConfigurationError.providerNotUsable) {
             try await coordinator.setCurrentProvider(.gemini)
-            Issue.record("Expected the provider without a selected model to be rejected")
-        } catch {
-            #expect(error as? ProviderConfigurationError == .providerNotUsable)
         }
         #expect(try await metadataStore.load().currentProvider == .openAI)
 
@@ -430,11 +399,7 @@ struct ProviderConfigurationCoordinatorTests {
                 .openAI: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
             ]
         )
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: []),
-            credentialStore: credentialStore,
-            metadataStore: metadataStore
-        )
+        let coordinator = memoryCoordinator(credentials: credentialStore, metadata: metadataStore)
 
         try await coordinator.clearProvider(.openAI)
 
@@ -461,20 +426,14 @@ struct ProviderConfigurationCoordinatorTests {
             ]
         )
         let metadataStore = MemoryMetadataStore(state: initialState)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(
-                models: [],
-                error: .modelListFailed
-            ),
-            credentialStore: credentialStore,
-            metadataStore: metadataStore
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: [], error: .modelListFailed),
+            credentials: credentialStore,
+            metadata: metadataStore
         )
 
-        do {
+        await #expect(throws: BoundaryError.modelListFailed) {
             _ = try await coordinator.validateAndSaveKey("candidate-secret", for: .openAI)
-            Issue.record("Expected model-list validation to fail")
-        } catch {
-            #expect(error as? BoundaryError == .modelListFailed)
         }
         #expect(try await credentialStore.credential(for: .openAI) == nil)
         let state = try await metadataStore.load()
@@ -495,21 +454,14 @@ struct ProviderConfigurationCoordinatorTests {
             currentProvider: .openAI
         )
         let metadataStore = MemoryMetadataStore(state: initialState)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: StaticModelLister(models: [], error: .modelListFailed),
-            credentialStore: MemoryCredentialStore(
-                credentials: [
-                    .openAI: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
-                ]
-            ),
-            metadataStore: metadataStore
+        let coordinator = memoryCoordinator(
+            lister: StaticModelLister(models: [], error: .modelListFailed),
+            credentials: MemoryCredentialStore(credentials: [.openAI: ProviderCredential(generation: UUID(), apiKey: "saved-secret")]),
+            metadata: metadataStore
         )
 
-        do {
+        await #expect(throws: BoundaryError.modelListFailed) {
             _ = try await coordinator.refreshModels(for: .openAI)
-            Issue.record("Expected refresh to fail")
-        } catch {
-            #expect(error as? BoundaryError == .modelListFailed)
         }
         #expect(try await metadataStore.load() == initialState)
     }
@@ -525,42 +477,10 @@ private func requestCoordinator(
         fetchedAt: Date(timeIntervalSince1970: 1_787_600_000),
         selectedModelID: "old-model"
     )
-    return ProviderConfigurationCoordinator(
-        modelLister: lister,
-        credentialStore: MemoryCredentialStore(credentials: [
-            .deepSeek: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
-        ]),
-        metadataStore: MemoryMetadataStore(state: ProviderMetadataState(
-            configurations: [.deepSeek: configuration], currentProvider: .deepSeek
-        )),
+    return memoryCoordinator(
+        lister: lister,
+        credentials: MemoryCredentialStore(credentials: [.deepSeek: ProviderCredential(generation: UUID(), apiKey: "saved-secret")]),
+        metadata: MemoryMetadataStore(state: ProviderMetadataState(configurations: [.deepSeek: configuration], currentProvider: .deepSeek)),
         now: { now }
     )
-}
-
-private actor CountingModelLister: ProviderModelListing {
-    private(set) var providers: [ProviderID] = []
-    private var suspends = false
-    private var calledWaiters: [CheckedContinuation<Void, Never>] = []
-    private var suspended: [CheckedContinuation<Void, Never>] = []
-
-    func suspendCalls() { suspends = true }
-
-    func resumeCalls() {
-        suspends = false
-        suspended.forEach { $0.resume() }
-        suspended.removeAll()
-    }
-
-    func waitUntilCalled() async {
-        guard providers.isEmpty else { return }
-        await withCheckedContinuation { calledWaiters.append($0) }
-    }
-
-    func listModels(provider: ProviderID, apiKey: String) async throws -> [String] {
-        providers.append(provider)
-        calledWaiters.forEach { $0.resume() }
-        calledWaiters.removeAll()
-        if suspends { await withCheckedContinuation { suspended.append($0) } }
-        return ["model"]
-    }
 }

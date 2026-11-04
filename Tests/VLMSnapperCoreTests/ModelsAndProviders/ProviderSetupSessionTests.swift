@@ -13,11 +13,9 @@ struct ProviderSetupSessionTests {
         _ = try await coordinator.selectModel("model", for: provider)
     }
 
-    let aDay: TimeInterval = 24 * 60 * 60
-
     @Test("real coordinator capture state makes configuration read-only until release")
     func captureActivityLocksSession() async throws {
-        let lister = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
+        let lister = ScriptedModelLister()
         let coordinator = makeCoordinator(modelLister: lister)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         await session.load()
@@ -36,10 +34,10 @@ struct ProviderSetupSessionTests {
 
     @Test("another Provider keeps editing but duplicate submissions cannot overlap the active job", arguments: [false, true])
     func crossProviderSubmissionIsExclusive(failFirst: Bool) async {
-        let lister = SuspendedValidationModelLister(failFirst: failFirst)
+        let lister = ScriptedModelLister(holdingNext: true, failingNext: failFirst ? ProviderModelListError.authenticationRejected : nil)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: lister))
         let first = Task { await session.validate(apiKey: "first-fixture-key") }
-        await lister.waitUntilStarted()
+        await lister.waitUntilHeld()
         await session.selectProvider(.openAI)
         let snapshot = await session.snapshot()
         #expect(snapshot.selectedProvider == .openAI)
@@ -48,21 +46,19 @@ struct ProviderSetupSessionTests {
         for _ in 0..<2 {
             #expect(await session.validate(apiKey: "second-fixture-key", for: .openAI) == false)
         }
-        #expect(await lister.providers == [.deepSeek])
-        await lister.finish()
+        #expect(await lister.requests == [.deepSeek])
+        await lister.finishHeld()
         await first.value
         #expect(await session.snapshot().blocksConfigurationChanges == false)
         #expect(await session.validate(apiKey: "second-fixture-key", for: .openAI))
-        #expect(await lister.providers == [.deepSeek, .openAI])
+        #expect(await lister.requests == [.deepSeek, .openAI])
     }
 
     @Test("canceling validation before a delayed credential read returns never starts a Provider request")
     func cancellationBeforeReplacementAdmission() async throws {
         let storage = SessionTestStorage()
-        let lister = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: lister, credentialStore: storage, metadataStore: storage
-        )
+        let lister = ScriptedModelLister()
+        let coordinator = makeCoordinator(modelLister: lister, storage: storage)
         await storage.suspendNextRead()
         let validation = Task {
             try await coordinator.validateAndSaveKey("memory-only-candidate", for: .deepSeek)
@@ -70,12 +66,7 @@ struct ProviderSetupSessionTests {
         await storage.waitUntilReading()
         validation.cancel()
         await storage.finishReading()
-        do {
-            _ = try await validation.value
-            Issue.record("Expected cancellation before replacement admission")
-        } catch is CancellationError {} catch {
-            Issue.record("Expected cancellation, not a storage or Provider failure")
-        }
+        await #expect(throws: CancellationError.self) { _ = try await validation.value }
         #expect(await lister.keys.isEmpty)
         #expect(try await coordinator.apiKey(for: .deepSeek) == nil)
     }
@@ -84,7 +75,7 @@ struct ProviderSetupSessionTests {
     func lateReadFailureIsIgnored(reopen: Bool) async {
         let session = ProviderSetupSession(
             selectedProvider: .deepSeek,
-            boundary: makeCoordinator(modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false))
+            boundary: makeCoordinator(modelLister: ScriptedModelLister())
         )
         await session.load()
         await session.credentialReadDidFail(for: .deepSeek) {
@@ -103,18 +94,10 @@ struct ProviderSetupSessionTests {
 
     @Test("canceling a card load before Keychain responds cannot start recovery")
     func closingEditorInvalidatesCredentialRead() async throws {
-        let storage = SessionTestStorage()
-        let initial = ProviderConfigurationCoordinator(
-            modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false),
-            credentialStore: storage, metadataStore: storage
-        )
-        _ = try await initial.validateAndSaveKey("durable-key", for: .deepSeek)
-        await storage.save(ProviderMetadataState())
+        let storage = try await storageWithOrphanedKey()
         await storage.suspendNextRead()
-        let lister = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: lister, credentialStore: storage, metadataStore: storage
-        )
+        let lister = ScriptedModelLister()
+        let coordinator = makeCoordinator(modelLister: lister, storage: storage)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         let load = Task { await session.load() }
         await storage.waitUntilReading()
@@ -129,27 +112,18 @@ struct ProviderSetupSessionTests {
 
     @Test("recovery is observable and read-only until the complete model list arrives", arguments: [false, true])
     func recoveryPublishesBusyState(reopen: Bool) async throws {
-        let storage = SessionTestStorage()
-        let initial = ProviderConfigurationCoordinator(
-            modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false),
-            credentialStore: storage, metadataStore: storage
-        )
-        _ = try await initial.validateAndSaveKey("durable-key", for: .deepSeek)
-        await storage.save(ProviderMetadataState())
-        let lister = SuspendedValidationModelLister(failFirst: false)
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: lister, credentialStore: storage, metadataStore: storage
-        )
+        let lister = ScriptedModelLister(holdingNext: true)
+        let coordinator = makeCoordinator(modelLister: lister, storage: try await storageWithOrphanedKey())
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         let load = Task { await session.load() }
-        await lister.waitUntilStarted()
+        await lister.waitUntilHeld()
         if reopen {
             await session.selectProvider(.openAI)
             await session.selectProvider(.deepSeek)
         }
         #expect(await session.snapshot().phase == .recovering)
         #expect(await session.snapshot().isReadOnly)
-        await lister.finish()
+        await lister.finishHeld()
         await load.value
         #expect(await session.snapshot().phase == .selectingModel)
         #expect(!(await session.snapshot().isReadOnly))
@@ -159,10 +133,7 @@ struct ProviderSetupSessionTests {
     @Test("Keychain read failure preserves metadata and locks editing until reopening retries", arguments: [false, true])
     func keychainReadFailureIsNotMissingCredential(genericFailure: Bool) async throws {
         let storage = SessionTestStorage()
-        let coordinator = ProviderConfigurationCoordinator(
-            modelLister: SuspendedValidationModelLister(failFirst: false, suspendFirst: false),
-            credentialStore: storage, metadataStore: storage
-        )
+        let coordinator = makeCoordinator(modelLister: ScriptedModelLister(), storage: storage)
         _ = try await coordinator.validateAndSaveKey("saved-key", for: .deepSeek)
         _ = try await coordinator.selectModel("model", for: .deepSeek)
         await storage.setReadFailure(true)
@@ -180,12 +151,12 @@ struct ProviderSetupSessionTests {
 
     @Test("returning after validation failure shows its original failure")
     func returningAfterValidationFailure() async {
-        let boundary = SuspendedValidationModelLister(failFirst: true)
+        let boundary = ScriptedModelLister(holdingNext: true, failingNext: ProviderModelListError.authenticationRejected)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: boundary))
         let validation = Task { await session.validate(apiKey: "candidate") }
-        await boundary.waitUntilStarted()
+        await boundary.waitUntilHeld()
         await session.selectProvider(.openAI)
-        await boundary.finish()
+        await boundary.finishHeld()
         await validation.value
         await session.selectProvider(.deepSeek)
         #expect(await session.snapshot().phase == .failed)
@@ -194,11 +165,11 @@ struct ProviderSetupSessionTests {
 
     @Test("a submitted key keeps its original Provider when dispatch occurs after a card switch")
     func submittedValidationUsesExplicitProvider() async {
-        let boundary = SuspendedValidationModelLister(failFirst: false, suspendFirst: false)
+        let boundary = ScriptedModelLister()
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: boundary))
         await session.selectProvider(.openAI)
         await session.validate(apiKey: " exact-key\t", for: .deepSeek)
-        #expect(await boundary.providers == [.deepSeek])
+        #expect(await boundary.requests == [.deepSeek])
         #expect(await boundary.keys == [" exact-key\t"])
         #expect(await session.snapshot().selectedProvider == .openAI)
         #expect(await session.snapshot().availableModelIDs.isEmpty)
@@ -207,87 +178,50 @@ struct ProviderSetupSessionTests {
 
     @Test("a pending validation ignores duplicates and releases its slot after success or failure", arguments: [false, true])
     func pendingValidationSuppressesDuplicates(failFirst: Bool) async {
-        let boundary = SuspendedValidationModelLister(failFirst: failFirst)
+        let boundary = ScriptedModelLister(holdingNext: true, failingNext: failFirst ? ProviderModelListError.authenticationRejected : nil)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: boundary))
         let first = Task { await session.validate(apiKey: "first-key") }
-        await boundary.waitUntilStarted()
+        await boundary.waitUntilHeld()
         await session.validate(apiKey: "duplicate-key")
         await session.selectProvider(.openAI)
         await session.selectProvider(.deepSeek)
         #expect(await session.snapshot().phase == .validating)
         await session.validate(apiKey: "another-duplicate")
         #expect(await boundary.keys == ["first-key"])
-        await boundary.finish()
+        await boundary.finishHeld()
         await first.value
         #expect(await session.snapshot().phase == (failFirst ? .failed : .selectingModel))
         await session.validate(apiKey: "next-key")
         #expect(await boundary.keys == ["first-key", "next-key"])
     }
 
-    @Test("validation reveals the complete model list without choosing a model")
-    func validationRevealsModelsWithoutSelection() async {
-        let boundary = ProviderConfigurationBoundaryProbe(
-            validationResult: ProviderConfiguration(
-                models: [
-                    ProviderModelState(id: "gemini-2.5-flash"),
-                    ProviderModelState(id: "gemini-2.5-pro"),
-                ],
-                fetchedAt: Date(),
-                selectedModelID: nil
-            )
-        )
-        let session = ProviderSetupSession(
-            selectedProvider: .gemini,
-            boundary: boundary
-        )
+    @Test("validation reveals the complete model list without choosing a model, and selecting one enables Done")
+    func validationRevealsModelsAndSelectingEnablesDone() async {
+        let boundary = ProviderConfigurationBoundaryProbe(models: ["gemini-2.5-flash", "gemini-2.5-pro"])
+        let session = ProviderSetupSession(selectedProvider: .gemini, boundary: boundary)
 
         await session.validate(apiKey: "candidate-secret")
-        let snapshot = await session.snapshot()
+        let revealed = await session.snapshot()
 
-        #expect(snapshot.availableModelIDs == ["gemini-2.5-flash", "gemini-2.5-pro"])
-        #expect(snapshot.selectedModelID == nil)
-        #expect(snapshot.phase == .selectingModel)
-        #expect(!snapshot.canFinish)
+        #expect(revealed.availableModelIDs == ["gemini-2.5-flash", "gemini-2.5-pro"])
+        #expect(revealed.selectedModelID == nil)
+        #expect(revealed.phase == .selectingModel)
+        #expect(!revealed.canFinish)
         #expect(await boundary.validatedKeys == ["candidate-secret"])
-    }
 
-    @Test("selecting a model enables Done without replacing the current provider")
-    func selectingModelEnablesDone() async {
-        let boundary = ProviderConfigurationBoundaryProbe(
-            validationResult: ProviderConfiguration(
-                models: [ProviderModelState(id: "gpt-4.1")],
-                fetchedAt: Date(),
-                selectedModelID: nil
-            )
-        )
-        let session = ProviderSetupSession(
-            selectedProvider: .openAI,
-            boundary: boundary
-        )
-        await session.validate(apiKey: "candidate-secret")
+        await session.selectModel("gemini-2.5-flash")
+        let selected = await session.snapshot()
 
-        await session.selectModel("gpt-4.1")
-        let snapshot = await session.snapshot()
-
-        #expect(snapshot.selectedModelID == "gpt-4.1")
-        #expect(snapshot.phase == .ready)
-        #expect(snapshot.canFinish)
-        #expect(await boundary.selectedModels == ["gpt-4.1"])
+        #expect(selected.selectedModelID == "gemini-2.5-flash")
+        #expect(selected.phase == .ready)
+        #expect(selected.canFinish)
+        #expect(await boundary.selectedModels == ["gemini-2.5-flash"])
     }
 
     @Test("selecting another provider clears only transient presentation state")
     func selectingProviderClearsTransientState() async {
-        let boundary = ProviderConfigurationBoundaryProbe(
-            validationResult: ProviderConfiguration(
-                models: [ProviderModelState(id: "gpt-4.1")],
-                fetchedAt: Date(),
-                selectedModelID: nil
-            )
-        )
-        let session = ProviderSetupSession(
-            selectedProvider: .openAI,
-            boundary: boundary
-        )
+        let boundary = ProviderConfigurationBoundaryProbe(models: ["gpt-4.1"])
+        let session = ProviderSetupSession(selectedProvider: .openAI, boundary: boundary)
         await session.validate(apiKey: "candidate-secret")
 
         await session.selectProvider(.deepSeek)
@@ -319,17 +253,8 @@ struct ProviderSetupSessionTests {
 
     @Test("read-only activity state permits viewing another Provider but blocks configuration mutations")
     func readOnlyStateBlocksConfigurationMutations() async {
-        let boundary = ProviderConfigurationBoundaryProbe(
-            validationResult: ProviderConfiguration(
-                models: [ProviderModelState(id: "gpt-4.1")],
-                fetchedAt: Date(),
-                selectedModelID: nil
-            )
-        )
-        let session = ProviderSetupSession(
-            selectedProvider: .openAI,
-            boundary: boundary
-        )
+        let boundary = ProviderConfigurationBoundaryProbe(models: ["gpt-4.1"])
+        let session = ProviderSetupSession(selectedProvider: .openAI, boundary: boundary)
 
         await session.setReadOnly(true)
         await session.validate(apiKey: "candidate-secret")
@@ -343,69 +268,35 @@ struct ProviderSetupSessionTests {
         #expect(await boundary.selectedModels.isEmpty)
     }
 
-    @Test("a rejected API key is reported as invalid credentials")
-    func rejectedAPIKeyIsReportedAsInvalidCredentials() async {
-        let session = ProviderSetupSession(
-            selectedProvider: .openAI,
-            boundary: FailingProviderBoundary(
-                error: ProviderModelListError.authenticationRejected
-            )
-        )
+    static let validationFailures: [(any Error, ProviderSetupFailure)] = [
+        (ProviderModelListError.authenticationRejected, .invalidConfiguration),
+        (ProviderModelListError.requestRejected(statusCode: 503), .unavailable),
+        (AppleKeychainError.unexpectedStatus(errSecMissingEntitlement), .secureStorage),
+    ]
 
-        await session.validate(apiKey: "rejected-secret")
-        let snapshot = await session.snapshot()
+    @Test("a failed validation says why, and keeps saying so through a reload", arguments: validationFailures)
+    func validationFailureIsReportedAndStaysThroughReload(error: any Error, expected: ProviderSetupFailure) async {
+        let session = ProviderSetupSession(selectedProvider: .openAI, boundary: FailingProviderBoundary(error: error))
 
-        #expect(snapshot.phase == .failed)
-        #expect(snapshot.failure == .invalidConfiguration)
-    }
+        await session.validate(apiKey: "candidate")
+        #expect(await session.snapshot().phase == .failed)
+        #expect(await session.snapshot().failure == expected)
 
-    @Test("a Provider outage is not reported as invalid credentials")
-    func providerOutageIsNotReportedAsInvalidCredentials() async {
-        let session = ProviderSetupSession(
-            selectedProvider: .openAI,
-            boundary: FailingProviderBoundary(
-                error: ProviderModelListError.requestRejected(statusCode: 503)
-            )
-        )
-
-        await session.validate(apiKey: "candidate-secret")
-        let snapshot = await session.snapshot()
-
-        #expect(snapshot.phase == .failed)
-        #expect(snapshot.failure == .unavailable)
-    }
-
-    @Test("a Keychain write failure is reported as local secure storage")
-    func keychainWriteFailureIsReportedAsLocalSecureStorage() async {
-        let session = ProviderSetupSession(
-            selectedProvider: .deepSeek,
-            boundary: FailingProviderBoundary(
-                error: AppleKeychainError.unexpectedStatus(errSecMissingEntitlement)
-            )
-        )
-
-        await session.validate(apiKey: "candidate-secret")
-        let snapshot = await session.snapshot()
-
-        #expect(snapshot.phase == .failed)
-        #expect(snapshot.failure == .secureStorage)
+        await session.reloadConfiguration(of: .openAI)
+        #expect(await session.snapshot().phase == .failed)
+        #expect(await session.snapshot().failure == expected)
     }
 }
 
-private actor ProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
-    func shouldRefreshModelsOnSettingsOpen(for provider: ProviderID) -> Bool { false }
-    func currentActivity() async -> ProviderWorkflowActivity? { nil }
-    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
+private actor ProviderConfigurationBoundaryProbe: IdleSetupBoundary {
     let validationResult: ProviderConfiguration
     private(set) var validatedKeys: [String] = []
     private(set) var selectedModels: [String] = []
 
-    init(validationResult: ProviderConfiguration) {
-        self.validationResult = validationResult
-    }
-
-    func configurationState() -> ProviderMetadataState {
-        ProviderMetadataState()
+    init(models: [String]) {
+        validationResult = ProviderConfiguration(
+            models: models.map { ProviderModelState(id: $0) }, fetchedAt: Date(), selectedModelID: nil
+        )
     }
 
     func validateAndSaveKey(
@@ -434,28 +325,10 @@ private actor ProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
 
 }
 
-private actor SuspendedProviderConfigurationBoundaryProbe: ProviderSetupConfiguring {
-    func shouldRefreshModelsOnSettingsOpen(for provider: ProviderID) -> Bool { false }
-    func currentActivity() async -> ProviderWorkflowActivity? { nil }
-    func reconcileCredentialState(for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void) -> ProviderMetadataState { configurationState() }
+private actor SuspendedProviderConfigurationBoundaryProbe: IdleSetupBoundary {
     private var selectionStarted = false
     private var selectionContinuation: CheckedContinuation<Void, Never>?
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
-
-    func configurationState() -> ProviderMetadataState {
-        ProviderMetadataState()
-    }
-
-    func validateAndSaveKey(
-        _ apiKey: String,
-        for provider: ProviderID
-    ) -> ProviderConfiguration {
-        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
-    }
-
-    func refreshModels(for provider: ProviderID) -> ProviderConfiguration {
-        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
-    }
 
     func selectModel(
         _ modelID: String,
