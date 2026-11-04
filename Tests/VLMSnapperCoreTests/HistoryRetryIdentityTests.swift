@@ -85,8 +85,9 @@ struct HistoryRetryIdentityTests {
     @Test
     func pinChangedDuringRetryAndUnrelatedRowsSurviveCommit() async throws {
         try await withHistory { store, screenshots, record, png in
-            let other = try await store.prepareExtraction(screenshot: record.operation.screenshot,
-                selection: record.operation.selection)
+            let other = try await store.prepareOperation(screenshot: record.operation.screenshot,
+                selection: record.operation.selection,
+                operation: .extractText)
             try await store.finish(operationID: other.operationID,
                 with: .succeeded(sourceMarkdown: "Unrelated", translationMarkdown: nil))
             let originalOther = try await store.historyRecord(id: other.operationID)

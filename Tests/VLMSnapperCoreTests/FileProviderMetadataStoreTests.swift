@@ -59,6 +59,32 @@ struct FileProviderMetadataStoreTests {
         #expect(!FileManager.default.fileExists(atPath: target.appendingPathComponent("VLMSnapper").path))
     }
 
+    @Test("a store that has read its file rejects a save after a symbolic link replaces it")
+    func symbolicLinkReplacingAReadFileIsRejected() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let fileURL = directory.appendingPathComponent("providers.json")
+        let outside = directory.appendingPathComponent("outside.json")
+        let store = FileProviderMetadataStore(fileURL: fileURL)
+        try await store.save(ProviderMetadataState())
+        _ = try await store.load()
+        let outsideData = Data("outside".utf8)
+        try outsideData.write(to: outside)
+        try FileManager.default.removeItem(at: fileURL)
+        try FileManager.default.createSymbolicLink(at: fileURL, withDestinationURL: outside)
+
+        do {
+            try await store.save(ProviderMetadataState())
+            Issue.record("Expected the symbolic link to be rejected")
+        } catch {
+            #expect(error as? FileProviderMetadataStoreError == .unsafePath)
+        }
+        let type = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.type] as? FileAttributeType
+        #expect(type == .typeSymbolicLink)
+        #expect(try Data(contentsOf: outside) == outsideData)
+    }
+
     @Test("invalid metadata is reported without overwriting its bytes")
     func invalidMetadataIsNotOverwritten() async throws {
         let directory = FileManager.default.temporaryDirectory

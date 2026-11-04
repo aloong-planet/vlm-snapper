@@ -97,7 +97,6 @@ public struct ManagementCenterCallbacks {
     public let historyRetry: HistoryRetryPresentation
     public let onRetryHistorySave: () -> Void
     public let onSelectRecord: (UUID) -> Void
-    public let onOpenRecord: (UUID) -> Void
     public let onRetryRecord: (UUID) -> Void
     public let onSetPinned: (UUID, Bool) -> Void
     public let onDelete: (UUID) -> Void
@@ -122,7 +121,6 @@ public struct ManagementCenterCallbacks {
         historyRetry: HistoryRetryPresentation = HistoryRetryPresentation(),
         onRetryHistorySave: @escaping () -> Void = {},
         onSelectRecord: @escaping (UUID) -> Void = { _ in },
-        onOpenRecord: @escaping (UUID) -> Void = { _ in },
         onRetryRecord: @escaping (UUID) -> Void = { _ in },
         onSetPinned: @escaping (UUID, Bool) -> Void = { _, _ in },
         onDelete: @escaping (UUID) -> Void = { _ in },
@@ -146,7 +144,6 @@ public struct ManagementCenterCallbacks {
         self.historyRetry = historyRetry
         self.onRetryHistorySave = onRetryHistorySave
         self.onSelectRecord = onSelectRecord
-        self.onOpenRecord = onOpenRecord
         self.onRetryRecord = onRetryRecord
         self.onSetPinned = onSetPinned
         self.onDelete = onDelete
@@ -1089,6 +1086,8 @@ public struct ManagementCenterView: View {
         case .configurationLocked: VLMSnapperStrings.providerReadOnly
         case .invalidConfiguration:
             VLMSnapperStrings.failureMessage(code: "invalid_credential")
+        case .incompatibleModel:
+            VLMSnapperStrings.failureMessage(code: "image_input_unsupported")
         case .secureStorage:
             providerSettings?.snapshot.isReadOnly == true
                 ? VLMSnapperStrings.providerStorageReadFailure

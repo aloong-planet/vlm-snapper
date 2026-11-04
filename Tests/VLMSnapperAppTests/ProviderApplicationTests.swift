@@ -44,8 +44,8 @@ import VLMSnapperUI
 // inside a clear pending selection reaching another app needs posted HID events
 // with Accessibility trust (verified outside the suite, see the construction notes).
 // Result box (v1-core::REQ-010–012): whether the box sits above the overlay on screen, selecting and
-// copying while the application is not active, and a second display need the installed build. No
-// production path clears the current model yet, so failure mode 56 has no trigger; its guard is untested.
+// copying while the application is not active, and a second display need the installed build. A model leaving
+// the list has no production path yet (failure mode 11), so that trigger of failure mode 56 is untested.
 // `aLanguageRowChoosesTheNextTranslationsLanguage` presses a real row; other sequences call the toolbar's
 // language callback directly, to keep the catalog's long list out of them.
 // Escape arriving before a press's request task reaches the session cannot be forced from here, so canceling
@@ -223,9 +223,10 @@ struct ProviderApplicationTests {
             let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
             let titles = ["Oldest entry", "Meeting notes", "Release notes", "Travel plans", "Project summary", "Latest entry"]
             for title in titles.prefix(count) {
-                let prepared = try await store.prepareExtraction(
+                let prepared = try await store.prepareOperation(
                     screenshot: ManagedScreenshot(path: fixture.root.appendingPathComponent("missing.png").path, sha256: "fixture"),
-                    selection: ProviderSelection(providerID: "deepseek", modelID: "fixture-model"))
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "fixture-model"),
+                    operation: .extractText)
                 try await store.finish(operationID: prepared.operationID,
                     with: .succeeded(sourceMarkdown: title, translationMarkdown: nil))
             }
@@ -557,8 +558,9 @@ struct ProviderApplicationTests {
                 now: { tenDaysAgo })
             var identifiers: [UUID] = []
             for text in ["Original retry target", "Unrelated record"] {
-                let prepared = try await store.prepareExtraction(screenshot: screenshot,
-                    selection: ProviderSelection(providerID: "deepseek", modelID: "archived-model"))
+                let prepared = try await store.prepareOperation(screenshot: screenshot,
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "archived-model"),
+                    operation: .extractText)
                 try await store.finish(operationID: prepared.operationID,
                     with: .succeeded(sourceMarkdown: text, translationMarkdown: nil))
                 identifiers.append(prepared.operationID)
@@ -1349,6 +1351,161 @@ struct ProviderApplicationTests {
             #expect(languages() == ["ja", "zh-Hans", "zh-Hans"])
             #expect(model.historyRecords.contains { $0.operation.status == .failed })
             #expect(model.historyRecords.contains { $0.operation.translationMarkdown?.contains("中文译文") == true })
+        }
+    }
+
+    /// v1-core failure modes 10, 56 and 1, with DeepSeek's reply for a model that takes only text.
+    @Test
+    func aModelThatRejectsImagesIsClearedAndNothingMoreIsSent() async throws {
+        try await withResultFixture { fixture, model in
+            var onboardingRequests = 0
+            model.onShowOnboarding = { onboardingRequests += 1 }
+            await fixture.http.rejectImages(status: 400, body: deepSeekTextOnlyModelError)
+            let (overlay, toolbar) = try await completeSelection(fixture)
+            try await clickExtract(toolbar)
+            try await eventually {
+                resultBoxPresentation()?.body == .failure("The current model does not support image input.")
+            }
+            try await waitForResultIdle(model)
+
+            #expect(model.providerReadiness == .pendingModel(.deepSeek))
+            #expect(model.providerSnapshot.selectedModelID == nil)
+            let configuration = try #require(model.providerConfigurations[.deepSeek])
+            #expect(configuration.selectedModelID == nil)
+            #expect(configuration.models.first { $0.id == "fixture-vision" }?.visionCompatibility == .incompatible)
+
+            // Pressed right after the failure, Retry already finds no model.
+            let unavailable = CaptureResultBoxPresentation.Body.failure(
+                "The current model is unavailable. Refresh the model list and choose again."
+            )
+            try clickResultBoxButton(try #require(resultBox()), fromEnd: 1)
+            try await eventually { resultBoxPresentation()?.body == unavailable }
+            #expect(await fixture.http.imageRequests.count == 1)
+
+            let extractTitle = resultBoxPresentation()?.title
+            try await clickTranslate(toolbar)
+            try await eventually { resultBoxPresentation()?.title != extractTitle }
+            #expect(resultBoxPresentation()?.body == unavailable)
+            #expect(await fixture.http.imageRequests.count == 1)
+
+            try pressEscape(overlay)
+            try await eventually { !captureOverlayIsVisible() }
+            try await eventually { model.providerSnapshot.activity == nil }
+            try fixture.shortcuts.fire()
+            try await eventually { onboardingRequests == 1 }
+            #expect(!captureOverlayIsVisible())
+            #expect(await fixture.http.imageRequests.count == 1)
+
+            // Choosing it again does not blame the key, and does not select it. The capture's activity ends just
+            // after onboarding is requested, and a selection during it is ignored, so this one repeats.
+            try await eventually {
+                model.providerSettingsConfiguration().onSelectModel("fixture-vision")
+                await Task.yield()
+                return model.providerSnapshot.failure == .incompatibleModel
+            }
+            #expect(model.providerReadiness == .pendingModel(.deepSeek))
+            let settings = ManagementCenterWindowController(
+                records: [], providerSettings: model.providerSettingsConfiguration()
+            )
+            settings.show(destination: .providerSettings)
+            let settingsWindow = try #require(settings.window)
+            defer { settingsWindow.orderOut(nil) }
+            try await eventually {
+                try renderedText(in: settingsWindow).lowercased().contains("does not support image input")
+            }
+            #expect(!(try renderedText(in: settingsWindow).lowercased().contains("invalid or expired")))
+        }
+    }
+
+    /// v1-core failure mode 10, from Translate: the session reloads for that operation's result too.
+    @Test
+    func aTranslationTheModelRejectsClearsIt() async throws {
+        try await withResultFixture { fixture, model in
+            await fixture.http.rejectImages(status: 400, body: deepSeekTextOnlyModelError)
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickTranslate(toolbar)
+            try await eventually {
+                resultBoxPresentation()?.body == .failure("The current model does not support image input.")
+            }
+            try await waitForResultIdle(model)
+
+            #expect(model.providerSnapshot.selectedModelID == nil)
+            #expect(model.providerReadiness == .pendingModel(.deepSeek))
+        }
+    }
+
+    /// v1-core failure mode 10: an error about the image rather than the model changes nothing.
+    @Test
+    func anUnsupportedImageFormatLeavesTheModelSelected() async throws {
+        try await withResultFixture { fixture, model in
+            await fixture.http.rejectImages(status: 400, body: openAIUnsupportedImageError)
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickExtract(toolbar)
+            try await eventually {
+                resultBoxPresentation()?.body == .failure("The request failed. Review the error details and retry manually.")
+            }
+            try await waitForResultIdle(model)
+
+            #expect(model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision"))
+            let configuration = try #require(model.providerConfigurations[.deepSeek])
+            #expect(configuration.selectedModelID == "fixture-vision")
+            #expect(configuration.models.first { $0.id == "fixture-vision" }?.visionCompatibility == .unknown)
+
+            try clickResultBoxButton(try #require(resultBox()), fromEnd: 1)
+            try await eventually { await fixture.http.imageRequests.count == 2 }
+        }
+    }
+
+    /// v1-core: the first real image operation verifies the model.
+    @Test
+    func theFirstSuccessfulRequestVerifiesTheModel() async throws {
+        try await withResultFixture { fixture, model in
+            let (_, toolbar) = try await completeSelection(fixture)
+            try await clickExtract(toolbar)
+            try await eventually { await fixture.http.imageRequests.count == 1 }
+            try await fixture.http.finishImage(source: "Source")
+            try await waitForResultIdle(model)
+            try await eventually {
+                model.providerConfigurations[.deepSeek]?.models.first { $0.id == "fixture-vision" }?
+                    .visionCompatibility == .verified
+            }
+            #expect(model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision"))
+        }
+    }
+
+    /// v1-core failure mode 10, from a history record rather than a capture.
+    @Test
+    func aHistoryRetryTheModelRejectsClearsIt() async throws {
+        try await withFixture { fixture in
+            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
+            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            let screenshot = try await screenshots.save(originalPNG: png)
+            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
+            let prepared = try await store.prepareOperation(screenshot: screenshot,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"), operation: .extractText)
+            try await store.finish(operationID: prepared.operationID,
+                with: .succeeded(sourceMarkdown: "Archived original", translationMarkdown: nil))
+            await fixture.http.allowImageRequests()
+            await fixture.http.rejectImages(status: 400, body: deepSeekTextOnlyModelError)
+            try await fixture.withModel { model in
+                try await makeCaptureReady(model, key: "fixture-history-key")
+                try await eventually { model.historyRetry.allowsStart }
+
+                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                try await eventually {
+                    await fixture.http.imageRequests.count == 1 && !model.historyRetry.isRunning
+                }
+
+                #expect(model.historyRetry.slot.attempt == .failed(code: "image_input_unsupported"))
+                #expect(model.providerReadiness == .pendingModel(.deepSeek))
+                #expect(model.providerSnapshot.selectedModelID == nil)
+                #expect(model.providerConfigurations[.deepSeek]?.models.first { $0.id == "fixture-vision" }?
+                    .visionCompatibility == .incompatible)
+                #expect(!model.historyRetry.allowsStart)
+            }
         }
     }
 
@@ -3638,6 +3795,11 @@ private actor FixtureCredentials: ProviderCredentialStoring {
     func deleteCredential(for provider: ProviderID) { values[provider] = nil }
 }
 
+// DeepSeek's message: github.com/Zoo-Code-Org/Zoo-Code/issues/1106. The JSON around it is OpenAI-compatible.
+private let deepSeekTextOnlyModelError = #"{"error":{"message":"Failed to deserialize the JSON body into the target type: messages[1]: unknown variant `image_url`, expected `text` at line 1 column 666600","type":"invalid_request_error"}}"#
+// community.openai.com/t/580195.
+private let openAIUnsupportedImageError = #"{"error":{"message":"You uploaded an unsupported image. Please make sure your image is below 20 MB in size and is of one the following formats: ['png', 'jpeg', 'gif', 'webp'].","type":"invalid_request_error","param":null,"code":"invalid_image_format"}}"#
+
 private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
     private(set) var requests: [URLRequest] = []
     private var status = 200
@@ -3665,7 +3827,10 @@ private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
     private var imagesAllowed = false
     private(set) var imageRequests: [URLRequest] = []
     private var imageContinuation: AsyncThrowingStream<Data, Error>.Continuation?
+    private var imageRejection: (status: Int, body: String)?
     func allowImageRequests() { imagesAllowed = true }
+    /// Every image request from now on gets this reply, as a Provider's error response.
+    func rejectImages(status: Int, body: String) { imageRejection = (status, body) }
     private func imageRequestWasCanceled() { imageContinuation = nil }
     func stream(for request: URLRequest) throws -> ProviderHTTPStreamResponse {
         guard imagesAllowed else {
@@ -3678,6 +3843,11 @@ private actor FixtureHTTP: ProviderHTTPDataLoading, ProviderHTTPStreaming {
         }
         imageRequests.append(request)
         let pair = AsyncThrowingStream<Data, Error>.makeStream()
+        if let imageRejection {
+            pair.continuation.yield(Data(imageRejection.body.utf8))
+            pair.continuation.finish()
+            return ProviderHTTPStreamResponse(statusCode: imageRejection.status, headers: [:], body: pair.stream)
+        }
         imageContinuation = pair.continuation
         // A canceled request ends its stream, as closing the connection does.
         pair.continuation.onTermination = { [weak self] reason in

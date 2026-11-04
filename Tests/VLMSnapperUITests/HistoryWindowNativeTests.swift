@@ -94,11 +94,10 @@ final class HistoryWindowNativeTests: XCTestCase {
         let first = record("First history record")
         let second = record("Second history record")
         var selected: UUID?
-        var opened: UUID?
         let controller = ManagementCenterWindowController(
             records: [first, second], selectedRecordID: first.id,
             callbacks: ManagementCenterCallbacks(
-                onSelectRecord: { selected = $0 }, onOpenRecord: { opened = $0 }
+                onSelectRecord: { selected = $0 }
             )
         )
         let window = try XCTUnwrap(controller.window)
@@ -132,7 +131,6 @@ final class HistoryWindowNativeTests: XCTestCase {
         try await settle(window, condition: "second record selected") { selected == second.id }
         XCTAssertTrue(try XCTUnwrap(historyRenderedRows(in: content).dropFirst().first).isSelected())
         XCTAssertEqual(selected, second.id)
-        XCTAssertNil(opened, "Single click must not open the result workspace")
         let firstRow = window.convertFromScreen(try XCTUnwrap(historyRenderedRows(in: content).first).screenFrame())
         for count in [1, 2] {
             let up = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseUp,
@@ -151,7 +149,6 @@ final class HistoryWindowNativeTests: XCTestCase {
         }
         try await settle(window, condition: "double click selects first record inline") { selected == first.id }
         XCTAssertEqual(selected, first.id)
-        XCTAssertNil(opened, "Double click must not open a separate result workspace")
     }
 
     private func settle(_ window: NSWindow, condition: String, until predicate: () -> Bool) async throws {

@@ -18,8 +18,10 @@ public struct ProviderHTTPErrorNormalizer: Sendable {
             containsAny(evidence, ["image_too_large", "payload too large"]) {
             return .imageTooLarge
         }
-        if containsAll(evidence, ["image", "support"]) ||
-            containsAny(evidence, ["image_input_unsupported", "unsupported image input"]) {
+        // This clears the selected model, so it takes a message about the model's input
+        // (v1-core failure mode 10). An image's format or content being unsupported is not that.
+        if containsAll(evidence, ["unknown variant", "image_url"]) ||
+            containsAny(evidence, ["does not support image", "image input modality is not enabled"]) {
             return .imageInputUnsupported
         }
         if containsAny(evidence, ["content_filter", "safety", "blocked"]), statusCode < 500 {

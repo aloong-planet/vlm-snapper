@@ -197,10 +197,11 @@ struct PersistedOperationWorkspaceRunnerTests {
     @Test("a screenshot that cannot be saved reports its own reason and prepares no record")
     func screenshotSaveFailureReportsItsReason() async throws {
         let history = RunnerHistoryProbe()
+        let provider = RunnerOpenProviderProbe()
         let runner = PersistedOperationWorkspaceRunner(
             screenshotStore: RunnerFailingScreenshotStoreProbe(),
             historyStore: history,
-            provider: RunnerOpenProviderProbe()
+            provider: provider
         )
         let events = await runner.run(
             originalPNG: Data([1]),
@@ -215,6 +216,7 @@ struct PersistedOperationWorkspaceRunnerTests {
         #expect(await history.operations.isEmpty)
         #expect(await history.completions.isEmpty)
         #expect(await history.outcomes.isEmpty)
+        #expect(await provider.streamCount == 0)
     }
 
     @Test("canceling a running request records it as canceled, not as an incomplete response")
@@ -420,10 +422,11 @@ struct PersistedOperationWorkspaceRunnerTests {
     func preparationFailureRollsBackScreenshot() async throws {
         let screenshotStore = RunnerScreenshotStoreProbe()
         let history = RunnerHistoryProbe(failsPreparation: true)
+        let provider = RunnerProviderProbe()
         let runner = PersistedOperationWorkspaceRunner(
             screenshotStore: screenshotStore,
             historyStore: history,
-            provider: RunnerProviderProbe()
+            provider: provider
         )
         let selection = ProviderSelection(providerID: "openai", modelID: "vision")
 
@@ -439,6 +442,7 @@ struct PersistedOperationWorkspaceRunnerTests {
             )
         }
         #expect(await screenshotStore.discardCount == 1)
+        #expect(await provider.streamCount == 0)
 
         await history.setFailsPreparation(false)
         _ = try await collect(
@@ -449,6 +453,7 @@ struct PersistedOperationWorkspaceRunnerTests {
             )
         )
         #expect(await screenshotStore.saveCount == 2)
+        #expect(await provider.streamCount == 1)
     }
 
     @Test("a canceled first history preparation rolls back and forgets the screenshot")
@@ -516,11 +521,188 @@ struct PersistedOperationWorkspaceRunnerTests {
         #expect(await provider.streamCount == 1)
     }
 
-    @Test("mismatched prepared operation never reaches the provider")
-    func mismatchedPreparationNeverReachesProvider() async throws {
+    @Test("a persisted operation reaches the provider with its image, record and selection")
+    func persistedOperationReachesProvider() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
         let provider = RunnerProviderProbe()
         let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: RunnerHistoryProbe(),
+            provider: provider
+        )
+        let png = Data([0x89, 0x50, 0x4E, 0x47])
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+
+        _ = try await collect(await runner.run(originalPNG: png, operation: .extractText, selection: selection))
+
+        #expect(await provider.originalPNGs == [png])
+        let prepared = try #require(await provider.preparedOperations.first)
+        #expect(prepared.selection == selection)
+        #expect(prepared.operation == .extractText)
+        #expect(prepared.screenshot == ManagedScreenshot(path: "/Pictures/shared.png", sha256: "sha"))
+    }
+
+    @Test("a model that rejects images is recorded, and the failure still reaches the caller")
+    func rejectedImageIsRecorded() async throws {
+        let recorder = RunnerVisionRecorderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
             screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(error: ProviderAdapterError.imageInputUnsupported),
+            visionCompatibility: recorder
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "image_input_unsupported")) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+                )
+            )
+        }
+
+        #expect(await recorder.calls == [.failure(.deepSeek, "vision", .imageInputUnsupported)])
+    }
+
+    @Test(
+        "another failure says nothing about the model's image input",
+        arguments: [
+            ProviderAdapterError.invalidRequest,
+            ProviderAdapterError.imageTooLarge,
+            ProviderAdapterError.modelUnavailable,
+        ]
+    )
+    func otherFailureIsNotRecorded(error: ProviderAdapterError) async throws {
+        let recorder = RunnerVisionRecorderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(error: error),
+            visionCompatibility: recorder
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: error.normalizedCode)) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+                )
+            )
+        }
+
+        #expect(await recorder.calls.isEmpty)
+    }
+
+    @Test("a successful result records the model as verified, once")
+    func successIsRecorded() async throws {
+        let recorder = RunnerVisionRecorderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(),
+            visionCompatibility: recorder
+        )
+
+        _ = try await collect(
+            await runner.run(
+                originalPNG: Data([1]),
+                operation: .extractText,
+                selection: ProviderSelection(providerID: "gemini", modelID: "vision")
+            )
+        )
+
+        #expect(await recorder.calls == [.success(.gemini, "vision")])
+    }
+
+    @Test("a stream that completes without text does not verify the model")
+    func emptyCompletionIsNotRecorded() async throws {
+        let recorder = RunnerVisionRecorderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(events: [
+                .metadata(ProviderResponseMetadata(requestID: nil, usage: nil)),
+                .completed,
+            ]),
+            visionCompatibility: recorder
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "incomplete_response")) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: ProviderSelection(providerID: "gemini", modelID: "vision")
+                )
+            )
+        }
+
+        #expect(await recorder.calls.isEmpty)
+    }
+
+    @Test("failing to record changes neither a failure nor a success")
+    func recorderFailureChangesNoOutcome() async throws {
+        let recorder = RunnerVisionRecorderProbe(fails: true)
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+        let failing = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(error: ProviderAdapterError.imageInputUnsupported),
+            visionCompatibility: recorder
+        )
+        await #expect(throws: OperationWorkspaceRunFailure(code: "image_input_unsupported")) {
+            _ = try await collect(await failing.run(originalPNG: Data([1]), operation: .extractText, selection: selection))
+        }
+
+        let succeeding = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(),
+            visionCompatibility: recorder
+        )
+        let events = try await collect(
+            await succeeding.run(originalPNG: Data([1]), operation: .extractText, selection: selection)
+        )
+
+        #expect(events.contains { if case .succeeded = $0 { true } else { false } })
+        #expect(await recorder.calls == [
+            .failure(.gemini, "vision", .imageInputUnsupported),
+            .success(.gemini, "vision"),
+        ])
+    }
+
+    @Test("a prepared record with another selection never reaches the provider and is rolled back")
+    func mismatchedSelectionNeverReachesProvider() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let provider = RunnerProviderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: RunnerHistoryProbe(returnsSelectionMismatch: true),
+            provider: provider
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "history_inconsistent")) {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .extractText,
+                    selection: ProviderSelection(providerID: "openai", modelID: "vision")
+                )
+            )
+        }
+
+        #expect(await provider.streamCount == 0)
+        #expect(await screenshotStore.discardCount == 1)
+    }
+
+    @Test("mismatched prepared operation never reaches the provider")
+    func mismatchedPreparationNeverReachesProvider() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let provider = RunnerProviderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
             historyStore: RunnerHistoryProbe(returnsMismatch: true),
             provider: provider
         )
@@ -540,6 +722,35 @@ struct PersistedOperationWorkspaceRunnerTests {
             )
         }
         #expect(await provider.streamCount == 0)
+        #expect(await screenshotStore.discardCount == 1)
+    }
+}
+
+private actor RunnerVisionRecorderProbe: VisionCompatibilityRecording {
+    enum Call: Equatable {
+        case success(ProviderID, String)
+        case failure(ProviderID, String, VisionFailureEvidence)
+    }
+
+    private(set) var calls: [Call] = []
+    private let fails: Bool
+
+    init(fails: Bool = false) {
+        self.fails = fails
+    }
+
+    func recordVisionSuccess(provider: ProviderID, modelID: String) async throws {
+        calls.append(.success(provider, modelID))
+        if fails { throw ProviderConfigurationError.modelNotFound }
+    }
+
+    func recordVisionFailure(
+        provider: ProviderID,
+        modelID: String,
+        evidence: VisionFailureEvidence
+    ) async throws {
+        calls.append(.failure(provider, modelID, evidence))
+        if fails { throw ProviderConfigurationError.modelNotFound }
     }
 }
 
@@ -584,17 +795,20 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
     private var cancelsPreparation: Bool
     private var failsSuccessfulFinish: Bool
     private let returnsMismatch: Bool
+    private let returnsSelectionMismatch: Bool
 
     init(
         failsPreparation: Bool = false,
         cancelsPreparation: Bool = false,
         failsSuccessfulFinish: Bool = false,
-        returnsMismatch: Bool = false
+        returnsMismatch: Bool = false,
+        returnsSelectionMismatch: Bool = false
     ) {
         self.failsPreparation = failsPreparation
         self.cancelsPreparation = cancelsPreparation
         self.failsSuccessfulFinish = failsSuccessfulFinish
         self.returnsMismatch = returnsMismatch
+        self.returnsSelectionMismatch = returnsSelectionMismatch
     }
 
     func setFailsPreparation(_ value: Bool) {
@@ -626,6 +840,14 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
                 operationID: UUID(),
                 screenshot: ManagedScreenshot(path: "/wrong.png", sha256: "wrong"),
                 selection: selection,
+                operation: operation
+            )
+        }
+        if returnsSelectionMismatch {
+            return PreparedOperation(
+                operationID: UUID(),
+                screenshot: screenshot,
+                selection: ProviderSelection(providerID: selection.providerID, modelID: "another-model"),
                 operation: operation
             )
         }
@@ -782,6 +1004,8 @@ private enum RunnerProbeError: Error {
 
 private actor RunnerProviderProbe: PreparedOperationStreaming {
     private(set) var streamCount = 0
+    private(set) var originalPNGs: [Data] = []
+    private(set) var preparedOperations: [PreparedOperation] = []
     private let events: [ProviderStreamEvent]?
     private let error: (any Error)?
 
@@ -798,6 +1022,8 @@ private actor RunnerProviderProbe: PreparedOperationStreaming {
         preparedOperation: PreparedOperation
     ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
         streamCount += 1
+        originalPNGs.append(originalPNG)
+        preparedOperations.append(preparedOperation)
         let operation = preparedOperation.operation
         return AsyncThrowingStream { continuation in
             if let error {

@@ -503,6 +503,7 @@ Historical structural checker: `US-01`…`US-12` / `FM-01`…`FM-46` expected 58
 
 - Gate: `swift build` 与完整 `swift test`；二者必须使用匹配的 Xcode toolchain，测试输出还必须包含 Swift Testing 的 6/6 passed 汇总。
 - Tests: `persistedExtractionReachesSelectedProvider`、`screenshotPersistenceFailureNeverReachesProvider`、`historyPreparationFailureRollsBackScreenshot`、`failedRollbackReportsOrphanPath`、`mismatchedPreparedRecordIsRejected`、`mismatchedPreparedSelectionIsRejected`。
+- 2026-11-04：`ExtractionCoordinator` 及其测试已删除，它从未有生产调用方；对应行为由 `PersistedOperationWorkspaceRunnerTests` 覆盖，下列证据只说明当时的情况。
 - Evidence: `Sources/VLMSnapperCore/ExtractionCoordinator.swift` 的公开工作流 seam；`Tests/VLMSnapperCoreTests/ExtractionCoordinatorTests.swift` 的系统边界假件和行为断言；`review-code.md` 与 `review-tests.md` 的审查和变异证据。
 
 ## Ticket 02 evidence

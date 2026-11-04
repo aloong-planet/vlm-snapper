@@ -56,6 +56,7 @@ desktop_cases_needed() {
 run_stage strict-build swift build -Xswiftc -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -Werror
 run_stage script-tests python3 -m unittest discover -s Scripts/tests -p 'test_*.py' -v
 run_stage checklist python3 Scripts/verify-feature-checklist.py docs/.workings/v1-core/checklist.md
+run_stage localization-keys python3 Scripts/verify-localization-keys.py
 run_stage shell-syntax bash -c 'for script in Scripts/*.sh; do bash -n "$script" || exit; done'
 run_stage non-app swift test --skip ProviderApplicationTests
 python3 Scripts/verify-swift-testing-log.py "$evidence/non-app.log"

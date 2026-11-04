@@ -172,12 +172,13 @@ struct SQLiteHistoryStoreTests {
             modelID: "gpt-vision"
         )
 
-        let prepared: PreparedExtraction
+        let prepared: PreparedOperation
         do {
             let store = try SQLiteHistoryStore(databaseURL: databaseURL)
-            prepared = try await store.prepareExtraction(
+            prepared = try await store.prepareOperation(
                 screenshot: screenshot,
-                selection: selection
+                selection: selection,
+                operation: .extractText
             )
         }
 
@@ -201,9 +202,10 @@ struct SQLiteHistoryStoreTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let databaseURL = directory.appendingPathComponent("history.sqlite")
         let store = try SQLiteHistoryStore(databaseURL: databaseURL)
-        let prepared = try await store.prepareExtraction(
+        let prepared = try await store.prepareOperation(
             screenshot: ManagedScreenshot(path: "/Pictures/VLMSnapper/result.png", sha256: "sha"),
-            selection: ProviderSelection(providerID: "gemini", modelID: "gemini-vision")
+            selection: ProviderSelection(providerID: "gemini", modelID: "gemini-vision"),
+            operation: .extractText
         )
 
         try await store.finish(
@@ -234,9 +236,10 @@ struct SQLiteHistoryStoreTests {
         let store = try SQLiteHistoryStore(
             databaseURL: directory.appendingPathComponent("history.sqlite")
         )
-        let prepared = try await store.prepareExtraction(
+        let prepared = try await store.prepareOperation(
             screenshot: ManagedScreenshot(path: "/Pictures/VLMSnapper/result.png", sha256: "sha"),
-            selection: ProviderSelection(providerID: "openai", modelID: "gpt-vision")
+            selection: ProviderSelection(providerID: "openai", modelID: "gpt-vision"),
+            operation: .extractText
         )
 
         try await store.finish(operationID: prepared.operationID, as: completion)
@@ -253,9 +256,10 @@ struct SQLiteHistoryStoreTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let databaseURL = directory.appendingPathComponent("history.sqlite")
         let store = try SQLiteHistoryStore(databaseURL: databaseURL)
-        let prepared = try await store.prepareExtraction(
+        let prepared = try await store.prepareOperation(
             screenshot: ManagedScreenshot(path: "/Pictures/VLMSnapper/upload.png", sha256: "sha"),
-            selection: ProviderSelection(providerID: "deepseek", modelID: "deepseek-vision")
+            selection: ProviderSelection(providerID: "deepseek", modelID: "deepseek-vision"),
+            operation: .extractText
         )
 
         try await store.markInFlight(operationID: prepared.operationID, as: .uploading)
@@ -534,13 +538,14 @@ struct SQLiteHistoryStoreTests {
     private func makeOperation(
         in store: SQLiteHistoryStore,
         suffix: String
-    ) async throws -> PreparedExtraction {
-        try await store.prepareExtraction(
+    ) async throws -> PreparedOperation {
+        try await store.prepareOperation(
             screenshot: ManagedScreenshot(
                 path: "/Pictures/VLMSnapper/\(suffix).png",
                 sha256: "sha-\(suffix)"
             ),
-            selection: ProviderSelection(providerID: "openai", modelID: "gpt-vision")
+            selection: ProviderSelection(providerID: "openai", modelID: "gpt-vision"),
+            operation: .extractText
         )
     }
 

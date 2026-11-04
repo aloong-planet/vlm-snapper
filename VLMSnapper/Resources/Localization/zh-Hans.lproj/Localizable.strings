@@ -44,7 +44,6 @@
 "failure.screenshotSave" = "截图无法保存，请检查磁盘空间和文件夹权限后重试。";
 "failure.incomplete" = "Provider 返回了不完整或无法解析的结果。";
 "failure.unknown" = "请求失败，请查看错误详情后手动重试。";
-"onboarding.title" = "欢迎使用 VLMSnapper";
 "onboarding.intro.title" = "完成使用前的准备";
 "onboarding.intro.description" = "你可以现在设置，也可以稍后从菜单栏面板继续。VLMSnapper 不会在你操作前弹出系统授权框。";
 "onboarding.permission.description" = "截图需要 macOS 屏幕录制权限。点击后才会触发系统授权。";
@@ -61,16 +60,13 @@
 "onboarding.gate.missing.title" = "完成前两项后才能开始使用";
 "onboarding.gate.missing.detail" = "请先授予屏幕录制权限，并配置至少一个在线 Provider、选择当前模型。完成后才能截图、提取文字或翻译。";
 "onboarding.gate.later" = "你也可以暂时退出，稍后从菜单栏继续设置。";
-"onboarding.subtitle" = "完成必要设置后，即可从菜单栏快速截图。";
 "onboarding.permission.title" = "屏幕录制权限";
 "onboarding.provider.title" = "在线 Provider";
 "onboarding.privacy.title" = "存储与隐私";
-"onboarding.privacy.summary" = "了解截图、识别结果和 API Key 的保存方式。";
 "onboarding.blocker.permission" = "完成屏幕录制权限设置后才能开始使用。";
 "onboarding.blocker.provider" = "配置 Provider 并选择模型后才能开始使用。";
 "action.configure" = "配置";
 "action.modify" = "修改配置";
-"action.continueSetup" = "继续配置";
 "action.finishLater" = "稍后完成";
 "action.startUsing" = "开始使用";
 "action.viewDetails" = "查看详情";
@@ -111,7 +107,6 @@
 "providerSetup.remove" = "移除配置";
 "providerSetup.removeConfirmation" = "移除该 Provider 的 API Key、模型列表和当前选择？";
 "providerSetup.currentDetailFormat" = "当前 Provider · %@";
-"permissionRecovery.title" = "需要屏幕录制权限";
 "permissionRecovery.initial" = "VLMSnapper 只会在你点击配置后请求系统权限，不会在打开页面时自动弹出提示。";
 "permissionRecovery.unavailable" = "权限尚未开放或已被关闭。请在系统设置中允许 VLMSnapper 使用屏幕录制。";
 "permissionRecovery.restart" = "权限设置已完成。重新启动 VLMSnapper 后即可开始截图。";
@@ -133,7 +128,6 @@
 "menu.settings" = "设置中心";
 "menu.generalSettings" = "设置";
 "history.library" = "资料库";
-"menu.checkUpdates" = "检查更新";
 "menu.quit" = "退出 VLMSnapper";
 "menu.noRecentItems" = "暂无记录";
 "menu.providerRequestFailed" = "Provider 请求失败";
@@ -230,7 +224,6 @@
 "history.zoomHint" = "滚轮缩放 · 拖动平移";
 "history.delete" = "永久删除";
 "history.clear" = "清空历史";
-"history.retryCleanup" = "立即重试清理";
 "history.cleanupFailures" = "部分记录清理失败";
 "history.retention" = "自动清理保留期";
 "history.retentionHint" = "到期的未钉住记录及其原始截图会被永久删除。";

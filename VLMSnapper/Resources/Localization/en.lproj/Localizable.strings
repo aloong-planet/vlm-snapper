@@ -44,7 +44,6 @@
 "failure.screenshotSave" = "The screenshot could not be saved. Check disk space and folder permissions, then retry.";
 "failure.incomplete" = "The Provider returned an incomplete or unreadable result.";
 "failure.unknown" = "The request failed. Review the error details and retry manually.";
-"onboarding.title" = "Welcome to VLMSnapper";
 "onboarding.intro.title" = "Get ready to use VLMSnapper";
 "onboarding.intro.description" = "Set up now or continue later from the menu-bar panel. VLMSnapper will not show a system permission prompt until you take action.";
 "onboarding.permission.description" = "Capturing a screenshot requires macOS Screen Recording permission. The system prompt appears only after you click.";
@@ -61,16 +60,13 @@
 "onboarding.gate.missing.title" = "Complete the first two items to get started";
 "onboarding.gate.missing.detail" = "Grant Screen Recording permission, configure an online Provider, and choose a current model before capturing, extracting or translating text.";
 "onboarding.gate.later" = "You can also leave now and continue setup later from the menu bar.";
-"onboarding.subtitle" = "Complete the required setup to capture from the menu bar.";
 "onboarding.permission.title" = "Screen Recording Permission";
 "onboarding.provider.title" = "Online Provider";
 "onboarding.privacy.title" = "Storage and Privacy";
-"onboarding.privacy.summary" = "Learn how screenshots, results, and API keys are stored.";
 "onboarding.blocker.permission" = "Complete Screen Recording permission setup before starting.";
 "onboarding.blocker.provider" = "Configure a Provider and select a model before starting.";
 "action.configure" = "Configure";
 "action.modify" = "Modify";
-"action.continueSetup" = "Continue Setup";
 "action.finishLater" = "Finish Later";
 "action.startUsing" = "Start Using";
 "action.viewDetails" = "View Details";
@@ -111,7 +107,6 @@
 "providerSetup.remove" = "Remove Configuration";
 "providerSetup.removeConfirmation" = "Remove this Provider's API key, model list, and current selection?";
 "providerSetup.currentDetailFormat" = "Current Provider · %@";
-"permissionRecovery.title" = "Screen Recording Permission Required";
 "permissionRecovery.initial" = "VLMSnapper requests system permission only after you choose Configure. Opening this page never triggers the prompt.";
 "permissionRecovery.unavailable" = "Permission is unavailable or was turned off. Allow VLMSnapper to record the screen in System Settings.";
 "permissionRecovery.restart" = "Permission setup is complete. Restart VLMSnapper before capturing.";
@@ -133,7 +128,6 @@
 "menu.settings" = "Settings Center";
 "menu.generalSettings" = "Settings";
 "history.library" = "Library";
-"menu.checkUpdates" = "Check for Updates";
 "menu.quit" = "Quit VLMSnapper";
 "menu.noRecentItems" = "No recent items";
 "menu.providerRequestFailed" = "Provider request failed";
@@ -230,7 +224,6 @@
 "history.zoomHint" = "Scroll to zoom · Drag to pan";
 "history.delete" = "Delete Permanently";
 "history.clear" = "Clear History";
-"history.retryCleanup" = "Retry Cleanup Now";
 "history.cleanupFailures" = "Some records could not be cleaned up";
 "history.retention" = "Automatic Cleanup Retention";
 "history.retentionHint" = "Expired unpinned records and their original screenshots are permanently deleted.";

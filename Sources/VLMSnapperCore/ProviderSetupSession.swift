@@ -27,6 +27,7 @@ public enum ProviderSetupPhase: Equatable, Sendable {
 public enum ProviderSetupFailure: Equatable, Sendable {
     case configurationLocked
     case invalidConfiguration
+    case incompatibleModel
     case secureStorage
     case unavailable
 }
@@ -335,6 +336,23 @@ public actor ProviderSetupSession {
         }
     }
 
+    /// Shows a change the coordinator made to one Provider's configuration by itself. `load` reconciles credentials,
+    /// which waits for a running capture to end, so it cannot be used from a request inside one. This updates only the
+    /// configuration a card already shows: what the card says about work or a failure stays, and a card showing no
+    /// configuration has nothing to update.
+    public func reloadConfiguration(of provider: ProviderID) async {
+        defer { changeContinuation?.yield(()) }
+        guard provider == selectedProvider, configuration != nil else { return }
+        let requestGeneration = generation
+        guard let state = try? await boundary.configurationState(),
+              requestGeneration == generation, configuration != nil,
+              let updated = state.configurations[provider] else { return }
+        configuration = updated
+        if phase == .ready, updated.selectedModelID == nil {
+            phase = .selectingModel
+        }
+    }
+
     private func apply(_ configuration: ProviderConfiguration?) {
         self.configuration = configuration
         failure = nil
@@ -356,9 +374,10 @@ public actor ProviderSetupSession {
             return switch configurationError {
             case .configurationLocked, .configurationMutationInProgress:
                 .configurationLocked
-            case .missingCredential, .providerNotUsable, .modelNotFound,
-                 .incompatibleModel:
+            case .missingCredential, .providerNotUsable, .modelNotFound:
                 .invalidConfiguration
+            case .incompatibleModel:
+                .incompatibleModel
             case .inconsistentCredentialState:
                 .secureStorage
             }

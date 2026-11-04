@@ -60,6 +60,19 @@ public protocol PreparedOperationStreaming: Sendable {
     ) async -> AsyncThrowingStream<ProviderStreamEvent, Error>
 }
 
+/// Keeps what a request showed about a model's image input (v1-core failure mode 10).
+public protocol VisionCompatibilityRecording: Sendable {
+    func recordVisionSuccess(provider: ProviderID, modelID: String) async throws
+
+    func recordVisionFailure(
+        provider: ProviderID,
+        modelID: String,
+        evidence: VisionFailureEvidence
+    ) async throws
+}
+
+extension ProviderConfigurationCoordinator: VisionCompatibilityRecording {}
+
 public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private struct PendingPersistence: Sendable {
         let preparedOperation: PreparedOperation
@@ -77,6 +90,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
     private let screenshotStore: any ScreenshotPersisting & ManagedScreenshotLoading
     private let historyStore: any OperationHistoryWriting
     private let provider: any PreparedOperationStreaming
+    private let visionCompatibility: (any VisionCompatibilityRecording)?
     private let now: @Sendable () -> Date
     private var managedScreenshot: ManagedScreenshot?
     private var preparedOperations: [OperationSlot: PreparedOperation] = [:]
@@ -89,12 +103,14 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
         screenshotStore: any ScreenshotPersisting & ManagedScreenshotLoading,
         historyStore: any OperationHistoryWriting,
         provider: any PreparedOperationStreaming,
+        visionCompatibility: (any VisionCompatibilityRecording)? = nil,
         restoring operation: StoredOperation? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.screenshotStore = screenshotStore
         self.historyStore = historyStore
         self.provider = provider
+        self.visionCompatibility = visionCompatibility
         self.now = now
         isBoundToRestoredRecord = operation != nil
         if let operation {
@@ -251,6 +267,7 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                     break
                 }
                 if let output = try accumulator.consume(event) {
+                    await recordVisionSuccess(for: newPrepared.selection)
                     let result = WorkspaceCommittedResult(
                         sourceMarkdown: output.source,
                         translationMarkdown: output.translation,
@@ -319,6 +336,9 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                 continuation.finish(throwing: CancellationError())
                 return
             }
+            if let prepared, (error as? ProviderAdapterError) == .imageInputUnsupported {
+                await recordVisionFailure(for: prepared.selection)
+            }
             let failureCode: String
             if let runFailure = error as? OperationWorkspaceRunFailure {
                 failureCode = runFailure.code
@@ -345,6 +365,21 @@ public actor PersistedOperationWorkspaceRunner: OperationWorkspaceRunning {
                 throwing: OperationWorkspaceRunFailure(code: failureCode)
             )
         }
+    }
+
+    // A request's outcome stands whether or not this can be noted, so a failure here changes nothing.
+    private func recordVisionSuccess(for selection: ProviderSelection) async {
+        guard let provider = ProviderID(rawValue: selection.providerID) else { return }
+        try? await visionCompatibility?.recordVisionSuccess(provider: provider, modelID: selection.modelID)
+    }
+
+    private func recordVisionFailure(for selection: ProviderSelection) async {
+        guard let provider = ProviderID(rawValue: selection.providerID) else { return }
+        try? await visionCompatibility?.recordVisionFailure(
+            provider: provider,
+            modelID: selection.modelID,
+            evidence: .imageInputUnsupported
+        )
     }
 
     private func persistedScreenshot(

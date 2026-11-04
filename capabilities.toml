@@ -4,7 +4,7 @@ working-language = "en"
 [i18n]
 enabled = true
 source = "VLMSnapper/Resources/Localization"
-enforced-by = []
+enforced-by = ["python3 Scripts/verify-localization-keys.py"]
 
 [enumeration-wording-gate]
 enabled = false
