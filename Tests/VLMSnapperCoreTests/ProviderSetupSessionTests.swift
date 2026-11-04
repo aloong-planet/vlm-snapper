@@ -335,11 +335,14 @@ struct ProviderSetupSessionTests {
         )
         await session.selectModel("model")
         let before = await session.snapshot()
-        #expect(before.phase == .selectingModel)
+        #expect(before.phase == .ready)
+        #expect(before.availableModelIDs == ["model"])
 
         await session.reloadConfiguration(of: .deepSeek)
 
         #expect(await session.snapshot().phase == before.phase)
+        #expect(await session.snapshot().availableModelIDs == before.availableModelIDs)
+        #expect(await session.snapshot().selectedModelID == "model")
         #expect(await session.snapshot().failure == nil)
     }
 
@@ -394,6 +397,7 @@ struct ProviderSetupSessionTests {
         let coordinator = makeCoordinator(modelLister: FixedModelLister())
         _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
         _ = try await coordinator.selectModel("model", for: .deepSeek)
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .openAI)
         let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
         await session.load()
         try await coordinator.recordVisionFailure(
@@ -463,6 +467,7 @@ struct ProviderSetupSessionTests {
 
         #expect(await session.snapshot().phase == .failed)
         #expect(await session.snapshot().failure == .secureStorage)
+        #expect(await session.snapshot().availableModelIDs.isEmpty)
     }
 
     @Test("a reload whose state has no configuration leaves the card")
@@ -501,6 +506,7 @@ struct ProviderSetupSessionTests {
 
         #expect(await session.snapshot().selectedModelID == nil)
         #expect(await session.snapshot().failure == .incompatibleModel)
+        #expect(await session.snapshot().phase == .failed)
     }
 
     @Test("a reload leaves a recovery showing")
@@ -860,7 +866,7 @@ private actor FailingProviderBoundary: ProviderSetupConfiguring {
         _ modelID: String,
         for provider: ProviderID
     ) -> ProviderConfiguration {
-        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+        ProviderConfiguration(models: [ProviderModelState(id: modelID)], fetchedAt: Date(), selectedModelID: modelID)
     }
 }
 
