@@ -673,6 +673,204 @@ struct PersistedOperationWorkspaceRunnerTests {
         ])
     }
 
+    @Test("a model-unavailable error refreshes the list once, and the failure reaches the caller")
+    func modelUnavailableRefreshesOnce() async throws {
+        let refresh = RunnerModelListProbe()
+        let history = RunnerHistoryProbe()
+        let provider = RunnerProviderProbe(error: ProviderAdapterError.modelUnavailable)
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: provider,
+            modelListRefresh: refresh
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "model_unavailable")) {
+            _ = try await collect(await runner.run(
+                originalPNG: Data([1]), operation: .extractText,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+            ))
+        }
+
+        #expect(await refresh.providers == [.deepSeek])
+        #expect(await provider.streamCount == 1)
+        #expect(await history.outcomes == [.failed(normalizedErrorCode: "model_unavailable")])
+    }
+
+    @Test(
+        "another failure refreshes nothing",
+        arguments: [
+            ProviderAdapterError.invalidRequest,
+            ProviderAdapterError.imageInputUnsupported,
+            ProviderAdapterError.rateLimited(retryAfterSeconds: 60),
+        ]
+    )
+    func otherFailureDoesNotRefresh(error: ProviderAdapterError) async throws {
+        let refresh = RunnerModelListProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(error: error),
+            modelListRefresh: refresh
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: error.normalizedCode)) {
+            _ = try await collect(await runner.run(
+                originalPNG: Data([1]), operation: .extractText,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+            ))
+        }
+
+        #expect(await refresh.providers.isEmpty)
+    }
+
+    @Test("a successful result refreshes nothing")
+    func successDoesNotRefresh() async throws {
+        let refresh = RunnerModelListProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(),
+            modelListRefresh: refresh
+        )
+
+        _ = try await collect(await runner.run(
+            originalPNG: Data([1]), operation: .extractText,
+            selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+        ))
+
+        #expect(await refresh.providers.isEmpty)
+    }
+
+    /// A press right after the failure must already find no model (v1-core failure mode 56).
+    @Test("a request is not over until its refresh ends")
+    func requestWaitsForRefresh() async throws {
+        let refresh = RunnerModelListProbe(suspends: true)
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerProviderProbe(error: ProviderAdapterError.modelUnavailable),
+            modelListRefresh: refresh
+        )
+        let events = await runner.run(
+            originalPNG: Data([1]), operation: .extractText,
+            selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+        )
+        let ended = RunnerEndFlag()
+        let consumer = Task {
+            do { for try await _ in events {} } catch {
+                await ended.mark()
+                throw error
+            }
+            await ended.mark()
+        }
+
+        await refresh.waitUntilCalled()
+        // A failure sent before the refresh would reach the consumer in this time.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(await !ended.value)
+        #expect(await history.outcomes.isEmpty)
+
+        await refresh.finish()
+        await #expect(throws: OperationWorkspaceRunFailure(code: "model_unavailable")) { try await consumer.value }
+        #expect(await history.outcomes == [.failed(normalizedErrorCode: "model_unavailable")])
+    }
+
+    @Test("a failed refresh changes no outcome")
+    func failedRefreshChangesNoOutcome() async throws {
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerProviderProbe(error: ProviderAdapterError.modelUnavailable),
+            modelListRefresh: RunnerModelListProbe(fails: true)
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "model_unavailable")) {
+            _ = try await collect(await runner.run(
+                originalPNG: Data([1]), operation: .extractText,
+                selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+            ))
+        }
+
+        #expect(await history.outcomes == [.failed(normalizedErrorCode: "model_unavailable")])
+    }
+
+    @Test("canceling during the refresh records a cancel, not the failure")
+    func cancelingDuringRefreshRecordsCanceled() async throws {
+        let refresh = RunnerModelListProbe(suspends: true)
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerProviderProbe(error: ProviderAdapterError.modelUnavailable),
+            modelListRefresh: refresh
+        )
+        let events = await runner.run(
+            originalPNG: Data([1]), operation: .extractText,
+            selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+        )
+        let consumer = Task { for try await _ in events {} }
+        await refresh.waitUntilCalled()
+
+        consumer.cancel()
+        _ = try? await consumer.value
+        await runner.waitForRunToFinish()
+
+        #expect(await history.completions == [.canceled])
+        #expect(await history.outcomes.isEmpty)
+    }
+
+    @Test("a retry of a saved record refreshes the list and leaves the record")
+    func restoredRecordRefreshesAndKeepsItsResult() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let history = RunnerHistoryProbe()
+        let png = Data([7])
+        let screenshot = try await screenshotStore.save(originalPNG: png)
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+        let prepared = try await history.prepareOperation(
+            screenshot: screenshot, selection: selection, operation: .extractText
+        )
+        let stored = try #require(try await history.operation(id: prepared.operationID))
+        let refresh = RunnerModelListProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: history,
+            provider: RunnerProviderProbe(error: ProviderAdapterError.modelUnavailable),
+            modelListRefresh: refresh,
+            restoring: stored
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "model_unavailable")) {
+            _ = try await collect(await runner.run(originalPNG: png, operation: .extractText, selection: selection))
+        }
+
+        #expect(await refresh.providers == [.gemini])
+        #expect(await history.outcomes.isEmpty)
+        #expect(await history.currentOutcomes.isEmpty)
+    }
+
+    @Test("a Provider the app does not know refreshes nothing")
+    func unknownProviderDoesNotRefresh() async throws {
+        let refresh = RunnerModelListProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: RunnerHistoryProbe(),
+            provider: RunnerProviderProbe(error: ProviderAdapterError.modelUnavailable),
+            modelListRefresh: refresh
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "model_unavailable")) {
+            _ = try await collect(await runner.run(
+                originalPNG: Data([1]), operation: .extractText,
+                selection: ProviderSelection(providerID: "retired-provider", modelID: "vision")
+            ))
+        }
+
+        #expect(await refresh.providers.isEmpty)
+    }
+
     @Test("a prepared record with another selection never reaches the provider and is rolled back")
     func mismatchedSelectionNeverReachesProvider() async throws {
         let screenshotStore = RunnerScreenshotStoreProbe()
@@ -751,6 +949,41 @@ private actor RunnerVisionRecorderProbe: VisionCompatibilityRecording {
     ) async throws {
         calls.append(.failure(provider, modelID, evidence))
         if fails { throw ProviderConfigurationError.modelNotFound }
+    }
+}
+
+private actor RunnerEndFlag {
+    private(set) var value = false
+    func mark() { value = true }
+}
+
+private actor RunnerModelListProbe: UnavailableModelRefreshing {
+    private(set) var providers: [ProviderID] = []
+    private let fails: Bool
+    private let suspends: Bool
+    private let gate = AsyncStream<Void>.makeStream()
+    private var calledWaiters: [CheckedContinuation<Void, Never>] = []
+
+    init(fails: Bool = false, suspends: Bool = false) {
+        self.fails = fails
+        self.suspends = suspends
+    }
+
+    func waitUntilCalled() async {
+        guard providers.isEmpty else { return }
+        await withCheckedContinuation { calledWaiters.append($0) }
+    }
+
+    func finish() { gate.continuation.finish() }
+
+    func refreshModelsForRequest(provider: ProviderID) async throws {
+        providers.append(provider)
+        calledWaiters.forEach { $0.resume() }
+        calledWaiters.removeAll()
+        // Ends on `finish` or on cancellation, as a canceled list request does.
+        if suspends { for await _ in gate.stream {} }
+        try Task.checkCancellation()
+        if fails { throw ProviderModelListError.invalidResponse }
     }
 }
 

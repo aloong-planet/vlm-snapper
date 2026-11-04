@@ -8,6 +8,7 @@ public protocol ProviderSetupConfiguring: Sendable {
         _ apiKey: String,
         for provider: ProviderID
     ) async throws -> ProviderConfiguration
+    func shouldRefreshModelsOnSettingsOpen(for provider: ProviderID) async throws -> Bool
     func refreshModels(for provider: ProviderID) async throws -> ProviderConfiguration
     func selectModel(
         _ modelID: String,
@@ -87,6 +88,8 @@ public actor ProviderSetupSession {
     private var modelRefreshFailures: [ProviderID: ProviderSetupFailure] = [:]
     private var validationFailures: [ProviderID: ProviderSetupFailure] = [:]
     private var changeContinuation: AsyncStream<Void>.Continuation?
+    private var cardAwaitingCacheCheck: ProviderID?
+    private var loadsInProgress = 0
 
     public func changes() -> AsyncStream<Void> {
         let channel = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -131,7 +134,11 @@ public actor ProviderSetupSession {
     }
 
     public func load(onRecovery: @escaping @Sendable () async -> Void = {}) async {
-        defer { changeContinuation?.yield(()) }
+        loadsInProgress += 1
+        defer {
+            loadsInProgress -= 1
+            changeContinuation?.yield(())
+        }
         if let refreshing = refreshingConfigurations[selectedProvider] {
             apply(refreshing)
             return
@@ -277,10 +284,32 @@ public actor ProviderSetupSession {
         changeContinuation?.yield(())
     }
 
+    /// The Provider page opened this card, or nil when it shows none. Opening is what refreshes a day-old cache
+    /// (v1-core section 7). A load also happens for other pages, so it does not count, and an opening and its card's
+    /// load arrive in either order: an opening waits here for the load to end, when the caller checks again.
+    public func cardOpened(_ provider: ProviderID?) async {
+        cardAwaitingCacheCheck = provider
+        await checkOpenedCardCache()
+    }
+
+    /// A load empties the card until it ends, so one that begins during the read leaves the opening for its own check.
+    /// A card with no configuration has nothing to refresh: with a key, its load has already recovered the list.
+    public func checkOpenedCardCache() async {
+        guard let provider = cardAwaitingCacheCheck, provider == selectedProvider, loadsInProgress == 0 else { return }
+        let isStale = (try? await boundary.shouldRefreshModelsOnSettingsOpen(for: provider)) == true
+        guard cardAwaitingCacheCheck == provider, provider == selectedProvider, loadsInProgress == 0 else { return }
+        cardAwaitingCacheCheck = nil
+        if isStale { await refreshModels(of: provider) }
+    }
+
     public func refreshModels() async {
-        guard !(await snapshot()).blocksConfigurationChanges, let configuration else { return }
+        await refreshModels(of: selectedProvider)
+    }
+
+    private func refreshModels(of provider: ProviderID) async {
+        guard !(await snapshot()).blocksConfigurationChanges, provider == selectedProvider,
+              let configuration else { return }
         generation += 1
-        let provider = selectedProvider
         refreshingConfigurations[provider] = configuration
         modelRefreshFailures[provider] = nil
         validatingProviders.insert(provider)

@@ -403,8 +403,13 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     await self.credentialEditor.performLoad(request) {
                         await self.selectProvider(request)
                     }
+                    // In its own task, as a manual refresh is: a refresh outlives this card's load.
+                    Task { [session = self.providerSession] in await session.checkOpenedCardCache() }
                 }
                 credentialEditor.attachLoadTask(task, for: request)
+            },
+            onOpenProviderCard: { [providerSession] provider in
+                Task { await providerSession.cardOpened(provider) }
             },
             onValidate: { [weak self] submission in
                 self?.startCredentialTask { await self?.validateProvider(submission) }
@@ -776,7 +781,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     try Task.checkCancellation()
                     let runner = PersistedOperationWorkspaceRunner(screenshotStore: screenshotStore,
                         historyStore: historyStore, provider: providerStreamer,
-                        visionCompatibility: providerCoordinator, restoring: record.operation)
+                        visionCompatibility: providerCoordinator, modelListRefresh: providerCoordinator,
+                        restoring: record.operation)
                     let session = OperationWorkspaceSession(originalPNG: png, runner: runner,
                         activeGate: operationGate, restoring: record.operation)
                     historyRetrySession = session
@@ -812,14 +818,15 @@ final class VLMSnapperApplicationModel: ObservableObject {
                         code: (error as? OperationWorkspaceRunFailure)?.code ?? "operation_failed"))
                 }
             }
-            await reloadProviderIfModelRejectedImages(historyRetry.slot)
+            await reloadProviderIfRequestChangedModels(historyRetry.slot)
         }
     }
 
-    /// The model has just been cleared. This finishes before the request counts as ended, so a press right
-    /// after the failure already finds no model (v1-core failure mode 56), and the settings page shows none.
-    private func reloadProviderIfModelRejectedImages(_ slot: WorkspaceOperationSlot) async {
-        guard slot.attempt == .failed(code: ProviderAdapterError.imageInputUnsupported.normalizedCode),
+    /// The request may have just cleared the model. This finishes before the request counts as ended, so a press
+    /// right after the failure already finds no model (v1-core failure mode 56), and the settings page shows none.
+    private func reloadProviderIfRequestChangedModels(_ slot: WorkspaceOperationSlot) async {
+        guard slot.attempt == .failed(code: ProviderAdapterError.imageInputUnsupported.normalizedCode)
+                || slot.attempt == .failed(code: ProviderAdapterError.modelUnavailable.normalizedCode),
               let currentProvider else { return }
         await providerSession.reloadConfiguration(of: currentProvider)
         await refreshProviderPresentation()
@@ -1441,7 +1448,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     screenshotStore: screenshotStore,
                     historyStore: historyStore,
                     provider: providerStreamer,
-                    visionCompatibility: providerCoordinator
+                    visionCompatibility: providerCoordinator,
+                    modelListRefresh: providerCoordinator
                 ),
                 activeGate: operationGate
             )
@@ -1493,7 +1501,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             }
             await syncWorkspaceSnapshot(session)
             let snapshot = await session.snapshot()
-            await reloadProviderIfModelRejectedImages(operation == .extract ? snapshot.extract : snapshot.translate)
+            await reloadProviderIfRequestChangedModels(operation == .extract ? snapshot.extract : snapshot.translate)
             guard workspaceSession === session else { return }
             if !accepted { localResultFailures[operation] = "operation_failed" }
             runningResultOperation = nil

@@ -475,16 +475,6 @@ struct ProviderConfigurationCoordinatorTests {
         #expect(try await coordinator.configurationState().configurations[.deepSeek]?.selectedModelID == "model")
     }
 
-    @Test("one model-unavailable attempt can claim at most one list refresh")
-    func modelUnavailableAttemptClaimsOneRefresh() {
-        var gate = ModelUnavailableRefreshGate()
-
-        let firstClaim = gate.claimRefresh()
-        let secondClaim = gate.claimRefresh()
-        #expect(firstClaim)
-        #expect(!secondClaim)
-    }
-
     @Test("a complete model list is saved with the validated key")
     func completeModelListIsSavedWithValidatedKey() async throws {
         let credentialStore = MemoryCredentialStore()
@@ -717,6 +707,91 @@ struct ProviderConfigurationCoordinatorTests {
             )
         )
         #expect(try await metadataStore.load().configurations[.deepSeek] == refreshed)
+    }
+
+    @Test("a request's refresh replaces the list and clears a model that is gone", arguments: [["replacement"], []])
+    func requestRefreshClearsAModelThatIsGone(models: [String]) async throws {
+        let reference = Date(timeIntervalSince1970: 1_787_731_200)
+        let coordinator = requestCoordinator(lister: StaticModelLister(models: models), now: reference)
+        let lease = try await coordinator.beginRequestConfigurationFreeze()
+
+        try await coordinator.refreshModelsForRequest(provider: .deepSeek)
+
+        let state = try await coordinator.configurationState()
+        #expect(state.configurations[.deepSeek] == ProviderConfiguration(
+            models: models.map { ProviderModelState(id: $0) }, fetchedAt: reference, selectedModelID: nil
+        ))
+        #expect(state.currentProvider == .deepSeek)
+        #expect(await coordinator.currentActivity() == .modelRequest)
+        await coordinator.release(lease)
+    }
+
+    @Test("a request's refresh keeps a model still listed and forgets what was known about it")
+    func requestRefreshKeepsAModelStillListed() async throws {
+        let coordinator = requestCoordinator(lister: StaticModelLister(models: ["old-model", "another"]))
+        _ = try await coordinator.beginRequestConfigurationFreeze()
+
+        try await coordinator.refreshModelsForRequest(provider: .deepSeek)
+
+        let configuration = try #require(try await coordinator.configurationState().configurations[.deepSeek])
+        #expect(configuration.selectedModelID == "old-model")
+        #expect(configuration.models == [ProviderModelState(id: "old-model"), ProviderModelState(id: "another")])
+    }
+
+    @Test("a request's failed refresh keeps the cache")
+    func requestRefreshFailureKeepsCache() async throws {
+        let coordinator = requestCoordinator(lister: StaticModelLister(models: [], error: .modelListFailed))
+        let before = try await coordinator.configurationState()
+        _ = try await coordinator.beginRequestConfigurationFreeze()
+
+        await #expect(throws: BoundaryError.modelListFailed) {
+            try await coordinator.refreshModelsForRequest(provider: .deepSeek)
+        }
+
+        #expect(try await coordinator.configurationState() == before)
+        #expect(await coordinator.currentActivity() == .modelRequest)
+    }
+
+    @Test("a refresh for a request needs a request to be running")
+    func requestRefreshIsRefusedWithoutARequest() async throws {
+        let lister = CountingModelLister()
+        let coordinator = requestCoordinator(lister: lister)
+        await #expect(throws: ProviderConfigurationError.configurationLocked) {
+            try await coordinator.refreshModelsForRequest(provider: .deepSeek)
+        }
+
+        let capture = try await coordinator.beginCaptureActivity()
+        await #expect(throws: ProviderConfigurationError.configurationLocked) {
+            try await coordinator.refreshModelsForRequest(provider: .deepSeek)
+        }
+        await coordinator.release(capture)
+
+        await lister.suspendCalls()
+        let validation = Task { try await coordinator.validateAndSaveKey("new-key", for: .gemini) }
+        await lister.waitUntilCalled()
+        #expect(await coordinator.currentActivity() == .credential(.gemini))
+        await #expect(throws: ProviderConfigurationError.configurationLocked) {
+            try await coordinator.refreshModelsForRequest(provider: .deepSeek)
+        }
+        await lister.resumeCalls()
+        _ = try await validation.value
+
+        #expect(await lister.providers == [.gemini])
+    }
+
+    @Test("a canceled request sends no list request")
+    func canceledRequestDoesNotRefresh() async throws {
+        let lister = CountingModelLister()
+        let coordinator = requestCoordinator(lister: lister)
+        _ = try await coordinator.beginRequestConfigurationFreeze()
+
+        let refresh = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await coordinator.refreshModelsForRequest(provider: .deepSeek)
+        }
+
+        await #expect(throws: CancellationError.self) { try await refresh.value }
+        #expect(await lister.providers.isEmpty)
     }
 
     @Test("selecting the first usable provider makes it current")
@@ -1067,6 +1142,56 @@ private actor PublicationFailingMetadataStore: ProviderMetadataStoring {
             throw CocoaError(.fileWriteNoPermission)
         }
         self.state = state
+    }
+}
+
+/// DeepSeek configured and current, its selected model marked verified, for a request's refresh.
+private func requestCoordinator(
+    lister: any ProviderModelListing,
+    now: Date = Date(timeIntervalSince1970: 1_787_731_200)
+) -> ProviderConfigurationCoordinator {
+    let configuration = ProviderConfiguration(
+        models: [ProviderModelState(id: "old-model", visionCompatibility: .verified)],
+        fetchedAt: Date(timeIntervalSince1970: 1_787_600_000),
+        selectedModelID: "old-model"
+    )
+    return ProviderConfigurationCoordinator(
+        modelLister: lister,
+        credentialStore: MemoryCredentialStore(credentials: [
+            .deepSeek: ProviderCredential(generation: UUID(), apiKey: "saved-secret"),
+        ]),
+        metadataStore: MemoryMetadataStore(state: ProviderMetadataState(
+            configurations: [.deepSeek: configuration], currentProvider: .deepSeek
+        )),
+        now: { now }
+    )
+}
+
+private actor CountingModelLister: ProviderModelListing {
+    private(set) var providers: [ProviderID] = []
+    private var suspends = false
+    private var calledWaiters: [CheckedContinuation<Void, Never>] = []
+    private var suspended: [CheckedContinuation<Void, Never>] = []
+
+    func suspendCalls() { suspends = true }
+
+    func resumeCalls() {
+        suspends = false
+        suspended.forEach { $0.resume() }
+        suspended.removeAll()
+    }
+
+    func waitUntilCalled() async {
+        guard providers.isEmpty else { return }
+        await withCheckedContinuation { calledWaiters.append($0) }
+    }
+
+    func listModels(provider: ProviderID, apiKey: String) async throws -> [String] {
+        providers.append(provider)
+        calledWaiters.forEach { $0.resume() }
+        calledWaiters.removeAll()
+        if suspends { await withCheckedContinuation { suspended.append($0) } }
+        return ["model"]
     }
 }
 
