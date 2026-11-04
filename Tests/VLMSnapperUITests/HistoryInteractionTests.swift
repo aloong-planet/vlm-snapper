@@ -96,10 +96,7 @@ final class HistoryInteractionTests: XCTestCase {
             record("deepseek", source: "Second source", kind: .extract, pinned: false),
             record("openai", source: "Other source", kind: .extract),
         ]
-        var opened: UUID?
-        let controller = ManagementCenterWindowController(
-            records: fixtures, callbacks: ManagementCenterCallbacks(onOpenRecord: { opened = $0 })
-        )
+        let controller = ManagementCenterWindowController(records: fixtures)
         let window = try XCTUnwrap(controller.window)
         defer { window.close() }
         controller.show(destination: .history)
@@ -120,7 +117,6 @@ final class HistoryInteractionTests: XCTestCase {
         let row = window.convertFromScreen(list[1].screenFrame())
         try click(window, at: NSPoint(x: row.midX, y: row.midY))
         try await settle(in: window) { historyRenderedRows(in: content).dropFirst().first?.isSelected() == true }
-        XCTAssertTrue(opened == nil)
         try enterSearch("source", in: window)
         try settle(window) {
             let rows = historyRenderedRows(in: content)
@@ -250,10 +246,9 @@ final class HistoryInteractionTests: XCTestCase {
             record("openai", source: "Third source", kind: .extract),
         ]
         var selected: UUID?
-        var opened: UUID?
         var retried: UUID?
         let controller = ManagementCenterWindowController(records: fixtures, callbacks: ManagementCenterCallbacks(
-            onSelectRecord: { selected = $0 }, onOpenRecord: { opened = $0 }, onRetryRecord: { retried = $0 }
+            onSelectRecord: { selected = $0 }, onRetryRecord: { retried = $0 }
         ))
         let window = try XCTUnwrap(controller.window)
         defer { window.close() }
@@ -286,7 +281,6 @@ final class HistoryInteractionTests: XCTestCase {
         try enterSearch("source", in: window)
         try pressArrow(.downArrow, in: window)
         XCTAssertEqual(selected, fixtures[0].id, "Search owns arrow keys while editing")
-        XCTAssertNil(opened, "Navigation must not open a result window")
         XCTAssertNil(retried, "Navigation must not send a provider request")
 
         // Pinned is an intersection of the same visible list, not all history.
