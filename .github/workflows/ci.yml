@@ -21,6 +21,10 @@ jobs:
         run: |
           python3 -m unittest discover -s Scripts/tests -p 'test_feature_checklist.py' -v
           python3 Scripts/verify-feature-checklist.py docs/.workings/v1-core/checklist.md
+      - name: Localization key gate
+        run: |
+          python3 -m unittest discover -s Scripts/tests -p 'test_localization_keys.py' -v
+          python3 Scripts/verify-localization-keys.py
       - name: Test completion gate regression
         run: python3 -m unittest discover -s Scripts/tests -p 'test_swift_testing_log.py' -v
       - name: Accessibility report gate regression (no desktop required)
