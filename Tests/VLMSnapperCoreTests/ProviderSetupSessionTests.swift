@@ -309,7 +309,7 @@ struct ProviderSetupSessionTests {
         try await coordinator.recordVisionFailure(
             provider: .deepSeek, modelID: "model", evidence: .imageInputUnsupported
         )
-        let reload = Task { await session.reloadConfiguration() }
+        let reload = Task { await session.reloadConfiguration(of: .deepSeek) }
         var shown = await session.snapshot().selectedModelID
         for _ in 0..<100 where shown != nil {
             try await Task.sleep(for: .milliseconds(10))
@@ -317,6 +317,8 @@ struct ProviderSetupSessionTests {
         }
 
         #expect(shown == nil, "The reload waited for the capture to end")
+        #expect(await session.snapshot().availableModelIDs == ["model"], "Refreshing and choosing again needs the list")
+        #expect(await session.snapshot().phase == .selectingModel)
         // Ending the capture lets a reload that waited finish, so this test cannot hang.
         await coordinator.release(capture)
         await reload.value
@@ -332,10 +334,87 @@ struct ProviderSetupSessionTests {
             )
         )
 
-        await session.reloadConfiguration()
+        await session.reloadConfiguration(of: .deepSeek)
 
         #expect(await session.snapshot().phase == .failed)
         #expect(await session.snapshot().failure == .secureStorage)
+    }
+
+    @Test("a card showing a rejected key keeps it through a reload")
+    func rejectedKeyStaysThroughReload() async {
+        let session = ProviderSetupSession(
+            selectedProvider: .openAI,
+            boundary: FailingProviderBoundary(error: ProviderModelListError.authenticationRejected)
+        )
+        await session.validate(apiKey: "rejected-secret")
+        #expect(await session.snapshot().failure == .invalidConfiguration)
+
+        await session.reloadConfiguration(of: .openAI)
+
+        #expect(await session.snapshot().phase == .failed)
+        #expect(await session.snapshot().failure == .invalidConfiguration)
+    }
+
+    @Test("a card showing a Keychain read failure keeps it through a reload")
+    func keychainReadFailureStaysThroughReload() async {
+        let session = ProviderSetupSession(
+            selectedProvider: .openAI,
+            boundary: FailingProviderBoundary(error: ProviderModelListError.authenticationRejected)
+        )
+        await session.credentialReadDidFail(for: .openAI) { true }
+        #expect(await session.snapshot().failure == .secureStorage)
+
+        await session.reloadConfiguration(of: .openAI)
+
+        #expect(await session.snapshot().phase == .failed)
+        #expect(await session.snapshot().failure == .secureStorage)
+        #expect(await session.snapshot().isReadOnly)
+    }
+
+    @Test("a reload of another Provider leaves the open card")
+    func reloadOfAnotherProviderLeavesTheCard() async throws {
+        let coordinator = makeCoordinator(modelLister: FixedModelLister())
+        _ = try await coordinator.validateAndSaveKey("fixture-key", for: .deepSeek)
+        _ = try await coordinator.selectModel("model", for: .deepSeek)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        try await coordinator.recordVisionFailure(
+            provider: .deepSeek, modelID: "model", evidence: .imageInputUnsupported
+        )
+
+        await session.reloadConfiguration(of: .openAI)
+
+        #expect(await session.snapshot().selectedModelID == "model", "Only the named Provider is read again")
+    }
+
+    @Test("a reload leaves a validation in progress showing")
+    func reloadLeavesAValidationShowing() async {
+        let lister = SuspendedValidationModelLister(failFirst: false)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: makeCoordinator(modelLister: lister))
+        let validation = Task { await session.validate(apiKey: "candidate") }
+        await lister.waitUntilStarted()
+
+        await session.reloadConfiguration(of: .deepSeek)
+
+        #expect(await session.snapshot().phase == .validating)
+        await lister.finish()
+        await validation.value
+    }
+
+    @Test("a reload that finishes after the card changed shows nothing on the new card", arguments: [false, true])
+    func staleReloadDoesNotReachTheNewCard(failsRead: Bool) async {
+        let boundary = SuspendedConfigurationReadBoundary(failsRead: failsRead)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: boundary)
+        let reload = Task { await session.reloadConfiguration(of: .deepSeek) }
+        await boundary.waitUntilReading()
+
+        await session.selectProvider(.gemini)
+        await boundary.finishReading()
+        await reload.value
+
+        #expect(await session.snapshot().selectedProvider == .gemini)
+        #expect(await session.snapshot().availableModelIDs.isEmpty)
+        #expect(await session.snapshot().failure == nil)
     }
 
     @Test("a new key makes a rejected model choosable again")
@@ -770,6 +849,64 @@ private actor SuspendedProviderConfigurationBoundaryProbe: ProviderSetupConfigur
     func finishSelection() {
         selectionContinuation?.resume()
         selectionContinuation = nil
+    }
+}
+
+/// Holds the first configuration read until told to finish, as a slow metadata read does.
+private actor SuspendedConfigurationReadBoundary: ProviderSetupConfiguring {
+    private let failsRead: Bool
+    private var isFirstRead = true
+    private var pending: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(failsRead: Bool) {
+        self.failsRead = failsRead
+    }
+
+    func currentActivity() async -> ProviderWorkflowActivity? { nil }
+
+    func reconcileCredentialState(
+        for provider: ProviderID, onRecovery: @escaping @Sendable () async -> Void
+    ) -> ProviderMetadataState {
+        ProviderMetadataState()
+    }
+
+    func configurationState() async throws -> ProviderMetadataState {
+        guard isFirstRead else { return ProviderMetadataState() }
+        isFirstRead = false
+        await withCheckedContinuation { continuation in
+            pending = continuation
+            for waiter in waiters { waiter.resume() }
+            waiters.removeAll()
+        }
+        if failsRead { throw ProviderPersistenceError.metadataUnavailable }
+        return ProviderMetadataState(configurations: [
+            .deepSeek: ProviderConfiguration(
+                models: [ProviderModelState(id: "stale-model")], fetchedAt: Date(), selectedModelID: nil
+            ),
+        ])
+    }
+
+    func validateAndSaveKey(_ apiKey: String, for provider: ProviderID) -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
+
+    func refreshModels(for provider: ProviderID) -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
+
+    func selectModel(_ modelID: String, for provider: ProviderID) -> ProviderConfiguration {
+        ProviderConfiguration(models: [], fetchedAt: Date(), selectedModelID: nil)
+    }
+
+    func waitUntilReading() async {
+        if pending != nil { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func finishReading() {
+        pending?.resume()
+        pending = nil
     }
 }
 
