@@ -46,7 +46,9 @@ import VLMSnapperUI
 // Result box (v1-core::REQ-010–012): whether the box sits above the overlay on screen, selecting and
 // copying while the application is not active, and a second display need the installed build.
 // Model-list refresh (v1-core section 7, failure mode 11): the Providers' replies are published text, and no live Provider
-// was asked. A press on a card's header reaches the same state as the focus request the UI suite drives.
+// was asked. A press on a card's header reaches the same state as the focus request the UI suite drives. A list
+// request that never answers is not run: the box's limit is that request's timeout, which a test reads, so a real
+// hang needs a server that stalls.
 // `aLanguageRowChoosesTheNextTranslationsLanguage` presses a real row; other sequences call the toolbar's
 // language callback directly, to keep the catalog's long list out of them.
 // Escape arriving before a press's request task reaches the session cannot be forced from here, so canceling
@@ -1427,8 +1429,19 @@ struct ProviderApplicationTests {
             await fixture.http.rejectImages(status: 400, body: deepSeekMissingModelError)
             await fixture.http.listModels(["fixture-other"])
             let listRequests = await fixture.http.requests.count
+            await fixture.http.pause()
             let (overlay, toolbar) = try await completeSelection(fixture)
             try await clickExtract(toolbar)
+            try await eventually { await fixture.http.requests.count == listRequests + 1 }
+            await settleToolbarAction(toolbar)
+
+            // The refresh is part of the request, so the box still shows the request.
+            let duringRefresh = try #require(resultBoxPresentation())
+            #expect(duringRefresh.showsProgress)
+            #expect(duringRefresh.body != modelUnavailableInBox)
+            #expect(model.isRunningResultRequest)
+
+            await fixture.http.release()
             try await eventually { resultBoxPresentation()?.body == modelUnavailableInBox }
             try await waitForResultIdle(model)
 
@@ -1564,6 +1577,8 @@ struct ProviderApplicationTests {
                 #expect(model.providerSnapshot.selectedModelID == nil)
                 #expect(model.providerSnapshot.availableModelIDs == ["fixture-other"])
                 #expect(await fixture.http.requests.count == listRequests + 1)
+                // The box shows the request until the refresh ends, at the latest this timeout.
+                #expect(await fixture.http.requests.last?.timeoutInterval == 60)
                 #expect(!model.historyRetry.allowsStart)
                 let saved = try await SQLiteHistoryStore(
                     databaseURL: fixture.root.appendingPathComponent("history.sqlite")
@@ -1615,12 +1630,10 @@ struct ProviderApplicationTests {
                 #expect(model.credentialEditor.value == "fixture-draft")
                 #expect(model.providerSnapshot.failure == nil)
 
-                // The cache is new now. A manual refresh counts this far, so another request would show here.
+                // The cache is new now.
                 controls.onOpenProviderCard(.deepSeek)
-                controls.onRefresh()
-                try await eventually { await fixture.http.requests.count >= 2 }
-                try await eventually { model.providerSnapshot.refreshingProvider == nil }
-                #expect(await fixture.http.requests.count == 2)
+                try await Task.sleep(for: .milliseconds(200))
+                #expect(await fixture.http.requests.count == 1)
             }
         }
     }
@@ -1636,21 +1649,19 @@ struct ProviderApplicationTests {
                 try await eventually {
                     model.providerSnapshot.selectedProvider == .openAI && !model.credentialEditor.isLoading
                 }
-                // Refreshing by hand is the first request if the load did not start one.
-                controls.onRefresh()
-                try await eventually { await fixture.http.requests.count >= 1 }
-                try await eventually { model.providerSnapshot.refreshingProvider == nil }
-                #expect(await fixture.http.requests.count == 1)
+                try await Task.sleep(for: .milliseconds(200))
+                #expect(await fixture.http.requests.isEmpty)
 
                 controls.onSelectProvider(.deepSeek)
                 controls.onOpenProviderCard(.deepSeek)
-                try await eventually { await fixture.http.requests.count >= 2 }
+                try await eventually { await fixture.http.requests.count >= 1 }
                 try await eventually {
                     model.providerSnapshot.selectedProvider == .deepSeek
                         && model.providerSnapshot.refreshingProvider == nil
                         && !model.credentialEditor.isLoading
                 }
-                #expect(await fixture.http.requests.count == 2)
+                try await Task.sleep(for: .milliseconds(200))
+                #expect(await fixture.http.requests.count == 1)
                 #expect(await fixture.http.requests.last?.value(forHTTPHeaderField: "Authorization")
                     == "Bearer fixture-deepseek-key")
             }

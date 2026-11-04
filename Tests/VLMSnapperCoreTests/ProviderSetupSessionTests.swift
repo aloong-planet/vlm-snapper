@@ -240,8 +240,47 @@ struct ProviderSetupSessionTests {
         await session.cardOpened(.deepSeek)
 
         #expect(await lister.requests == 2, "only the two validations'")
+        let snapshot = await session.snapshot()
+        #expect(snapshot.failure == nil)
+        #expect(snapshot.modelRefreshFailure == nil)
+        #expect(snapshot.phase == (provider == .deepSeek ? .validating : .ready))
+        #expect(snapshot.selectedModelID == (provider == .deepSeek ? nil : "model"))
+
         await lister.finish()
         _ = await validation.value
+        await session.checkOpenedCardCache()
+        #expect(await lister.requests == 2, "ending the work starts nothing")
+    }
+
+    @Test("opening a stale card during a refresh starts nothing and shows no failure", arguments: [ProviderID.deepSeek, .openAI])
+    func noRefreshDuringARefresh(opened provider: ProviderID) async throws {
+        let clock = SessionClock()
+        let lister = SessionModelLister()
+        let coordinator = makeCoordinator(modelLister: lister, now: { clock.now })
+        try await configure(.deepSeek, on: coordinator)
+        try await configure(.openAI, on: coordinator)
+        clock.advance(by: aDay)
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: coordinator)
+        await session.load()
+        let before = await lister.requests.count
+        await lister.holdNextRequest()
+        let refresh = Task { await session.refreshModels() }
+        await lister.waitUntilHeld()
+
+        if provider != .deepSeek { await session.selectProvider(provider) }
+        await session.cardOpened(provider)
+
+        #expect(await lister.requests.count == before + 1)
+        let snapshot = await session.snapshot()
+        #expect(snapshot.failure == nil)
+        #expect(snapshot.modelRefreshFailure == nil)
+        #expect(snapshot.phase == .ready)
+        #expect(snapshot.selectedModelID == "model")
+
+        await lister.finishHeld()
+        await refresh.value
+        await session.checkOpenedCardCache()
+        #expect(await lister.requests.count == before + 1, "ending the work starts nothing")
     }
 
     @Test("a failed automatic refresh keeps the card, and only the next opening tries again")
@@ -324,6 +363,23 @@ struct ProviderSetupSessionTests {
         await boundary.finishLoading()
         await load.value
         await session.checkOpenedCardCache()
+        #expect(await boundary.refreshes == [.deepSeek])
+    }
+
+    /// An opening's check and its load's check are separate tasks, so both can be reading when the first one refreshes.
+    @Test("two checks during one cache read refresh once")
+    func twoChecksDuringOneCacheRead() async throws {
+        let boundary = SuspendedCacheReadBoundary()
+        let session = ProviderSetupSession(selectedProvider: .deepSeek, boundary: boundary)
+        await session.load()
+        let opening = Task { await session.cardOpened(.deepSeek) }
+        await boundary.waitUntilReading()
+
+        await session.checkOpenedCardCache()
+        #expect(await boundary.refreshes == [.deepSeek])
+
+        await boundary.finishReading()
+        await opening.value
         #expect(await boundary.refreshes == [.deepSeek])
     }
 
@@ -1382,11 +1438,34 @@ private actor SessionModelLister: ProviderModelListing {
     private var models = ["model"]
     private var error: (any Error)?
 
+    private var holdsNext = false
+    private var held: CheckedContinuation<Void, Never>?
+    private var heldWaiters: [CheckedContinuation<Void, Never>] = []
+
     func list(_ models: [String]) { self.models = models }
     func fail(with error: (any Error)?) { self.error = error }
+    func holdNextRequest() { holdsNext = true }
+
+    func waitUntilHeld() async {
+        if held != nil { return }
+        await withCheckedContinuation { heldWaiters.append($0) }
+    }
+
+    func finishHeld() {
+        held?.resume()
+        held = nil
+    }
 
     func listModels(provider: ProviderID, apiKey: String) async throws -> [String] {
         requests.append(provider)
+        if holdsNext {
+            holdsNext = false
+            await withCheckedContinuation { continuation in
+                held = continuation
+                heldWaiters.forEach { $0.resume() }
+                heldWaiters.removeAll()
+            }
+        }
         if let error { throw error }
         return models
     }

@@ -757,9 +757,19 @@ struct PersistedOperationWorkspaceRunnerTests {
             originalPNG: Data([1]), operation: .extractText,
             selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
         )
-        let consumer = Task { for try await _ in events {} }
+        let ended = RunnerEndFlag()
+        let consumer = Task {
+            do { for try await _ in events {} } catch {
+                await ended.mark()
+                throw error
+            }
+            await ended.mark()
+        }
 
         await refresh.waitUntilCalled()
+        // A failure sent before the refresh would reach the consumer in this time.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(await !ended.value)
         #expect(await history.outcomes.isEmpty)
 
         await refresh.finish()
@@ -940,6 +950,11 @@ private actor RunnerVisionRecorderProbe: VisionCompatibilityRecording {
         calls.append(.failure(provider, modelID, evidence))
         if fails { throw ProviderConfigurationError.modelNotFound }
     }
+}
+
+private actor RunnerEndFlag {
+    private(set) var value = false
+    func mark() { value = true }
 }
 
 private actor RunnerModelListProbe: UnavailableModelRefreshing {
