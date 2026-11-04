@@ -1433,7 +1433,9 @@ struct ProviderApplicationTests {
             let (overlay, toolbar) = try await completeSelection(fixture)
             try await clickExtract(toolbar)
             try await eventually { await fixture.http.requests.count == listRequests + 1 }
-            await settleToolbarAction(toolbar)
+            // The box follows the session every 50 ms, so a failure sent too early needs this long to show.
+            try await Task.sleep(for: .milliseconds(200))
+            pumpNativeEvents(toolbar)
 
             // The refresh is part of the request, so the box still shows the request.
             let duringRefresh = try #require(resultBoxPresentation())
