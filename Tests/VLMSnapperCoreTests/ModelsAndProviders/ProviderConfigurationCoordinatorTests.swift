@@ -2,8 +2,9 @@ import Foundation
 import Testing
 @testable import VLMSnapperCore
 
-// Request integration for unavailable models is covered in
-// PersistedOperationWorkspaceRunnerTests; this suite owns the one-refresh decision primitive.
+// Request integration for unavailable models, including refreshing once, is covered in
+// PersistedOperationWorkspaceRunnerTests. This suite covers what a request's refresh does to
+// the saved configuration, and when it is refused.
 @Suite("Provider configuration coordinator")
 struct ProviderConfigurationCoordinatorTests {
     @Test("unsafe local API keys cannot replace a saved credential",
