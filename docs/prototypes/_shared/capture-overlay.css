@@ -71,22 +71,32 @@
 
 .capture-toolbar { position: absolute; z-index: 14; left: 0; top: calc(100% + var(--selection-border-width) + var(--toolbar-gap)); display: flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text); background: var(--window); box-shadow: 0 14px 38px var(--shadow), 0 2px 8px var(--shadow-soft); backdrop-filter: blur(24px); }
 
-.tool-button, .action-button, .value-button { height: 25px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 6px; white-space: nowrap; }
+.tool-button, .action-button { height: 25px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 6px; white-space: nowrap; }
 .tool-button { width: 25px; padding: 0; border: 1px solid transparent; color: var(--text-secondary); background: transparent; }
 .tool-button:hover { color: var(--text); background: var(--surface-hover); }
 .action-button { padding: 0 9px; border: 1px solid var(--line); color: var(--text); background: var(--surface); font-weight: 650; }
 .action-button:hover { background: var(--surface-hover); }
 .action-button.primary { border-color: var(--accent); color: var(--on-accent); background: var(--accent); }
 .action-button.primary:hover { background: var(--accent-hover); }
-.value-button { max-width: 228px; padding: 0 7px; border: 1px solid var(--line); color: var(--text-secondary); background: var(--surface); }
-.value-button:hover { color: var(--text); background: var(--surface-hover); }
-.value-button strong { max-width: 172px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+/* The operation whose result box is showing. Written after the hover rule so it still wins under the pointer. */
+.action-button.is-current, .action-button.is-current:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.action-button:disabled, .action-button:disabled:hover { color: var(--text-tertiary); background: var(--surface); }
+.tool-button:disabled, .tool-button:disabled:hover { color: var(--text-tertiary); background: transparent; }
+/* Translate and its target language are one control: one outline, with a divider between the parts. */
+.split-action { height: 25px; display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.split-action-main, .split-action-menu { height: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 0; background: transparent; white-space: nowrap; }
+.split-action-main { padding: 0 9px; color: var(--text); font-weight: 650; }
+.split-action-menu { gap: 2px; padding: 0 3px 0 6px; border-left: 1px solid var(--line); color: var(--text-secondary); font-size: 12px; }
+.split-action-menu strong { font-weight: 600; }
+.split-action-menu .icon { width: 11px; height: 11px; }
+.split-action-main:hover, .split-action-menu:hover { color: var(--text); background: var(--surface-hover); }
+.split-action-main:disabled, .split-action-main:disabled:hover { color: var(--text-tertiary); background: transparent; }
+.split-action.is-current { border-color: var(--accent); background: var(--accent-soft); }
+.split-action.is-current .split-action-main, .split-action.is-current .split-action-main:hover { color: var(--accent); background: transparent; }
+.split-action.is-current .split-action-menu { border-left-color: var(--accent); color: var(--accent); }
+.split-action.is-current .split-action-menu:hover { color: var(--text); background: var(--surface-hover); }
 .toolbar-divider { width: 1px; height: 20px; margin: 0 1px; background: var(--line); }
 .icon { width: 15px; height: 15px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-
-@media (max-width: 1240px) {
-  .value-button.model strong { max-width: 128px; }
-}
 
 .capture-toolbar[hidden] { display: none; }
 

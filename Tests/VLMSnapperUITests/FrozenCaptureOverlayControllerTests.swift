@@ -437,10 +437,108 @@ struct FrozenCaptureOverlayControllerTests {
         }
         #expect(panel.attachedSheet == nil)
         // The overlay has the keyboard again, so Esc and the next press reach it.
-        #expect(panel.isKeyWindow)
+        #expect(panel.isKeyWindow, "active: \(NSApp.isActive), key window: \(String(describing: NSApp.keyWindow))")
         // Window A, once the alert has ended.
         try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
         #expect(log.frames == [CGRect(x: 100, y: height - 300, width: 300, height: 200)])
+    }
+
+    @Test("a locked selection shows no handles and ignores handles, drags and presses")
+    func lockedSelectionIgnoresEverything() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay(pixelScale: try primaryScreen().backingScaleFactor)
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        let corner = NSPoint(x: 97.5, y: height - 97.5)
+        #expect(try renderedAlpha(panel, at: corner) == 255)
+        let selected = log.frames
+        let insideAlpha = try renderedAlpha(panel, at: NSPoint(x: 250, y: height - 200))
+        let outsidePoint = NSPoint(x: 700, y: height - 200)
+        let outsideAlpha = try renderedAlpha(panel, at: outsidePoint)
+
+        controller.lockSelection()
+
+        #expect(try renderedAlpha(panel, at: corner) < 200, "handles are gone")
+        #expect(try renderedAlpha(panel, at: NSPoint(x: 250, y: height - 200)) == insideAlpha, "the selection stays")
+        try drag(panel, from: corner, to: NSPoint(x: 50, y: height - 50))
+        try drag(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 300, y: height - 250))
+        try click(panel, from: outsidePoint, to: outsidePoint)
+        try drag(panel, from: outsidePoint, to: NSPoint(x: 800, y: height - 300))
+        #expect(log.frames == selected)
+        #expect(log.changes.isEmpty)
+        #expect(try renderedAlpha(panel, at: outsidePoint) == outsideAlpha, "no snap highlight appears")
+    }
+
+    // Another display's overlay has no selection of its own when the selection is locked.
+    @Test("an overlay locked with no selection stops following the pointer and shows no snap highlight")
+    func lockedOverlayWithoutSelectionIgnoresHover() throws {
+        let height = try primaryScreen().frame.height
+        let first = NSPoint(x: 250, y: height - 200)
+        let second = NSPoint(x: 750, y: height - 200)
+        let (controller, panel, _) = try committedSnapOverlay()
+        defer { controller.close() }
+        try send(.mouseMoved, at: first, to: panel)
+        #expect(try renderedAlpha(panel, at: first) == 0, "unlocked, hovering highlights")
+
+        controller.lockSelection()
+
+        #expect(try renderedAlpha(panel, at: first) > 100, "the highlight is gone")
+        try send(.mouseMoved, at: second, to: panel)
+        #expect(try renderedAlpha(panel, at: second) > 100)
+        #expect(try renderedAlpha(panel, at: first) > 100)
+    }
+
+    @Test("snap regions that arrive after the lock show no highlight under the pointer")
+    func snapRegionsAfterLockShowNothing() throws {
+        let screen = try primaryScreen()
+        let height = screen.frame.height
+        let controller = FrozenCaptureOverlayController(pointerLocation: { CGPoint(x: 250, y: height - 200) })
+        defer { controller.close() }
+        let presented = controller.presentPending(onSelection: { _ in }, onCancel: {})
+        #expect(presented)
+        let committed = controller.commit(displays: [makeDisplay(id: try displayID(screen), screen: screen, pixelScale: nil)])
+        #expect(committed)
+        let panel = try primaryOverlay()
+
+        controller.lockSelection()
+        controller.attachSnapRegions(twoWindowResolver())
+
+        #expect(try renderedAlpha(panel, at: NSPoint(x: 250, y: height - 200)) > 100)
+    }
+
+    @Test("resuming after an alert does not unlock a locked selection")
+    func resumeKeepsSelectionLocked() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, log) = try committedSnapOverlay()
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        let selected = log.frames
+        controller.lockSelection()
+
+        controller.setSelectionEnabled(false)
+        controller.setSelectionEnabled(true)
+
+        try click(panel, from: NSPoint(x: 700, y: height - 200), to: NSPoint(x: 700, y: height - 200))
+        #expect(log.frames == selected)
+    }
+
+    @Test("a locked overlay still takes the keyboard, so Escape reaches it")
+    func lockedOverlayTakesKeyboard() throws {
+        let height = try primaryScreen().frame.height
+        let (controller, panel, _) = try committedSnapOverlay()
+        defer { controller.close() }
+        try click(panel, from: NSPoint(x: 250, y: height - 200), to: NSPoint(x: 250, y: height - 200))
+        controller.lockSelection()
+        let other = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+                            styleMask: [.titled], backing: .buffered, defer: false)
+        other.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+        other.makeKeyAndOrderFront(nil)
+        defer { other.orderOut(nil) }
+        #expect(!panel.isKeyWindow)
+
+        try click(panel, from: NSPoint(x: 700, y: height - 200), to: NSPoint(x: 700, y: height - 200))
+
+        #expect(panel.isKeyWindow)
     }
 
     @Test("presses start nothing while selection is paused, and work again after")

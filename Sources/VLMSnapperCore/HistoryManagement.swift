@@ -97,6 +97,8 @@ public enum HistoryRecordDeletionResult: Equatable, Sendable {
 public protocol HistoryRecordManaging: Sendable {
     func historyRecord(id: UUID) async throws -> HistoryRecord?
     func deleteHistoryRecord(id: UUID) async throws -> HistoryRecordDeletionResult
+    /// Whether a record other than `id` uses the same screenshot file.
+    func hasOtherRecords(sharing screenshot: ManagedScreenshot, excluding id: UUID) async throws -> Bool
 }
 
 public struct HistoryDeletionSummary: Equatable, Sendable {
@@ -141,15 +143,19 @@ public actor HistoryDeletionCoordinator {
                     skipped += 1
                     continue
                 }
-                do {
-                    try await screenshotStore.discardIfOwned(record.operation.screenshot)
-                } catch ScreenshotStoreError.missingFile {
-                    // The original file is already unavailable; only internal history is removed.
-                } catch ScreenshotStoreError.ownershipMismatch {
-                    // A replacement at the same path is user data and must remain untouched.
-                } catch {
-                    failed += 1
-                    continue
+                // Operations on one capture share its file, which stays until the last of them goes
+                // (v1-core::REQ-014).
+                if try await !historyStore.hasOtherRecords(sharing: record.operation.screenshot, excluding: id) {
+                    do {
+                        try await screenshotStore.discardIfOwned(record.operation.screenshot)
+                    } catch ScreenshotStoreError.missingFile {
+                        // The original file is already unavailable; only internal history is removed.
+                    } catch ScreenshotStoreError.ownershipMismatch {
+                        // A replacement at the same path is user data and must remain untouched.
+                    } catch {
+                        failed += 1
+                        continue
+                    }
                 }
                 switch try await historyStore.deleteHistoryRecord(id: id) {
                 case .deleted, .missing:

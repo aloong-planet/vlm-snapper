@@ -107,6 +107,146 @@ struct PersistedOperationWorkspaceRunnerTests {
         #expect(await provider.streamCount == 2)
     }
 
+    @Test("another target language is a new record on the same screenshot, and a rerun stays on it")
+    func changedLanguageAddsRecord() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let history = RunnerHistoryProbe()
+        let provider = RunnerProviderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: history,
+            provider: provider
+        )
+        let png = Data([0x89, 0x50])
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+        for language in ["zh-Hans", "ja", "ja"] {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: png,
+                    operation: .translate(targetLanguage: language),
+                    selection: selection
+                )
+            )
+        }
+
+        #expect(await history.operations == [
+            .translate(targetLanguage: "zh-Hans"),
+            .translate(targetLanguage: "ja"),
+        ])
+        #expect(await history.currentOutcomes.count == 2)
+        #expect(await screenshotStore.saveCount == 1)
+        #expect(await provider.streamCount == 3)
+    }
+
+    @Test("going back to an earlier language adds a record instead of reusing the old one")
+    func returningToLanguageAddsRecord() async throws {
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerProviderProbe()
+        )
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+        for language in ["en", "ja", "en"] {
+            _ = try await collect(
+                await runner.run(
+                    originalPNG: Data([1]),
+                    operation: .translate(targetLanguage: language),
+                    selection: selection
+                )
+            )
+        }
+
+        #expect(await history.operations.count == 3)
+        #expect(await history.currentOutcomes.count == 3)
+    }
+
+    @Test("a runner opened on a record never starts another one, whatever language a run asks for")
+    func restoredRecordStaysBound() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let history = RunnerHistoryProbe()
+        let png = Data([7])
+        let screenshot = try await screenshotStore.save(originalPNG: png)
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+        let prepared = try await history.prepareOperation(
+            screenshot: screenshot,
+            selection: selection,
+            operation: .translate(targetLanguage: "zh-Hans")
+        )
+        let stored = try #require(try await history.operation(id: prepared.operationID))
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: screenshotStore,
+            historyStore: history,
+            provider: RunnerProviderProbe(),
+            restoring: stored
+        )
+
+        _ = try await collect(
+            await runner.run(
+                originalPNG: png,
+                operation: .translate(targetLanguage: "en"),
+                selection: selection
+            )
+        )
+
+        #expect(await history.operations == [.translate(targetLanguage: "zh-Hans")])
+        #expect(await history.currentOutcomes.keys.first == prepared.operationID)
+        #expect(await history.currentOutcomes.count == 1)
+    }
+
+    @Test("a screenshot that cannot be saved reports its own reason and prepares no record")
+    func screenshotSaveFailureReportsItsReason() async throws {
+        let history = RunnerHistoryProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerFailingScreenshotStoreProbe(),
+            historyStore: history,
+            provider: RunnerOpenProviderProbe()
+        )
+        let events = await runner.run(
+            originalPNG: Data([1]),
+            operation: .extractText,
+            selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+        )
+
+        await #expect(throws: OperationWorkspaceRunFailure(code: "screenshot_save_failed")) {
+            for try await _ in events {}
+        }
+
+        #expect(await history.operations.isEmpty)
+        #expect(await history.completions.isEmpty)
+        #expect(await history.outcomes.isEmpty)
+    }
+
+    @Test("canceling a running request records it as canceled, not as an incomplete response")
+    func cancelingRunningRequestRecordsCanceled() async throws {
+        let history = RunnerHistoryProbe()
+        let provider = RunnerOpenProviderProbe()
+        let runner = PersistedOperationWorkspaceRunner(
+            screenshotStore: RunnerScreenshotStoreProbe(),
+            historyStore: history,
+            provider: provider
+        )
+        let events = await runner.run(
+            originalPNG: Data([1]),
+            operation: .extractText,
+            selection: ProviderSelection(providerID: "deepseek", modelID: "vision")
+        )
+        let consumer = Task {
+            for try await _ in events {}
+        }
+        for _ in 0..<500 where await provider.streamCount == 0 {
+            try await Task.sleep(for: .milliseconds(2))
+        }
+        try #require(await provider.streamCount == 1)
+
+        consumer.cancel()
+        _ = try? await consumer.value
+        await runner.waitForRunToFinish()
+
+        #expect(await history.completions == [.canceled])
+        #expect(await history.outcomes.isEmpty, "no failure is recorded")
+    }
+
     @Test("rerunning one operation replaces its existing history record")
     func rerunReplacesExistingHistoryRecord() async throws {
         let history = RunnerHistoryProbe()
@@ -550,6 +690,29 @@ private actor RunnerHistoryProbe: OperationHistoryWriting {
         as completion: OperationCompletion
     ) async throws {
         completions.append(completion)
+    }
+}
+
+private struct RunnerFailingScreenshotStoreProbe: ScreenshotPersisting, ManagedScreenshotLoading {
+    func loadIfOwned(_ screenshot: ManagedScreenshot) async throws -> Data { Data() }
+    func save(originalPNG: Data) async throws -> ManagedScreenshot { throw ScreenshotStoreError.unsafePath }
+    func discardIfOwned(_ screenshot: ManagedScreenshot) async throws {}
+}
+
+/// A provider stream that has started and has not finished, as a request in progress is.
+private actor RunnerOpenProviderProbe: PreparedOperationStreaming {
+    private(set) var streamCount = 0
+    private var continuations: [AsyncThrowingStream<ProviderStreamEvent, Error>.Continuation] = []
+
+    func stream(
+        originalPNG: Data,
+        preparedOperation: PreparedOperation
+    ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        streamCount += 1
+        let pair = AsyncThrowingStream<ProviderStreamEvent, Error>.makeStream()
+        continuations.append(pair.continuation)
+        pair.continuation.yield(.sourceDelta("Partial"))
+        return pair.stream
     }
 }
 

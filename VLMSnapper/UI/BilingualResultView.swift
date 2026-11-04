@@ -300,7 +300,7 @@ private final class BilingualSelectionCoordinator: NSObject, NSTextViewDelegate 
 }
 
 @MainActor
-private struct AlignedTextDocument {
+struct AlignedTextDocument {
     let text: NSAttributedString
     let ranges: [String: NSRange]
 

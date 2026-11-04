@@ -9,14 +9,12 @@ enum VLMSnapperStrings {
     static var operationSelector: String { localized("operation.selector") }
     static var targetLanguageSearch: String { localized("operation.targetLanguageSearch") }
     static var cancel: String { localized("action.cancel") }
-    static var start: String { localized("action.start") }
-    static var rerun: String { localized("action.rerun") }
+    static var selectAll: String { localized("action.selectAll") }
     static var retrySave: String { localized("action.retrySave") }
     static var copy: String { localized("action.copy") }
     static var copied: String { localized("action.copied") }
     static var originalScreenshot: String { localized("result.originalScreenshot") }
-    static var result: String { localized("result.title") }
-    static var neverStarted: String { localized("result.neverStarted") }
+    static var resultNoText: String { localized("result.noText") }
     static var preparing: String { localized("result.preparing") }
     static var streaming: String { localized("result.streaming") }
     static var failed: String { localized("result.failed") }
@@ -27,6 +25,9 @@ enum VLMSnapperStrings {
     static var discardUnsavedAction: String { localized("result.discardUnsaved.action") }
     static var captureFailedTitle: String { localized("capture.failed.title") }
     static var captureFailedBody: String { localized("capture.failed.body") }
+    static func targetLanguageHint(_ name: String) -> String {
+        String(format: localized("capture.targetLanguage"), name)
+    }
     static var copyImage: String { localized("capture.copyImage") }
     static var saveImage: String { localized("capture.saveImage") }
     static var copyImageFailedTitle: String { localized("capture.copyFailed.title") }
@@ -302,6 +303,7 @@ enum VLMSnapperStrings {
             "failure.timeout"
         case "transport": "failure.transport"
         case "local_storage": "failure.localStorage"
+        case "screenshot_save_failed": "failure.screenshotSave"
         case "history_record_unavailable": "history.recordUnavailable"
         case "history_screenshot_unavailable": "history.screenshotUnavailable"
         case "malformed_output", "incomplete_response": "failure.incomplete"

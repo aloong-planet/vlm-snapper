@@ -19,7 +19,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
     private var activityObservationTask: Task<Void, Never>?
     private var providerFocusRequest: ProviderSettingsFocusRequest?
     @Published var pendingModelID: String?
-    @Published var selectedOperation: WorkspaceOperationKind = .extract
     @Published var selectedTargetLanguageCode = "zh-Hans"
 
     private(set) var permission: ScreenCapturePermissionReadiness = .notRequested
@@ -53,8 +52,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
     var onShowOnboarding: (@MainActor () -> Void)?
     var onOpenProviderSettingsFromOnboarding: (@MainActor () -> Void)?
     var onProviderConfigurationCompleted: (@MainActor () -> Void)?
-    var onRetireManagementCenter: (@MainActor (@escaping @MainActor () -> Void) -> Void)?
-    var onRestoreManagementCenter: (@MainActor () -> Void)?
     var onRetireCaptureSources: (@MainActor () -> Void)?
 
     private let defaults: UserDefaults
@@ -101,25 +98,33 @@ final class VLMSnapperApplicationModel: ObservableObject {
         extract: WorkspaceOperationSlot(),
         translate: WorkspaceOperationSlot()
     )
-    private var originalImage: NSImage?
+    /// The result box of the capture on screen (v1-core::REQ-010, REQ-011, REQ-012).
+    private var shownResultOperation: WorkspaceOperationKind?
+    private var runningResultOperation: WorkspaceOperationKind?
+    var isRunningResultRequest: Bool { runningResultOperation != nil }
+    private var resultRunTask: Task<Void, Never>?
+    private var hasUnsavedWorkspaceResult = false
+    private var isConfirmingResultExit = false
+    /// A request that never reached the session, such as with no usable model; shown like its failure.
+    private var localResultFailures: [WorkspaceOperationKind: String] = [:]
     private var workspaceProviderSummary: String?
+    /// The language of the record in the translation slot; a rerun keeps it.
     private var workspaceTargetLanguageCode: String?
-    private var workspaceAllowsOperationStart = true
-    private var historyOpenGeneration: UUID?
-    private var returnsToHistory = false
+    private var confirmedSelectionFrame: CGRect?
+    private var confirmedSelectionScreen: NSScreen?
+    private lazy var captureToolbarState = CaptureToolbarState(targetLanguageCode: selectedTargetLanguageCode)
     private var shortcutCoordinator: GlobalShortcutCoordinator?
     private var cleanupTask: Task<Void, Never>?
-    private lazy var resultController = ResultWorkspaceWindowController(
-        onClose: { [weak self] in
-            await self?.closeWorkspace() ?? .discard
-        },
-        onDiscardUnsaved: { [weak self] in
-            await self?.discardUnsavedWorkspace()
-        },
-        onDidClose: { [weak self] in
-            guard let self, returnsToHistory else { return }
-            returnsToHistory = false
-            onRestoreManagementCenter?()
+    private lazy var resultBoxController = CaptureResultBoxPanelController(
+        actions: CaptureResultBoxActions(
+            onCopy: { [weak self] in self?.dependencies.captureClipboard.write(text: $0) },
+            onRetry: { [weak self] in self?.retryShownResult() },
+            onRetrySave: { [weak self] in Task { await self?.retrySavingShownResult() } },
+            onClose: { [weak self] in self?.closeResultBox() }
+        ),
+        onEscape: { [weak self] in
+            guard let self, let generation = activeCaptureGeneration else { return }
+            Task { await self.requestCaptureExit(generation: generation) }
         }
     )
     private lazy var updateDriver = dependencies.makeUpdateDriver { [weak self] event in
@@ -243,7 +248,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
             for await _ in activityChanges {
                 guard !Task.isCancelled, let self else { return }
                 await self.refreshProviderPresentation()
-                if self.workspaceSession != nil { self.showResultWorkspace() }
             }
         }
         for provider in ProviderID.allCases {
@@ -333,9 +337,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
             onRetryHistorySave: { [weak self] in self?.retryHistorySave() },
             onSelectRecord: { [weak self] id in
                 Task { await self?.selectHistoryRecord(id) }
-            },
-            onOpenRecord: { [weak self] id in
-                Task { await self?.openHistoryRecord(id) }
             },
             onRetryRecord: { [weak self] id in self?.startHistoryRetry(id) },
             onSetPinned: { [weak self] id, pinned in
@@ -662,14 +663,8 @@ final class VLMSnapperApplicationModel: ObservableObject {
             await abandonPendingCapture(request)
         }
         if let activeCaptureGeneration {
+            guard await closeResultSessionForExit() else { return false }
             await cancelCapture(generation: activeCaptureGeneration)
-        }
-        if workspaceSession != nil {
-            let disposition = await closeWorkspace()
-            if disposition == .confirmDiscardUnsavedResult {
-                guard UnsavedResultConfirmation.confirm() else { return false }
-                await discardUnsavedWorkspace()
-            }
         }
         for task in credentialTasks.values { task.cancel() }
         credentialTasks.removeAll()
@@ -830,62 +825,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
             let snapshot = await session.snapshot()
             historyRetry.slot = snapshot.selectedOperation == .extract ? snapshot.extract : snapshot.translate
             await refreshHistory()
-        }
-    }
-
-    private func openHistoryRecord(_ id: UUID) async {
-        let generation = UUID()
-        historyOpenGeneration = generation
-        guard let record = try? await historyStore.historyRecord(id: id) else {
-            if historyOpenGeneration == generation {
-                historyOpenGeneration = nil
-            }
-            return
-        }
-        let originalPNG = try? await screenshotStore.loadIfOwned(
-            record.operation.screenshot
-        )
-        let operation: WorkspaceOperationKind = record.operation.kind == .extract
-            ? .extract
-            : .translate
-        let runner = PersistedOperationWorkspaceRunner(
-            screenshotStore: screenshotStore,
-            historyStore: historyStore,
-            provider: providerStreamer,
-            restoring: record.operation
-        )
-        let session = OperationWorkspaceSession(
-            originalPNG: originalPNG ?? Data(),
-            runner: runner,
-            activeGate: operationGate,
-            restoring: record.operation
-        )
-        await session.select(operation)
-        guard historyOpenGeneration == generation else { return }
-        if let workspaceSession,
-           await !workspaceSession.reserveReplacementWithSavedHistory() {
-            historyOpenGeneration = nil
-            resultController.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-        historyOpenGeneration = nil
-        workspaceSession = session
-        selectedOperation = operation
-        workspaceSnapshot = OperationWorkspaceSnapshot(restoring: record.operation)
-        returnsToHistory = true
-        originalImage = originalPNG.flatMap(NSImage.init(data:))
-        workspaceProviderSummary = providerSummary(for: record.operation.selection)
-        workspaceTargetLanguageCode = record.operation.targetLanguage
-        workspaceAllowsOperationStart = originalPNG != nil
-        let present: @MainActor @Sendable () -> Void = { [weak self] in
-            guard let self, workspaceSession === session else { return }
-            showResultWorkspace(bringToFront: true)
-        }
-        if let onRetireManagementCenter {
-            onRetireManagementCenter(present)
-        } else {
-            present()
         }
     }
 
@@ -1078,10 +1017,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     self.onNavigate?(.providerSettings)
                     self.providerSettingsConfiguration().onSelectProvider(provider)
                 },
-                presentOperation: { [weak self] in
-                    self?.resultController.window?.makeKeyAndOrderFront(nil)
-                    NSApp.activate(ignoringOtherApps: true)
-                },
                 perform: { [self] lease in
                     guard permission == .ready, case .ready = providerReadiness else {
                         onShowOnboarding?()
@@ -1097,11 +1032,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
                             captureLease = previousLease
                             return false
                         }
+                        // A running request or an unsaved result keeps its capture on screen
+                        // (v1-core::REQ-012/AC-05).
                         guard preparation == .beginCapture else {
-                            if preparation == .presentWorkspace {
-                                resultController.window?.makeKeyAndOrderFront(nil)
-                                NSApp.activate(ignoringOtherApps: true)
-                            }
                             captureLease = previousLease
                             return false
                         }
@@ -1145,11 +1078,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 }
             },
             onCancel: { [weak self] in
-                Task {
-                    await self?.cancelCapture(
-                        generation: request.generation
-                    )
-                }
+                Task { await self?.requestCaptureExit(generation: request.generation) }
             },
             onSelectionChanging: { [weak self] frame, screen in
                 // The toolbar follows an adjusted selection and hides when a new one starts.
@@ -1162,6 +1091,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             }
         ) {
             captureToolbarController.suspend()
+            resultBoxController.suspend()
             attachSnapRegions(for: request)
         }
         let result = await captureCoordinator.startCapture()
@@ -1220,11 +1150,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             captureToolbarController.hide()
             if let workspaceToRetire = request.workspaceToRetire,
                workspaceSession === workspaceToRetire {
-                workspaceSession = nil
-                originalImage = nil
-                returnsToHistory = false
-                resetWorkspacePresentation()
-                resultController.hideForCapture()
+                resetResultSurfaces()
             }
             onRetireCaptureSources?()
             await retiredSelectionSession?.cancel()
@@ -1249,6 +1175,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
     /// A capture that cannot commit leaves the previous selection exactly as it was.
     private func withdrawPendingCapture() {
         captureOverlayController.rollback()
+        resultBoxController.resume()
         captureToolbarController.resume()
     }
 
@@ -1358,9 +1285,9 @@ final class VLMSnapperApplicationModel: ObservableObject {
             // Displays stay monitored: the selection can still be adjusted until an action starts.
             confirmedSelectionDisplayID = selection.displayID
             confirmedSelectionPNG = selected.originalPNG
-            originalImage = NSImage(data: selected.originalPNG)
+            confirmedSelectionFrame = selection.screenFrame
+            confirmedSelectionScreen = selection.screen
             showCaptureToolbar(
-                originalPNG: selected.originalPNG,
                 selectionFrame: selection.screenFrame,
                 screen: selection.screen
             )
@@ -1394,27 +1321,28 @@ final class VLMSnapperApplicationModel: ObservableObject {
                   captureSelectionSession === session else { return }
             let confirmedDisplayChanged = confirmedSelectionDisplayID.map(invalidated.contains) ?? false
             if captureDisplayGeometries.isEmpty || confirmedDisplayChanged {
-                await cancelCapture(generation: generation)
+                await endCaptureAfterDisplayLoss(generation: generation)
             }
         }
     }
 
     private func showCaptureToolbar(
-        originalPNG: Data,
         selectionFrame: CGRect,
         screen: NSScreen
     ) {
         guard let generation = activeCaptureGeneration else { return }
+        captureToolbarState.targetLanguageCode = selectedTargetLanguageCode
         captureToolbarController.show(
             content: CaptureOperationToolbar(
-                operation: binding(\.selectedOperation),
-                targetLanguageCode: targetLanguageBinding,
+                state: captureToolbarState,
                 targetLanguages: targetLanguageOptions,
-                providerSummary: providerSummary,
                 onStart: { [weak self] operation in
                     self?.runCaptureAction(generation: generation) { png in
-                        self?.openWorkspace(originalPNG: png, operation: operation)
+                        self?.handleOperationPress(operation, originalPNG: png)
                     }
+                },
+                onTargetLanguageChange: { [weak self] code in
+                    self?.changeTargetLanguage(code)
                 },
                 onCopy: { [weak self] in
                     self?.runCaptureAction(generation: generation) { png in
@@ -1427,9 +1355,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
                     }
                 },
                 onCancel: { [weak self] in
-                    Task {
-                        await self?.cancelCapture(generation: generation)
-                    }
+                    Task { await self?.requestCaptureExit(generation: generation) }
                 }
             ),
             below: selectionFrame,
@@ -1451,7 +1377,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         }
     }
 
-    /// Copy and Save end the capture like Cancel: no history, no model request (v1-core::REQ-008, REQ-009).
+    /// Copy and Save end the capture like Cancel: no new history, no model request (v1-core::REQ-008, REQ-009).
     private func copyCapturedImage(_ png: Data, generation: UUID) async {
         guard dependencies.captureClipboard.write(png: png) else {
             await presentCaptureActionFailure(
@@ -1460,7 +1386,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
             )
             return
         }
-        await cancelCapture(generation: generation)
+        await requestCaptureExit(generation: generation)
     }
 
     private func saveCapturedImage(_ png: Data, generation: UUID) async {
@@ -1474,7 +1400,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         guard activeCaptureGeneration == generation else { return }
         switch outcome {
         case .saved:
-            await cancelCapture(generation: generation)
+            await requestCaptureExit(generation: generation)
         case .cancelled:
             break
         case .failed:
@@ -1490,186 +1416,240 @@ final class VLMSnapperApplicationModel: ObservableObject {
         alert.alertStyle = .warning
         alert.messageText = title
         alert.informativeText = body
-        _ = await captureOverlayController.presentAlert(alert)
+        _ = await captureOverlayController.presentAlert(alert, onDisplay: confirmedSelectionDisplayID)
     }
 
-    private func openWorkspace(
-        originalPNG: Data,
-        operation: WorkspaceOperationKind
-    ) {
-        guard let owner = captureLease, providerSelection != nil else { return }
-        Task {
-            _ = try? await workflow.performOperation(continuingCapture: owner) {
-                captureLease = nil
-                await runCapturedWorkspace(originalPNG: originalPNG, operation: operation)
-            }
+    /// A press on Extract or Translate: the first one fixes the selection, then a press either starts a
+    /// request or shows the result the operation already has (v1-core::REQ-011).
+    private func handleOperationPress(_ operation: WorkspaceOperationKind, originalPNG: Data) {
+        guard runningResultOperation == nil else { return }
+        if workspaceSession == nil {
+            workspaceSession = OperationWorkspaceSession(
+                originalPNG: originalPNG,
+                runner: PersistedOperationWorkspaceRunner(
+                    screenshotStore: screenshotStore,
+                    historyStore: historyStore,
+                    provider: providerStreamer
+                ),
+                activeGate: operationGate
+            )
+            captureOverlayController.lockSelection()
         }
+        guard wouldStartRequest(operation) else {
+            shownResultOperation = operation
+            refreshResultSurfaces()
+            return
+        }
+        guard !hasUnsavedWorkspaceResult else { return }
+        startResultRequest(operation, targetLanguage: selectedTargetLanguageCode)
     }
 
-    private func runCapturedWorkspace(
-        originalPNG: Data,
-        operation: WorkspaceOperationKind
-    ) async {
-        guard let providerSelection else { return }
-        cancelCaptureSurfaces()
-        let runner = PersistedOperationWorkspaceRunner(
-            screenshotStore: screenshotStore,
-            historyStore: historyStore,
-            provider: providerStreamer
-        )
-        let session = OperationWorkspaceSession(
-            originalPNG: originalPNG,
-            runner: runner,
-            activeGate: operationGate
-        )
-        workspaceSession = session
-        selectedOperation = operation
-        workspaceProviderSummary = providerSummary
-        returnsToHistory = false
-        workspaceTargetLanguageCode = selectedTargetLanguageCode
-        workspaceAllowsOperationStart = true
-        await session.select(operation)
-        workspaceSnapshot = await session.snapshot()
-        showResultWorkspace(bringToFront: true)
-        let previousAttempt = selectedAttempt
-        let run = Task { [weak self] in
+    private func resultSlot(_ operation: WorkspaceOperationKind) -> WorkspaceOperationSlot {
+        if let code = localResultFailures[operation] {
+            return WorkspaceOperationSlot(attempt: .failed(code: code))
+        }
+        return operation == .extract ? workspaceSnapshot.extract : workspaceSnapshot.translate
+    }
+
+    private func wouldStartRequest(_ operation: WorkspaceOperationKind) -> Bool {
+        if resultSlot(operation).attempt == .neverStarted { return true }
+        return operation == .translate && workspaceTargetLanguageCode != selectedTargetLanguageCode
+    }
+
+    private func startResultRequest(_ operation: WorkspaceOperationKind, targetLanguage: String) {
+        guard let session = workspaceSession, let owner = captureLease else { return }
+        shownResultOperation = operation
+        guard let selection = providerSelection else {
+            localResultFailures[operation] = "provider_unavailable"
+            refreshResultSurfaces()
+            return
+        }
+        localResultFailures[operation] = nil
+        if operation == .translate { workspaceTargetLanguageCode = targetLanguage }
+        workspaceProviderSummary = providerSummary(for: selection)
+        runningResultOperation = operation
+        refreshResultSurfaces()
+        resultRunTask = Task { [weak self] in
             guard let self else { return }
-            try await session.startSelectedOperation(
-                selection: providerSelection,
-                targetLanguage: selectedTargetLanguageCode
-            )
+            let accepted = await workflow.performInCapture(owner: owner) {
+                await self.runResultRequest(operation, in: session, selection: selection, targetLanguage: targetLanguage)
+            }
+            await syncWorkspaceSnapshot(session)
+            guard workspaceSession === session else { return }
+            if !accepted { localResultFailures[operation] = "operation_failed" }
+            runningResultOperation = nil
+            refreshResultSurfaces()
         }
-        var observedTransition = false
-        let transitionDeadline = Date().addingTimeInterval(1)
-        while !run.isCancelled {
-            guard workspaceSession === session else {
-                run.cancel()
-                _ = try? await run.value
-                return
+    }
+
+    private func runResultRequest(
+        _ operation: WorkspaceOperationKind,
+        in session: OperationWorkspaceSession,
+        selection: ProviderSelection,
+        targetLanguage: String
+    ) async {
+        await session.select(operation)
+        let observation = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.syncWorkspaceSnapshot(session)
+                try? await Task.sleep(for: .milliseconds(50))
             }
-            workspaceSnapshot = await session.snapshot()
-            showResultWorkspace()
-            if selectedAttempt != previousAttempt {
-                observedTransition = true
-            }
-            if selectedSlotIsTerminal,
-               observedTransition || Date() >= transitionDeadline {
-                break
-            }
-            try? await Task.sleep(for: .milliseconds(50))
         }
-        _ = try? await run.value
+        defer { observation.cancel() }
+        do {
+            try await session.startSelectedOperation(selection: selection, targetLanguage: targetLanguage)
+        } catch OperationWorkspaceSessionError.busy, OperationWorkspaceSessionError.unsavedResultRequiresSave {
+            localResultFailures[operation] = "operation_failed"
+        } catch {
+            // The session recorded the failure or cancellation in the operation's slot.
+        }
+        await syncWorkspaceSnapshot(session)
+        await recordResultDiagnostic(session, operation: operation)
+        await refreshHistory()
+    }
+
+    private func syncWorkspaceSnapshot(_ session: OperationWorkspaceSession) async {
+        let snapshot = await session.snapshot()
+        let hasUnsaved = await session.hasUnsavedResult
         guard workspaceSession === session else { return }
-        workspaceSnapshot = await session.snapshot()
-        showResultWorkspace()
-        await recordSelectedOperationDiagnostic()
-        await refreshHistory()
+        workspaceSnapshot = snapshot
+        hasUnsavedWorkspaceResult = hasUnsaved
+        refreshResultSurfaces()
     }
 
-    private func showResultWorkspace(bringToFront: Bool = false) {
-        let content = ResultWorkspaceView(
-            operation: binding(\.selectedOperation),
-            snapshot: workspaceSnapshot,
-            originalImage: originalImage,
+    /// Brings the toolbar and the result box in line with the session. The toolbar moves aside only when
+    /// the box opens or closes, not when the box is dragged (v1-core::REQ-013/AC-06).
+    private func refreshResultSurfaces() {
+        captureToolbarState.currentOperation = shownResultOperation
+        captureToolbarState.isRequestRunning = runningResultOperation != nil
+        captureToolbarState.unavailableOperations = hasUnsavedWorkspaceResult
+            ? Set(WorkspaceOperationKind.allCases.filter(wouldStartRequest))
+            : []
+        guard let frame = confirmedSelectionFrame, let screen = confirmedSelectionScreen else { return }
+        guard let operation = shownResultOperation else {
+            guard resultBoxController.frame != nil else { return }
+            resultBoxController.hide()
+            captureToolbarController.reposition(below: frame, on: screen)
+            return
+        }
+        let presentation = CaptureResultBoxPresentation(
+            operation: operation,
+            targetLanguageName: VLMSnapperLocalization.localizedLanguageName(
+                for: workspaceTargetLanguageCode ?? selectedTargetLanguageCode
+            ),
             providerSummary: workspaceProviderSummary ?? providerSummary,
-            targetLanguage: workspaceTargetLanguageName,
-            allowsOperationStart: workspaceAllowsOperationStart && providerSnapshot.activity == nil,
-            onStart: { [weak self] operation in
-                Task { await self?.rerunWorkspace(operation) }
-            },
-            onCopy: { value in
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(value, forType: .string)
-            },
-            onRetrySave: { [weak self] in
-                Task { await self?.retrySavingWorkspace() }
-            }
+            slot: resultSlot(operation),
+            retryAvailable: !hasUnsavedWorkspaceResult
         )
-        if bringToFront {
-            resultController.present(content: content)
-            NSApp.activate(ignoringOtherApps: true)
-        } else {
-            resultController.update(content: content)
+        if resultBoxController.state.presentation != presentation {
+            resultBoxController.state.presentation = presentation
+        }
+        guard resultBoxController.frame == nil, captureRequest == nil else { return }
+        resultBoxController.show(on: screen)
+        captureToolbarController.reposition(below: frame, on: screen, avoiding: resultBoxController.frame)
+        captureToolbarController.orderFront()
+    }
+
+    func changeTargetLanguage(_ code: String) {
+        guard TargetLanguageCatalog.standard.contains(code) else { return }
+        selectedTargetLanguageCode = code
+        defaults.set(code, forKey: "targetLanguageCode")
+        refreshResultSurfaces()
+        // SwiftUI applies the new abbreviation on its next update; its width changes the toolbar's.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let frame = confirmedSelectionFrame, let screen = confirmedSelectionScreen else { return }
+            captureToolbarController.reposition(below: frame, on: screen, avoiding: resultBoxController.frame)
         }
     }
 
-    private func rerunWorkspace(_ operation: WorkspaceOperationKind) async {
-        _ = try? await workflow.performOperation {
-            await runExistingWorkspace(operation)
-        }
+    private func retryShownResult() {
+        guard !captureActionInProgress, runningResultOperation == nil, !hasUnsavedWorkspaceResult,
+              let operation = shownResultOperation else { return }
+        startResultRequest(operation, targetLanguage: workspaceTargetLanguageCode ?? selectedTargetLanguageCode)
     }
 
-    private func runExistingWorkspace(_ operation: WorkspaceOperationKind) async {
-        guard workspaceAllowsOperationStart,
-              let workspaceSession,
-              let providerSelection else { return }
-        workspaceProviderSummary = providerSummary
-        await workspaceSession.select(operation)
-        selectedOperation = operation
-        workspaceSnapshot = await workspaceSession.snapshot()
-        if operation == .translate, workspaceSnapshot.translate.attempt == .neverStarted {
-            workspaceTargetLanguageCode = selectedTargetLanguageCode
-        }
-        let targetLanguage = workspaceTargetLanguageCode ?? selectedTargetLanguageCode
-        let previousAttempt = selectedAttempt
-        let run = Task {
-            try await workspaceSession.startSelectedOperation(
-                selection: providerSelection,
-                targetLanguage: targetLanguage
-            )
-        }
-        var observedTransition = false
-        let transitionDeadline = Date().addingTimeInterval(1)
-        while !run.isCancelled {
-            guard self.workspaceSession === workspaceSession else {
-                run.cancel()
-                _ = try? await run.value
-                return
-            }
-            workspaceSnapshot = await workspaceSession.snapshot()
-            showResultWorkspace()
-            if selectedAttempt != previousAttempt {
-                observedTransition = true
-            }
-            if selectedSlotIsTerminal,
-               observedTransition || Date() >= transitionDeadline {
-                break
-            }
-            try? await Task.sleep(for: .milliseconds(50))
-        }
-        _ = try? await run.value
-        guard self.workspaceSession === workspaceSession else { return }
-        workspaceSnapshot = await workspaceSession.snapshot()
-        showResultWorkspace()
-        await recordSelectedOperationDiagnostic()
+    private func retrySavingShownResult() async {
+        guard !captureActionInProgress, let session = workspaceSession, let operation = shownResultOperation else { return }
+        await session.select(operation)
+        try? await session.retrySavingSelectedResult()
+        await syncWorkspaceSnapshot(session)
         await refreshHistory()
     }
 
-    private func retrySavingWorkspace() async {
-        try? await workspaceSession?.retrySavingSelectedResult()
-        if let workspaceSession {
-            workspaceSnapshot = await workspaceSession.snapshot()
-            showResultWorkspace()
-            await refreshHistory()
+    /// Closes only the box; a running request ends with it (v1-core::REQ-012/AC-02). An unsaved result
+    /// stays in the session until the capture ends.
+    private func closeResultBox() {
+        guard !captureActionInProgress, let session = workspaceSession else { return }
+        shownResultOperation = nil
+        refreshResultSurfaces()
+        // A request task that has not reached the session yet must not start after this.
+        resultRunTask?.cancel()
+        Task { [weak self] in
+            _ = await session.close()
+            await self?.syncWorkspaceSnapshot(session)
         }
     }
 
-    private func closeWorkspace() async -> WorkspaceCloseDisposition {
-        guard let workspaceSession else { return .discard }
-        let disposition = await workspaceSession.close()
-        if disposition != .confirmDiscardUnsavedResult, self.workspaceSession === workspaceSession {
-            self.workspaceSession = nil
-            originalImage = nil
-            resetWorkspacePresentation()
+    /// Leaves the capture on the user's request. An unsaved result asks first, on the overlay.
+    private func requestCaptureExit(generation: UUID) async {
+        guard activeCaptureGeneration == generation, captureRequest?.generation != generation else {
+            await cancelCapture(generation: generation)
+            return
         }
-        return disposition
+        guard await closeResultSessionForExit() else { return }
+        await cancelCapture(generation: generation)
     }
 
-    private func discardUnsavedWorkspace() async {
-        await workspaceSession?.discardUnsavedResults()
+    /// Cancels a running request and settles an unsaved result. Returns `false` if the user keeps it.
+    private func closeResultSessionForExit() async -> Bool {
+        guard let session = workspaceSession else { return true }
+        guard await session.close() == .confirmDiscardUnsavedResult else { return true }
+        // The toolbar and the box stay clickable beside the sheet: it is one question at a time.
+        guard !isConfirmingResultExit else { return false }
+        isConfirmingResultExit = true
+        defer { isConfirmingResultExit = false }
+        captureActionInProgress = true
+        let response = await captureOverlayController.presentAlert(
+            UnsavedResultConfirmation.makeAlert(),
+            onDisplay: confirmedSelectionDisplayID
+        )
+        captureActionInProgress = false
+        guard response == .alertFirstButtonReturn else { return false }
+        await session.discardUnsavedResults()
+        return true
+    }
+
+    /// The selection's display is gone, so the box has nowhere to stay (v1-core::REQ-012/AC-06).
+    private func endCaptureAfterDisplayLoss(generation: UUID) async {
+        let session = workspaceSession
+        let hadUnsavedResult = await session?.hasUnsavedResult ?? false
+        await session?.discardUnsavedResults()
+        await cancelCapture(generation: generation)
+        if hadUnsavedResult {
+            await dependencies.captureResultLossNotifier.unsavedResultDiscarded()
+        }
+    }
+
+    private func resetResultSurfaces() {
         workspaceSession = nil
-        originalImage = nil
-        resetWorkspacePresentation()
+        workspaceSnapshot = OperationWorkspaceSnapshot(
+            selectedOperation: .extract,
+            extract: WorkspaceOperationSlot(),
+            translate: WorkspaceOperationSlot()
+        )
+        shownResultOperation = nil
+        runningResultOperation = nil
+        resultRunTask = nil
+        hasUnsavedWorkspaceResult = false
+        localResultFailures = [:]
+        workspaceProviderSummary = nil
+        workspaceTargetLanguageCode = nil
+        confirmedSelectionFrame = nil
+        confirmedSelectionScreen = nil
+        captureToolbarState.currentOperation = nil
+        captureToolbarState.isRequestRunning = false
+        captureToolbarState.unavailableOperations = []
+        resultBoxController.reset()
     }
 
     private func cancelCapture(generation: UUID) async {
@@ -1684,9 +1664,16 @@ final class VLMSnapperApplicationModel: ObservableObject {
         captureRequest = nil
         let session = captureSelectionSession
         let lease = captureLease
+        let resultSession = workspaceSession
+        let resultRun = resultRunTask
         captureLease = nil
         cancelCaptureSurfaces()
         await session?.cancel()
+        // A canceled request has saved that state before the next activity can begin. A request task that
+        // has not reached the session yet must not start after this.
+        resultRun?.cancel()
+        _ = await resultSession?.close()
+        await resultRun?.value
         if let lease { await providerCoordinator.release(lease) }
         await replacement?.workspaceToRetire?.restoreAfterCaptureFailure()
     }
@@ -1696,6 +1683,7 @@ final class VLMSnapperApplicationModel: ObservableObject {
         captureDisplayGeometries.removeAll()
         captureOverlayController.close()
         captureToolbarController.hide()
+        resetResultSurfaces()
         captureSelectionSession = nil
         confirmedSelectionDisplayID = nil
         confirmedSelectionPNG = nil
@@ -1739,17 +1727,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
         return "\(providerName) · \(selection.modelID)"
     }
 
-    private var targetLanguageBinding: Binding<String> {
-        Binding(
-            get: { self.selectedTargetLanguageCode },
-            set: { value in
-                guard TargetLanguageCatalog.standard.contains(value) else { return }
-                self.selectedTargetLanguageCode = value
-                self.defaults.set(value, forKey: "targetLanguageCode")
-            }
-        )
-    }
-
     private var targetLanguageOptions: [TargetLanguageOption] {
         TargetLanguageCatalog.standard.codes.map {
             TargetLanguageOption(
@@ -1757,24 +1734,6 @@ final class VLMSnapperApplicationModel: ObservableObject {
                 name: VLMSnapperLocalization.localizedLanguageName(for: $0)
             )
         }
-    }
-
-    private var targetLanguageName: String {
-        VLMSnapperLocalization.localizedLanguageName(
-            for: selectedTargetLanguageCode
-        )
-    }
-
-    private var workspaceTargetLanguageName: String {
-        VLMSnapperLocalization.localizedLanguageName(
-            for: workspaceTargetLanguageCode ?? selectedTargetLanguageCode
-        )
-    }
-
-    private func resetWorkspacePresentation() {
-        workspaceProviderSummary = nil
-        workspaceTargetLanguageCode = nil
-        workspaceAllowsOperationStart = true
     }
 
     private func defaultTargetLanguage(
@@ -1792,27 +1751,16 @@ final class VLMSnapperApplicationModel: ObservableObject {
         }
     }
 
-    private var selectedSlotIsTerminal: Bool {
-        switch selectedAttempt {
-        case .succeeded, .failed, .canceled, .resultPersistenceFailed:
-            return true
-        case .neverStarted, .preparing, .streaming:
-            return false
-        }
-    }
-
-    private var selectedAttempt: WorkspaceAttemptState {
-        let slot = selectedOperation == .extract
-            ? workspaceSnapshot.extract
-            : workspaceSnapshot.translate
-        return slot.attempt
-    }
-
-    private func recordSelectedOperationDiagnostic() async {
+    private func recordResultDiagnostic(
+        _ session: OperationWorkspaceSession,
+        operation: WorkspaceOperationKind
+    ) async {
         guard case let .ready(provider, modelID) = providerReadiness else { return }
+        let snapshot = await session.snapshot()
+        let attempt = operation == .extract ? snapshot.extract.attempt : snapshot.translate.attempt
         let stage: DiagnosticRequestStage
         let errorCode: String?
-        switch selectedAttempt {
+        switch attempt {
         case let .failed(code):
             stage = .response
             errorCode = code

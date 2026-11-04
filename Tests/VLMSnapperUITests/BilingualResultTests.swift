@@ -127,16 +127,10 @@ final class BilingualResultTests: XCTestCase {
     }
 
     func testProductionResultUsesIndependentSelectableColumns() throws {
-        let result = WorkspaceCommittedResult(sourceMarkdown: "Need help? Contact us.",
-            translationMarkdown: "需要帮助？联系我们。", segments: [
-                TranslationSegment(id: "a", block: "p1", kind: .paragraph, source: "Need help? ", translation: "需要帮助？"),
-                TranslationSegment(id: "b", block: "p1", kind: .paragraph, source: "Contact us.", translation: "联系我们。"),
-            ])
-        let view = ResultWorkspaceView(operation: .constant(.translate),
-            snapshot: OperationWorkspaceSnapshot(selectedOperation: .translate, extract: WorkspaceOperationSlot(),
-                translate: WorkspaceOperationSlot(attempt: .succeeded, committedResult: result)),
-            originalImage: nil, providerSummary: "Fixture", targetLanguage: "zh-Hans", onStart: { _ in },
-            onCopy: { _ in }, onRetrySave: {})
+        let view = BilingualResultView(source: "Need help? Contact us.", translation: "需要帮助？联系我们。", segments: [
+            TranslationSegment(id: "a", block: "p1", kind: .paragraph, source: "Need help? ", translation: "需要帮助？"),
+            TranslationSegment(id: "b", block: "p1", kind: .paragraph, source: "Contact us.", translation: "联系我们。"),
+        ])
         let host = NSHostingView(rootView: view)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
             styleMask: [.titled, .closable], backing: .buffered, defer: false)

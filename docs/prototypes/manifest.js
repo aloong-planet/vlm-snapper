@@ -9,13 +9,6 @@ window.PROTOTYPES = [
     path: "core-result/prototype-bilingual.html"
   },
   {
-    module: "core-result",
-    type: "ui",
-    id: "hybrid-card-workbench",
-    name: "Hybrid card workbench",
-    path: "core-result/prototype-layout-directions.html"
-  },
-  {
     module: "companion-shell",
     type: "ui",
     id: "menu-panel",
@@ -56,6 +49,13 @@ window.PROTOTYPES = [
     id: "snap-region",
     name: "Capture snap region",
     path: "capture-overlay/prototype-snap-region.html"
+  },
+  {
+    module: "capture-overlay",
+    type: "ui",
+    id: "result-box",
+    name: "Capture result box",
+    path: "capture-overlay/prototype-result-box.html"
   },
   {
     module: "onboarding",

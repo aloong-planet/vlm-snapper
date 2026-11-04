@@ -52,14 +52,8 @@ struct Ticket10RenderingTests {
         appearance: Ticket10Appearance,
         outputURL: URL
     ) throws {
-        var operation = WorkspaceOperationKind.translate
-        var targetLanguageCode = "zh-Hans"
         let view = CaptureOperationToolbar(
-            operation: Binding(get: { operation }, set: { operation = $0 }),
-            targetLanguageCode: Binding(
-                get: { targetLanguageCode },
-                set: { targetLanguageCode = $0 }
-            ),
+            state: CaptureToolbarState(targetLanguageCode: "zh-Hans"),
             targetLanguages: [
                 TargetLanguageOption(
                     code: "zh-Hans",
@@ -69,8 +63,8 @@ struct Ticket10RenderingTests {
                 ),
                 TargetLanguageOption(code: "en", name: "English"),
             ],
-            providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
             onStart: { _ in },
+            onTargetLanguageChange: { _ in },
             onCopy: {},
             onSave: {},
             onCancel: {}

@@ -27,4 +27,4 @@ VLMSnapper v1 需要提供简体中文和英语界面，同时翻译结果可能
 ## 来源
 
 - [VLMSnapper v1 需求对齐记录](../.workings/v1-core/requirements-alignment.md)
-- [VLMSnapper 领域上下文](../../CONTEXT.md)
+- [VLMSnapper 领域上下文](../CONTEXT.md)

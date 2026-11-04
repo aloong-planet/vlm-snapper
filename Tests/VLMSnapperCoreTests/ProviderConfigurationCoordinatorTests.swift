@@ -115,8 +115,8 @@ struct ProviderConfigurationCoordinatorTests {
     }
 
     @MainActor
-    @Test("selection handoff remains exclusive and releases after an operation failure")
-    func captureHandoffFailureReleasesOwner() async throws {
+    @Test("a request from an open capture keeps the activity until the capture ends")
+    func captureKeepsActivityThroughItsRequests() async throws {
         let coordinator = ProviderConfigurationCoordinator(
             modelLister: StaticModelLister(models: []), credentialStore: MemoryCredentialStore(),
             metadataStore: MemoryMetadataStore()
@@ -131,17 +131,40 @@ struct ProviderConfigurationCoordinatorTests {
         #expect(await coordinator.currentActivity() == .capture)
         #expect(await workflow.capture(from: .shortcut, replacing: token, presentProvider: { _ in }) { _ in false } == false)
         #expect(await coordinator.currentActivity() == .capture)
-        await #expect(throws: CancellationError.self) {
-            _ = try await workflow.performOperation(continuingCapture: token) {
+        for _ in 1...2 {
+            let accepted = await workflow.performInCapture(owner: token) {
                 #expect(await coordinator.currentActivity() == .modelRequest)
                 #expect(await coordinator.acquire() == nil)
-                throw CancellationError()
             }
+            #expect(accepted)
+            #expect(await coordinator.currentActivity() == .capture)
+            #expect(await coordinator.acquire() == nil)
         }
+        await coordinator.release(token)
         #expect(await coordinator.currentActivity() == nil)
         var staleEffect = false
-        #expect(try await workflow.performOperation(continuingCapture: token) { staleEffect = true } == false)
+        #expect(await workflow.performInCapture(owner: token) { staleEffect = true } == false)
         #expect(!staleEffect)
+    }
+
+    @MainActor
+    @Test("a capture that ends during its request does not get the activity back")
+    func endedCaptureDoesNotRetakeActivity() async throws {
+        let coordinator = ProviderConfigurationCoordinator(
+            modelLister: StaticModelLister(models: []), credentialStore: MemoryCredentialStore(),
+            metadataStore: MemoryMetadataStore()
+        )
+        let workflow = ApplicationWorkflow(coordinator: coordinator)
+        var owner: UUID?
+        #expect(await workflow.capture(from: .shortcut, presentProvider: { _ in }) { token in
+            owner = token
+            return true
+        })
+        let token = try #require(owner)
+        #expect(await workflow.performInCapture(owner: token) {
+            await coordinator.release(token)
+        })
+        #expect(await coordinator.currentActivity() == nil)
     }
 
     @MainActor

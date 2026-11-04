@@ -18,6 +18,25 @@ struct FileSystemScreenshotStoreTests {
         #expect(!FileManager.default.fileExists(atPath: saved.path))
     }
 
+    @Test("a save succeeds once the file that blocked the folder is gone")
+    func saveRecoversOnceTheBlockingFileIsGone() async throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let root = base.appendingPathComponent("Pictures")
+        try Data().write(to: root)
+        let store = FileSystemScreenshotStore(rootDirectory: root)
+        let png = Data([0x89, 0x50, 0x4e, 0x47])
+        await #expect(throws: ScreenshotStoreError.unsafePath) {
+            _ = try await store.save(originalPNG: png)
+        }
+
+        try FileManager.default.removeItem(at: root)
+
+        let saved = try await store.save(originalPNG: png)
+        #expect(try await store.loadIfOwned(saved) == png)
+    }
+
     @Test("saving an original PNG preserves its bytes, local timestamp name, and SHA-256")
     func savingOriginalPNGPreservesBytesNameAndDigest() async throws {
         let root = FileManager.default.temporaryDirectory

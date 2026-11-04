@@ -25,6 +25,10 @@ VLMSnapper 是无 Dock 图标的菜单栏应用，持有全局截图快捷键、
 - 负面：用户不能同时运行不同 Provider 或不同架构的独立 VLMSnapper 会话。
 - 中性：Sparkle 安装器及签名辅助进程不是应用主实例，不应被主实例互斥机制误拦截。
 
+## 后续修订
+
+- ADR-0015（提议）删除结果窗口后，活动模型任务位于截图界面：第二实例激活时把可见的可成为键盘窗口的界面带到前台，没有时展开菜单栏面板。本 ADR 其余决定不变。
+
 ## 来源
 
 - [VLMSnapper v1 需求对齐记录](../.workings/v1-core/requirements-alignment.md)

@@ -1,11 +1,14 @@
 import AppKit
 import UniformTypeIdentifiers
+import VLMSnapperUI
 
 /// Puts a captured image on the clipboard (v1-core::REQ-008).
 @MainActor
 protocol CaptureImageClipboard {
     /// Returns `false` when the clipboard did not take the image.
     func write(png: Data) -> Bool
+    /// Puts result text on the clipboard (v1-core::REQ-010/AC-07).
+    func write(text: String)
 }
 
 enum CaptureImageSaveOutcome: Equatable {
@@ -20,6 +23,23 @@ protocol CaptureImageSaving {
     func save(png: Data, suggestedName: String) async -> CaptureImageSaveOutcome
 }
 
+/// Tells the user an unsaved result is gone with its display (v1-core::REQ-012/AC-06).
+@MainActor
+protocol CaptureResultLossNotifying {
+    func unsavedResultDiscarded() async
+}
+
+struct AlertCaptureResultLossNotifier: CaptureResultLossNotifying {
+    func unsavedResultDiscarded() async {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = VLMSnapperLocalization.localizedString(forKey: "result.discardedAfterDisplayChange.title")
+        alert.informativeText = VLMSnapperLocalization.localizedString(forKey: "result.discardedAfterDisplayChange.body")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+}
+
 struct SystemCaptureImageClipboard: CaptureImageClipboard {
     func write(png: Data) -> Bool {
         let item = NSPasteboardItem()
@@ -31,6 +51,12 @@ struct SystemCaptureImageClipboard: CaptureImageClipboard {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         return pasteboard.writeObjects([item])
+    }
+
+    func write(text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 }
 

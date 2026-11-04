@@ -16,11 +16,8 @@ struct ConfirmedSurfaceContractTests {
         #expect(PermissionRecoveryMetrics.cornerRadius == 8)
     }
 
-    @Test("result and management shells use the accepted hierarchy geometry")
+    @Test("the management shell uses the accepted hierarchy geometry")
     func workspaceGeometry() {
-        #expect(ResultWorkspaceMetrics.minimumSize == CGSize(width: 1_020, height: 620))
-        #expect(ResultWorkspaceMetrics.headerHeight == 58)
-        #expect(ResultWorkspaceMetrics.footerHeight == 50)
         #expect(ManagementCenterMetrics.defaultSize == CGSize(width: 1_200, height: 780))
         #expect(ManagementCenterMetrics.sidebarWidth == 180)
         #expect(ManagementCenterMetrics.titlebarHeight == 46)

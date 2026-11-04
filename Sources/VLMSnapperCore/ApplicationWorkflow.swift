@@ -20,7 +20,6 @@ public final class ApplicationWorkflow {
         from source: CaptureEntryPoint,
         replacing owner: UUID? = nil,
         presentProvider: (ProviderID) -> Void,
-        presentOperation: () -> Void = {},
         perform: (UUID) async -> Bool
     ) async -> Bool {
         let lease: UUID
@@ -28,8 +27,7 @@ public final class ApplicationWorkflow {
         catch {
             switch await coordinator.currentActivity() {
             case let .credential(provider): presentProvider(provider)
-            case .modelRequest: presentOperation()
-            case .capture, nil: break
+            case .modelRequest, .capture, nil: break
             }
             return false
         }
@@ -42,19 +40,14 @@ public final class ApplicationWorkflow {
         return accepted
     }
 
+    /// Runs a request that belongs to no capture.
     @discardableResult
     public func performOperation(
-        continuingCapture owner: UUID? = nil,
         operation: () async throws -> Void
     ) async throws -> Bool {
         let lease: UUID
         do {
-            if let owner {
-                try await coordinator.transitionCaptureToModelRequest(owner)
-                lease = owner
-            } else {
-                lease = try await coordinator.beginRequestConfigurationFreeze()
-            }
+            lease = try await coordinator.beginRequestConfigurationFreeze()
         } catch { return false }
         do {
             try Task.checkCancellation()
@@ -64,6 +57,21 @@ public final class ApplicationWorkflow {
             throw error
         }
         await coordinator.release(lease)
+        return true
+    }
+
+    /// Runs a request from an open capture, which keeps the activity until the capture ends
+    /// (v1-core::REQ-012/AC-08). If the capture ended during the request, the activity is not taken back.
+    @discardableResult
+    public func performInCapture(
+        owner: UUID,
+        operation: () async -> Void
+    ) async -> Bool {
+        do {
+            try await coordinator.transitionCaptureToModelRequest(owner)
+        } catch { return false }
+        await operation()
+        try? await coordinator.transitionModelRequestToCapture(owner)
         return true
     }
 }

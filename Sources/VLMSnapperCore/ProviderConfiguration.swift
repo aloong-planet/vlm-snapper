@@ -446,6 +446,16 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring, Operati
         publishActivity()
     }
 
+    /// A request made from an open capture hands the activity back when it ends. Nothing else can start
+    /// in between, so waiting recovery keeps waiting until the capture itself is released.
+    public func transitionModelRequestToCapture(_ owner: UUID) throws {
+        guard activity?.owner == owner, activity?.kind == .modelRequest else {
+            throw ProviderConfigurationError.configurationLocked
+        }
+        activity = (owner, .capture)
+        publishActivity()
+    }
+
     public func currentActivity() -> ProviderWorkflowActivity? { activity?.kind }
 
     public func activityChanges() -> AsyncStream<ProviderWorkflowActivity?> {

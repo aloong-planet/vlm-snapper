@@ -146,7 +146,7 @@ struct Ticket13RenderingTests {
                 )
                 try render(
                     resultView,
-                    size: ResultWorkspaceMetrics.minimumSize,
+                    size: CGSize(width: CaptureResultBoxMetrics.width, height: CaptureResultBoxMetrics.maximumHeight),
                     appearance: appearance,
                     outputURL: outputDirectory.appendingPathComponent("result-\(suffix).png")
                 )
@@ -389,25 +389,22 @@ struct Ticket13RenderingTests {
     }
 
     private var resultView: some View {
-        ResultWorkspaceView(
-            operation: .constant(.translate),
-            snapshot: OperationWorkspaceSnapshot(
-                selectedOperation: .translate,
-                extract: WorkspaceOperationSlot(),
-                translate: WorkspaceOperationSlot(
-                    attempt: .succeeded,
-                    committedResult: WorkspaceCommittedResult(
-                        sourceMarkdown: "# Designing Calm Software\n\nGood utility software stays close to the task.",
-                        translationMarkdown: "# 设计宁静的软件\n\n优秀的工具应该贴近当前任务。"
-                    )
-                )
-            ),
-            originalImage: sampleImage,
+        let state = CaptureResultBoxState()
+        state.presentation = CaptureResultBoxPresentation(
+            operation: .translate,
+            targetLanguageName: "Chinese (Simplified)",
             providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
-            targetLanguage: "Chinese (Simplified)",
-            onStart: { _ in },
-            onCopy: { _ in },
-            onRetrySave: {}
+            slot: WorkspaceOperationSlot(
+                attempt: .succeeded,
+                committedResult: WorkspaceCommittedResult(
+                    sourceMarkdown: "# Designing Calm Software\n\nGood utility software stays close to the task.",
+                    translationMarkdown: "# 设计宁静的软件\n\n优秀的工具应该贴近当前任务。"
+                )
+            )
+        )
+        return CaptureResultBoxView(
+            state: state,
+            actions: CaptureResultBoxActions(onCopy: { _ in }, onRetry: {}, onRetrySave: {}, onClose: {})
         )
     }
 
@@ -420,14 +417,13 @@ struct Ticket13RenderingTests {
                     .frame(width: 680, height: 210)
                     .overlay(Rectangle().stroke(VLMSnapperTheme.accent))
                 CaptureOperationToolbar(
-                    operation: .constant(.extract),
-                    targetLanguageCode: .constant("zh-Hans"),
+                    state: CaptureToolbarState(targetLanguageCode: "zh-Hans"),
                     targetLanguages: [
                         TargetLanguageOption(code: "zh-Hans", name: "Chinese (Simplified)"),
                         TargetLanguageOption(code: "en", name: "English"),
                     ],
-                    providerSummary: "DeepSeek · deepseek-v4-flash-vision-exp",
                     onStart: { _ in },
+                    onTargetLanguageChange: { _ in },
                     onCopy: {},
                     onSave: {},
                     onCancel: {}

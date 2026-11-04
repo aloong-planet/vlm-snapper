@@ -203,6 +203,9 @@ public actor FileSystemScreenshotStore: ScreenshotPersisting, ManagedScreenshotL
         else {
             throw ScreenshotStoreError.unsafePath
         }
+        // A URL keeps the values it has read: a retry must see the folder as it is now.
+        var directory = directory
+        directory.removeAllCachedResourceValues()
         do {
             let values = try directory.resourceValues(
                 forKeys: [.isDirectoryKey, .isSymbolicLinkKey]

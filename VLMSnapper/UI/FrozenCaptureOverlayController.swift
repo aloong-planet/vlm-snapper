@@ -186,9 +186,12 @@ public final class FrozenCaptureOverlayController {
     /// alert at the modal-panel level, under the overlay at the screen saver level (measured
     /// 2026-10-29 in a sandboxed app: layer 8 under 1000). No overlay takes a selection while the
     /// alert is shown. Without an overlay the alert runs modally.
-    public func presentAlert(_ alert: NSAlert) async -> NSApplication.ModalResponse {
-        // Keep the overlay that has the keyboard; the sheet goes on it.
-        guard let window = panels.first(where: \.isKeyWindow) ?? panels.last else {
+    public func presentAlert(_ alert: NSAlert, onDisplay displayID: UInt32? = nil) async -> NSApplication.ModalResponse {
+        // Keep the overlay that has the keyboard; the sheet goes on it. When a result box has the
+        // keyboard, the sheet goes on the overlay of the box's display.
+        guard let window = panels.first(where: \.isKeyWindow)
+            ?? panels.first(where: { $0.displayID == displayID })
+            ?? panels.last else {
             return alert.runModal()
         }
         setSelectionEnabled(false)
@@ -210,6 +213,14 @@ public final class FrozenCaptureOverlayController {
             panel.makeKey()
         }
         if enabled { keyPanelBeforePause = nil }
+    }
+
+    /// Fixes the selection once an operation has started: from here presses, hovering and handles do
+    /// nothing, on every display (v1-core::REQ-012/AC-01). A later capture has its own overlay.
+    public func lockSelection() {
+        for panel in panels {
+            panel.overlayView?.lockSelection()
+        }
     }
 
     private func retire(_ panels: [CaptureOverlayPanel]) {
@@ -332,6 +343,7 @@ private final class CaptureOverlayView: NSView {
     private var geometry: CaptureDisplayGeometry?
     /// Presses start nothing while the save panel or an alert is shown above the overlay.
     var selectionEnabled = true
+    private var selectionLocked = false
     private var snapRegions = SnapRegions.awaiting
     private var press: CGPoint?
     private var dragStart: CGPoint?
@@ -400,10 +412,18 @@ private final class CaptureOverlayView: NSView {
             let selection = region(click)
             snapped = selection
             complete(selection)
-        } else if press == nil, !selectionSettled {
+        } else if press == nil, !selectionSettled, !selectionLocked {
             snapped = pointer.map(region)
             updateLayers()
         }
+    }
+
+    func lockSelection() {
+        selectionLocked = true
+        press = nil
+        adjustment = nil
+        if !selectionSettled { snapped = nil }
+        updateLayers()
     }
 
     override func updateTrackingAreas() {
@@ -438,13 +458,13 @@ private final class CaptureOverlayView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        guard press == nil, !selectionSettled, case .ready(let region) = snapRegions else { return }
+        guard press == nil, !selectionSettled, !selectionLocked, case .ready(let region) = snapRegions else { return }
         snapped = region(convert(event.locationInWindow, from: nil))
         updateLayers()
     }
 
     override func mouseExited(with event: NSEvent) {
-        guard press == nil, !selectionSettled, snapped != nil else { return }
+        guard press == nil, !selectionSettled, !selectionLocked, snapped != nil else { return }
         snapped = nil
         updateLayers()
     }
@@ -452,6 +472,7 @@ private final class CaptureOverlayView: NSView {
     override func mouseDown(with event: NSEvent) {
         guard selectionEnabled else { return }
         window?.makeKey()
+        guard !selectionLocked else { return }
         let point = convert(event.locationInWindow, from: nil)
         if let confirmed = confirmedSelection {
             if let edges = Self.handles(of: confirmed).first(where: { $0.hitRect.contains(point) })?.edges {
@@ -572,7 +593,7 @@ private final class CaptureOverlayView: NSView {
     /// The selection the toolbar belongs to, once the frozen frame is shown. One under two
     /// physical pixels never gets a toolbar, so it gets no handles either (v1-core::REQ-007/AC-01).
     private var confirmedSelection: CGRect? {
-        guard selectionSettled, geometry != nil, press == nil,
+        guard selectionSettled, !selectionLocked, geometry != nil, press == nil,
               let snapped, coversTwoPixels(snapped) else { return nil }
         return snapped
     }

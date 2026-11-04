@@ -45,6 +45,50 @@ struct ToolbarPlacementTests {
         #expect(origin == CGPoint(x: 576, y: 4))
     }
 
+    @Test("a toolbar that would run under an open result box moves to its left")
+    func toolbarMovesLeftOfResultBox() {
+        let screen = CGRect(x: 0, y: 0, width: 1_440, height: 800)
+        let box = CGRect(x: 1_048, y: 148, width: 380, height: 640)
+
+        let origin = CaptureToolbarPlacement.origin(
+            selectionFrame: CGRect(x: 900, y: 400, width: 300, height: 200),
+            toolbarSize: CGSize(width: 290, height: 31),
+            visibleScreenFrame: screen,
+            avoiding: box
+        )
+
+        #expect(origin == CGPoint(x: 750, y: 365))
+    }
+
+    @Test("a toolbar clear of the result box stays where it was")
+    func toolbarClearOfResultBoxStays() {
+        let screen = CGRect(x: 0, y: 0, width: 1_440, height: 800)
+        let selection = CGRect(x: 100, y: 400, width: 300, height: 200)
+
+        let origin = CaptureToolbarPlacement.origin(
+            selectionFrame: selection,
+            toolbarSize: CGSize(width: 290, height: 31),
+            visibleScreenFrame: screen,
+            avoiding: CGRect(x: 1_048, y: 148, width: 380, height: 640)
+        )
+
+        #expect(origin == CGPoint(x: 100, y: 365))
+    }
+
+    @Test("moving aside never takes the toolbar past the screen's left edge")
+    func toolbarStaysOnScreenBesideResultBox() {
+        let screen = CGRect(x: 40, y: 0, width: 500, height: 800)
+
+        let origin = CaptureToolbarPlacement.origin(
+            selectionFrame: CGRect(x: 60, y: 400, width: 300, height: 200),
+            toolbarSize: CGSize(width: 290, height: 31),
+            visibleScreenFrame: screen,
+            avoiding: CGRect(x: 148, y: 148, width: 380, height: 640)
+        )
+
+        #expect(origin.x == 40)
+    }
+
     @Test("a toolbar wider than the screen keeps its leading edge visible")
     func wideToolbarKeepsLeadingEdgeVisible() {
         let screen = CGRect(x: 40, y: 20, width: 280, height: 400)

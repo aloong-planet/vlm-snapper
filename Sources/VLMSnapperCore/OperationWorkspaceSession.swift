@@ -31,12 +31,17 @@ public protocol OperationWorkspaceRunning: Sendable {
     ) async -> AsyncThrowingStream<OperationWorkspaceRunEvent, Error>
 
     func retrySavingResult() async throws -> WorkspaceCommittedResult
+
+    /// Returns once the latest run has written its final state, including after a cancellation.
+    func waitForRunToFinish() async
 }
 
 public extension OperationWorkspaceRunning {
     func retrySavingResult() async throws -> WorkspaceCommittedResult {
         throw OperationWorkspaceSessionError.noUnsavedResult
     }
+
+    func waitForRunToFinish() async {}
 }
 
 public enum OperationWorkspaceSessionError: Error, Equatable {
@@ -236,7 +241,11 @@ public actor OperationWorkspaceSession {
     }
 
     public var preventsHistoryDiscard: Bool {
-        isStarting || activeTask != nil || extract.unsavedResult != nil || translate.unsavedResult != nil
+        isStarting || activeTask != nil || hasUnsavedResult
+    }
+
+    public var hasUnsavedResult: Bool {
+        extract.unsavedResult != nil || translate.unsavedResult != nil
     }
 
     public func prepareForCapture() -> WorkspaceCapturePreparation {
@@ -260,10 +269,6 @@ public actor OperationWorkspaceSession {
             return
         }
         acceptsOperationStarts = true
-    }
-
-    public func reserveReplacementWithSavedHistory() -> Bool {
-        prepareForCapture() == .beginCapture
     }
 
     public func startSelectedOperation(
@@ -419,6 +424,7 @@ public actor OperationWorkspaceSession {
                 apply(event, to: kind)
             }
         } catch {
+            await runner.waitForRunToFinish()
             let retained = slot(for: kind).committedResult
             if Task.isCancelled || error is CancellationError {
                 setSlot(
@@ -441,6 +447,7 @@ public actor OperationWorkspaceSession {
             )
             throw error
         }
+        await runner.waitForRunToFinish()
         if Task.isCancelled || slot(for: kind).attempt == .canceled {
             throw CancellationError()
         }
