@@ -25,6 +25,7 @@ Project facts that apply across skills are in `capabilities.toml` at the reposit
 ### 回归验证
 
 - 发布前必须运行 `bash Scripts/test-local-regression.sh --desktop`。
+- 本地只跑本次改动涉及的测试用例，全量由 PR 的 CI 运行；发布前的 `--desktop` 回归不受此限。
 - `@MainActor` 测试里，按钮按下后的否定读取必须排在按钮动作的任务执行之后（docs/postmortems/result-box-test-reads.md）。
 - `@MainActor` 测试挂起后读键盘窗口时，会取得键盘窗口的测试必须与它在同一个串行 suite 下（docs/postmortems/result-box-test-reads.md）。
 - 原生窗口测试的几何前提不得依赖本机屏幕尺寸，CI 的显示器是 1024×768（docs/postmortems/result-box-test-reads.md）。
