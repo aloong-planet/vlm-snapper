@@ -23,19 +23,12 @@ enum VLMSnapperStrings {
     static var discardUnsavedTitle: String { localized("result.discardUnsaved.title") }
     static var discardUnsavedBody: String { localized("result.discardUnsaved.body") }
     static var discardUnsavedAction: String { localized("result.discardUnsaved.action") }
-    static var captureFailedTitle: String { localized("capture.failed.title") }
-    static var captureFailedBody: String { localized("capture.failed.body") }
     static func targetLanguageHint(_ name: String) -> String {
         String(format: localized("capture.targetLanguage"), name)
     }
     static var copyImage: String { localized("capture.copyImage") }
     static var saveImage: String { localized("capture.saveImage") }
-    static var copyImageFailedTitle: String { localized("capture.copyFailed.title") }
-    static var copyImageFailedBody: String { localized("capture.copyFailed.body") }
-    static var saveImageFailedTitle: String { localized("capture.saveFailed.title") }
-    static var saveImageFailedBody: String { localized("capture.saveFailed.body") }
     static var retry: String { localized("action.retry") }
-    static var onboardingTitle: String { localized("onboarding.title") }
     static var onboardingIntroTitle: String { localized("onboarding.intro.title") }
     static var onboardingIntroDescription: String { localized("onboarding.intro.description") }
     static var onboardingPermissionDescription: String { localized("onboarding.permission.description") }
@@ -52,14 +45,11 @@ enum VLMSnapperStrings {
     static var onboardingBothMissingTitle: String { localized("onboarding.gate.missing.title") }
     static var onboardingBothMissingDetail: String { localized("onboarding.gate.missing.detail") }
     static var onboardingLaterNote: String { localized("onboarding.gate.later") }
-    static var onboardingSubtitle: String { localized("onboarding.subtitle") }
     static var permissionTitle: String { localized("onboarding.permission.title") }
     static var providerTitle: String { localized("onboarding.provider.title") }
     static var privacyTitle: String { localized("onboarding.privacy.title") }
-    static var privacySummary: String { localized("onboarding.privacy.summary") }
     static var configure: String { localized("action.configure") }
     static var modify: String { localized("action.modify") }
-    static var continueSetup: String { localized("action.continueSetup") }
     static var finishLater: String { localized("action.finishLater") }
     static var startUsing: String { localized("action.startUsing") }
     static var viewDetails: String { localized("action.viewDetails") }
@@ -103,7 +93,6 @@ enum VLMSnapperStrings {
     static var providerRemove: String { localized("providerSetup.remove") }
     static var providerRemoveConfirmation: String { localized("providerSetup.removeConfirmation") }
     static var providerCurrentDetailFormat: String { localized("providerSetup.currentDetailFormat") }
-    static var permissionRecoveryTitle: String { localized("permissionRecovery.title") }
     static var permissionRecoveryDenied: String { localized("permissionRecovery.unavailable") }
     static var permissionRecoveryInitial: String { localized("permissionRecovery.initial") }
     static var permissionRecoveryRestart: String { localized("permissionRecovery.restart") }
@@ -127,7 +116,6 @@ enum VLMSnapperStrings {
     static var menuSettings: String { localized("menu.settings") }
     static var menuGeneralSettings: String { localized("menu.generalSettings") }
     static var historyLibrary: String { localized("history.library") }
-    static var menuCheckUpdates: String { localized("menu.checkUpdates") }
     static var menuQuit: String { localized("menu.quit") }
     static var menuFile: String { localized("applicationMenu.file") }
     static var menuEdit: String { localized("applicationMenu.edit") }
@@ -223,7 +211,6 @@ enum VLMSnapperStrings {
     static var historyZoomHint: String { localized("history.zoomHint") }
     static var historyDelete: String { localized("history.delete") }
     static var historyClear: String { localized("history.clear") }
-    static var historyRetryCleanup: String { localized("history.retryCleanup") }
     static var historyCleanupFailures: String { localized("history.cleanupFailures") }
     static var historyRetention: String { localized("history.retention") }
     static var historyRetentionHint: String { localized("history.retentionHint") }
