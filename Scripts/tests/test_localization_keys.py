@@ -63,7 +63,8 @@ class LocalizationKeysTests(unittest.TestCase):
         self.assert_fails_naming("zh-Hans", "action.save")
 
     def test_escaped_quote_inside_a_value_is_text(self):
-        value = '"action.copy" = "%@ \\"copy\\"";\n"action.save" = "Save";\n'
+        # The // after the escaped quote is still inside the string, so nothing here is a comment.
+        value = '"action.copy" = "%@ \\"a // b\\"";\n"action.save" = "Save";\n'
         self.write_dictionary("en", value)
         self.write_dictionary("zh-Hans", value)
         self.assert_passes()
