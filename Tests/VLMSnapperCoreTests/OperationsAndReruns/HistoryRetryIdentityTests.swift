@@ -11,7 +11,7 @@ struct HistoryRetryIdentityTests {
             let runner = PersistedOperationWorkspaceRunner(screenshotStore: screenshots,
                 historyStore: store, provider: provider, restoring: record.operation)
             let selection = ProviderSelection(providerID: "gemini", modelID: "new-model")
-            _ = try await collectRetry(await runner.run(originalPNG: png,
+            _ = try await collect(await runner.run(originalPNG: png,
                 operation: .translate(targetLanguage: "en"), selection: selection))
             let updated = try #require(try await store.historyRecord(id: record.id))
             #expect(updated.operation.targetLanguage == "ja")
@@ -43,7 +43,7 @@ struct HistoryRetryIdentityTests {
                 try Data("replacement".utf8).write(to: URL(fileURLWithPath: record.operation.screenshot.path))
             }
             await #expect(throws: OperationWorkspaceRunFailure.self) {
-                _ = try await collectRetry(await runner.run(originalPNG: png,
+                _ = try await collect(await runner.run(originalPNG: png,
                     operation: .translate(targetLanguage: "ja"), selection: record.operation.selection))
             }
             #expect(await provider.operations.isEmpty)
@@ -95,7 +95,7 @@ struct HistoryRetryIdentityTests {
             let runner = PersistedOperationWorkspaceRunner(screenshotStore: screenshots,
                 historyStore: store, provider: provider, restoring: record.operation)
             for _ in 0..<2 {
-                _ = try await collectRetry(await runner.run(originalPNG: png,
+                _ = try await collect(await runner.run(originalPNG: png,
                     operation: .translate(targetLanguage: "ja"), selection: record.operation.selection))
             }
             #expect(try await store.historyRecord(id: record.id)?.isPinned == false)
@@ -170,14 +170,6 @@ private func withHistory(
     try await store.setPinned(true, operationID: prepared.operationID)
     let record = try #require(try await store.historyRecord(id: prepared.operationID))
     try await body(store, screenshots, record, png)
-}
-
-private func collectRetry(
-    _ stream: AsyncThrowingStream<OperationWorkspaceRunEvent, Error>
-) async throws -> [OperationWorkspaceRunEvent] {
-    var result: [OperationWorkspaceRunEvent] = []
-    for try await event in stream { result.append(event) }
-    return result
 }
 
 private actor RetryProvider: PreparedOperationStreaming {

@@ -4,6 +4,54 @@ import Testing
 
 // Doubles and helpers the runner tests share.
 
+/// A runner over doubles. A test passes the ones it reads, and each default is a run that goes well.
+func makeRunner(
+    screenshotStore: any ScreenshotPersisting & ManagedScreenshotLoading = RunnerScreenshotStoreProbe(),
+    history: any OperationHistoryWriting = RunnerHistoryProbe(),
+    provider: any PreparedOperationStreaming = RunnerProviderProbe(),
+    visionCompatibility: (any VisionCompatibilityRecording)? = nil,
+    modelListRefresh: (any UnavailableModelRefreshing)? = nil,
+    restoring operation: StoredOperation? = nil,
+    now: @escaping @Sendable () -> Date = Date.init
+) -> PersistedOperationWorkspaceRunner {
+    PersistedOperationWorkspaceRunner(
+        screenshotStore: screenshotStore,
+        historyStore: history,
+        provider: provider,
+        visionCompatibility: visionCompatibility,
+        modelListRefresh: modelListRefresh,
+        restoring: operation,
+        now: now
+    )
+}
+
+/// One extraction of the same screenshot, for tests where the operation and image are not what they check.
+func extract(
+    on runner: PersistedOperationWorkspaceRunner,
+    providerID: String = "deepseek"
+) async throws -> [OperationWorkspaceRunEvent] {
+    try await collect(await runner.run(
+        originalPNG: Data([1]),
+        operation: .extractText,
+        selection: ProviderSelection(providerID: providerID, modelID: "vision")
+    ))
+}
+
+/// A record saved for the screenshot `extract(on:)` uses, as a runner opened on existing history finds it.
+func savedRecord(
+    of operation: ProviderOperation
+) async throws -> (screenshotStore: RunnerScreenshotStoreProbe, history: RunnerHistoryProbe, stored: StoredOperation) {
+    let screenshotStore = RunnerScreenshotStoreProbe()
+    let history = RunnerHistoryProbe()
+    let screenshot = try await screenshotStore.save(originalPNG: Data([1]))
+    let prepared = try await history.prepareOperation(
+        screenshot: screenshot,
+        selection: ProviderSelection(providerID: "gemini", modelID: "vision"),
+        operation: operation
+    )
+    return (screenshotStore, history, try #require(try await history.operation(id: prepared.operationID)))
+}
+
 actor RunnerVisionRecorderProbe: VisionCompatibilityRecording {
     enum Call: Equatable {
         case success(ProviderID, String)
@@ -96,6 +144,12 @@ actor RunnerScreenshotStoreProbe: ScreenshotPersisting, ManagedScreenshotLoading
 }
 
 actor RunnerHistoryProbe: OperationHistoryWriting {
+    /// What a prepared record can differ in from what was asked for.
+    enum Mismatch: Sendable {
+        case screenshot
+        case selection
+    }
+
     private var stored: [UUID: StoredOperation] = [:]
 
     func operation(id: UUID) async throws -> StoredOperation? { stored[id] }
@@ -104,36 +158,26 @@ actor RunnerHistoryProbe: OperationHistoryWriting {
     private(set) var completions: [OperationCompletion] = []
     private(set) var metrics: [PersistedOperationMetrics] = []
     private(set) var currentOutcomes: [UUID: PersistedOperationOutcome] = [:]
-    private var failsPreparation: Bool
-    private var cancelsPreparation: Bool
+    private var preparationError: (any Error)?
     private var failsSuccessfulFinish: Bool
-    private let returnsMismatch: Bool
-    private let returnsSelectionMismatch: Bool
+    private let mismatch: Mismatch?
 
     init(
-        failsPreparation: Bool = false,
-        cancelsPreparation: Bool = false,
+        preparationError: (any Error)? = nil,
         failsSuccessfulFinish: Bool = false,
-        returnsMismatch: Bool = false,
-        returnsSelectionMismatch: Bool = false
+        mismatch: Mismatch? = nil
     ) {
-        self.failsPreparation = failsPreparation
-        self.cancelsPreparation = cancelsPreparation
+        self.preparationError = preparationError
         self.failsSuccessfulFinish = failsSuccessfulFinish
-        self.returnsMismatch = returnsMismatch
-        self.returnsSelectionMismatch = returnsSelectionMismatch
+        self.mismatch = mismatch
     }
 
-    func setFailsPreparation(_ value: Bool) {
-        failsPreparation = value
+    func setPreparationError(_ error: (any Error)?) {
+        preparationError = error
     }
 
     func setFailsSuccessfulFinish(_ value: Bool) {
         failsSuccessfulFinish = value
-    }
-
-    func setCancelsPreparation(_ value: Bool) {
-        cancelsPreparation = value
     }
 
     func prepareOperation(
@@ -141,28 +185,27 @@ actor RunnerHistoryProbe: OperationHistoryWriting {
         selection: ProviderSelection,
         operation: ProviderOperation
     ) async throws -> PreparedOperation {
-        if cancelsPreparation {
-            throw CancellationError()
-        }
-        if failsPreparation {
-            throw RunnerProbeError.failed
+        if let preparationError {
+            throw preparationError
         }
         operations.append(operation)
-        if returnsMismatch {
+        switch mismatch {
+        case .screenshot:
             return PreparedOperation(
                 operationID: UUID(),
                 screenshot: ManagedScreenshot(path: "/wrong.png", sha256: "wrong"),
                 selection: selection,
                 operation: operation
             )
-        }
-        if returnsSelectionMismatch {
+        case .selection:
             return PreparedOperation(
                 operationID: UUID(),
                 screenshot: screenshot,
                 selection: ProviderSelection(providerID: selection.providerID, modelID: "another-model"),
                 operation: operation
             )
+        case nil:
+            break
         }
         let id = UUID()
         let targetLanguage: String?
@@ -234,70 +277,6 @@ struct RunnerFailingScreenshotStoreProbe: ScreenshotPersisting, ManagedScreensho
     func discardIfOwned(_ screenshot: ManagedScreenshot) async throws {}
 }
 
-/// A provider stream that has started and has not finished, as a request in progress is.
-actor RunnerOpenProviderProbe: PreparedOperationStreaming {
-    private(set) var streamCount = 0
-    private var continuations: [AsyncThrowingStream<ProviderStreamEvent, Error>.Continuation] = []
-
-    func stream(
-        originalPNG: Data,
-        preparedOperation: PreparedOperation
-    ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
-        streamCount += 1
-        let pair = AsyncThrowingStream<ProviderStreamEvent, Error>.makeStream()
-        continuations.append(pair.continuation)
-        pair.continuation.yield(.sourceDelta("Partial"))
-        return pair.stream
-    }
-}
-
-actor RunnerQueuedProviderProbe: PreparedOperationStreaming {
-    private var outputs: [String]
-
-    init(outputs: [String]) {
-        self.outputs = outputs
-    }
-
-    func stream(
-        originalPNG: Data,
-        preparedOperation: PreparedOperation
-    ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
-        let output = outputs.removeFirst()
-        return AsyncThrowingStream { continuation in
-            continuation.yield(.sourceDelta(output))
-            continuation.yield(
-                .metadata(ProviderResponseMetadata(requestID: nil, usage: nil))
-            )
-            continuation.yield(.completed)
-            continuation.finish()
-        }
-    }
-}
-
-actor RunnerRerunFailureProviderProbe: PreparedOperationStreaming {
-    private var streamCount = 0
-
-    func stream(
-        originalPNG: Data,
-        preparedOperation: PreparedOperation
-    ) async -> AsyncThrowingStream<ProviderStreamEvent, Error> {
-        streamCount += 1
-        if streamCount == 2 {
-            return AsyncThrowingStream { continuation in
-                continuation.finish(throwing: ProviderAdapterError.providerUnavailable)
-            }
-        }
-        return AsyncThrowingStream { continuation in
-            continuation.yield(.sourceDelta("Original result"))
-            continuation.yield(
-                .metadata(ProviderResponseMetadata(requestID: nil, usage: nil))
-            )
-            continuation.yield(.completed)
-            continuation.finish()
-        }
-    }
-}
-
 final class RunnerClock: @unchecked Sendable {
     private let lock = NSLock()
     private var values: [Date]
@@ -316,18 +295,40 @@ enum RunnerProbeError: Error {
 }
 
 actor RunnerProviderProbe: PreparedOperationStreaming {
+    /// What one stream does. Streams take these in order, and the last one repeats.
+    enum Run: Sendable {
+        /// Source text, a translation if the operation is one, then completion.
+        case standard
+        case events([ProviderStreamEvent])
+        case failure(any Error)
+        /// A stream that has started and has not finished, as a request in progress is.
+        case open
+
+        static func text(_ output: String) -> Run {
+            .events([
+                .sourceDelta(output),
+                .metadata(ProviderResponseMetadata(requestID: nil, usage: nil)),
+                .completed,
+            ])
+        }
+    }
+
     private(set) var streamCount = 0
     private(set) var originalPNGs: [Data] = []
     private(set) var preparedOperations: [PreparedOperation] = []
-    private let events: [ProviderStreamEvent]?
-    private let error: (any Error)?
+    private var runs: [Run]
+    private var openStreams: [AsyncThrowingStream<ProviderStreamEvent, Error>.Continuation] = []
 
-    init(
-        events: [ProviderStreamEvent]? = nil,
-        error: (any Error)? = nil
-    ) {
-        self.events = events
-        self.error = error
+    init(runs: [Run] = [.standard]) {
+        self.runs = runs
+    }
+
+    init(events: [ProviderStreamEvent]) {
+        runs = [.events(events)]
+    }
+
+    init(error: any Error) {
+        runs = [.failure(error)]
     }
 
     func stream(
@@ -337,30 +338,26 @@ actor RunnerProviderProbe: PreparedOperationStreaming {
         streamCount += 1
         originalPNGs.append(originalPNG)
         preparedOperations.append(preparedOperation)
-        let operation = preparedOperation.operation
-        return AsyncThrowingStream { continuation in
-            if let error {
-                continuation.finish(throwing: error)
-                return
-            }
-            if let events {
-                for event in events {
-                    continuation.yield(event)
-                }
-                continuation.finish()
-                return
-            }
+        let run = runs.count > 1 ? runs.removeFirst() : runs[0]
+        let (stream, continuation) = AsyncThrowingStream<ProviderStreamEvent, Error>.makeStream()
+        switch run {
+        case .standard:
             continuation.yield(.sourceDelta("Source"))
-            if case .translate = operation {
+            if case .translate = preparedOperation.operation {
                 continuation.yield(.translationDelta("Translation"))
             }
-            continuation.yield(
-                .metadata(
-                    ProviderResponseMetadata(requestID: nil, usage: nil)
-                )
-            )
+            continuation.yield(.metadata(ProviderResponseMetadata(requestID: nil, usage: nil)))
             continuation.yield(.completed)
             continuation.finish()
+        case let .events(events):
+            events.forEach { continuation.yield($0) }
+            continuation.finish()
+        case let .failure(error):
+            continuation.finish(throwing: error)
+        case .open:
+            continuation.yield(.sourceDelta("Partial"))
+            openStreams.append(continuation)
         }
+        return stream
     }
 }
