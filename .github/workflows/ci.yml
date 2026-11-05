@@ -55,6 +55,12 @@ jobs:
           set -o pipefail
           /usr/bin/xcrun swift test --filter ProviderApplicationTestsNativeMenu.testValidationCompletesWhileManagementRemainsClosed | tee "$RUNNER_TEMP/provider-closed.log"
           grep -F 'Executed 1 test, with 0 failures' "$RUNNER_TEMP/provider-closed.log"
+      - name: Native Provider thrown-operation cleanup (isolated process)
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          /usr/bin/xcrun swift test --filter ProviderApplicationTestsNativeMenu.testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows | tee "$RUNNER_TEMP/provider-thrown.log"
+          grep -F 'Executed 1 test, with 0 failures' "$RUNNER_TEMP/provider-thrown.log"
       - name: Release script syntax
         run: bash -n Scripts/*.sh
       - name: Three-architecture development packages

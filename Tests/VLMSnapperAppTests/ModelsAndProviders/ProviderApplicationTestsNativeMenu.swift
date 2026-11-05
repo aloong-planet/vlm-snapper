@@ -11,10 +11,9 @@ import VLMSnapperUI
 // It is still programmatic input, not installed-app physical Cmd+V acceptance.
 // Closed-window completion is observed from the actual onboarding view render;
 // this is not desktop capture or an occlusion/physical-focus check.
-// CI and the local gate run the Paste and closed-window cases separately; the
-// thrown-operation case runs only when invoked by name. Same-process repeats
-// cover fixture teardown without relying on process exit to release the native
-// view graph.
+// CI and the local gate run each of these cases in its own process. Same-process
+// repeats cover fixture teardown without relying on process exit to release the
+// native view graph.
 // Wait traces are diagnostic only: observation can affect scheduling, and a
 // process abort before the deferred flush can lose the buffered transitions.
 // Historical intermittent deadlines still need a failing, instrumented run.

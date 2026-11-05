@@ -66,6 +66,8 @@ run_stage native-paste swift test --filter ProviderApplicationTestsNativeMenu.te
 grep -F 'Executed 1 test, with 0 failures' "$evidence/native-paste.log"
 run_stage native-closed swift test --filter ProviderApplicationTestsNativeMenu.testValidationCompletesWhileManagementRemainsClosed
 grep -F 'Executed 1 test, with 0 failures' "$evidence/native-closed.log"
+run_stage native-thrown swift test --filter ProviderApplicationTestsNativeMenu.testThrownNativeOperationReleasesViewsWithoutChangingExistingWindows
+grep -F 'Executed 1 test, with 0 failures' "$evidence/native-thrown.log"
 if desktop_cases_needed; then
     run_stage accessibility python3 Scripts/test-provider-accessibility.py
 else
