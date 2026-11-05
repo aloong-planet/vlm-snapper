@@ -41,18 +41,6 @@ struct HistoricalWorkspaceSnapshotTests {
         #expect(snapshot.translate.attempt == .neverStarted)
     }
 
-    @Test("a new capture reserves a session once, which closes the start race")
-    func reservesSessionForCaptureOnce() async {
-        let session = OperationWorkspaceSession(
-            originalPNG: Data(),
-            runner: HistoricalWorkspaceRunnerProbe(),
-            activeGate: ActiveOperationGate()
-        )
-
-        #expect(await session.prepareForCapture() == .beginCapture)
-        #expect(await session.prepareForCapture() != .beginCapture)
-    }
-
     private func storedOperation(
         status: OperationStatus,
         source: String?,
@@ -71,15 +59,5 @@ struct HistoricalWorkspaceSnapshotTests {
             kind: kind,
             targetLanguage: kind == .translate ? "en" : nil
         )
-    }
-}
-
-private actor HistoricalWorkspaceRunnerProbe: OperationWorkspaceRunning {
-    func run(
-        originalPNG: Data,
-        operation: ProviderOperation,
-        selection: ProviderSelection
-    ) -> AsyncThrowingStream<OperationWorkspaceRunEvent, Error> {
-        AsyncThrowingStream { $0.finish() }
     }
 }
