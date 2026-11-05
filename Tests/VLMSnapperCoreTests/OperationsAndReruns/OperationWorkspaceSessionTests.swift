@@ -118,6 +118,7 @@ struct OperationWorkspaceSessionTests {
     static let finishedRuns: [(WorkspaceOperationKind, OperationWorkspaceRunEvent, WorkspaceCapturePreparation)] = [
         (.extract, .succeeded(committed("Saved")), .beginCapture),
         (.extract, .resultPersistenceFailed(committed("Unsaved")), .presentWorkspace),
+        (.translate, .succeeded(committed("Saved")), .beginCapture),
         (.translate, .resultPersistenceFailed(committed("Unsaved")), .presentWorkspace),
     ]
 
