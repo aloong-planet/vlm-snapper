@@ -61,7 +61,10 @@ extension PersistedOperationWorkspaceRunnerTests {
     @Test("failing to record changes neither a failure nor a success")
     func recorderFailureChangesNoOutcome() async throws {
         let recorder = RunnerVisionRecorderProbe(fails: true)
-        let failing = makeRunner(provider: RunnerProviderProbe(error: ProviderAdapterError.imageInputUnsupported), visionCompatibility: recorder)
+        let failing = makeRunner(
+            provider: RunnerProviderProbe(error: ProviderAdapterError.imageInputUnsupported),
+            visionCompatibility: recorder
+        )
         await #expect(throws: OperationWorkspaceRunFailure(code: "image_input_unsupported")) {
             _ = try await extract(on: failing, providerID: "gemini")
         }

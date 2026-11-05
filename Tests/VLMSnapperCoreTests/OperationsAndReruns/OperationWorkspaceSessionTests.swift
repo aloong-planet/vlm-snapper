@@ -112,7 +112,10 @@ struct OperationWorkspaceSessionTests {
         (.resultPersistenceFailed(committed("Unsaved")), .presentWorkspace),
     ]
 
-    @Test("a completed workspace retires before a new capture, and an unsaved result keeps its workspace in front", arguments: finishedRuns)
+    @Test(
+        "a completed workspace retires before a new capture, and an unsaved result keeps its workspace in front",
+        arguments: finishedRuns
+    )
     func aFinishedRunDecidesTheNextCapture(event: OperationWorkspaceRunEvent, expected: WorkspaceCapturePreparation) async throws {
         let session = makeSession(runner: WorkspaceRunnerProbe(events: [event]))
         try await start(session)

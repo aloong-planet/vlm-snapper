@@ -154,7 +154,10 @@ struct PersistedOperationWorkspaceRunnerTests {
     @Test("rerunning one operation replaces its existing history record")
     func rerunReplacesExistingHistoryRecord() async throws {
         let history = RunnerHistoryProbe()
-        let runner = makeRunner(history: history, provider: RunnerProviderProbe(runs: [.text("First result"), .text("Replacement result")]))
+        let runner = makeRunner(
+            history: history,
+            provider: RunnerProviderProbe(runs: [.text("First result"), .text("Replacement result")])
+        )
 
         _ = try await extract(on: runner)
         _ = try await extract(on: runner)
@@ -190,7 +193,10 @@ struct PersistedOperationWorkspaceRunnerTests {
     @Test("retrying a failed replacement save reuses its history identity")
     func retryingReplacementSaveReusesHistoryIdentity() async throws {
         let history = RunnerHistoryProbe()
-        let runner = makeRunner(history: history, provider: RunnerProviderProbe(runs: [.text("Original result"), .text("Replacement result")]))
+        let runner = makeRunner(
+            history: history,
+            provider: RunnerProviderProbe(runs: [.text("Original result"), .text("Replacement result")])
+        )
         _ = try await extract(on: runner)
         await history.setFailsSuccessfulFinish(true)
 
