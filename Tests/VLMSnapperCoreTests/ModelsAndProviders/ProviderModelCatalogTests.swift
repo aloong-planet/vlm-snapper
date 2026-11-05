@@ -113,11 +113,11 @@ struct ProviderModelCatalogTests {
         #expect(await loader.requests.map(\.url) == [firstURL, secondURL])
     }
 
-    @Test("authentication rejection is normalized for provider setup")
-    func authenticationRejectionIsNormalized() async throws {
+    @Test("authentication rejection is normalized for provider setup", arguments: [401, 403])
+    func authenticationRejectionIsNormalized(statusCode: Int) async throws {
         let url = try #require(URL(string: "https://api.openai.com/v1/models"))
         let loader = RoutedHTTPLoader(
-            routes: [url: ProviderHTTPResponse(data: Data(), statusCode: 401)]
+            routes: [url: ProviderHTTPResponse(data: Data(), statusCode: statusCode)]
         )
         let lister = OfficialProviderModelLister(httpLoader: loader)
 
