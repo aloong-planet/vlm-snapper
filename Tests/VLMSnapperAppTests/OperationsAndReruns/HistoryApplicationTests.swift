@@ -38,10 +38,7 @@ extension ProviderApplicationTests {
         try await withFixture { fixture in
             let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
             let loader = ControlledHistoryImages(store: screenshots)
-            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
-                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-            let screenshot = try await screenshots.save(originalPNG: #require(bitmap.representation(using: .png, properties: [:])))
+            let screenshot = try await screenshots.save(originalPNG: fixturePNG())
             let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
             let record = try await store.prepareOperation(screenshot: screenshot,
                 selection: ProviderSelection(providerID: "deepseek", modelID: "fixture"), operation: .extractText)
@@ -67,10 +64,7 @@ extension ProviderApplicationTests {
             let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
             var ids: [UUID] = [], images: [ManagedScreenshot] = [], pngs: [Data] = []
             for width in [4, 8] {
-                let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: 4,
-                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-                let png = try #require(bitmap.representation(using: .png, properties: [:]))
+                let png = try fixturePNG(width: width)
                 let image = try await screenshots.save(originalPNG: png)
                 let record = try await store.prepareOperation(screenshot: image,
                     selection: ProviderSelection(providerID: "deepseek", modelID: "fixture"), operation: .extractText)
@@ -128,10 +122,7 @@ extension ProviderApplicationTests {
     func historyRetryUpdatesOriginalRecord(kind: PersistedOperationKind) async throws {
         try await withFixture { fixture in
             let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
-            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
-                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            let png = try fixturePNG()
             let screenshot = try await screenshots.save(originalPNG: png)
             let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
             let prepared = try await store.prepareOperation(screenshot: screenshot,
@@ -303,10 +294,7 @@ extension ProviderApplicationTests {
     func historyRetrySurvivesWindowChangesAndRejectsLateDeletion() async throws {
         try await withFixture { fixture in
             let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
-            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
-                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            let png = try fixturePNG()
             let screenshot = try await screenshots.save(originalPNG: png)
             let tenDaysAgo = Date().addingTimeInterval(-10 * 86_400)
             let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"),

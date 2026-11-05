@@ -31,17 +31,14 @@ extension ProviderApplicationTests {
             #expect(configuration.models.first { $0.id == "fixture-vision" }?.visionCompatibility == .incompatible)
 
             // Pressed right after the failure, Retry already finds no model.
-            let unavailable = CaptureResultBoxPresentation.Body.failure(
-                "The current model is unavailable. Refresh the model list and choose again."
-            )
             try clickResultBoxButton(try #require(resultBox()), fromEnd: 1)
-            try await eventually { resultBoxPresentation()?.body == unavailable }
+            try await eventually { resultBoxPresentation()?.body == modelUnavailableInBox }
             #expect(await fixture.http.imageRequests.count == 1)
 
             let extractTitle = resultBoxPresentation()?.title
             try await clickTranslate(toolbar)
             try await eventually { resultBoxPresentation()?.title != extractTitle }
-            #expect(resultBoxPresentation()?.body == unavailable)
+            #expect(resultBoxPresentation()?.body == modelUnavailableInBox)
             #expect(await fixture.http.imageRequests.count == 1)
 
             try pressEscape(overlay)
@@ -383,24 +380,14 @@ extension ProviderApplicationTests {
     @Test
     func aHistoryRetryTheModelRejectsClearsIt() async throws {
         try await withFixture { fixture in
-            let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
-            let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
-                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-            let png = try #require(bitmap.representation(using: .png, properties: [:]))
-            let screenshot = try await screenshots.save(originalPNG: png)
-            let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
-            let prepared = try await store.prepareOperation(screenshot: screenshot,
-                selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"), operation: .extractText)
-            try await store.finish(operationID: prepared.operationID,
-                with: .succeeded(sourceMarkdown: "Archived original", translationMarkdown: nil))
+            let record = try await savedExtractionRecord(in: fixture)
             await fixture.http.allowImageRequests()
             await fixture.http.rejectImages(status: 400, body: deepSeekTextOnlyModelError)
             try await fixture.withModel { model in
                 try await makeCaptureReady(model, key: "fixture-history-key")
                 try await eventually { model.historyRetry.allowsStart }
 
-                model.managementCallbacks().onRetryRecord(prepared.operationID)
+                model.managementCallbacks().onRetryRecord(record)
                 try await eventually {
                     await fixture.http.imageRequests.count == 1 && !model.historyRetry.isRunning
                 }

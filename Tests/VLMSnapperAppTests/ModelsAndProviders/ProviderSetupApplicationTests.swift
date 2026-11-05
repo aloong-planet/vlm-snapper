@@ -121,14 +121,7 @@ extension ProviderApplicationTests {
             await fixture.capture.provide(try syntheticDisplay())
             await fixture.http.allowImageRequests()
             try await fixture.withModel { model in
-                model.credentialEditor.edit("fixture-image-key")
-                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false,
-                    operation: model.providerSettingsConfiguration().onValidate))
-                try await eventually { model.providerReadiness == .pendingModel(.deepSeek) }
-                model.providerSettingsConfiguration().onSelectModel("fixture-vision")
-                try await eventually {
-                    model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
-                }
+                try await makeCaptureReady(model, key: "fixture-image-key")
                 try fixture.shortcuts.fire()
                 try await eventually { try mainScreenOverlay() != nil }
                 let overlay = try #require(try mainScreenOverlay())
@@ -140,9 +133,7 @@ extension ProviderApplicationTests {
                     return NSApp.windows.contains { $0.isVisible && $0.contentView is NSHostingView<CaptureOperationToolbar> }
                 }
                 trace.record("toolbar-ready")
-                let toolbar = try #require(NSApp.windows.first {
-                    $0.isVisible && $0.contentView is NSHostingView<CaptureOperationToolbar>
-                })
+                let toolbar = try #require(captureToolbar())
                 // While the selection can still be adjusted, displays stay monitored (v1-core::REQ-007/AC-07);
                 // an unchanged geometry leaves the selection and its toolbar alone.
                 let selectingReads = fixture.displayReads
@@ -240,14 +231,7 @@ extension ProviderApplicationTests {
         try await withFixture { fixture in
             fixture.permissionGranted = true
             try await fixture.withModel { model in
-                model.credentialEditor.edit("fixture-initial-key")
-                #expect(model.credentialEditor.submit(for: .deepSeek, isReadOnly: false,
-                    operation: model.providerSettingsConfiguration().onValidate))
-                try await eventually { model.providerReadiness == .pendingModel(.deepSeek) }
-                model.providerSettingsConfiguration().onSelectModel("fixture-vision")
-                try await eventually {
-                    model.providerReadiness == .ready(provider: .deepSeek, modelID: "fixture-vision")
-                }
+                try await makeCaptureReady(model, key: "fixture-initial-key")
 
                 await fixture.http.pause()
                 model.credentialEditor.edit("fixture-replacement-key")

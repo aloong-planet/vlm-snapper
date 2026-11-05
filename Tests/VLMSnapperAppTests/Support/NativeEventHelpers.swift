@@ -374,14 +374,18 @@ func saveStaleProviders(in fixture: ApplicationFixture, _ providers: [ProviderID
     )
 }
 
+/// A small valid PNG. A test that needs two different images gives them different widths.
+func fixturePNG(width: Int = 4) throws -> Data {
+    let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: 4,
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+    return try #require(bitmap.representation(using: .png, properties: [:]))
+}
+
 /// A successful extraction already in the history, with its screenshot.
 func savedExtractionRecord(in fixture: ApplicationFixture) async throws -> UUID {
     let screenshots = FileSystemScreenshotStore(rootDirectory: fixture.root.appendingPathComponent("Pictures"))
-    let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
-        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-    let png = try #require(bitmap.representation(using: .png, properties: [:]))
-    let screenshot = try await screenshots.save(originalPNG: png)
+    let screenshot = try await screenshots.save(originalPNG: fixturePNG())
     let store = try SQLiteHistoryStore(databaseURL: fixture.root.appendingPathComponent("history.sqlite"))
     let prepared = try await store.prepareOperation(screenshot: screenshot,
         selection: ProviderSelection(providerID: "deepseek", modelID: "old-model"), operation: .extractText)
@@ -489,6 +493,16 @@ func withSnapFixture(
     }
 }
 
+/// Runs a capture-ready model on the synthetic display, with no window list.
+@MainActor
+func withCaptureFixture(
+    _ body: @MainActor (ApplicationFixture, VLMSnapperApplicationModel) async throws -> Void
+) async throws {
+    try await withSnapFixture(windowList: false) { fixture, _, model in
+        try await body(fixture, model)
+    }
+}
+
 /// Captures, clicks the fixture window and returns the toolbar shown for it.
 @MainActor
 func selectWindow(_ fixture: ApplicationFixture) async throws -> NSWindow {
@@ -537,10 +551,7 @@ func completeSelection(
     _ fixture: ApplicationFixture
 ) async throws -> (overlay: NSWindow, toolbar: NSWindow) {
     try fixture.shortcuts.fire()
-    try await eventually { try mainScreenOverlay() != nil }
-    let overlay = try requireFixture(try mainScreenOverlay())
-    try await eventually { try overlayShowsFrozenFrame(overlay) }
-    pumpNativeEvents(overlay)
+    let overlay = try await frozenMainOverlay()
     try drag(overlay, from: NSPoint(x: 100, y: 200), to: NSPoint(x: 300, y: 300))
     try await eventually { captureToolbar() != nil }
     return (overlay, try requireFixture(captureToolbar()))

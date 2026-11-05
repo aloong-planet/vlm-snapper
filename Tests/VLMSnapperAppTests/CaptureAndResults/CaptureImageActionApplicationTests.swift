@@ -43,22 +43,6 @@ extension ProviderApplicationTests {
     }
 
     @Test
-    func cancelledSaveKeepsTheSelection() async throws {
-        try await withSnapFixture { fixture, _, model in
-            fixture.imageSaver.answer = .cancel
-            let toolbar = try await selectWindow(fixture)
-            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 1))
-            try await eventually { fixture.imageSaver.requests.count == 1 }
-            pumpNativeEvents(toolbar)
-            #expect(try mainScreenOverlay() != nil)
-            #expect(captureToolbar() != nil)
-            // The selection is still usable afterwards.
-            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
-            try await eventually { fixture.clipboard.written.count == 1 }
-        }
-    }
-
-    @Test
     func adjustedSelectionIsWhatCopyUses() async throws {
         try await withSnapFixture { fixture, screen, model in
             _ = try await selectWindow(fixture)
@@ -93,16 +77,20 @@ extension ProviderApplicationTests {
         }
     }
 
-    @Test
-    func doubleClickOnSaveOpensOneSavePanel() async throws {
+    @Test("a cancelled save keeps the selection, and a double click on Save opens one panel", arguments: [1, 2])
+    func cancelledSaveKeepsTheSelectionAndOneActionRuns(clicks: Int) async throws {
         try await withSnapFixture { fixture, _, _ in
             fixture.imageSaver.answer = .cancel
             let toolbar = try await selectWindow(fixture)
             let save = try toolbarIconCenter(toolbar, fromEnd: 1)
-            try click(toolbar, at: save)
-            try click(toolbar, at: save)
+            for _ in 0..<clicks {
+                try click(toolbar, at: save)
+            }
             try await eventually { !fixture.imageSaver.requests.isEmpty }
-            // Copy runs after both clicks were handled; the cancelled panel leaves Copy usable.
+            pumpNativeEvents(toolbar)
+            #expect(try mainScreenOverlay() != nil)
+            #expect(captureToolbar() != nil)
+            // Copy runs after every click was handled; the cancelled panel leaves Copy usable.
             try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
             try await eventually { fixture.clipboard.written.count == 1 }
             #expect(fixture.imageSaver.requests.count == 1)
