@@ -268,6 +268,32 @@ struct PersistedOperationWorkspaceRunnerTests {
         #expect(await provider.streamCount == 1)
     }
 
+    @Test("a later operation's failed preparation keeps the screenshot its earlier record owns")
+    func failedLaterPreparationKeepsTheScreenshot() async throws {
+        let screenshotStore = RunnerScreenshotStoreProbe()
+        let history = RunnerHistoryProbe()
+        let provider = RunnerProviderProbe()
+        let runner = makeRunner(screenshotStore: screenshotStore, history: history, provider: provider)
+        let selection = ProviderSelection(providerID: "gemini", modelID: "vision")
+        let translation = ProviderOperation.translate(targetLanguage: "en")
+        _ = try await collect(await runner.run(originalPNG: Data([1]), operation: .extractText, selection: selection))
+
+        await history.setPreparationError(RunnerProbeError.failed)
+        await #expect(throws: OperationWorkspaceRunFailure(code: "operation_failed")) {
+            _ = try await collect(await runner.run(originalPNG: Data([1]), operation: translation, selection: selection))
+        }
+
+        #expect(await screenshotStore.discardCount == 0)
+        #expect(await provider.streamCount == 1)
+
+        await history.setPreparationError(nil)
+        _ = try await collect(await runner.run(originalPNG: Data([1]), operation: translation, selection: selection))
+
+        #expect(await screenshotStore.saveCount == 1)
+        #expect(await history.operations == [.extractText, translation])
+        #expect(await provider.streamCount == 2)
+    }
+
     @Test("retrying final persistence does not start another provider stream")
     func retryFinalPersistenceDoesNotCallProvider() async throws {
         let history = RunnerHistoryProbe(failsSuccessfulFinish: true)

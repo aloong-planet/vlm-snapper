@@ -93,31 +93,45 @@ struct OperationWorkspaceSessionTests {
         #expect(snapshot.extract.sourceDelta.isEmpty)
     }
 
-    @Test("closing with an unsaved completed result requires confirmation, and confirming discard clears it")
-    func closingAnUnsavedResultAsksAndDiscardingClearsIt() async throws {
+    @Test(
+        "closing with an unsaved completed result requires confirmation, and confirming discard clears it",
+        arguments: WorkspaceOperationKind.allCases
+    )
+    func closingAnUnsavedResultAsksAndDiscardingClearsIt(operation: WorkspaceOperationKind) async throws {
         let session = makeSession(runner: WorkspaceRunnerProbe(events: [.resultPersistenceFailed(committed("Copyable result"))]))
+        await session.select(operation)
         try await start(session)
 
+        #expect(await session.hasUnsavedResult)
         #expect(await session.close() == .confirmDiscardUnsavedResult)
 
         await session.discardUnsavedResults()
 
-        #expect(await session.snapshot().extract.unsavedResult == nil)
+        let snapshot = await session.snapshot()
+        #expect(snapshot.extract.unsavedResult == nil)
+        #expect(snapshot.translate.unsavedResult == nil)
+        #expect(await !session.hasUnsavedResult)
         #expect(await session.close() != .confirmDiscardUnsavedResult)
     }
 
-    /// A finished run's last event, and what a new capture should then do with its workspace.
-    static let finishedRuns: [(OperationWorkspaceRunEvent, WorkspaceCapturePreparation)] = [
-        (.succeeded(committed("Saved")), .beginCapture),
-        (.resultPersistenceFailed(committed("Unsaved")), .presentWorkspace),
+    /// The operation a run is for, its last event, and what a new capture should then do with its workspace.
+    static let finishedRuns: [(WorkspaceOperationKind, OperationWorkspaceRunEvent, WorkspaceCapturePreparation)] = [
+        (.extract, .succeeded(committed("Saved")), .beginCapture),
+        (.extract, .resultPersistenceFailed(committed("Unsaved")), .presentWorkspace),
+        (.translate, .resultPersistenceFailed(committed("Unsaved")), .presentWorkspace),
     ]
 
     @Test(
         "a completed workspace retires before a new capture, and an unsaved result keeps its workspace in front",
         arguments: finishedRuns
     )
-    func aFinishedRunDecidesTheNextCapture(event: OperationWorkspaceRunEvent, expected: WorkspaceCapturePreparation) async throws {
+    func aFinishedRunDecidesTheNextCapture(
+        operation: WorkspaceOperationKind,
+        event: OperationWorkspaceRunEvent,
+        expected: WorkspaceCapturePreparation
+    ) async throws {
         let session = makeSession(runner: WorkspaceRunnerProbe(events: [event]))
+        await session.select(operation)
         try await start(session)
 
         #expect(await session.prepareForCapture() == expected)
@@ -195,12 +209,16 @@ struct OperationWorkspaceSessionTests {
         }
     }
 
-    @Test("an unsaved completed result blocks another model operation")
-    func unsavedResultBlocksAnotherOperation() async throws {
+    @Test(
+        "an unsaved completed result blocks another model operation",
+        arguments: [(WorkspaceOperationKind.extract, WorkspaceOperationKind.translate), (.translate, .extract)]
+    )
+    func unsavedResultBlocksAnotherOperation(unsaved: WorkspaceOperationKind, next: WorkspaceOperationKind) async throws {
         let runner = WorkspaceRunnerProbe(events: [.resultPersistenceFailed(committed("Unsaved"))])
         let session = makeSession(runner: runner)
+        await session.select(unsaved)
         try await start(session)
-        await session.select(.translate)
+        await session.select(next)
 
         await #expect(throws: OperationWorkspaceSessionError.unsavedResultRequiresSave) {
             try await start(session)
