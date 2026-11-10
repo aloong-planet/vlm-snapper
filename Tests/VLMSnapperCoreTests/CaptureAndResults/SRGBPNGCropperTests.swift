@@ -26,8 +26,12 @@ struct SRGBPNGCropperTests {
         #expect(decoded.colorSpace?.name == CGColorSpace.sRGB)
     }
 
-    @Test("an out-of-bounds crop is rejected")
-    func rejectsOutOfBoundsCrop() async {
+    // A rectangle past the image's edge, and one whose coordinates would overflow.
+    @Test("a crop outside the frame is rejected instead of overflowing", arguments: [
+        PixelRect(x: 7, y: 5, width: 2, height: 2),
+        PixelRect(x: Int.max, y: 0, width: 2, height: 2),
+    ])
+    func rejectsCropsOutsideTheFrame(pixelRect: PixelRect) async {
         let cropper = SRGBPNGCropper()
         let image = makeGradientImage(width: 8, height: 6)
 
@@ -35,7 +39,7 @@ struct SRGBPNGCropperTests {
             try await cropper.cropPNG(
                 frame: FrozenDisplayFrame(image: image),
                 displayID: 7,
-                pixelRect: PixelRect(x: 7, y: 5, width: 2, height: 2)
+                pixelRect: pixelRect
             )
         }
     }
@@ -59,25 +63,6 @@ struct SRGBPNGCropperTests {
             255, 0, 0, 255,
             255, 0, 0, 255,
         ])
-    }
-
-    @Test("extreme coordinates are rejected instead of overflowing")
-    func rejectsOverflowingCoordinates() async {
-        let cropper = SRGBPNGCropper()
-        let image = makeGradientImage(width: 8, height: 6)
-
-        await #expect(throws: CaptureImageCropError.invalidPixelRect) {
-            try await cropper.cropPNG(
-                frame: FrozenDisplayFrame(image: image),
-                displayID: 9,
-                pixelRect: PixelRect(
-                    x: Int.max,
-                    y: 0,
-                    width: 2,
-                    height: 2
-                )
-            )
-        }
     }
 }
 

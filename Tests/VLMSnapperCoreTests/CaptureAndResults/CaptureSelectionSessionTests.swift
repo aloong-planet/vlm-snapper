@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 import Testing
 @testable import VLMSnapperCore
@@ -7,8 +6,8 @@ import Testing
 struct CaptureSelectionSessionTests {
     @Test("selection is cropped from the trigger-time frozen frame and keeps the frames for adjustment")
     func selectionUsesFrozenFrameAndKeepsDisplays() async throws {
-        let first = makeDisplay(id: 1, width: 100, height: 80)
-        let second = makeDisplay(id: 2, width: 200, height: 120)
+        let first = makeFrozenDisplay(id: 1, width: 100, height: 80)
+        let second = makeFrozenDisplay(id: 2, width: 200, height: 120)
         let cropper = CropperProbe(result: Data([0x89, 0x50, 0x4E, 0x47]))
         let session = CaptureSelectionSession(
             displays: [first, second],
@@ -36,7 +35,7 @@ struct CaptureSelectionSessionTests {
     // v1-core::REQ-007: a confirmed selection can be replaced or adjusted until the session ends.
     @Test("a confirmed selection can be adjusted and is cropped again from the same frame")
     func confirmedSelectionCanBeAdjusted() async throws {
-        let display = makeDisplay(id: 1, width: 100, height: 80)
+        let display = makeFrozenDisplay(id: 1, width: 100, height: 80)
         let cropper = CropperProbe(result: Data([0x89, 0x50, 0x4E, 0x47]))
         let session = CaptureSelectionSession(displays: [display], cropper: cropper)
         try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
@@ -55,7 +54,7 @@ struct CaptureSelectionSessionTests {
 
     @Test("an adjustment under two pixels is rejected and the selection can still be adjusted")
     func tinyAdjustmentKeepsSelectionAdjustable() async throws {
-        let display = makeDisplay(id: 1, width: 100, height: 80)
+        let display = makeFrozenDisplay(id: 1, width: 100, height: 80)
         let session = CaptureSelectionSession(
             displays: [display],
             cropper: CropperProbe(result: Data([0x89]))
@@ -76,16 +75,18 @@ struct CaptureSelectionSessionTests {
         #expect(valid.pixelRect == PixelRect(x: 0, y: 0, width: 4, height: 4))
     }
 
-    @Test("a display change after a selection invalidates that display")
-    func displayChangeAfterSelectionInvalidatesDisplay() async throws {
-        let display = makeDisplay(id: 1, width: 100, height: 80)
+    @Test("losing every frozen display ends the session, with or without a selection", arguments: [false, true])
+    func losingEveryDisplayEndsTheSession(afterSelection: Bool) async throws {
+        let display = makeFrozenDisplay(id: 1, width: 100, height: 80)
         let session = CaptureSelectionSession(
             displays: [display],
             cropper: CropperProbe(result: Data([0x89]))
         )
-        try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
-        try await session.updateSelection(to: CapturePoint(x: 30, y: 20))
-        _ = try await session.finishSelection(currentGeometry: display.geometry)
+        if afterSelection {
+            try await session.beginSelection(on: 1, at: CapturePoint(x: 10, y: 10))
+            try await session.updateSelection(to: CapturePoint(x: 30, y: 20))
+            _ = try await session.finishSelection(currentGeometry: display.geometry)
+        }
 
         let invalidated = await session.applyCurrentDisplayGeometries([])
         #expect(invalidated == [1])
@@ -97,7 +98,7 @@ struct CaptureSelectionSessionTests {
 
     @Test("cancelling after a selection ends the session")
     func cancelAfterSelectionEndsSession() async throws {
-        let display = makeDisplay(id: 1, width: 100, height: 80)
+        let display = makeFrozenDisplay(id: 1, width: 100, height: 80)
         let session = CaptureSelectionSession(
             displays: [display],
             cropper: CropperProbe(result: Data([0x89]))
@@ -117,7 +118,7 @@ struct CaptureSelectionSessionTests {
 
     @Test("a selection smaller than two physical pixels is rejected")
     func rejectsSelectionSmallerThanTwoPixels() async throws {
-        let display = makeDisplay(id: 3, width: 100, height: 80)
+        let display = makeFrozenDisplay(id: 3, width: 100, height: 80)
         let session = CaptureSelectionSession(
             displays: [display],
             cropper: CropperProbe(result: Data())
@@ -138,8 +139,8 @@ struct CaptureSelectionSessionTests {
 
     @Test("geometry changes invalidate only the affected display and cancel its drag")
     func invalidatesOnlyChangedDisplay() async throws {
-        let first = makeDisplay(id: 10, width: 100, height: 80)
-        let second = makeDisplay(id: 11, width: 200, height: 120)
+        let first = makeFrozenDisplay(id: 10, width: 100, height: 80)
+        let second = makeFrozenDisplay(id: 11, width: 200, height: 120)
         let session = CaptureSelectionSession(
             displays: [first, second],
             cropper: CropperProbe(result: Data())
@@ -162,7 +163,7 @@ struct CaptureSelectionSessionTests {
         let invalidated = await session.applyCurrentDisplayGeometries([
             changedFirst,
             second.geometry,
-            makeDisplay(id: 12, width: 300, height: 200).geometry,
+            makeFrozenDisplay(id: 12, width: 300, height: 200).geometry,
         ])
 
         #expect(invalidated == [10])
@@ -171,22 +172,9 @@ struct CaptureSelectionSessionTests {
         #expect(await session.state == .selecting)
     }
 
-    @Test("disconnecting every frozen display makes the session unavailable")
-    func allDisplaysDisconnected() async {
-        let session = CaptureSelectionSession(
-            displays: [makeDisplay(id: 20, width: 100, height: 80)],
-            cropper: CropperProbe(result: Data())
-        )
-
-        let invalidated = await session.applyCurrentDisplayGeometries([])
-
-        #expect(invalidated == [20])
-        #expect(await session.state == .noDisplaysAvailable)
-    }
-
     @Test("cancelling while the crop is suspended cannot resurrect the session")
     func cancellationDuringCropDoesNotComplete() async throws {
-        let display = makeDisplay(id: 30, width: 100, height: 80)
+        let display = makeFrozenDisplay(id: 30, width: 100, height: 80)
         let cropper = SuspendedCropper()
         let session = CaptureSelectionSession(
             displays: [display],
@@ -216,8 +204,8 @@ struct CaptureSelectionSessionTests {
 
     @Test("a selected display changing during crop preserves other displays")
     func selectedDisplayChangeDuringCrop() async throws {
-        let selected = makeDisplay(id: 40, width: 100, height: 80)
-        let other = makeDisplay(id: 41, width: 120, height: 90)
+        let selected = makeFrozenDisplay(id: 40, width: 100, height: 80)
+        let other = makeFrozenDisplay(id: 41, width: 120, height: 90)
         let cropper = SuspendedCropper()
         let session = CaptureSelectionSession(
             displays: [selected, other],
@@ -250,7 +238,7 @@ struct CaptureSelectionSessionTests {
 
     @Test("cancellation wins when a suspended crop later fails")
     func cancellationWinsOverCropFailure() async throws {
-        let display = makeDisplay(id: 50, width: 100, height: 80)
+        let display = makeFrozenDisplay(id: 50, width: 100, height: 80)
         let cropper = SuspendedCropper()
         let session = CaptureSelectionSession(
             displays: [display],
@@ -275,26 +263,6 @@ struct CaptureSelectionSessionTests {
             try await finishing.value
         }
         #expect(await session.state == .cancelled)
-    }
-}
-
-private actor CropperProbe: CaptureImageCropping {
-    let result: Data
-    private(set) var lastDisplayID: UInt32?
-    private(set) var lastRect: PixelRect?
-
-    init(result: Data) {
-        self.result = result
-    }
-
-    func cropPNG(
-        frame: FrozenDisplayFrame,
-        displayID: UInt32,
-        pixelRect: PixelRect
-    ) async throws -> Data {
-        lastDisplayID = displayID
-        lastRect = pixelRect
-        return result
     }
 }
 
@@ -339,34 +307,4 @@ private actor SuspendedCropper: CaptureImageCropping {
 
 private enum SuspendedCropError: Error {
     case failed
-}
-
-private func makeDisplay(
-    id: UInt32,
-    width: Int,
-    height: Int
-) -> FrozenCaptureDisplay {
-    let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
-    let context = CGContext(
-        data: nil,
-        width: width,
-        height: height,
-        bitsPerComponent: 8,
-        bytesPerRow: 0,
-        space: colorSpace,
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-    )!
-    return FrozenCaptureDisplay(
-        geometry: CaptureDisplayGeometry(
-            displayID: id,
-            logicalX: 0,
-            logicalY: 0,
-            logicalWidth: Double(width),
-            logicalHeight: Double(height),
-            pixelWidth: width,
-            pixelHeight: height,
-            rotationDegrees: 0
-        ),
-        frame: FrozenDisplayFrame(image: context.makeImage()!)
-    )
 }
