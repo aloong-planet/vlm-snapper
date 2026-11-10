@@ -77,22 +77,30 @@ extension ProviderApplicationTests {
         }
     }
 
-    @Test("a cancelled save keeps the selection, and a double click on Save opens one panel", arguments: [1, 2])
-    func cancelledSaveKeepsTheSelectionAndOneActionRuns(clicks: Int) async throws {
-        try await withSnapFixture { fixture, _, _ in
+    @Test("a double click on Save opens one panel, and cancelling it keeps the selection adjustable")
+    func cancelledSaveKeepsTheSelectionAndOneActionRuns() async throws {
+        try await withSnapFixture { fixture, screen, _ in
             fixture.imageSaver.answer = .cancel
             let toolbar = try await selectWindow(fixture)
             let save = try toolbarIconCenter(toolbar, fromEnd: 1)
-            for _ in 0..<clicks {
-                try click(toolbar, at: save)
-            }
+            try click(toolbar, at: save)
+            try click(toolbar, at: save)
             try await eventually { !fixture.imageSaver.requests.isEmpty }
             pumpNativeEvents(toolbar)
-            #expect(try mainScreenOverlay() != nil)
+            let overlay = try #require(try mainScreenOverlay())
             #expect(captureToolbar() != nil)
-            // Copy runs after every click was handled; the cancelled panel leaves Copy usable.
-            try click(toolbar, at: toolbarIconCenter(toolbar, fromEnd: 2))
+            // Bottom-right handle of the window (500, 150) to (400, 200): the selection becomes (200, 200, 200, 150).
+            try drag(overlay, from: NSPoint(x: 500, y: 150), to: NSPoint(x: 400, y: 200))
+            try await eventually {
+                guard let toolbar = captureToolbar() else { return false }
+                return abs(toolbar.frame.maxY - (screen.frame.minY + 200 - 4)) <= 1
+            }
+            // Copy runs after every click was handled, with the adjusted selection.
+            let moved = try #require(captureToolbar())
+            try click(moved, at: toolbarIconCenter(moved, fromEnd: 2))
             try await eventually { fixture.clipboard.written.count == 1 }
+            #expect(try pngPixelSize(try #require(fixture.clipboard.written.last))
+                == pixelSize(width: 200, height: 150, on: screen))
             #expect(fixture.imageSaver.requests.count == 1)
         }
     }
