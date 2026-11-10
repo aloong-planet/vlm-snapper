@@ -243,6 +243,45 @@ extension ProviderConfigurationCoordinatorTests {
         #expect(reconciled.pendingReplacements[.gemini] == nil)
         #expect(try await metadataStore.load() == reconciled)
     }
+
+    @Test("a replacement that never reached the keychain removes the previous credential and its configuration")
+    func reconciliationRemovesCredentialLeftAtPreviousGeneration() async throws {
+        let previousGeneration = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let pendingState = ProviderMetadataState(
+            configurations: [
+                .gemini: ProviderConfiguration(
+                    models: [ProviderModelState(id: "old-model")],
+                    fetchedAt: Date(timeIntervalSince1970: 1_787_600_000),
+                    selectedModelID: "old-model"
+                ),
+            ],
+            pendingReplacements: [
+                .gemini: PendingProviderReplacement(
+                    previousGeneration: previousGeneration,
+                    nextGeneration: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+                    configuration: ProviderConfiguration(
+                        models: [ProviderModelState(id: "new-model")],
+                        fetchedAt: Date(timeIntervalSince1970: 1_787_700_000),
+                        selectedModelID: nil
+                    )
+                ),
+            ],
+            currentProvider: .gemini
+        )
+        let metadataStore = MemoryMetadataStore(state: pendingState)
+        let coordinator = memoryCoordinator(
+            credentials: MemoryCredentialStore(
+                credentials: [.gemini: ProviderCredential(generation: previousGeneration, apiKey: "old-secret")]
+            ),
+            metadata: metadataStore
+        )
+
+        let reconciled = try await coordinator.reconcileCredentialState(for: .gemini)
+
+        #expect(reconciled == ProviderMetadataState())
+        #expect(try await metadataStore.load() == reconciled)
+        #expect(try await coordinator.apiKey(for: .gemini) == nil)
+    }
 }
 
 private actor PublicationFailingMetadataStore: ProviderMetadataStoring {

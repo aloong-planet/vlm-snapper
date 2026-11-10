@@ -273,63 +273,62 @@ public actor ProviderConfigurationCoordinator: ProviderSetupConfiguring, Operati
         for provider: ProviderID,
         onRecovery: @escaping @Sendable () async -> Void = {}
     ) async throws -> ProviderMetadataState {
-        try await reconcileCredentials(for: [provider], onRecovery: onRecovery)
-    }
-
-    private func reconcileCredentials(
-        for providers: [ProviderID],
-        onRecovery: @escaping @Sendable () async -> Void
-    ) async throws -> ProviderMetadataState {
         try Task.checkCancellation()
-        let lease = try await beginRecoveryMutation(for: providers.first ?? .deepSeek)
+        let lease = try await beginRecoveryMutation(for: provider)
         defer { release(lease) }
         var state = try await loadMetadata()
         let originalState = state
-        for provider in providers {
-            activity = (lease, .credential(provider))
-            publishActivity()
-            unavailableProviders.insert(provider)
-            let storedCredential = try await readCredential(for: provider)
-            try Task.checkCancellation()
-            guard let credential = storedCredential else {
+        activity = (lease, .credential(provider))
+        publishActivity()
+        unavailableProviders.insert(provider)
+        try await reconcileStoredCredential(for: provider, in: &state, onRecovery: onRecovery)
+        if state != originalState { try await saveMetadata(state) }
+        unavailableProviders.remove(provider)
+        return state
+    }
+
+    private func reconcileStoredCredential(
+        for provider: ProviderID,
+        in state: inout ProviderMetadataState,
+        onRecovery: @escaping @Sendable () async -> Void
+    ) async throws {
+        let storedCredential = try await readCredential(for: provider)
+        try Task.checkCancellation()
+        guard let credential = storedCredential else {
+            state.configurations[provider] = nil
+            state.pendingReplacements[provider] = nil
+            if state.currentProvider == provider { state.currentProvider = nil }
+            return
+        }
+        let pending = state.pendingReplacements[provider]
+        if let pending, pending.nextGeneration != credential.generation {
+            if pending.previousGeneration == credential.generation {
+                try await deleteCredential(for: provider)
                 state.configurations[provider] = nil
                 state.pendingReplacements[provider] = nil
                 if state.currentProvider == provider { state.currentProvider = nil }
-                continue
+                return
             }
-            let pending = state.pendingReplacements[provider]
-            if let pending, pending.nextGeneration != credential.generation {
-                if pending.previousGeneration == credential.generation {
-                    try await deleteCredential(for: provider)
-                    state.configurations[provider] = nil
-                    state.pendingReplacements[provider] = nil
-                    if state.currentProvider == provider { state.currentProvider = nil }
-                    continue
-                }
-                throw ProviderConfigurationError.inconsistentCredentialState
-            }
-            guard state.configurations[provider] == nil || pending != nil else { continue }
-            await onRecovery()
-            try Task.checkCancellation()
-            let modelIDs = try await modelLister.listModels(provider: provider, apiKey: credential.apiKey)
-            try Task.checkCancellation()
-            var seen = Set<String>()
-            state.configurations[provider] = ProviderConfiguration(
-                models: modelIDs.filter { !$0.isEmpty && seen.insert($0).inserted }
-                    .map { ProviderModelState(id: $0) },
-                fetchedAt: now(), selectedModelID: pending?.configuration.selectedModelID.flatMap {
-                    modelIDs.contains($0) ? $0 : nil
-                }
-            )
-            if pending?.restoreCurrentProvider == true, state.currentProvider == nil,
-               state.configurations[provider]?.isUsable == true {
-                state.currentProvider = provider
-            }
-            state.pendingReplacements[provider] = nil
+            throw ProviderConfigurationError.inconsistentCredentialState
         }
-        if state != originalState { try await saveMetadata(state) }
-        unavailableProviders.subtract(providers)
-        return state
+        guard state.configurations[provider] == nil || pending != nil else { return }
+        await onRecovery()
+        try Task.checkCancellation()
+        let modelIDs = try await modelLister.listModels(provider: provider, apiKey: credential.apiKey)
+        try Task.checkCancellation()
+        var seen = Set<String>()
+        state.configurations[provider] = ProviderConfiguration(
+            models: modelIDs.filter { !$0.isEmpty && seen.insert($0).inserted }
+                .map { ProviderModelState(id: $0) },
+            fetchedAt: now(), selectedModelID: pending?.configuration.selectedModelID.flatMap {
+                modelIDs.contains($0) ? $0 : nil
+            }
+        )
+        if pending?.restoreCurrentProvider == true, state.currentProvider == nil,
+           state.configurations[provider]?.isUsable == true {
+            state.currentProvider = provider
+        }
+        state.pendingReplacements[provider] = nil
     }
 
     public func shouldRefreshModelsOnSettingsOpen(
