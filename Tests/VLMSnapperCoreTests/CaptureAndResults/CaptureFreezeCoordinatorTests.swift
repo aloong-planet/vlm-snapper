@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 import Testing
 @testable import VLMSnapperCore
@@ -11,7 +10,7 @@ struct CaptureFreezeCoordinatorTests {
         let coordinator = CaptureFreezeCoordinator(
             permissionChecker: PermissionChecker(hasAccess: false),
             capturer: capturer,
-            cropper: FreezeCropperStub()
+            cropper: CropperProbe(result: Data())
         )
 
         let result = await coordinator.startCapture()
@@ -25,7 +24,7 @@ struct CaptureFreezeCoordinatorTests {
 
     @Test("one display failure preserves successful frozen displays")
     func partialDisplayFailure() async {
-        let display = frozenDisplay(id: 1, width: 20, height: 20)
+        let display = makeFrozenDisplay(id: 1, width: 20, height: 20)
         let failure = DisplayCaptureFailure(
             displayID: 2,
             reason: .captureFailed
@@ -41,7 +40,7 @@ struct CaptureFreezeCoordinatorTests {
         let coordinator = CaptureFreezeCoordinator(
             permissionChecker: PermissionChecker(hasAccess: true),
             capturer: capturer,
-            cropper: FreezeCropperStub()
+            cropper: CropperProbe(result: Data())
         )
 
         let result = await coordinator.startCapture()
@@ -68,7 +67,7 @@ struct CaptureFreezeCoordinatorTests {
                     FrozenDisplayBatch(displays: [], failures: failures)
                 )
             ),
-            cropper: FreezeCropperStub()
+            cropper: CropperProbe(result: Data())
         )
 
         let result = await coordinator.startCapture()
@@ -87,7 +86,7 @@ struct CaptureFreezeCoordinatorTests {
             capturer: FrozenDisplayCapturerProbe(
                 result: .failure(CaptureDiscoveryError.permissionDenied)
             ),
-            cropper: FreezeCropperStub()
+            cropper: CropperProbe(result: Data())
         )
 
         let result = await coordinator.startCapture()
@@ -119,43 +118,4 @@ private actor FrozenDisplayCapturerProbe: FrozenDisplayCapturing {
         captureCount += 1
         return try result.get()
     }
-}
-
-private struct FreezeCropperStub: CaptureImageCropping {
-    func cropPNG(
-        frame: FrozenDisplayFrame,
-        displayID: UInt32,
-        pixelRect: PixelRect
-    ) async throws -> Data {
-        Data()
-    }
-}
-
-private func frozenDisplay(
-    id: UInt32,
-    width: Int,
-    height: Int
-) -> FrozenCaptureDisplay {
-    let context = CGContext(
-        data: nil,
-        width: width,
-        height: height,
-        bitsPerComponent: 8,
-        bytesPerRow: 0,
-        space: CGColorSpace(name: CGColorSpace.sRGB)!,
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-    )!
-    return FrozenCaptureDisplay(
-        geometry: CaptureDisplayGeometry(
-            displayID: id,
-            logicalX: 0,
-            logicalY: 0,
-            logicalWidth: Double(width),
-            logicalHeight: Double(height),
-            pixelWidth: width,
-            pixelHeight: height,
-            rotationDegrees: 0
-        ),
-        frame: FrozenDisplayFrame(image: context.makeImage()!)
-    )
 }

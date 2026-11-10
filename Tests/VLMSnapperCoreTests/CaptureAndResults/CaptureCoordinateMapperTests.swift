@@ -3,51 +3,41 @@ import Testing
 
 @Suite("Capture coordinate mapper")
 struct CaptureCoordinateMapperTests {
-    @Test("AppKit points map to top-left physical pixels on a Retina display")
-    func mapsRetinaPointAndFlipsVerticalAxis() {
-        let geometry = CaptureDisplayGeometry(
-            displayID: 7,
-            logicalX: 0,
-            logicalY: 0,
-            logicalWidth: 1440,
-            logicalHeight: 900,
-            pixelWidth: 2880,
-            pixelHeight: 1800,
-            rotationDegrees: 0
-        )
+    private static let retina = CaptureDisplayGeometry(
+        displayID: 7,
+        logicalX: 0,
+        logicalY: 0,
+        logicalWidth: 1440,
+        logicalHeight: 900,
+        pixelWidth: 2880,
+        pixelHeight: 1800,
+        rotationDegrees: 0
+    )
+    private static let small = CaptureDisplayGeometry(
+        displayID: 8,
+        logicalX: 0,
+        logicalY: 0,
+        logicalWidth: 100,
+        logicalHeight: 80,
+        pixelWidth: 200,
+        pixelHeight: 160,
+        rotationDegrees: 0
+    )
 
-        let point = CaptureCoordinateMapper.pixelPoint(
-            fromLocalAppKitPoint: CapturePoint(x: 100, y: 250),
-            geometry: geometry
-        )
-
-        #expect(point == CapturePoint(x: 200, y: 1300))
-    }
-
-    @Test("points outside the overlay clamp to the frozen image bounds")
-    func clampsOutsidePoints() {
-        let geometry = CaptureDisplayGeometry(
-            displayID: 8,
-            logicalX: 0,
-            logicalY: 0,
-            logicalWidth: 100,
-            logicalHeight: 80,
-            pixelWidth: 200,
-            pixelHeight: 160,
-            rotationDegrees: 0
-        )
-
+    // The first case maps a Retina point and flips the vertical axis; the other two lie outside the
+    // overlay and clamp to the frozen image bounds.
+    @Test("AppKit points map to top-left physical pixels and clamp to the frozen image", arguments: [
+        (retina, CapturePoint(x: 100, y: 250), CapturePoint(x: 200, y: 1300)),
+        (small, CapturePoint(x: -5, y: 100), CapturePoint(x: 0, y: 0)),
+        (small, CapturePoint(x: 110, y: -10), CapturePoint(x: 200, y: 160)),
+    ])
+    func mapsPointsToTopLeftPixelsAndClamps(
+        geometry: CaptureDisplayGeometry,
+        point: CapturePoint,
+        expected: CapturePoint
+    ) {
         #expect(
-            CaptureCoordinateMapper.pixelPoint(
-                fromLocalAppKitPoint: CapturePoint(x: -5, y: 100),
-                geometry: geometry
-            ) == CapturePoint(x: 0, y: 0)
-        )
-        #expect(
-            CaptureCoordinateMapper.pixelPoint(
-                fromLocalAppKitPoint: CapturePoint(x: 110, y: -10),
-                geometry: geometry
-            ) == CapturePoint(x: 200, y: 160)
+            CaptureCoordinateMapper.pixelPoint(fromLocalAppKitPoint: point, geometry: geometry) == expected
         )
     }
 }

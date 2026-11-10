@@ -4,58 +4,26 @@ import Testing
 
 @Suite("ScreenCaptureKit frozen display capture")
 struct ScreenCaptureKitFrozenDisplayCapturerTests {
-    @Test("A one-times display preserves its logical dimensions")
-    func preservesOneTimesDimensions() {
+    // A one-times display keeps its size, a Retina one doubles, fractions round to the nearest pixel,
+    // and a size that rounds to zero or leaves the Int range is rejected.
+    @Test("filter geometry converts to physical pixel dimensions", arguments: [
+        (1920.0, 1080.0, 1.0, CaptureRasterSize(width: 1920, height: 1080)),
+        (1512, 982, 2, CaptureRasterSize(width: 3024, height: 1964)),
+        (100.25, 50.25, 2, CaptureRasterSize(width: 201, height: 101)),
+        (0.2, 100, 1, nil),
+        (Double(Int.max), 100, 1, nil),
+    ] as [(Double, Double, Float, CaptureRasterSize?)])
+    func rasterSizeCountsPhysicalPixels(
+        width: Double,
+        height: Double,
+        scale: Float,
+        expected: CaptureRasterSize?
+    ) {
         let size = captureRasterSize(
-            contentRect: CGRect(x: 0, y: 0, width: 1920, height: 1080),
-            pointPixelScale: 1
+            contentRect: CGRect(x: 0, y: 0, width: width, height: height),
+            pointPixelScale: scale
         )
 
-        #expect(size == CaptureRasterSize(width: 1920, height: 1080))
-    }
-
-    @Test("Retina filter geometry converts to physical pixel dimensions")
-    func convertsRetinaGeometryToPhysicalPixels() {
-        let size = captureRasterSize(
-            contentRect: CGRect(x: 0, y: 0, width: 1512, height: 982),
-            pointPixelScale: 2
-        )
-
-        #expect(size == CaptureRasterSize(width: 3024, height: 1964))
-    }
-
-    @Test("Fractional physical dimensions round to the nearest pixel")
-    func roundsFractionalPhysicalDimensions() {
-        let size = captureRasterSize(
-            contentRect: CGRect(x: 0, y: 0, width: 100.25, height: 50.25),
-            pointPixelScale: 2
-        )
-
-        #expect(size == CaptureRasterSize(width: 201, height: 101))
-    }
-
-    @Test("A raster dimension that rounds to zero is rejected")
-    func rejectsRoundedZeroDimension() {
-        let size = captureRasterSize(
-            contentRect: CGRect(x: 0, y: 0, width: 0.2, height: 100),
-            pointPixelScale: 1
-        )
-
-        #expect(size == nil)
-    }
-
-    @Test("A raster dimension outside the Int range is rejected")
-    func rejectsIntegerOverflow() {
-        let size = captureRasterSize(
-            contentRect: CGRect(
-                x: 0,
-                y: 0,
-                width: Double(Int.max),
-                height: 100
-            ),
-            pointPixelScale: 1
-        )
-
-        #expect(size == nil)
+        #expect(size == expected)
     }
 }
